@@ -8,6 +8,8 @@
 - Programmatic APIs for creating, merging, reading, and writing changelogs from Node.js scripts and CI runners.
 - pm-cli extension command: `pm changelog generate`.
 - GitHub Actions support with JSON summaries, check mode, prepend mode, and `$GITHUB_OUTPUT` fields.
+- Optional `$GITHUB_STEP_SUMMARY` publishing via `--github-step-summary`.
+- GitHub Actions CI workflow for validating package builds and tests.
 - Release and milestone grouping for projects that store release metadata on pm items.
 
 ### Security

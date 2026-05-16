@@ -70,6 +70,12 @@ Expose summary values to later GitHub Actions steps:
 pm-changelog --mode prepend --version "$GITHUB_REF_NAME" --json --github-output
 ```
 
+Append the generated changelog markdown to the GitHub Actions job summary:
+
+```bash
+pm-changelog --mode prepend --version "$GITHUB_REF_NAME" --github-step-summary
+```
+
 Print markdown instead of writing a file:
 
 ```bash
@@ -107,6 +113,7 @@ Useful options:
 | `--json` | false | Print JSON summary for automation |
 | `--check` | false | Do not write; exit 1 if the output file would change |
 | `--github-output` | false | Write `output`, `mode`, `action`, `changed`, `item_count`, and `bytes` to `$GITHUB_OUTPUT` |
+| `--github-step-summary` | false | Append generated markdown to `$GITHUB_STEP_SUMMARY` |
 | `--include-empty` | false | Emit an empty section when no items match |
 | `--include-links` | false | Include item `url` values in generated entries |
 
@@ -204,7 +211,7 @@ jobs:
       - run: npm run build
       - name: Generate changelog
         id: changelog
-        run: node dist/cli.js --mode prepend --version "${GITHUB_REF_NAME}" --output CHANGELOG.md --json --github-output
+        run: node dist/cli.js --mode prepend --version "${GITHUB_REF_NAME}" --output CHANGELOG.md --json --github-output --github-step-summary
       - name: Commit changelog
         if: steps.changelog.outputs.changed == 'true'
         run: |
