@@ -107,7 +107,28 @@ test("createChangelog omits item links unless explicitly enabled", () => {
   });
 
   assert.match(linked.markdown, /- Fix multiline release title \(pm-5\) \[link\]\(https:\/\/example\.com\/unbraind\/pm-changelog\/issues\/5\)/);
-  assert.doesNotMatch(linked.markdown, /user/);
+  assert.doesNotMatch(linked.markdown, /user|token|secret/);
+});
+
+test("createChangelog strips query and hash data from item links", () => {
+  const result = createChangelog({
+    items: [
+      {
+        id: "pm-6",
+        title: "Add runner changelog output",
+        status: "closed",
+        type: "feature",
+        url: "https://example.com/issues/6?token=secret#private-note",
+        updated_at: "2026-05-17T10:00:00Z",
+      },
+    ],
+    version: "1.2.0",
+    date: "2026-05-17",
+    includeLinks: true,
+  });
+
+  assert.match(result.markdown, /\[link\]\(https:\/\/example\.com\/issues\/6\)/);
+  assert.doesNotMatch(result.markdown, /token|secret|private-note/);
 });
 
 test("mergeChangelog creates a missing changelog", () => {
@@ -254,4 +275,38 @@ test("CLI writes GitHub Actions outputs", () => {
   assert.equal(summary.itemCount, 2);
   assert.match(readFileSync(githubOutput, "utf-8"), /changed=true/);
   assert.match(readFileSync(output, "utf-8"), /## 1\.2\.0 - 2026-05-17/);
+});
+
+test("CLI stdout JSON includes markdown for runners without writing output", () => {
+  const dir = mkdtempSync(join(tmpdir(), "pm-changelog-"));
+  const input = join(dir, "items.json");
+  const output = join(dir, "CHANGELOG.md");
+  writeFileSync(input, JSON.stringify(items), "utf-8");
+
+  const stdout = execFileSync(
+    process.execPath,
+    [
+      "dist/cli.js",
+      "--input",
+      input,
+      "--output",
+      output,
+      "--stdout",
+      "--json",
+      "--version",
+      "1.2.0",
+      "--date",
+      "2026-05-17",
+    ],
+    {
+      cwd: process.cwd(),
+      encoding: "utf-8",
+    }
+  );
+
+  const summary = JSON.parse(stdout);
+  assert.equal(summary.changed, true);
+  assert.equal(summary.itemCount, 2);
+  assert.match(summary.markdown, /## 1\.2\.0 - 2026-05-17/);
+  assert.throws(() => readFileSync(output, "utf-8"));
 });

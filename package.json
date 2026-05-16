@@ -11,11 +11,14 @@
   "files": [
     "dist",
     "manifest.json",
-    "README.md"
+    "README.md",
+    "CHANGELOG.md"
   ],
   "scripts": {
     "build": "tsc",
     "check": "tsc --noEmit",
+    "changelog": "node dist/cli.js --mode prepend --output CHANGELOG.md",
+    "changelog:check": "node dist/cli.js --mode prepend --output CHANGELOG.md --check",
     "test": "npm run build && node --test"
   },
   "peerDependencies": {

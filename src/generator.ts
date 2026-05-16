@@ -359,6 +359,8 @@ function formatLink(url: string | undefined): string {
     if (parsed.protocol !== "https:" && parsed.protocol !== "http:") return "";
     parsed.username = "";
     parsed.password = "";
+    parsed.search = "";
+    parsed.hash = "";
     return ` [link](${parsed.href.replace(/\)/g, "%29")})`;
   } catch {
     return "";

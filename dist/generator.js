@@ -303,6 +303,8 @@ function formatLink(url) {
             return "";
         parsed.username = "";
         parsed.password = "";
+        parsed.search = "";
+        parsed.hash = "";
         return ` [link](${parsed.href.replace(/\)/g, "%29")})`;
     }
     catch {
