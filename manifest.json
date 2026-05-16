@@ -1,0 +1,11 @@
+{
+  "name": "pm-changelog",
+  "version": "0.1.0",
+  "description": "Generate CHANGELOG.md release notes from pm-cli items",
+  "author": "@unbraind",
+  "entry": "./dist/extension.js",
+  "priority": 50,
+  "capabilities": [
+    "commands"
+  ]
+}

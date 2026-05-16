@@ -1,0 +1,36 @@
+{
+  "name": "pm-changelog",
+  "version": "0.1.0",
+  "description": "Generate CHANGELOG.md files from pm-cli items for local and CI usage",
+  "type": "module",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "bin": {
+    "pm-changelog": "dist/cli.js"
+  },
+  "files": [
+    "dist",
+    "manifest.json",
+    "README.md"
+  ],
+  "scripts": {
+    "build": "tsc",
+    "check": "tsc --noEmit"
+  },
+  "peerDependencies": {
+    "@unbrained/pm-cli": ">=2026.5.0"
+  },
+  "devDependencies": {
+    "@types/node": "^20.12.0",
+    "@unbrained/pm-cli": "^2026.5.10",
+    "typescript": "^5.0.0"
+  },
+  "keywords": [
+    "pm-cli",
+    "changelog",
+    "release-notes",
+    "github-actions",
+    "ci"
+  ],
+  "license": "MIT"
+}
