@@ -175,18 +175,11 @@ function filterItems(options) {
         .sort(compareItems);
 }
 function buildSections(items, options) {
+    if (options.groupBy === "release" && !options.version) {
+        return groupSectionsByMetadata(items, "release", "Unreleased");
+    }
     if (options.groupBy === "milestone" && !options.version) {
-        const byMilestone = new Map();
-        for (const item of items) {
-            const key = item.milestone?.trim() || "Unreleased";
-            const group = byMilestone.get(key) ?? [];
-            group.push(item);
-            byMilestone.set(key, group);
-        }
-        return Array.from(byMilestone.entries()).map(([heading, groupedItems]) => ({
-            heading,
-            items: groupedItems,
-        }));
+        return groupSectionsByMetadata(items, "milestone", "Unreleased");
     }
     return [
         {
@@ -194,6 +187,19 @@ function buildSections(items, options) {
             items,
         },
     ];
+}
+function groupSectionsByMetadata(items, field, fallback) {
+    const grouped = new Map();
+    for (const item of items) {
+        const key = getStringField(item, field) || fallback;
+        const group = grouped.get(key) ?? [];
+        group.push(item);
+        grouped.set(key, group);
+    }
+    return Array.from(grouped.entries()).map(([heading, groupedItems]) => ({
+        heading,
+        items: groupedItems,
+    }));
 }
 function buildVersionHeading(version, date) {
     const heading = version?.trim() || "Unreleased";
@@ -287,6 +293,15 @@ function formatItem(item) {
     const id = item.id ? ` (${escapeMarkdown(item.id)})` : "";
     const link = item.url ? ` [link](${item.url})` : "";
     return `${title}${id}${link}`;
+}
+function getStringField(item, field) {
+    const direct = item[field];
+    if (typeof direct === "string" && direct.trim())
+        return direct.trim();
+    const fromMetadata = item.metadata?.[field];
+    if (typeof fromMetadata === "string" && fromMetadata.trim())
+        return fromMetadata.trim();
+    return undefined;
 }
 function compareItems(a, b) {
     const aTime = Date.parse(a.closed_at ?? a.updated_at ?? a.created_at ?? "");

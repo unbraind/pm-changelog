@@ -12,6 +12,7 @@ export default defineExtension({
                 "pm changelog generate",
                 "pm changelog generate --version 1.2.0",
                 "pm changelog generate --output RELEASE_NOTES.md --since 2026-05-01",
+                "pm changelog generate --stdout --group-by release",
                 "pm changelog generate --stdout --group-by milestone",
                 "pm changelog generate --check --mode prepend --version 1.2.0",
             ],
@@ -24,7 +25,7 @@ export default defineExtension({
                 { long: "--since", value_name: "date", description: "Include items changed on or after this date" },
                 { long: "--until", value_name: "date", description: "Include items changed on or before this date" },
                 { long: "--status", value_name: "list", description: "Comma-separated statuses (default: closed)" },
-                { long: "--group-by", value_name: "mode", description: "version or milestone (default: version)" },
+                { long: "--group-by", value_name: "mode", description: "version, release, or milestone (default: version)" },
                 { long: "--mode", value_name: "mode", description: "replace or prepend existing changelog (default: replace)" },
                 { long: "--include-empty", description: "Emit an empty release section when no items match" },
                 { long: "--check", description: "Do not write; report whether the changelog would change" },
@@ -34,8 +35,8 @@ export default defineExtension({
                 const stdout = Boolean(ctx.options["stdout"]);
                 const groupByOption = ctx.options["group-by"] ?? "version";
                 const modeOption = ctx.options["mode"] ?? "replace";
-                if (groupByOption !== "version" && groupByOption !== "milestone") {
-                    return { error: "--group-by must be 'version' or 'milestone'" };
+                if (groupByOption !== "version" && groupByOption !== "release" && groupByOption !== "milestone") {
+                    return { error: "--group-by must be 'version', 'release', or 'milestone'" };
                 }
                 if (modeOption !== "replace" && modeOption !== "prepend") {
                     return { error: "--mode must be 'replace' or 'prepend'" };

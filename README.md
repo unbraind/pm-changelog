@@ -75,6 +75,12 @@ Read JSON from a previous step:
 pm list-all --json | pm-changelog --stdin --stdout
 ```
 
+Generate one section per `release` metadata value from pm items:
+
+```bash
+pm-changelog --group-by release --mode prepend --output CHANGELOG.md
+```
+
 Useful options:
 
 | Option | Default | Description |
@@ -89,7 +95,7 @@ Useful options:
 | `--since <date>` | - | Include items changed on or after date |
 | `--until <date>` | - | Include items changed on or before date |
 | `--status <list>` | `closed` | Comma-separated statuses |
-| `--group-by <mode>` | `version` | `version` or `milestone` |
+| `--group-by <mode>` | `version` | `version`, `release`, or `milestone` |
 | `--mode <mode>` | `replace` | `replace` or `prepend` existing changelog |
 | `--json` | false | Print JSON summary for automation |
 | `--check` | false | Do not write; exit 1 if the output file would change |
@@ -102,6 +108,7 @@ Useful options:
 pm changelog generate
 pm changelog generate --version 1.2.0 --output CHANGELOG.md
 pm changelog generate --stdout --group-by milestone
+pm changelog generate --stdout --group-by release
 pm changelog generate --mode prepend --version "$GITHUB_REF_NAME"
 pm changelog generate --check --mode prepend --version "$GITHUB_REF_NAME"
 ```
@@ -116,7 +123,7 @@ const result = writeChangelog({
   items,
   output: "CHANGELOG.md",
   mode: "prepend",
-  version: process.env.GITHUB_REF_NAME,
+  groupBy: "release",
   since: process.env.CHANGELOG_SINCE,
 });
 
@@ -127,6 +134,8 @@ console.log({
   output: result.output,
 });
 ```
+
+Use `version` when a runner is generating one release section from the current job context. Use `groupBy: "release"` or `--group-by release` when pm items already carry release metadata and a runner should rebuild multiple sections in one pass.
 
 You can also pass items directly:
 

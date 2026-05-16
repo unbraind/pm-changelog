@@ -13,6 +13,7 @@ const items = [
     title: "Fix runner status export",
     status: "closed",
     type: "bug",
+    release: "1.2.0",
     updated_at: "2026-05-17T09:00:00Z",
   },
   {
@@ -20,6 +21,9 @@ const items = [
     title: "Add GitHub Actions changelog command",
     status: "closed",
     type: "feature",
+    metadata: {
+      release: "1.2.0",
+    },
     updated_at: "2026-05-16T09:00:00Z",
   },
   {
@@ -43,6 +47,28 @@ test("createChangelog groups closed items by category", () => {
   assert.match(result.markdown, /### Added\n\n- Add GitHub Actions changelog command \(pm-1\)/);
   assert.match(result.markdown, /### Fixed\n\n- Fix runner status export \(pm-2\)/);
   assert.doesNotMatch(result.markdown, /Draft release notes/);
+});
+
+test("createChangelog can group items by release metadata", () => {
+  const result = createChangelog({
+    items: [
+      ...items,
+      {
+        id: "pm-4",
+        title: "Improve release note rendering",
+        status: "closed",
+        type: "task",
+        release: "1.1.0",
+        updated_at: "2026-05-15T09:00:00Z",
+      },
+    ],
+    date: "2026-05-17",
+    groupBy: "release",
+  });
+
+  assert.equal(result.itemCount, 3);
+  assert.match(result.markdown, /## 1\.2\.0\n\n### Added[\s\S]*## 1\.1\.0\n\n### Changed/);
+  assert.match(result.markdown, /- Improve release note rendering \(pm-4\)/);
 });
 
 test("mergeChangelog creates a missing changelog", () => {
