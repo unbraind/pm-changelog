@@ -1,2 +1,2 @@
-export { generateChangelog, parsePmItemsJson, readPmItems, } from "./generator.js";
+export { createChangelog, generateChangelog, mergeChangelog, parsePmItemsJson, readPmItems, } from "./generator.js";
 //# sourceMappingURL=index.js.map

@@ -35,6 +35,24 @@ export interface GenerateChangelogOptions {
   includeEmpty?: boolean;
 }
 
+export interface GeneratedChangelog {
+  markdown: string;
+  sections: ChangelogSection[];
+  itemCount: number;
+}
+
+export type ChangelogMergeAction = "created" | "inserted" | "replaced" | "unchanged";
+
+export interface MergeChangelogOptions {
+  title?: string;
+}
+
+export interface MergeChangelogResult {
+  markdown: string;
+  action: ChangelogMergeAction;
+  changed: boolean;
+}
+
 export interface ReadPmItemsOptions {
   pmRoot?: string;
   pmBin?: string;
