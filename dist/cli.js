@@ -26,6 +26,8 @@ async function main() {
         const summary = buildSummary(options, result, outputPath);
         if (options.githubOutput)
             writeGitHubOutput(summary);
+        if (options.githubStepSummary)
+            writeGitHubStepSummary(result.markdown);
         if (options.json) {
             process.stdout.write(JSON.stringify(summary) + "\n");
         }
@@ -69,9 +71,13 @@ async function main() {
             });
             if (options.githubOutput)
                 writeGitHubOutput(summary);
+            if (options.githubStepSummary)
+                writeGitHubStepSummary(merged.markdown);
             process.stdout.write(JSON.stringify(summary) + "\n");
             return;
         }
+        if (options.githubStepSummary)
+            writeGitHubStepSummary(merged.markdown);
         process.stdout.write(merged.markdown);
         return;
     }
@@ -88,6 +94,7 @@ function parseArgs(args) {
         mode: "replace",
         check: false,
         githubOutput: false,
+        githubStepSummary: false,
     };
     for (let i = 0; i < args.length; i++) {
         const arg = args[i];
@@ -112,6 +119,9 @@ function parseArgs(args) {
             case "--github-output":
             case "--set-output":
                 options.githubOutput = true;
+                break;
+            case "--github-step-summary":
+                options.githubStepSummary = true;
                 break;
             case "--input":
             case "-i":
@@ -223,6 +233,13 @@ function writeGitHubOutput(summary) {
     ];
     appendFileSync(githubOutput, `${lines.join("\n")}\n`, "utf-8");
 }
+function writeGitHubStepSummary(markdown) {
+    const githubStepSummary = process.env.GITHUB_STEP_SUMMARY;
+    if (!githubStepSummary) {
+        throw new Error("--github-step-summary requires the GITHUB_STEP_SUMMARY environment variable");
+    }
+    appendFileSync(githubStepSummary, `${markdown.trimEnd()}\n`, "utf-8");
+}
 function requireValue(args, index, flag) {
     const value = args[index];
     if (!value || value.startsWith("--")) {
@@ -244,6 +261,7 @@ Options:
       --json                Print a JSON summary for CI/runners
       --check               Do not write; exit 1 when output would change
       --github-output       Write summary fields to $GITHUB_OUTPUT
+      --github-step-summary Append generated markdown to $GITHUB_STEP_SUMMARY
   -i, --input <file>        Read pm JSON from a file instead of running pm
       --stdin               Read pm JSON from stdin
       --pm-root <dir>       pm project root for "pm --path <dir> list-all --json"

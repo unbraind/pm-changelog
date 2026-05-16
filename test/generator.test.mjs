@@ -277,6 +277,39 @@ test("CLI writes GitHub Actions outputs", () => {
   assert.match(readFileSync(output, "utf-8"), /## 1\.2\.0 - 2026-05-17/);
 });
 
+test("CLI can append generated markdown to GitHub step summary", () => {
+  const dir = mkdtempSync(join(tmpdir(), "pm-changelog-"));
+  const input = join(dir, "items.json");
+  const output = join(dir, "CHANGELOG.md");
+  const stepSummary = join(dir, "step-summary.md");
+  writeFileSync(input, JSON.stringify(items), "utf-8");
+
+  execFileSync(
+    process.execPath,
+    [
+      "dist/cli.js",
+      "--input",
+      input,
+      "--output",
+      output,
+      "--version",
+      "1.2.0",
+      "--date",
+      "2026-05-17",
+      "--github-step-summary",
+    ],
+    {
+      cwd: process.cwd(),
+      env: { ...process.env, GITHUB_STEP_SUMMARY: stepSummary },
+      encoding: "utf-8",
+    }
+  );
+
+  const summary = readFileSync(stepSummary, "utf-8");
+  assert.match(summary, /^# Changelog\n\n## 1\.2\.0 - 2026-05-17/m);
+  assert.match(summary, /- Add GitHub Actions changelog command \(pm-1\)/);
+});
+
 test("CLI stdout JSON includes markdown for runners without writing output", () => {
   const dir = mkdtempSync(join(tmpdir(), "pm-changelog-"));
   const input = join(dir, "items.json");

@@ -31,6 +31,7 @@ interface CliOptions {
   mode: "replace" | "prepend";
   check: boolean;
   githubOutput: boolean;
+  githubStepSummary: boolean;
 }
 
 async function main(): Promise<void> {
@@ -57,6 +58,7 @@ async function main(): Promise<void> {
     const summary = buildSummary(options, result, outputPath);
 
     if (options.githubOutput) writeGitHubOutput(summary);
+    if (options.githubStepSummary) writeGitHubStepSummary(result.markdown);
     if (options.json) {
       process.stdout.write(JSON.stringify(summary) + "\n");
     } else if (options.check) {
@@ -99,9 +101,11 @@ async function main(): Promise<void> {
         bytes: Buffer.byteLength(merged.markdown, "utf-8"),
       });
       if (options.githubOutput) writeGitHubOutput(summary);
+      if (options.githubStepSummary) writeGitHubStepSummary(merged.markdown);
       process.stdout.write(JSON.stringify(summary) + "\n");
       return;
     }
+    if (options.githubStepSummary) writeGitHubStepSummary(merged.markdown);
     process.stdout.write(merged.markdown);
     return;
   }
@@ -120,6 +124,7 @@ function parseArgs(args: string[]): CliOptions {
     mode: "replace",
     check: false,
     githubOutput: false,
+    githubStepSummary: false,
   };
 
   for (let i = 0; i < args.length; i++) {
@@ -145,6 +150,9 @@ function parseArgs(args: string[]): CliOptions {
       case "--github-output":
       case "--set-output":
         options.githubOutput = true;
+        break;
+      case "--github-step-summary":
+        options.githubStepSummary = true;
         break;
       case "--input":
       case "-i":
@@ -276,6 +284,15 @@ function writeGitHubOutput(summary: Record<string, unknown>): void {
   appendFileSync(githubOutput, `${lines.join("\n")}\n`, "utf-8");
 }
 
+function writeGitHubStepSummary(markdown: string): void {
+  const githubStepSummary = process.env.GITHUB_STEP_SUMMARY;
+  if (!githubStepSummary) {
+    throw new Error("--github-step-summary requires the GITHUB_STEP_SUMMARY environment variable");
+  }
+
+  appendFileSync(githubStepSummary, `${markdown.trimEnd()}\n`, "utf-8");
+}
+
 function requireValue(args: string[], index: number, flag: string): string {
   const value = args[index];
   if (!value || value.startsWith("--")) {
@@ -298,6 +315,7 @@ Options:
       --json                Print a JSON summary for CI/runners
       --check               Do not write; exit 1 when output would change
       --github-output       Write summary fields to $GITHUB_OUTPUT
+      --github-step-summary Append generated markdown to $GITHUB_STEP_SUMMARY
   -i, --input <file>        Read pm JSON from a file instead of running pm
       --stdin               Read pm JSON from stdin
       --pm-root <dir>       pm project root for "pm --path <dir> list-all --json"
