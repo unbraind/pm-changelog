@@ -71,6 +71,45 @@ test("createChangelog can group items by release metadata", () => {
   assert.match(result.markdown, /- Improve release note rendering \(pm-4\)/);
 });
 
+test("createChangelog omits item links unless explicitly enabled", () => {
+  const result = createChangelog({
+    items: [
+      {
+        id: "pm-5",
+        title: "Fix multiline\nrelease title",
+        status: "closed",
+        type: "bug",
+        url: "https://user@example.com/unbraind/pm-changelog/issues/5",
+        updated_at: "2026-05-17T10:00:00Z",
+      },
+    ],
+    version: "1.2.0",
+    date: "2026-05-17",
+  });
+
+  assert.match(result.markdown, /- Fix multiline release title \(pm-5\)$/m);
+  assert.doesNotMatch(result.markdown, /example\.com|user/);
+
+  const linked = createChangelog({
+    items: [
+      {
+        id: "pm-5",
+        title: "Fix multiline\nrelease title",
+        status: "closed",
+        type: "bug",
+        url: "https://user@example.com/unbraind/pm-changelog/issues/5",
+        updated_at: "2026-05-17T10:00:00Z",
+      },
+    ],
+    version: "1.2.0",
+    date: "2026-05-17",
+    includeLinks: true,
+  });
+
+  assert.match(linked.markdown, /- Fix multiline release title \(pm-5\) \[link\]\(https:\/\/example\.com\/unbraind\/pm-changelog\/issues\/5\)/);
+  assert.doesNotMatch(linked.markdown, /user/);
+});
+
 test("mergeChangelog creates a missing changelog", () => {
   const generated = createChangelog({
     items,

@@ -61,7 +61,7 @@ export function createChangelog(options: GenerateChangelogOptions): GeneratedCha
 
       lines.push(`### ${category}`, "");
       for (const item of categoryItems) {
-        lines.push(`- ${formatItem(item)}`);
+        lines.push(`- ${formatItem(item, options)}`);
       }
       lines.push("");
     }
@@ -345,11 +345,24 @@ function hasAny(value: string, needles: string[]): boolean {
   return needles.some((needle) => new RegExp(`\\b${escapeRegExp(needle)}\\b`).test(value));
 }
 
-function formatItem(item: PmItem): string {
-  const title = escapeMarkdown(item.title.trim());
+function formatItem(item: PmItem, options: GenerateChangelogOptions): string {
+  const title = escapeMarkdown(toSingleLine(item.title));
   const id = item.id ? ` (${escapeMarkdown(item.id)})` : "";
-  const link = item.url ? ` [link](${item.url})` : "";
+  const link = options.includeLinks ? formatLink(item.url) : "";
   return `${title}${id}${link}`;
+}
+
+function formatLink(url: string | undefined): string {
+  if (!url) return "";
+  try {
+    const parsed = new URL(toSingleLine(url));
+    if (parsed.protocol !== "https:" && parsed.protocol !== "http:") return "";
+    parsed.username = "";
+    parsed.password = "";
+    return ` [link](${parsed.href.replace(/\)/g, "%29")})`;
+  } catch {
+    return "";
+  }
 }
 
 function getStringField(item: PmItem, field: "release" | "milestone"): string | undefined {
@@ -371,6 +384,10 @@ function compareItems(a: PmItem, b: PmItem): number {
 
 function escapeMarkdown(value: string): string {
   return value.replace(/([\\`*_[\]()#|>])/g, "\\$1");
+}
+
+function toSingleLine(value: string): string {
+  return value.trim().replace(/\s+/g, " ");
 }
 
 function escapeRegExp(value: string): string {

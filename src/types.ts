@@ -37,6 +37,7 @@ export interface GenerateChangelogOptions {
   includeStatuses?: string[];
   groupBy?: ChangelogGroupBy;
   includeEmpty?: boolean;
+  includeLinks?: boolean;
 }
 
 export interface GeneratedChangelog {
