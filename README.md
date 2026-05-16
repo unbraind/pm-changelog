@@ -45,6 +45,13 @@ Create or update `CHANGELOG.md` while preserving older entries:
 pm-changelog --mode prepend --version "$GITHUB_REF_NAME" --output CHANGELOG.md
 ```
 
+After building, the package also exposes npm scripts for projects that install it locally:
+
+```bash
+npm run changelog -- --version "$GITHUB_REF_NAME"
+npm run changelog:check -- --version "$GITHUB_REF_NAME"
+```
+
 Emit runner-readable metadata:
 
 ```bash
@@ -139,7 +146,7 @@ console.log({
 
 Use `version` when a runner is generating one release section from the current job context. Use `groupBy: "release"` or `--group-by release` when pm items already carry release metadata and a runner should rebuild multiple sections in one pass.
 
-Item links are omitted by default so public CI jobs do not accidentally publish private tracker URLs. Pass `--include-links` or `includeLinks: true` when item URLs are safe to expose.
+Item links are omitted by default so public CI jobs do not accidentally publish private tracker URLs. Pass `--include-links` or `includeLinks: true` when item URLs are safe to expose. When links are included, credentials, query strings, and fragments are stripped before markdown is emitted.
 
 You can also pass items directly:
 
