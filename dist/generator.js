@@ -11,6 +11,9 @@ const CATEGORY_ORDER = [
     "Other",
 ];
 export function generateChangelog(options) {
+    return createChangelog(options).markdown;
+}
+export function createChangelog(options) {
     const title = options.title ?? DEFAULT_TITLE;
     const items = filterItems(options);
     const sections = buildSections(items, options);
@@ -20,7 +23,11 @@ export function generateChangelog(options) {
             const heading = buildVersionHeading(options.version, options.date);
             lines.push(`## ${heading}`, "", "No changes.", "");
         }
-        return lines.join("\n").trimEnd() + "\n";
+        return {
+            markdown: lines.join("\n").trimEnd() + "\n",
+            sections,
+            itemCount: items.length,
+        };
     }
     for (const section of sections) {
         lines.push(`## ${section.heading}`, "");
@@ -36,7 +43,51 @@ export function generateChangelog(options) {
             lines.push("");
         }
     }
-    return lines.join("\n").trimEnd() + "\n";
+    return {
+        markdown: lines.join("\n").trimEnd() + "\n",
+        sections,
+        itemCount: items.length,
+    };
+}
+export function mergeChangelog(existingMarkdown, generatedMarkdown, options = {}) {
+    const existing = existingMarkdown?.trimEnd();
+    const generated = generatedMarkdown.trimEnd();
+    if (!existing) {
+        return {
+            markdown: generated + "\n",
+            action: "created",
+            changed: true,
+        };
+    }
+    const releaseSections = extractReleaseSections(generated);
+    if (releaseSections.length === 0) {
+        const unchanged = existing + "\n";
+        return {
+            markdown: unchanged,
+            action: "unchanged",
+            changed: false,
+        };
+    }
+    let next = ensureTitle(existing, options.title);
+    let action = "unchanged";
+    for (const releaseSection of releaseSections) {
+        const replacement = releaseSection.markdown.trimEnd();
+        const replaced = replaceReleaseSection(next, releaseSection.heading, replacement);
+        if (replaced.replaced) {
+            next = replaced.markdown;
+            action = "replaced";
+            continue;
+        }
+        next = insertAfterTitle(next, replacement);
+        if (action !== "replaced")
+            action = "inserted";
+    }
+    next = next.trimEnd() + "\n";
+    return {
+        markdown: next,
+        action,
+        changed: next !== existing + "\n",
+    };
 }
 export function readPmItems(options = {}) {
     const pmBin = options.pmBin ?? "pm";
@@ -109,6 +160,51 @@ function buildVersionHeading(version, date) {
     const heading = version?.trim() || "Unreleased";
     const stamp = date?.trim() || formatLocalDate(new Date());
     return `${heading} - ${stamp}`;
+}
+function extractReleaseSections(markdown) {
+    const releaseHeading = /^##\s+(.+)$/gm;
+    const matches = Array.from(markdown.matchAll(releaseHeading));
+    return matches.map((match, index) => {
+        const start = match.index ?? 0;
+        const next = matches[index + 1];
+        const end = next?.index ?? markdown.length;
+        return {
+            heading: match[1].trim(),
+            markdown: markdown.slice(start, end).trimEnd(),
+        };
+    });
+}
+function replaceReleaseSection(markdown, heading, replacement) {
+    const releaseHeading = /^##\s+(.+)$/gm;
+    const matches = Array.from(markdown.matchAll(releaseHeading));
+    const matchIndex = matches.findIndex((match) => match[1].trim() === heading);
+    if (matchIndex === -1)
+        return { markdown, replaced: false };
+    const match = matches[matchIndex];
+    const start = match.index ?? 0;
+    const nextMatch = matches[matchIndex + 1];
+    const end = nextMatch?.index ?? markdown.length;
+    const before = markdown.slice(0, start).trimEnd();
+    const after = markdown.slice(end).trimStart();
+    const merged = after ? `${before}\n\n${replacement}\n\n${after}` : `${before}\n\n${replacement}`;
+    return { markdown: merged, replaced: true };
+}
+function ensureTitle(markdown, title) {
+    if (/^#\s+.+$/m.test(markdown))
+        return markdown;
+    return `# ${title ?? DEFAULT_TITLE}\n\n${markdown.trimStart()}`;
+}
+function insertAfterTitle(markdown, releaseSection) {
+    const titleMatch = markdown.match(/^#\s+.+$/m);
+    if (!titleMatch || titleMatch.index === undefined) {
+        return `${releaseSection}\n\n${markdown.trimStart()}`;
+    }
+    const titleEnd = titleMatch.index + titleMatch[0].length;
+    const before = markdown.slice(0, titleEnd).trimEnd();
+    const after = markdown.slice(titleEnd).trim();
+    if (!after)
+        return `${before}\n\n${releaseSection}`;
+    return `${before}\n\n${releaseSection}\n\n${after}`;
 }
 function groupByCategory(items) {
     const grouped = new Map();

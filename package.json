@@ -15,7 +15,8 @@
   ],
   "scripts": {
     "build": "tsc",
-    "check": "tsc --noEmit"
+    "check": "tsc --noEmit",
+    "test": "npm run build && node --test"
   },
   "peerDependencies": {
     "@unbrained/pm-cli": ">=2026.5.0"

@@ -1,12 +1,12 @@
 #!/usr/bin/env node
-import { readFileSync, writeFileSync } from "node:fs";
+import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { stdin } from "node:process";
-import { generateChangelog, parsePmItemsJson, readPmItems } from "./generator.js";
+import { createChangelog, mergeChangelog, parsePmItemsJson, readPmItems } from "./generator.js";
 async function main() {
     const options = parseArgs(process.argv.slice(2));
     const items = await loadItems(options);
-    const markdown = generateChangelog({
+    const generated = createChangelog({
         items,
         title: options.title,
         version: options.version,
@@ -17,21 +17,39 @@ async function main() {
         groupBy: options.groupBy,
         includeEmpty: options.includeEmpty,
     });
+    const outputPath = resolve(options.output);
+    const existing = options.mode === "prepend" && existsSync(outputPath)
+        ? readFileSync(outputPath, "utf-8")
+        : undefined;
+    const merged = options.mode === "prepend"
+        ? mergeChangelog(existing, generated.markdown, { title: options.title })
+        : { markdown: generated.markdown, action: "replaced", changed: true };
     if (options.stdout) {
-        process.stdout.write(markdown);
+        if (options.json) {
+            process.stdout.write(JSON.stringify(buildSummary(options, generated.itemCount, merged)) + "\n");
+            return;
+        }
+        process.stdout.write(merged.markdown);
         return;
     }
-    const outputPath = resolve(options.output);
-    writeFileSync(outputPath, markdown, "utf-8");
-    console.error(`Wrote ${outputPath}`);
+    writeFileSync(outputPath, merged.markdown, "utf-8");
+    const summary = buildSummary(options, generated.itemCount, merged, outputPath);
+    if (options.json) {
+        process.stdout.write(JSON.stringify(summary) + "\n");
+    }
+    else {
+        console.error(`Wrote ${outputPath}`);
+    }
 }
 function parseArgs(args) {
     const options = {
         output: "CHANGELOG.md",
         stdout: false,
+        json: false,
         stdin: false,
         groupBy: "version",
         includeEmpty: false,
+        mode: "replace",
     };
     for (let i = 0; i < args.length; i++) {
         const arg = args[i];
@@ -46,6 +64,9 @@ function parseArgs(args) {
                 break;
             case "--stdout":
                 options.stdout = true;
+                break;
+            case "--json":
+                options.json = true;
                 break;
             case "--input":
             case "-i":
@@ -82,6 +103,9 @@ function parseArgs(args) {
             case "--group-by":
                 options.groupBy = parseGroupBy(requireValue(args, ++i, arg));
                 break;
+            case "--mode":
+                options.mode = parseMode(requireValue(args, ++i, arg));
+                break;
             case "--include-empty":
                 options.includeEmpty = true;
                 break;
@@ -116,6 +140,22 @@ function parseGroupBy(value) {
         return value;
     throw new Error("--group-by must be 'version' or 'milestone'");
 }
+function parseMode(value) {
+    if (value === "replace" || value === "prepend")
+        return value;
+    throw new Error("--mode must be 'replace' or 'prepend'");
+}
+function buildSummary(options, itemCount, merge, output) {
+    return {
+        output,
+        mode: options.mode,
+        action: merge.action,
+        changed: merge.changed,
+        itemCount,
+        bytes: Buffer.byteLength(merge.markdown, "utf-8"),
+        markdown: options.stdout ? merge.markdown : undefined,
+    };
+}
 function requireValue(args, index, flag) {
     const value = args[index];
     if (!value || value.startsWith("--")) {
@@ -134,6 +174,7 @@ Usage:
 Options:
   -o, --output <file>       Write changelog to a file (default: CHANGELOG.md)
       --stdout              Print markdown instead of writing a file
+      --json                Print a JSON summary for CI/runners
   -i, --input <file>        Read pm JSON from a file instead of running pm
       --stdin               Read pm JSON from stdin
       --pm-root <dir>       pm project root for "pm --path <dir> list-all --json"
@@ -144,6 +185,7 @@ Options:
       --until <date>        Include items changed on or before this date
       --status <list>       Comma-separated statuses (default: closed)
       --group-by <mode>     version or milestone (default: version)
+      --mode <mode>         replace or prepend existing changelog (default: replace)
       --include-empty       Emit an empty release section when no items match
 `);
 }
