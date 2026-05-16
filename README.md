@@ -94,6 +94,12 @@ Use a pinned or wrapped pm executable in a runner:
 pm-changelog --pm-bin ./node_modules/.bin/pm --mode prepend --version "$GITHUB_REF_NAME"
 ```
 
+Pass runner-specific arguments and a working directory to wrapped pm commands:
+
+```bash
+pm-changelog --pm-bin ./pm-wrapper --pm-arg --profile --pm-arg ci --pm-cwd "$GITHUB_WORKSPACE" --mode prepend
+```
+
 Generate one section per `release` metadata value from pm items:
 
 ```bash
@@ -110,6 +116,8 @@ Useful options:
 | `--stdin` | false | Read pm JSON from stdin |
 | `--pm-root <dir>` | - | Run `pm --path <dir> list-all --json` |
 | `--pm-bin <file>` | `pm` | pm executable to run, useful for pinned local installs and runner wrappers |
+| `--pm-arg <arg>` | - | Extra argument passed before `list-all --json`; repeat for multiple args |
+| `--pm-cwd <dir>` | - | Working directory for running pm |
 | `--version <version>` | `Unreleased` | Version heading |
 | `--date <date>` | today | Release date |
 | `--since <date>` | - | Include items changed on or after date |
