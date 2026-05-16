@@ -133,6 +133,9 @@ function parseArgs(args) {
             case "--pm-root":
                 options.pmRoot = requireValue(args, ++i, arg);
                 break;
+            case "--pm-bin":
+                options.pmBin = requireValue(args, ++i, arg);
+                break;
             case "--title":
                 options.title = requireValue(args, ++i, arg);
                 break;
@@ -183,7 +186,7 @@ async function loadItems(options) {
     if (options.input) {
         return parsePmItemsJson(readFileSync(resolve(options.input), "utf-8"));
     }
-    return readPmItems({ pmRoot: options.pmRoot });
+    return readPmItems({ pmRoot: options.pmRoot, pmBin: options.pmBin });
 }
 function readStdin() {
     return new Promise((resolvePromise, reject) => {
@@ -265,6 +268,7 @@ Options:
   -i, --input <file>        Read pm JSON from a file instead of running pm
       --stdin               Read pm JSON from stdin
       --pm-root <dir>       pm project root for "pm --path <dir> list-all --json"
+      --pm-bin <file>       pm executable to run (default: pm)
       --title <text>        Changelog title (default: Changelog)
       --version <version>   Version heading (default: Unreleased)
       --date <date>         Release date (default: today)

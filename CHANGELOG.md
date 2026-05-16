@@ -6,6 +6,8 @@
 
 - Initial `pm-changelog` CLI for generating `CHANGELOG.md` from pm item JSON or `pm list-all --json`.
 - Programmatic APIs for creating, merging, reading, and writing changelogs from Node.js scripts and CI runners.
+- Custom pm executable support via `--pm-bin` and `readPmItems({ pmBin })`.
+- Programmatic runner wrapper support with `readPmItems({ pmArgs, cwd, env })`.
 - pm-cli extension command: `pm changelog generate`.
 - GitHub Actions support with JSON summaries, check mode, prepend mode, and `$GITHUB_OUTPUT` fields.
 - Optional `$GITHUB_STEP_SUMMARY` publishing via `--github-step-summary`.

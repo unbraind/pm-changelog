@@ -126,12 +126,16 @@ export function mergeChangelog(
 
 export function readPmItems(options: ReadPmItemsOptions = {}): PmItem[] {
   const pmBin = options.pmBin ?? "pm";
-  const args = ["list-all", "--json"];
+  const args = [...(options.pmArgs ?? []), "list-all", "--json"];
   if (options.pmRoot) {
     args.unshift("--path", options.pmRoot);
   }
 
-  const result = spawnSync(pmBin, args, { encoding: "utf-8" });
+  const result = spawnSync(pmBin, args, {
+    cwd: options.cwd,
+    env: options.env,
+    encoding: "utf-8",
+  });
   if (result.status !== 0) {
     throw new Error(result.stderr || `${pmBin} list-all --json failed`);
   }

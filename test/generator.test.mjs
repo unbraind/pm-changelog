@@ -1,11 +1,11 @@
 import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
-import { mkdtempSync, readFileSync, writeFileSync } from "node:fs";
+import { chmodSync, mkdtempSync, readFileSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import test from "node:test";
 
-import { createChangelog, mergeChangelog, writeChangelog } from "../dist/index.js";
+import { createChangelog, mergeChangelog, readPmItems, writeChangelog } from "../dist/index.js";
 
 const items = [
   {
@@ -342,4 +342,69 @@ test("CLI stdout JSON includes markdown for runners without writing output", () 
   assert.equal(summary.itemCount, 2);
   assert.match(summary.markdown, /## 1\.2\.0 - 2026-05-17/);
   assert.throws(() => readFileSync(output, "utf-8"));
+});
+
+test("readPmItems supports runner wrappers with custom binaries, args, cwd, and env", () => {
+  const dir = mkdtempSync(join(tmpdir(), "pm-changelog-"));
+  const fixture = join(dir, "fixture.json");
+  const wrapper = join(dir, "pm-wrapper.mjs");
+  writeFileSync(fixture, JSON.stringify(items), "utf-8");
+  writeFileSync(
+    wrapper,
+    `#!/usr/bin/env node
+import { readFileSync } from "node:fs";
+import { resolve } from "node:path";
+
+if (process.argv.slice(2).join(" ") !== "--profile ci list-all --json") process.exit(2);
+if (process.env.PM_CHANGELOG_TEST !== "1") process.exit(3);
+process.stdout.write(readFileSync(resolve(process.cwd(), "fixture.json"), "utf-8"));
+`,
+    "utf-8"
+  );
+  chmodSync(wrapper, 0o755);
+
+  const result = readPmItems({
+    pmBin: wrapper,
+    pmArgs: ["--profile", "ci"],
+    cwd: dir,
+    env: { ...process.env, PM_CHANGELOG_TEST: "1" },
+  });
+
+  assert.equal(result.length, 3);
+  assert.equal(result[0].id, "pm-2");
+});
+
+test("CLI can run a custom pm binary", () => {
+  const dir = mkdtempSync(join(tmpdir(), "pm-changelog-"));
+  const wrapper = join(dir, "pm-wrapper.mjs");
+  writeFileSync(
+    wrapper,
+    `#!/usr/bin/env node
+if (process.argv.slice(2).join(" ") !== "list-all --json") process.exit(2);
+process.stdout.write(${JSON.stringify(JSON.stringify(items))});
+`,
+    "utf-8"
+  );
+  chmodSync(wrapper, 0o755);
+
+  const stdout = execFileSync(
+    process.execPath,
+    [
+      "dist/cli.js",
+      "--pm-bin",
+      wrapper,
+      "--stdout",
+      "--version",
+      "1.2.0",
+      "--date",
+      "2026-05-17",
+    ],
+    {
+      cwd: process.cwd(),
+      encoding: "utf-8",
+    }
+  );
+
+  assert.match(stdout, /## 1\.2\.0 - 2026-05-17/);
+  assert.match(stdout, /- Add GitHub Actions changelog command \(pm-1\)/);
 });
