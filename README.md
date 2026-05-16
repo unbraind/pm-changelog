@@ -5,7 +5,7 @@ Generate `CHANGELOG.md` from pm-cli items for local releases, GitHub Actions, ru
 The package provides:
 
 - `pm-changelog`, a standalone CLI that reads `pm list-all --json` or JSON input
-- `createChangelog()`, `generateChangelog()`, and `mergeChangelog()` programmatic APIs
+- `createChangelog()`, `generateChangelog()`, `mergeChangelog()`, and `writeChangelog()` programmatic APIs
 - `pm changelog generate`, a pm-cli extension command
 
 ## Install
@@ -51,6 +51,18 @@ Emit runner-readable metadata:
 pm-changelog --mode prepend --version "$GITHUB_REF_NAME" --json
 ```
 
+Fail CI if the committed changelog is stale without rewriting it:
+
+```bash
+pm-changelog --mode prepend --version "$GITHUB_REF_NAME" --check
+```
+
+Expose summary values to later GitHub Actions steps:
+
+```bash
+pm-changelog --mode prepend --version "$GITHUB_REF_NAME" --json --github-output
+```
+
 Print markdown instead of writing a file:
 
 ```bash
@@ -80,6 +92,8 @@ Useful options:
 | `--group-by <mode>` | `version` | `version` or `milestone` |
 | `--mode <mode>` | `replace` | `replace` or `prepend` existing changelog |
 | `--json` | false | Print JSON summary for automation |
+| `--check` | false | Do not write; exit 1 if the output file would change |
+| `--github-output` | false | Write `output`, `mode`, `action`, `changed`, `item_count`, and `bytes` to `$GITHUB_OUTPUT` |
 | `--include-empty` | false | Emit an empty section when no items match |
 
 ## pm-cli command
@@ -89,27 +103,29 @@ pm changelog generate
 pm changelog generate --version 1.2.0 --output CHANGELOG.md
 pm changelog generate --stdout --group-by milestone
 pm changelog generate --mode prepend --version "$GITHUB_REF_NAME"
+pm changelog generate --check --mode prepend --version "$GITHUB_REF_NAME"
 ```
 
 ## Programmatic API
 
 ```ts
-import { createChangelog, mergeChangelog, readPmItems } from "pm-changelog";
-import { existsSync, readFileSync, writeFileSync } from "node:fs";
+import { readPmItems, writeChangelog } from "pm-changelog";
 
 const items = readPmItems({ pmRoot: process.cwd() });
-const generated = createChangelog({
+const result = writeChangelog({
   items,
+  output: "CHANGELOG.md",
+  mode: "prepend",
   version: process.env.GITHUB_REF_NAME,
   since: process.env.CHANGELOG_SINCE,
 });
-const existing = existsSync("CHANGELOG.md")
-  ? readFileSync("CHANGELOG.md", "utf-8")
-  : undefined;
-const result = mergeChangelog(existing, generated.markdown);
 
-writeFileSync("CHANGELOG.md", result.markdown);
-console.log({ action: result.action, changed: result.changed, items: generated.itemCount });
+console.log({
+  action: result.action,
+  changed: result.changed,
+  items: result.itemCount,
+  output: result.output,
+});
 ```
 
 You can also pass items directly:
@@ -167,16 +183,16 @@ jobs:
       - run: npm ci
       - run: npm run build
       - name: Generate changelog
-        run: node dist/cli.js --mode prepend --version "${GITHUB_REF_NAME}" --output CHANGELOG.md --json
+        id: changelog
+        run: node dist/cli.js --mode prepend --version "${GITHUB_REF_NAME}" --output CHANGELOG.md --json --github-output
       - name: Commit changelog
+        if: steps.changelog.outputs.changed == 'true'
         run: |
-          if ! git diff --quiet -- CHANGELOG.md; then
-            git config user.name "github-actions[bot]"
-            git config user.email "github-actions[bot]@users.noreply.github.com"
-            git add CHANGELOG.md
-            git commit -m "docs: update changelog"
-            git push
-          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add CHANGELOG.md
+          git commit -m "docs: update changelog"
+          git push
 ```
 
 ## Build

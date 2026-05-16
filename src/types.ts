@@ -41,6 +41,8 @@ export interface GeneratedChangelog {
   itemCount: number;
 }
 
+export type ChangelogOutputMode = "replace" | "prepend";
+
 export type ChangelogMergeAction = "created" | "inserted" | "replaced" | "unchanged";
 
 export interface MergeChangelogOptions {
@@ -56,6 +58,21 @@ export interface MergeChangelogResult {
 export interface ReadPmItemsOptions {
   pmRoot?: string;
   pmBin?: string;
+}
+
+export interface WriteChangelogOptions extends GenerateChangelogOptions {
+  output?: string;
+  mode?: ChangelogOutputMode;
+  check?: boolean;
+}
+
+export interface WriteChangelogResult {
+  output: string;
+  markdown: string;
+  action: ChangelogMergeAction;
+  changed: boolean;
+  itemCount: number;
+  bytes: number;
 }
 
 export interface ChangelogSection {

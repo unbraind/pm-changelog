@@ -1,7 +1,11 @@
 import assert from "node:assert/strict";
+import { execFileSync } from "node:child_process";
+import { mkdtempSync, readFileSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import test from "node:test";
 
-import { createChangelog, mergeChangelog } from "../dist/index.js";
+import { createChangelog, mergeChangelog, writeChangelog } from "../dist/index.js";
 
 const items = [
   {
@@ -103,4 +107,86 @@ test("mergeChangelog replaces an existing generated release", () => {
   assert.equal(result.action, "replaced");
   assert.doesNotMatch(result.markdown, /Old line/);
   assert.match(result.markdown, /## 1\.2\.0 - 2026-05-17[\s\S]*## 1\.1\.0 - 2026-05-01/);
+});
+
+test("writeChangelog writes and reports unchanged check runs", () => {
+  const dir = mkdtempSync(join(tmpdir(), "pm-changelog-"));
+  const output = join(dir, "CHANGELOG.md");
+
+  const written = writeChangelog({
+    items,
+    output,
+    version: "1.2.0",
+    date: "2026-05-17",
+  });
+
+  assert.equal(written.action, "created");
+  assert.equal(written.changed, true);
+  assert.equal(readFileSync(output, "utf-8"), written.markdown);
+
+  const checked = writeChangelog({
+    items,
+    output,
+    version: "1.2.0",
+    date: "2026-05-17",
+    check: true,
+  });
+
+  assert.equal(checked.action, "unchanged");
+  assert.equal(checked.changed, false);
+  assert.equal(readFileSync(output, "utf-8"), written.markdown);
+});
+
+test("writeChangelog check mode does not overwrite stale files", () => {
+  const dir = mkdtempSync(join(tmpdir(), "pm-changelog-"));
+  const output = join(dir, "CHANGELOG.md");
+  writeFileSync(output, "# Changelog\n\nOld content\n", "utf-8");
+
+  const result = writeChangelog({
+    items,
+    output,
+    version: "1.2.0",
+    date: "2026-05-17",
+    check: true,
+  });
+
+  assert.equal(result.action, "replaced");
+  assert.equal(result.changed, true);
+  assert.equal(readFileSync(output, "utf-8"), "# Changelog\n\nOld content\n");
+});
+
+test("CLI writes GitHub Actions outputs", () => {
+  const dir = mkdtempSync(join(tmpdir(), "pm-changelog-"));
+  const input = join(dir, "items.json");
+  const output = join(dir, "CHANGELOG.md");
+  const githubOutput = join(dir, "github-output.txt");
+  writeFileSync(input, JSON.stringify(items), "utf-8");
+
+  const stdout = execFileSync(
+    process.execPath,
+    [
+      "dist/cli.js",
+      "--input",
+      input,
+      "--output",
+      output,
+      "--version",
+      "1.2.0",
+      "--date",
+      "2026-05-17",
+      "--json",
+      "--github-output",
+    ],
+    {
+      cwd: process.cwd(),
+      env: { ...process.env, GITHUB_OUTPUT: githubOutput },
+      encoding: "utf-8",
+    }
+  );
+
+  const summary = JSON.parse(stdout);
+  assert.equal(summary.changed, true);
+  assert.equal(summary.itemCount, 2);
+  assert.match(readFileSync(githubOutput, "utf-8"), /changed=true/);
+  assert.match(readFileSync(output, "utf-8"), /## 1\.2\.0 - 2026-05-17/);
 });

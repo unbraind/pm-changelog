@@ -1,9 +1,15 @@
 #!/usr/bin/env node
-import { existsSync, readFileSync, writeFileSync } from "node:fs";
+import { appendFileSync, existsSync, readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { stdin } from "node:process";
 
-import { createChangelog, mergeChangelog, parsePmItemsJson, readPmItems } from "./generator.js";
+import {
+  createChangelog,
+  mergeChangelog,
+  parsePmItemsJson,
+  readPmItems,
+  writeChangelog,
+} from "./generator.js";
 import type { PmItem } from "./types.js";
 
 interface CliOptions {
@@ -22,11 +28,45 @@ interface CliOptions {
   groupBy: "version" | "milestone";
   includeEmpty: boolean;
   mode: "replace" | "prepend";
+  check: boolean;
+  githubOutput: boolean;
 }
 
 async function main(): Promise<void> {
   const options = parseArgs(process.argv.slice(2));
   const items = await loadItems(options);
+  const outputPath = resolve(options.output);
+
+  if (!options.stdout) {
+    const result = writeChangelog({
+      items,
+      output: outputPath,
+      title: options.title,
+      version: options.version,
+      date: options.date,
+      since: options.since,
+      until: options.until,
+      includeStatuses: options.statuses,
+      groupBy: options.groupBy,
+      includeEmpty: options.includeEmpty,
+      mode: options.mode,
+      check: options.check,
+    });
+    const summary = buildSummary(options, result, outputPath);
+
+    if (options.githubOutput) writeGitHubOutput(summary);
+    if (options.json) {
+      process.stdout.write(JSON.stringify(summary) + "\n");
+    } else if (options.check) {
+      console.error(result.changed ? `Changelog is out of date: ${outputPath}` : `Changelog is up to date: ${outputPath}`);
+    } else {
+      console.error(`Wrote ${outputPath}`);
+    }
+
+    if (options.check && result.changed) process.exit(1);
+    return;
+  }
+
   const generated = createChangelog({
     items,
     title: options.title,
@@ -38,7 +78,6 @@ async function main(): Promise<void> {
     groupBy: options.groupBy,
     includeEmpty: options.includeEmpty,
   });
-  const outputPath = resolve(options.output);
   const existing = options.mode === "prepend" && existsSync(outputPath)
     ? readFileSync(outputPath, "utf-8")
     : undefined;
@@ -48,20 +87,22 @@ async function main(): Promise<void> {
 
   if (options.stdout) {
     if (options.json) {
-      process.stdout.write(JSON.stringify(buildSummary(options, generated.itemCount, merged)) + "\n");
+      const summary = buildSummary(options, {
+        output: outputPath,
+        markdown: merged.markdown,
+        action: merged.action,
+        changed: merged.changed,
+        itemCount: generated.itemCount,
+        bytes: Buffer.byteLength(merged.markdown, "utf-8"),
+      });
+      if (options.githubOutput) writeGitHubOutput(summary);
+      process.stdout.write(JSON.stringify(summary) + "\n");
       return;
     }
     process.stdout.write(merged.markdown);
     return;
   }
 
-  writeFileSync(outputPath, merged.markdown, "utf-8");
-  const summary = buildSummary(options, generated.itemCount, merged, outputPath);
-  if (options.json) {
-    process.stdout.write(JSON.stringify(summary) + "\n");
-  } else {
-    console.error(`Wrote ${outputPath}`);
-  }
 }
 
 function parseArgs(args: string[]): CliOptions {
@@ -73,6 +114,8 @@ function parseArgs(args: string[]): CliOptions {
     groupBy: "version",
     includeEmpty: false,
     mode: "replace",
+    check: false,
+    githubOutput: false,
   };
 
   for (let i = 0; i < args.length; i++) {
@@ -91,6 +134,13 @@ function parseArgs(args: string[]): CliOptions {
         break;
       case "--json":
         options.json = true;
+        break;
+      case "--check":
+        options.check = true;
+        break;
+      case "--github-output":
+      case "--set-output":
+        options.githubOutput = true;
         break;
       case "--input":
       case "-i":
@@ -177,19 +227,43 @@ function parseMode(value: string): "replace" | "prepend" {
 
 function buildSummary(
   options: CliOptions,
-  itemCount: number,
-  merge: { action: string; changed: boolean; markdown: string },
-  output?: string
+  result: {
+    output?: string;
+    action: string;
+    changed: boolean;
+    markdown: string;
+    itemCount: number;
+    bytes: number;
+  },
+  output = result.output
 ): Record<string, unknown> {
   return {
     output,
     mode: options.mode,
-    action: merge.action,
-    changed: merge.changed,
-    itemCount,
-    bytes: Buffer.byteLength(merge.markdown, "utf-8"),
-    markdown: options.stdout ? merge.markdown : undefined,
+    action: result.action,
+    changed: result.changed,
+    itemCount: result.itemCount,
+    bytes: result.bytes,
+    check: options.check,
+    markdown: options.stdout ? result.markdown : undefined,
   };
+}
+
+function writeGitHubOutput(summary: Record<string, unknown>): void {
+  const githubOutput = process.env.GITHUB_OUTPUT;
+  if (!githubOutput) {
+    throw new Error("--github-output requires the GITHUB_OUTPUT environment variable");
+  }
+
+  const lines = [
+    `output=${String(summary.output ?? "")}`,
+    `mode=${String(summary.mode ?? "")}`,
+    `action=${String(summary.action ?? "")}`,
+    `changed=${String(summary.changed ?? "")}`,
+    `item_count=${String(summary.itemCount ?? "")}`,
+    `bytes=${String(summary.bytes ?? "")}`,
+  ];
+  appendFileSync(githubOutput, `${lines.join("\n")}\n`, "utf-8");
 }
 
 function requireValue(args: string[], index: number, flag: string): string {
@@ -212,6 +286,8 @@ Options:
   -o, --output <file>       Write changelog to a file (default: CHANGELOG.md)
       --stdout              Print markdown instead of writing a file
       --json                Print a JSON summary for CI/runners
+      --check               Do not write; exit 1 when output would change
+      --github-output       Write summary fields to $GITHUB_OUTPUT
   -i, --input <file>        Read pm JSON from a file instead of running pm
       --stdin               Read pm JSON from stdin
       --pm-root <dir>       pm project root for "pm --path <dir> list-all --json"

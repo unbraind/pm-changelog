@@ -1,4 +1,6 @@
 import { spawnSync } from "node:child_process";
+import { existsSync, readFileSync, writeFileSync } from "node:fs";
+import { resolve } from "node:path";
 
 import type {
   ChangelogSection,
@@ -8,6 +10,8 @@ import type {
   MergeChangelogResult,
   PmItem,
   ReadPmItemsOptions,
+  WriteChangelogOptions,
+  WriteChangelogResult,
 } from "./types.js";
 
 const DEFAULT_TITLE = "Changelog";
@@ -135,11 +139,56 @@ export function readPmItems(options: ReadPmItemsOptions = {}): PmItem[] {
   return parsePmItemsJson(result.stdout);
 }
 
+export function writeChangelog(options: WriteChangelogOptions): WriteChangelogResult {
+  const output = resolve(options.output ?? "CHANGELOG.md");
+  const generated = createChangelog(options);
+  const mode = options.mode ?? "replace";
+  const existing = existsSync(output) ? readFileSync(output, "utf-8") : undefined;
+  const merged = mode === "prepend"
+    ? mergeChangelog(existing, generated.markdown, { title: options.title })
+    : replaceChangelog(existing, generated.markdown);
+
+  if (!options.check) {
+    writeFileSync(output, merged.markdown, "utf-8");
+  }
+
+  return {
+    output,
+    markdown: merged.markdown,
+    action: merged.action,
+    changed: merged.changed,
+    itemCount: generated.itemCount,
+    bytes: Buffer.byteLength(merged.markdown, "utf-8"),
+  };
+}
+
 export function parsePmItemsJson(raw: string): PmItem[] {
   const parsed = JSON.parse(raw) as unknown;
   if (Array.isArray(parsed)) return parsed as PmItem[];
   if (isRecord(parsed) && Array.isArray(parsed.items)) return parsed.items as PmItem[];
   throw new Error("Expected pm JSON to be an array or an object with an items array");
+}
+
+function replaceChangelog(
+  existingMarkdown: string | undefined,
+  generatedMarkdown: string
+): MergeChangelogResult {
+  const generated = generatedMarkdown.trimEnd() + "\n";
+  const existing = existingMarkdown?.trimEnd();
+  if (!existing) {
+    return {
+      markdown: generated,
+      action: "created",
+      changed: true,
+    };
+  }
+
+  const changed = generated !== existing + "\n";
+  return {
+    markdown: generated,
+    action: changed ? "replaced" : "unchanged",
+    changed,
+  };
 }
 
 function filterItems(options: GenerateChangelogOptions): PmItem[] {

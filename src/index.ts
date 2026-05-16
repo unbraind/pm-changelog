@@ -4,10 +4,12 @@ export {
   mergeChangelog,
   parsePmItemsJson,
   readPmItems,
+  writeChangelog,
 } from "./generator.js";
 export type {
   ChangelogSection,
   ChangelogMergeAction,
+  ChangelogOutputMode,
   GeneratedChangelog,
   GenerateChangelogOptions,
   MergeChangelogOptions,
@@ -15,4 +17,6 @@ export type {
   PmItem,
   PmItemStatus,
   ReadPmItemsOptions,
+  WriteChangelogOptions,
+  WriteChangelogResult,
 } from "./types.js";
