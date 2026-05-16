@@ -6,6 +6,8 @@
 
 - Initial `pm-changelog` CLI for generating `CHANGELOG.md` from pm item JSON or `pm list-all --json`.
 - Programmatic APIs for creating, merging, reading, and writing changelogs from Node.js scripts and CI runners.
+- Package metadata for `pm install github.com/unbraind/pm-changelog --project`, `pm install npm:pm-changelog --project`, and catalog discovery.
+- `--release-version` for the pm extension command so release headings do not collide with the global `pm --version` flag.
 - Custom pm executable support via `--pm-bin` and `readPmItems({ pmBin })`.
 - Programmatic runner wrapper support with `readPmItems({ pmArgs, cwd, env })`.
 - pm-cli extension command: `pm changelog generate`.
@@ -13,6 +15,7 @@
 - Optional `$GITHUB_STEP_SUMMARY` publishing via `--github-step-summary`.
 - GitHub Actions CI workflow for validating package builds and tests.
 - Release and milestone grouping for projects that store release metadata on pm items.
+- Tracked built runtime output so GitHub and local pm package installs work without a separate build step.
 
 ### Security
 
