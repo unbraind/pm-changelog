@@ -63,6 +63,9 @@ export interface MergeChangelogResult {
 export interface ReadPmItemsOptions {
   pmRoot?: string;
   pmBin?: string;
+  pmArgs?: string[];
+  cwd?: string;
+  env?: NodeJS.ProcessEnv;
 }
 
 export interface WriteChangelogOptions extends GenerateChangelogOptions {

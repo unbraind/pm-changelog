@@ -88,6 +88,12 @@ Read JSON from a previous step:
 pm list-all --json | pm-changelog --stdin --stdout
 ```
 
+Use a pinned or wrapped pm executable in a runner:
+
+```bash
+pm-changelog --pm-bin ./node_modules/.bin/pm --mode prepend --version "$GITHUB_REF_NAME"
+```
+
 Generate one section per `release` metadata value from pm items:
 
 ```bash
@@ -103,6 +109,7 @@ Useful options:
 | `--input <file>` | - | Read pm JSON from a file |
 | `--stdin` | false | Read pm JSON from stdin |
 | `--pm-root <dir>` | - | Run `pm --path <dir> list-all --json` |
+| `--pm-bin <file>` | `pm` | pm executable to run, useful for pinned local installs and runner wrappers |
 | `--version <version>` | `Unreleased` | Version heading |
 | `--date <date>` | today | Release date |
 | `--since <date>` | - | Include items changed on or after date |
@@ -133,7 +140,10 @@ pm changelog generate --check --mode prepend --version "$GITHUB_REF_NAME"
 ```ts
 import { readPmItems, writeChangelog } from "pm-changelog";
 
-const items = readPmItems({ pmRoot: process.cwd() });
+const items = readPmItems({
+  pmRoot: process.cwd(),
+  pmBin: "./node_modules/.bin/pm",
+});
 const result = writeChangelog({
   items,
   output: "CHANGELOG.md",
@@ -172,6 +182,19 @@ const markdown = generateChangelog({
       updated_at: "2026-05-17T09:00:00Z",
     },
   ],
+});
+```
+
+Runner wrappers can provide extra pm arguments, a working directory, and environment:
+
+```ts
+import { readPmItems } from "pm-changelog";
+
+const items = readPmItems({
+  pmBin: process.env.PM_BIN ?? "pm",
+  pmArgs: ["--profile", "ci"],
+  cwd: process.env.GITHUB_WORKSPACE,
+  env: process.env,
 });
 ```
 
