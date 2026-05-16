@@ -1,4 +1,6 @@
 import { spawnSync } from "node:child_process";
+import { existsSync, readFileSync, writeFileSync } from "node:fs";
+import { resolve } from "node:path";
 const DEFAULT_TITLE = "Changelog";
 const DEFAULT_STATUSES = ["closed"];
 const CATEGORY_ORDER = [
@@ -101,6 +103,26 @@ export function readPmItems(options = {}) {
     }
     return parsePmItemsJson(result.stdout);
 }
+export function writeChangelog(options) {
+    const output = resolve(options.output ?? "CHANGELOG.md");
+    const generated = createChangelog(options);
+    const mode = options.mode ?? "replace";
+    const existing = existsSync(output) ? readFileSync(output, "utf-8") : undefined;
+    const merged = mode === "prepend"
+        ? mergeChangelog(existing, generated.markdown, { title: options.title })
+        : replaceChangelog(existing, generated.markdown);
+    if (!options.check) {
+        writeFileSync(output, merged.markdown, "utf-8");
+    }
+    return {
+        output,
+        markdown: merged.markdown,
+        action: merged.action,
+        changed: merged.changed,
+        itemCount: generated.itemCount,
+        bytes: Buffer.byteLength(merged.markdown, "utf-8"),
+    };
+}
 export function parsePmItemsJson(raw) {
     const parsed = JSON.parse(raw);
     if (Array.isArray(parsed))
@@ -108,6 +130,23 @@ export function parsePmItemsJson(raw) {
     if (isRecord(parsed) && Array.isArray(parsed.items))
         return parsed.items;
     throw new Error("Expected pm JSON to be an array or an object with an items array");
+}
+function replaceChangelog(existingMarkdown, generatedMarkdown) {
+    const generated = generatedMarkdown.trimEnd() + "\n";
+    const existing = existingMarkdown?.trimEnd();
+    if (!existing) {
+        return {
+            markdown: generated,
+            action: "created",
+            changed: true,
+        };
+    }
+    const changed = generated !== existing + "\n";
+    return {
+        markdown: generated,
+        action: changed ? "replaced" : "unchanged",
+        changed,
+    };
 }
 function filterItems(options) {
     const statuses = new Set((options.includeStatuses ?? DEFAULT_STATUSES).map((status) => status.toLowerCase()));

@@ -1,6 +1,4 @@
-import { existsSync, readFileSync, writeFileSync } from "node:fs";
-import { resolve } from "node:path";
-import { createChangelog, mergeChangelog, readPmItems } from "./generator.js";
+import { createChangelog, mergeChangelog, readPmItems, writeChangelog } from "./generator.js";
 const defineExtension = ((extension) => extension);
 export default defineExtension({
     name: "pm-changelog",
@@ -15,6 +13,7 @@ export default defineExtension({
                 "pm changelog generate --version 1.2.0",
                 "pm changelog generate --output RELEASE_NOTES.md --since 2026-05-01",
                 "pm changelog generate --stdout --group-by milestone",
+                "pm changelog generate --check --mode prepend --version 1.2.0",
             ],
             flags: [
                 { long: "--output", value_name: "file", description: "Output file path (default: CHANGELOG.md)" },
@@ -28,24 +27,27 @@ export default defineExtension({
                 { long: "--group-by", value_name: "mode", description: "version or milestone (default: version)" },
                 { long: "--mode", value_name: "mode", description: "replace or prepend existing changelog (default: replace)" },
                 { long: "--include-empty", description: "Emit an empty release section when no items match" },
+                { long: "--check", description: "Do not write; report whether the changelog would change" },
             ],
             async run(ctx) {
                 const output = ctx.options["output"] ?? "CHANGELOG.md";
                 const stdout = Boolean(ctx.options["stdout"]);
-                const groupBy = ctx.options["group-by"] ?? "version";
-                const mode = ctx.options["mode"] ?? "replace";
-                if (groupBy !== "version" && groupBy !== "milestone") {
+                const groupByOption = ctx.options["group-by"] ?? "version";
+                const modeOption = ctx.options["mode"] ?? "replace";
+                if (groupByOption !== "version" && groupByOption !== "milestone") {
                     return { error: "--group-by must be 'version' or 'milestone'" };
                 }
-                if (mode !== "replace" && mode !== "prepend") {
+                if (modeOption !== "replace" && modeOption !== "prepend") {
                     return { error: "--mode must be 'replace' or 'prepend'" };
                 }
+                const groupBy = groupByOption;
+                const mode = modeOption;
                 const statuses = ctx.options["status"]
                     ?.split(",")
                     .map((status) => status.trim())
                     .filter(Boolean);
                 const items = readPmItems({ pmRoot: ctx.pm_root });
-                const generated = createChangelog({
+                const generationOptions = {
                     items,
                     title: ctx.options["title"],
                     version: ctx.options["version"],
@@ -55,15 +57,12 @@ export default defineExtension({
                     includeStatuses: statuses,
                     groupBy,
                     includeEmpty: Boolean(ctx.options["include-empty"]),
-                });
-                const outputPath = resolve(output);
-                const existing = mode === "prepend" && existsSync(outputPath)
-                    ? readFileSync(outputPath, "utf-8")
-                    : undefined;
-                const merged = mode === "prepend"
-                    ? mergeChangelog(existing, generated.markdown, { title: ctx.options["title"] })
-                    : { markdown: generated.markdown, action: "replaced", changed: true };
+                };
+                const generated = createChangelog(generationOptions);
                 if (stdout) {
+                    const merged = mode === "prepend"
+                        ? mergeChangelog(undefined, generated.markdown, { title: ctx.options["title"] })
+                        : { markdown: generated.markdown, action: "replaced", changed: true };
                     return {
                         changelog: merged.markdown,
                         action: merged.action,
@@ -71,13 +70,19 @@ export default defineExtension({
                         item_count: generated.itemCount,
                     };
                 }
-                writeFileSync(outputPath, merged.markdown, "utf-8");
+                const result = writeChangelog({
+                    ...generationOptions,
+                    output,
+                    mode,
+                    check: Boolean(ctx.options["check"]),
+                });
                 return {
-                    file: outputPath,
-                    action: merged.action,
-                    changed: merged.changed,
-                    item_count: generated.itemCount,
-                    bytes: Buffer.byteLength(merged.markdown, "utf-8"),
+                    file: result.output,
+                    action: result.action,
+                    changed: result.changed,
+                    item_count: result.itemCount,
+                    bytes: result.bytes,
+                    check: Boolean(ctx.options["check"]),
                 };
             },
         });
