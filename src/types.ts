@@ -15,13 +15,17 @@ export interface PmItem {
   priority?: number;
   type?: string;
   tags?: string[];
+  release?: string;
   milestone?: string;
+  metadata?: Record<string, unknown>;
   url?: string;
   created_at?: string;
   updated_at?: string;
   closed_at?: string;
   due_date?: string;
 }
+
+export type ChangelogGroupBy = "version" | "release" | "milestone";
 
 export interface GenerateChangelogOptions {
   items: PmItem[];
@@ -31,7 +35,7 @@ export interface GenerateChangelogOptions {
   since?: string;
   until?: string;
   includeStatuses?: string[];
-  groupBy?: "version" | "milestone";
+  groupBy?: ChangelogGroupBy;
   includeEmpty?: boolean;
 }
 

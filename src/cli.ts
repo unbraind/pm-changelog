@@ -10,7 +10,7 @@ import {
   readPmItems,
   writeChangelog,
 } from "./generator.js";
-import type { PmItem } from "./types.js";
+import type { ChangelogGroupBy, PmItem } from "./types.js";
 
 interface CliOptions {
   output: string;
@@ -25,7 +25,7 @@ interface CliOptions {
   since?: string;
   until?: string;
   statuses?: string[];
-  groupBy: "version" | "milestone";
+  groupBy: ChangelogGroupBy;
   includeEmpty: boolean;
   mode: "replace" | "prepend";
   check: boolean;
@@ -215,9 +215,9 @@ function readStdin(): Promise<string> {
   });
 }
 
-function parseGroupBy(value: string): "version" | "milestone" {
-  if (value === "version" || value === "milestone") return value;
-  throw new Error("--group-by must be 'version' or 'milestone'");
+function parseGroupBy(value: string): ChangelogGroupBy {
+  if (value === "version" || value === "release" || value === "milestone") return value;
+  throw new Error("--group-by must be 'version', 'release', or 'milestone'");
 }
 
 function parseMode(value: string): "replace" | "prepend" {
@@ -297,7 +297,7 @@ Options:
       --since <date>        Include items changed on or after this date
       --until <date>        Include items changed on or before this date
       --status <list>       Comma-separated statuses (default: closed)
-      --group-by <mode>     version or milestone (default: version)
+      --group-by <mode>     version, release, or milestone (default: version)
       --mode <mode>         replace or prepend existing changelog (default: replace)
       --include-empty       Emit an empty release section when no items match
 `);

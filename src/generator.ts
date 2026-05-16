@@ -217,18 +217,12 @@ function filterItems(options: GenerateChangelogOptions): PmItem[] {
 }
 
 function buildSections(items: PmItem[], options: GenerateChangelogOptions): ChangelogSection[] {
+  if (options.groupBy === "release" && !options.version) {
+    return groupSectionsByMetadata(items, "release", "Unreleased");
+  }
+
   if (options.groupBy === "milestone" && !options.version) {
-    const byMilestone = new Map<string, PmItem[]>();
-    for (const item of items) {
-      const key = item.milestone?.trim() || "Unreleased";
-      const group = byMilestone.get(key) ?? [];
-      group.push(item);
-      byMilestone.set(key, group);
-    }
-    return Array.from(byMilestone.entries()).map(([heading, groupedItems]) => ({
-      heading,
-      items: groupedItems,
-    }));
+    return groupSectionsByMetadata(items, "milestone", "Unreleased");
   }
 
   return [
@@ -237,6 +231,24 @@ function buildSections(items: PmItem[], options: GenerateChangelogOptions): Chan
       items,
     },
   ];
+}
+
+function groupSectionsByMetadata(
+  items: PmItem[],
+  field: "release" | "milestone",
+  fallback: string
+): ChangelogSection[] {
+  const grouped = new Map<string, PmItem[]>();
+  for (const item of items) {
+    const key = getStringField(item, field) || fallback;
+    const group = grouped.get(key) ?? [];
+    group.push(item);
+    grouped.set(key, group);
+  }
+  return Array.from(grouped.entries()).map(([heading, groupedItems]) => ({
+    heading,
+    items: groupedItems,
+  }));
 }
 
 function buildVersionHeading(version: string | undefined, date: string | undefined): string {
@@ -338,6 +350,14 @@ function formatItem(item: PmItem): string {
   const id = item.id ? ` (${escapeMarkdown(item.id)})` : "";
   const link = item.url ? ` [link](${item.url})` : "";
   return `${title}${id}${link}`;
+}
+
+function getStringField(item: PmItem, field: "release" | "milestone"): string | undefined {
+  const direct = item[field];
+  if (typeof direct === "string" && direct.trim()) return direct.trim();
+  const fromMetadata = item.metadata?.[field];
+  if (typeof fromMetadata === "string" && fromMetadata.trim()) return fromMetadata.trim();
+  return undefined;
 }
 
 function compareItems(a: PmItem, b: PmItem): number {

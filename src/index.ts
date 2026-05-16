@@ -7,6 +7,7 @@ export {
   writeChangelog,
 } from "./generator.js";
 export type {
+  ChangelogGroupBy,
   ChangelogSection,
   ChangelogMergeAction,
   ChangelogOutputMode,
