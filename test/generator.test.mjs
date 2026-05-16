@@ -408,3 +408,54 @@ process.stdout.write(${JSON.stringify(JSON.stringify(items))});
   assert.match(stdout, /## 1\.2\.0 - 2026-05-17/);
   assert.match(stdout, /- Add GitHub Actions changelog command \(pm-1\)/);
 });
+
+test("CLI passes extra pm arguments and cwd to runner wrappers", () => {
+  const dir = mkdtempSync(join(tmpdir(), "pm-changelog-"));
+  const fixture = join(dir, "fixture.json");
+  const wrapper = join(dir, "pm-wrapper.mjs");
+  writeFileSync(fixture, JSON.stringify(items), "utf-8");
+  writeFileSync(
+    wrapper,
+    `#!/usr/bin/env node
+import { existsSync, readFileSync } from "node:fs";
+import { resolve } from "node:path";
+
+if (process.argv.slice(2).join(" ") !== "--profile ci --workspace release list-all --json") process.exit(2);
+if (!existsSync(resolve(process.cwd(), "fixture.json"))) process.exit(3);
+process.stdout.write(readFileSync(resolve(process.cwd(), "fixture.json"), "utf-8"));
+`,
+    "utf-8"
+  );
+  chmodSync(wrapper, 0o755);
+
+  const stdout = execFileSync(
+    process.execPath,
+    [
+      "dist/cli.js",
+      "--pm-bin",
+      wrapper,
+      "--pm-arg",
+      "--profile",
+      "--pm-arg",
+      "ci",
+      "--pm-arg",
+      "--workspace",
+      "--pm-arg",
+      "release",
+      "--pm-cwd",
+      dir,
+      "--stdout",
+      "--version",
+      "1.2.0",
+      "--date",
+      "2026-05-17",
+    ],
+    {
+      cwd: process.cwd(),
+      encoding: "utf-8",
+    }
+  );
+
+  assert.match(stdout, /## 1\.2\.0 - 2026-05-17/);
+  assert.match(stdout, /- Fix runner status export \(pm-2\)/);
+});

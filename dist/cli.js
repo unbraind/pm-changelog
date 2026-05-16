@@ -88,6 +88,7 @@ function parseArgs(args) {
         stdout: false,
         json: false,
         stdin: false,
+        pmArgs: [],
         groupBy: "version",
         includeEmpty: false,
         includeLinks: false,
@@ -135,6 +136,12 @@ function parseArgs(args) {
                 break;
             case "--pm-bin":
                 options.pmBin = requireValue(args, ++i, arg);
+                break;
+            case "--pm-arg":
+                options.pmArgs.push(requireAnyValue(args, ++i, arg));
+                break;
+            case "--pm-cwd":
+                options.pmCwd = requireValue(args, ++i, arg);
                 break;
             case "--title":
                 options.title = requireValue(args, ++i, arg);
@@ -186,7 +193,12 @@ async function loadItems(options) {
     if (options.input) {
         return parsePmItemsJson(readFileSync(resolve(options.input), "utf-8"));
     }
-    return readPmItems({ pmRoot: options.pmRoot, pmBin: options.pmBin });
+    return readPmItems({
+        pmRoot: options.pmRoot,
+        pmBin: options.pmBin,
+        pmArgs: options.pmArgs,
+        cwd: options.pmCwd ? resolve(options.pmCwd) : undefined,
+    });
 }
 function readStdin() {
     return new Promise((resolvePromise, reject) => {
@@ -250,6 +262,13 @@ function requireValue(args, index, flag) {
     }
     return value;
 }
+function requireAnyValue(args, index, flag) {
+    const value = args[index];
+    if (!value) {
+        throw new Error(`${flag} requires a value`);
+    }
+    return value;
+}
 function printHelp() {
     process.stdout.write(`pm-changelog
 
@@ -269,6 +288,8 @@ Options:
       --stdin               Read pm JSON from stdin
       --pm-root <dir>       pm project root for "pm --path <dir> list-all --json"
       --pm-bin <file>       pm executable to run (default: pm)
+      --pm-arg <arg>        Extra argument passed before "list-all --json" (repeatable)
+      --pm-cwd <dir>        Working directory for running pm
       --title <text>        Changelog title (default: Changelog)
       --version <version>   Version heading (default: Unreleased)
       --date <date>         Release date (default: today)
