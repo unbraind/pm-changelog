@@ -459,3 +459,69 @@ process.stdout.write(readFileSync(resolve(process.cwd(), "fixture.json"), "utf-8
   assert.match(stdout, /## 1\.2\.0 - 2026-05-17/);
   assert.match(stdout, /- Fix runner status export \(pm-2\)/);
 });
+
+test("pm package install activates changelog command", () => {
+  const dir = mkdtempSync(join(tmpdir(), "pm-changelog-install-"));
+  const pmBin = join(process.cwd(), "node_modules", ".bin", "pm");
+
+  execFileSync(pmBin, ["init", "--json"], {
+    cwd: dir,
+    encoding: "utf-8",
+  });
+  execFileSync(pmBin, ["install", process.cwd(), "--project", "--json"], {
+    cwd: dir,
+    encoding: "utf-8",
+  });
+
+  const doctor = JSON.parse(execFileSync(pmBin, ["package", "doctor", "--project", "--json", "--detail", "deep"], {
+    cwd: dir,
+    encoding: "utf-8",
+  }));
+  assert.deepEqual(doctor.warnings, []);
+  assert.equal(doctor.details.summary.activation_status_totals.ok, 1);
+
+  execFileSync(
+    pmBin,
+    [
+      "create",
+      "--type",
+      "task",
+      "--title",
+      "Add changelog install smoke",
+      "--description",
+      "Verify pm-changelog package install",
+      "--status",
+      "closed",
+      "--json",
+    ],
+    {
+      cwd: dir,
+      encoding: "utf-8",
+    }
+  );
+
+  const generated = JSON.parse(execFileSync(
+    pmBin,
+    [
+      "changelog",
+      "generate",
+      "--output",
+      "CHANGELOG.md",
+      "--release-version",
+      "smoke",
+      "--date",
+      "2026-05-17",
+      "--mode",
+      "prepend",
+      "--json",
+    ],
+    {
+      cwd: dir,
+      encoding: "utf-8",
+    }
+  ));
+
+  assert.equal(generated.changed, true);
+  assert.equal(generated.item_count, 1);
+  assert.match(readFileSync(join(dir, "CHANGELOG.md"), "utf-8"), /## smoke - 2026-05-17/);
+});

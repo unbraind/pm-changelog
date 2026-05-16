@@ -10,19 +10,58 @@ The package provides:
 
 ## Install
 
+Install as a pm package from GitHub:
+
+```bash
+pm install github.com/unbraind/pm-changelog --project
+```
+
+Then run the extension command:
+
+```bash
+pm changelog generate --mode prepend --output CHANGELOG.md
+```
+
+Install the standalone CLI/API package from npm:
+
+```bash
+npm install --save-dev pm-changelog @unbrained/pm-cli
+```
+
+Use the local checkout for development:
+
 ```bash
 npm install
 npm run build
 ```
 
-To use it as a pm-cli extension:
+Local checkout extension install:
 
-```jsonc
-{
-  "extensions": [
-    { "path": "/path/to/pm-changelog" }
-  ]
-}
+```bash
+pm install ./pm-changelog --project
+```
+
+The repository tracks `dist/` intentionally so GitHub and local pm package installs work without a build step. npm packaging still runs `npm run build` through `prepack`.
+
+Package metadata is declared in `package.json` under `pm`, and the runtime extension manifest is `manifest.json` at the package root.
+
+Supported package-manager sources:
+
+```bash
+pm install github.com/unbraind/pm-changelog --project
+pm install npm:pm-changelog --project
+pm install ./pm-changelog --project
+```
+
+## Package Layout
+
+```text
+pm-changelog/
+  manifest.json       # pm extension manifest loaded by the package manager
+  package.json        # npm metadata plus pm package catalog/install metadata
+  dist/               # built CLI, API, and extension runtime tracked for pm installs
+  src/                # TypeScript source
+  test/               # node:test coverage for generator, CLI, and runner behavior
 ```
 
 ## CLI
@@ -136,12 +175,14 @@ Useful options:
 
 ```bash
 pm changelog generate
-pm changelog generate --version 1.2.0 --output CHANGELOG.md
+pm changelog generate --release-version 1.2.0 --output CHANGELOG.md
 pm changelog generate --stdout --group-by milestone
 pm changelog generate --stdout --group-by release
-pm changelog generate --mode prepend --version "$GITHUB_REF_NAME"
-pm changelog generate --check --mode prepend --version "$GITHUB_REF_NAME"
+pm changelog generate --mode prepend --release-version "$GITHUB_REF_NAME"
+pm changelog generate --check --mode prepend --release-version "$GITHUB_REF_NAME"
 ```
+
+The pm extension command uses `--release-version` because `pm --version` is a global CLI flag. The standalone `pm-changelog` binary uses `--version`.
 
 ## Programmatic API
 
