@@ -101,6 +101,7 @@ Useful options:
 | `--check` | false | Do not write; exit 1 if the output file would change |
 | `--github-output` | false | Write `output`, `mode`, `action`, `changed`, `item_count`, and `bytes` to `$GITHUB_OUTPUT` |
 | `--include-empty` | false | Emit an empty section when no items match |
+| `--include-links` | false | Include item `url` values in generated entries |
 
 ## pm-cli command
 
@@ -125,6 +126,7 @@ const result = writeChangelog({
   mode: "prepend",
   groupBy: "release",
   since: process.env.CHANGELOG_SINCE,
+  includeLinks: false,
 });
 
 console.log({
@@ -136,6 +138,8 @@ console.log({
 ```
 
 Use `version` when a runner is generating one release section from the current job context. Use `groupBy: "release"` or `--group-by release` when pm items already carry release metadata and a runner should rebuild multiple sections in one pass.
+
+Item links are omitted by default so public CI jobs do not accidentally publish private tracker URLs. Pass `--include-links` or `includeLinks: true` when item URLs are safe to expose.
 
 You can also pass items directly:
 

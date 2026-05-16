@@ -28,6 +28,7 @@ export default defineExtension({
                 { long: "--group-by", value_name: "mode", description: "version, release, or milestone (default: version)" },
                 { long: "--mode", value_name: "mode", description: "replace or prepend existing changelog (default: replace)" },
                 { long: "--include-empty", description: "Emit an empty release section when no items match" },
+                { long: "--include-links", description: "Include item URLs in generated entries (default: false)" },
                 { long: "--check", description: "Do not write; report whether the changelog would change" },
             ],
             async run(ctx) {
@@ -58,6 +59,7 @@ export default defineExtension({
                     includeStatuses: statuses,
                     groupBy,
                     includeEmpty: Boolean(ctx.options["include-empty"]),
+                    includeLinks: Boolean(ctx.options["include-links"]),
                 };
                 const generated = createChangelog(generationOptions);
                 if (stdout) {

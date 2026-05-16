@@ -19,6 +19,7 @@ async function main() {
             includeStatuses: options.statuses,
             groupBy: options.groupBy,
             includeEmpty: options.includeEmpty,
+            includeLinks: options.includeLinks,
             mode: options.mode,
             check: options.check,
         });
@@ -48,6 +49,7 @@ async function main() {
         includeStatuses: options.statuses,
         groupBy: options.groupBy,
         includeEmpty: options.includeEmpty,
+        includeLinks: options.includeLinks,
     });
     const existing = options.mode === "prepend" && existsSync(outputPath)
         ? readFileSync(outputPath, "utf-8")
@@ -82,6 +84,7 @@ function parseArgs(args) {
         stdin: false,
         groupBy: "version",
         includeEmpty: false,
+        includeLinks: false,
         mode: "replace",
         check: false,
         githubOutput: false,
@@ -150,6 +153,12 @@ function parseArgs(args) {
                 break;
             case "--include-empty":
                 options.includeEmpty = true;
+                break;
+            case "--include-links":
+                options.includeLinks = true;
+                break;
+            case "--no-links":
+                options.includeLinks = false;
                 break;
             default:
                 throw new Error(`Unknown option: ${arg}`);
@@ -247,6 +256,7 @@ Options:
       --group-by <mode>     version, release, or milestone (default: version)
       --mode <mode>         replace or prepend existing changelog (default: replace)
       --include-empty       Emit an empty release section when no items match
+      --include-links       Include item URLs in generated entries (default: false)
 `);
 }
 main().catch((error) => {

@@ -40,7 +40,7 @@ export function createChangelog(options) {
                 continue;
             lines.push(`### ${category}`, "");
             for (const item of categoryItems) {
-                lines.push(`- ${formatItem(item)}`);
+                lines.push(`- ${formatItem(item, options)}`);
             }
             lines.push("");
         }
@@ -288,11 +288,26 @@ function classifyItem(item) {
 function hasAny(value, needles) {
     return needles.some((needle) => new RegExp(`\\b${escapeRegExp(needle)}\\b`).test(value));
 }
-function formatItem(item) {
-    const title = escapeMarkdown(item.title.trim());
+function formatItem(item, options) {
+    const title = escapeMarkdown(toSingleLine(item.title));
     const id = item.id ? ` (${escapeMarkdown(item.id)})` : "";
-    const link = item.url ? ` [link](${item.url})` : "";
+    const link = options.includeLinks ? formatLink(item.url) : "";
     return `${title}${id}${link}`;
+}
+function formatLink(url) {
+    if (!url)
+        return "";
+    try {
+        const parsed = new URL(toSingleLine(url));
+        if (parsed.protocol !== "https:" && parsed.protocol !== "http:")
+            return "";
+        parsed.username = "";
+        parsed.password = "";
+        return ` [link](${parsed.href.replace(/\)/g, "%29")})`;
+    }
+    catch {
+        return "";
+    }
 }
 function getStringField(item, field) {
     const direct = item[field];
@@ -313,6 +328,9 @@ function compareItems(a, b) {
 }
 function escapeMarkdown(value) {
     return value.replace(/([\\`*_[\]()#|>])/g, "\\$1");
+}
+function toSingleLine(value) {
+    return value.trim().replace(/\s+/g, " ");
 }
 function escapeRegExp(value) {
     return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
