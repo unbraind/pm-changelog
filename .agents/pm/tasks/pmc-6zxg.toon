@@ -1,0 +1,40 @@
+id: pmc-6zxg
+title: Verify pm-changelog release workflow and package install path
+description: "Run local validation for the new release workflow, current package checks, clean temporary pm package installation, GitHub issue/dependency/vulnerability state, npm registry status, and self-generated changelog behavior before publishing the next public release."
+type: Task
+status: closed
+priority: 0
+tags[4]: github,install,release,verification
+created_at: "2026-05-23T21:53:28.974Z"
+updated_at: "2026-05-23T21:59:31.861Z"
+deadline: "2026-05-23T00:00:00.000Z"
+author: codex
+estimated_minutes: 120
+acceptance_criteria: "- npm run release:check passes after changelog regeneration.\\n- Clean temporary folder can install the package with pm install from the local checkout and generate a changelog.\\n- gh CLI confirms no open reported issues, no Dependabot alerts, and current Actions state.\\n- npm audit and npm outdated report no actionable findings.\\n- npm registry latest version is checked before and after publication."
+reviewer: steve
+risk: medium
+confidence: high
+sprint: 2026-05-release
+release: v2026.05.23-6
+resolution: "Completed release verification for the new workflow and package state: release checks passed, dependencies and audit are clean, GitHub issue/PR/alert state was checked with gh, npm registry latest was verified, and a clean temp pm project installed the local checkout and generated a changelog."
+expected_result: "Release readiness verification proves the package remains buildable, testable, auditable, installable through pm package flows, and clean against current GitHub and npm reports before publication."
+actual_result: "npm run release:check passed with 18 node:test tests, npm audit --omit=dev found 0 vulnerabilities, npm outdated returned {}, gh issue list open returned [], Dependabot alerts returned [], gh secret list shows NPM_TOKEN present, npm view reports latest 2026.5.23-5 before this release, and /tmp/pm-changelog-v2026-05-23-6-local-P2eE22 generated CHANGELOG.md with the smoke item."
+dependencies[1]{id,kind,created_at,author,source_kind}:
+  pmc-qjl9,related,"2026-05-23T21:53:28.974Z",codex,null
+comments[2]{created_at,author,text}:
+  "2026-05-23T21:53:28.974Z",codex,"Verification scope includes GitHub,npm,pm package install,changelog self-generation,and secret-history checks."
+  "2026-05-23T21:59:11.166Z",codex,"Temp install evidence: /tmp/pm-changelog-v2026-05-23-6-local-P2eE22 installed the local checkout with pm install,package doctor passed,pm changelog generate wrote a temp CHANGELOG.md,and rg found Verify local v2026.05.23-6 package install."
+notes[1]{created_at,author,text}:
+  "2026-05-23T21:53:28.974Z",codex,Run the temp install after build artifacts are updated so pm install exercises the shipped runtime.
+learnings[1]{created_at,author,text}:
+  "2026-05-23T21:53:28.974Z",codex,pm package doctor should be run from the temp consumer project after installing the package.
+files[2]{path,scope,note}:
+  package.json,project,Release scripts and npm metadata
+  manifest.json,project,pm package manifest
+tests[2]{command,path,scope,timeout_seconds,pm_context_mode,env_set,env_clear,shared_host_safe,assert_stdout_contains,assert_stdout_regex,assert_stderr_contains,assert_stderr_regex,assert_stdout_min_lines,assert_json_field_equals,assert_json_field_gte,note}:
+  clean temp pm install and pm changelog generate,null,project,240,null,null,null,null,null,null,null,null,null,null,null,null
+  "npm run release:check",null,project,240,null,null,null,null,null,null,null,null,null,null,null,null
+docs[1]{path,scope,note}:
+  README.md,project,Install and release docs
+close_reason: "Release workflow and package install verification completed with green local gates, clean GitHub/npm checks, and clean temp pm install smoke."
+body: "Verification covers the code path users and CI will exercise: local build/test/audit/pack, generated changelog freshness, temporary pm install from the checkout, GitHub issue and alert state via gh, and npm registry state."
