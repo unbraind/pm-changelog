@@ -1,0 +1,41 @@
+id: pmc-scof
+title: Verify release readiness with GitHub npm pm and history checks
+description: "Run the current external and local verification matrix: GitHub issues, PRs, Actions, Dependabot alerts, repository settings, npm outdated, npm audit, package dry-run, release gate, clean temporary install, published install after release, and full reachable-history private data scan."
+type: Task
+status: closed
+priority: 0
+tags[4]: github,npm,security,verification
+created_at: "2026-05-23T22:14:51.767Z"
+updated_at: "2026-05-23T22:18:26.671Z"
+deadline: "2026-05-24T00:00:00.000Z"
+author: codex
+estimated_minutes: 90
+acceptance_criteria: "- gh CLI confirms repository, issue, PR, workflow, secret, and Dependabot alert state.\\n- npm outdated and npm audit report no actionable issues.\\n- npm run release:check passes.\\n- A clean temporary project installs the local checkout and generates a changelog.\\n- A clean temporary project installs the published npm package after release and generates a changelog.\\n- Reachable git history scan finds no confirmed private data.\\n- Final GitHub release and npm dist-tag are verified."
+parent: pmc-t7ie
+reviewer: steve
+risk: high
+confidence: high
+sprint: 2026-05-release
+release: v2026.05.23-7
+resolution: "Completed pre-release GitHub, npm, dependency, vulnerability, release-gate, temp-install, and history privacy checks for v2026.05.23-7."
+expected_result: "Release-readiness checks prove the package is buildable, testable, auditable, installable through pm, clean against current GitHub and npm reports, and safe for public release."
+actual_result: "GitHub checks confirmed public repository settings, no open issues, no open pull requests, latest CI and Daily Release green, NPM_TOKEN present, and no Dependabot alerts. npm checks found no outdated packages and zero production vulnerabilities, with npm latest 2026.5.23-6 before this release. Local checks passed release:check with 18 tests, included docs in package dry run, and installed locally in /tmp/pm-changelog-v2026-05-23-7-local-QQsBX1 with extension activation ok and smoke changelog generation. History checks matched only documented sanitizer code and synthetic token secret fixtures, and filename scan found no secret-bearing filenames."
+dependencies[1]{id,kind,created_at,author,source_kind}:
+  pmc-t7ie,parent,"2026-05-23T22:14:51.767Z",codex,null
+comments[2]{created_at,author,text}:
+  "2026-05-23T22:14:51.767Z",codex,Verification task opened before running final local gates and publication checks.
+  "2026-05-23T22:17:36.670Z",codex,Pre-publication verification is complete; final published install evidence will be recorded after the workflow publishes v2026.05.23-7.
+notes[1]{created_at,author,text}:
+  "2026-05-23T22:14:51.767Z",codex,Use only free GitHub features and do not enable paid security products.
+learnings[1]{created_at,author,text}:
+  "2026-05-23T22:14:51.767Z",codex,Publication evidence should include both registry state and a clean consumer install.
+files[2]{path,scope,note}:
+  .github/workflows/release.yml,project,daily release workflow
+  CHANGELOG.md,project,self-generated changelog
+tests[2]{command,path,scope,timeout_seconds,pm_context_mode,env_set,env_clear,shared_host_safe,assert_stdout_contains,assert_stdout_regex,assert_stderr_contains,assert_stderr_regex,assert_stdout_min_lines,assert_json_field_equals,assert_json_field_gte,note}:
+  "npm run release:check",null,project,240,null,null,null,null,null,null,null,null,null,null,null,null
+  pm package doctor in clean temp consumer,null,project,240,null,null,null,null,null,null,null,null,null,null,null,null
+docs[1]{path,scope,note}:
+  docs/release.md,project,verification commands
+close_reason: Pre-release verification passed; final publication verification will follow workflow release
+body: "This task captures operational evidence for the release-readiness request. It remains open until local gates, temporary installs, history scan, commit, push, workflow release, npm registry verification, and GitHub release verification are complete."
