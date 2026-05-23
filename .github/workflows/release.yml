@@ -95,7 +95,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          npm version "${{ steps.decide.outputs.npm_version }}" --no-git-tag-version
+          npm version "${{ steps.decide.outputs.npm_version }}" --no-git-tag-version --allow-same-version
           node -e 'const { readFileSync, writeFileSync } = require("node:fs"); const version = process.env.NPM_VERSION; const manifest = JSON.parse(readFileSync("manifest.json", "utf-8")); manifest.version = version; writeFileSync("manifest.json", `${JSON.stringify(manifest, null, 2)}\n`, "utf-8"); const extensionPath = "src/extension.ts"; const extension = readFileSync(extensionPath, "utf-8").replace(/version:\s*"[^"]+"/, `version: "${version}"`); writeFileSync(extensionPath, extension, "utf-8");'
         env:
           NPM_VERSION: ${{ steps.decide.outputs.npm_version }}
