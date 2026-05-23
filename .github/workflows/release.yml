@@ -51,7 +51,36 @@ jobs:
           fi
 
           release_date="$(date -u +%Y.%m.%d)"
-          next_values="$(RELEASE_DATE="$release_date" node -e 'const { execSync } = require("node:child_process"); const releaseDate = process.env.RELEASE_DATE; const escapedDate = releaseDate.replaceAll(".", "\\\\."); const tags = execSync(`git tag -l "v${releaseDate}*"`, { encoding: "utf-8" }).split(/\\r?\\n/).filter(Boolean); let maxSuffix = -1; for (const tag of tags) { if (tag === `v${releaseDate}`) { maxSuffix = Math.max(maxSuffix, 0); continue; } const match = tag.match(new RegExp(`^v${escapedDate}-(\\\\d+)$`)); if (match) maxSuffix = Math.max(maxSuffix, Number(match[1])); } const suffix = maxSuffix >= 0 ? `-${maxSuffix + 1}` : ""; const tag = `v${releaseDate}${suffix}`; const npmVersion = tag.slice(1).replace(/^(\\d+)\\.0?(\\d+)\\.0?(\\d+)/, (_all, year, month, day) => `${Number(year)}.${Number(month)}.${Number(day)}`); console.log(`tag=${tag}`); console.log(`npm_version=${npmVersion}`);')"
+          base_tag="v${release_date}"
+          max_suffix=-1
+          while IFS= read -r existing_tag; do
+            if [[ "$existing_tag" == "$base_tag" ]]; then
+              (( max_suffix < 0 )) && max_suffix=0
+              continue
+            fi
+            if [[ "$existing_tag" == "$base_tag-"* ]]; then
+              suffix="${existing_tag#"$base_tag-"}"
+              if [[ "$suffix" =~ ^[0-9]+$ ]] && (( suffix > max_suffix )); then
+                max_suffix="$suffix"
+              fi
+            fi
+          done < <(git tag -l "${base_tag}*")
+
+          if (( max_suffix >= 0 )); then
+            tag="${base_tag}-$((max_suffix + 1))"
+          else
+            tag="$base_tag"
+          fi
+
+          version_core="${tag#v}"
+          year="${version_core%%.*}"
+          version_tail="${version_core#*.}"
+          month="${version_tail%%.*}"
+          day_and_suffix="${version_tail#*.}"
+          day="${day_and_suffix%%-*}"
+          suffix="${day_and_suffix#"$day"}"
+          npm_version="$((10#$year)).$((10#$month)).$((10#$day))${suffix}"
+          next_values="$(printf 'tag=%s\nnpm_version=%s\n' "$tag" "$npm_version")"
 
           {
             echo "should_release=true"
