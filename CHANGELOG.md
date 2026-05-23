@@ -13,6 +13,7 @@
 
 ### Other
 
+- Final release verification and npm publication audit (pmc-jk1a)
 - Release pm-changelog 0.1.0 as a production-ready pm package (pmc-ysps)
 - Document pm governance for the package lifecycle (pmc-xl68)
 - Align GitHub repository settings for public package release (pmc-w1sp)
