@@ -1,5 +1,11 @@
 # Changelog
 
+## v2026.05.24
+
+### Other
+
+- Release workflow used UTC date for local 2026-05-24 release (pmc-e1jy)
+
 ## v2026.05.23-7
 
 ### Added
