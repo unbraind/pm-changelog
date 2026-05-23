@@ -1,5 +1,23 @@
 # Changelog
 
+## Unreleased - 2026-05-23
+
+### Added
+
+- Regenerate release changelog from pm items (pmc-a6qg)
+- Harden npm package metadata and CI release gates (pmc-otpe)
+
+### Security
+
+- Audit git history for private data exposure (pmc-91po)
+
+### Other
+
+- Release pm-changelog 0.1.0 as a production-ready pm package (pmc-ysps)
+- Document pm governance for the package lifecycle (pmc-xl68)
+- Align GitHub repository settings for public package release (pmc-w1sp)
+- Verify pm-changelog in a clean temporary project (pmc-800h)
+
 ## 0.1.0 - 2026-05-17
 
 ### Added
