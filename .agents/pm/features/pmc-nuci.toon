@@ -1,0 +1,43 @@
+id: pmc-nuci
+title: Restructure documentation for agent progressive disclosure
+description: "Reduce README to the essential install/run/documentation links and move usage, release, CI, development, SDK policy, temporary install testing, and secret review details into linked docs/ pages optimized for agents."
+type: Feature
+status: closed
+priority: 1
+tags[3]: agents,docs,readme
+created_at: "2026-05-23T22:14:51.986Z"
+updated_at: "2026-05-23T22:18:06.254Z"
+deadline: "2026-05-24T00:00:00.000Z"
+author: codex
+estimated_minutes: 45
+acceptance_criteria: "- README contains minimal package summary, install commands, and links.\\n- docs/README.md provides a short agent path.\\n- docs/usage.md contains CLI, extension, options, and TypeScript API details.\\n- docs/release.md contains release workflow, GitHub checks, npm checks, and versioning.\\n- docs/development.md contains layout, TypeScript policy, pm governance, temp install, and secret review guidance.\\n- package.json pm docs metadata and npm files include docs/."
+parent: pmc-t7ie
+reviewer: steve
+risk: low
+confidence: high
+sprint: 2026-05-release
+release: v2026.05.23-7
+resolution: Moved detailed package documentation into docs/ and reduced README to minimal install/run/docs links.
+expected_result: "The top-level README stays minimal while docs pages carry detailed usage, release, and development guidance linked for agent progressive disclosure."
+actual_result: "README.md is now minimal; docs/README.md, docs/usage.md, docs/release.md, and docs/development.md contain the detailed progressive-disclosure documentation; package.json includes docs/ in npm files and pm docs metadata; npm pack --dry-run included all docs files."
+dependencies[1]{id,kind,created_at,author,source_kind}:
+  pmc-t7ie,parent,"2026-05-23T22:14:51.986Z",codex,null
+comments[2]{created_at,author,text}:
+  "2026-05-23T22:14:51.986Z",codex,Documentation restructuring opened after README audit showed detailed usage and release material living in the top-level README.
+  "2026-05-23T22:17:36.519Z",codex,"Verification: npm run pack:dry-run lists docs/development.md,docs/README.md,docs/release.md,and docs/usage.md in package contents."
+notes[1]{created_at,author,text}:
+  "2026-05-23T22:14:51.986Z",codex,Keep all docs linked from README and docs/README.md.
+learnings[1]{created_at,author,text}:
+  "2026-05-23T22:14:51.986Z",codex,Short READMEs plus task-specific docs reduce context loading for agents.
+files[5]{path,scope,note}:
+  README.md,project,minimal README
+  docs/README.md,project,docs index
+  docs/usage.md,project,usage docs
+  docs/release.md,project,release docs
+  docs/development.md,project,development docs
+tests[1]{command,path,scope,timeout_seconds,pm_context_mode,env_set,env_clear,shared_host_safe,assert_stdout_contains,assert_stdout_regex,assert_stderr_contains,assert_stderr_regex,assert_stdout_min_lines,assert_json_field_equals,assert_json_field_gte,note}:
+  "npm run pack:dry-run",null,project,120,null,null,null,null,null,null,null,null,null,null,null,null
+docs[1]{path,scope,note}:
+  docs/README.md,project,agent path
+close_reason: Documentation restructuring implemented and verified
+body: "The README should stay short for humans and package registries. Detailed operational docs belong in docs/ so agents can load only the relevant page for install, usage, release, or development work."

@@ -36,6 +36,7 @@
   },
   "files": [
     "dist",
+    "docs",
     "manifest.json",
     "README.md",
     "CHANGELOG.md"
@@ -43,13 +44,14 @@
   "scripts": {
     "build": "tsc",
     "check": "tsc --noEmit",
+    "build:test": "tsc -p tsconfig.test.json",
     "changelog": "node dist/cli.js --mode replace --output CHANGELOG.md --group-by release",
     "changelog:check": "node dist/cli.js --mode replace --output CHANGELOG.md --group-by release --check",
     "audit:prod": "npm audit --omit=dev",
     "pack:dry-run": "npm pack --dry-run",
     "prepack": "npm run build",
     "release:check": "npm run check && npm test && npm run audit:prod && npm run pack:dry-run && npm run changelog:check",
-    "test": "npm run build && node --test"
+    "test": "npm run build && npm run build:test && node --test dist-test/*.js"
   },
   "pm": {
     "aliases": [
@@ -77,7 +79,11 @@
     },
     "docs": [
       "README.md",
-      "CHANGELOG.md"
+      "CHANGELOG.md",
+      "docs/README.md",
+      "docs/usage.md",
+      "docs/release.md",
+      "docs/development.md"
     ],
     "examples": [
       "README.md"
