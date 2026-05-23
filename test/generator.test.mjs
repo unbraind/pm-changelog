@@ -374,6 +374,26 @@ process.stdout.write(readFileSync(resolve(process.cwd(), "fixture.json"), "utf-8
   assert.equal(result[0].id, "pm-2");
 });
 
+test("readPmItems supports pm JSON larger than Node's default spawnSync buffer", () => {
+  const dir = mkdtempSync(join(tmpdir(), "pm-changelog-"));
+  const wrapper = join(dir, "pm-wrapper.mjs");
+  const largeBody = "x".repeat(1_200_000);
+  writeFileSync(
+    wrapper,
+    `#!/usr/bin/env node
+if (process.argv.slice(2).join(" ") !== "list-all --json") process.exit(2);
+process.stdout.write(JSON.stringify({ items: [{ id: "pm-large", title: "Large tracker", status: "closed", body: ${JSON.stringify(largeBody)} }] }));
+`,
+    "utf-8"
+  );
+  chmodSync(wrapper, 0o755);
+
+  const result = readPmItems({ pmBin: wrapper });
+
+  assert.equal(result.length, 1);
+  assert.equal(result[0].id, "pm-large");
+});
+
 test("CLI can run a custom pm binary", () => {
   const dir = mkdtempSync(join(tmpdir(), "pm-changelog-"));
   const wrapper = join(dir, "pm-wrapper.mjs");
@@ -524,4 +544,53 @@ test("pm package install activates changelog command", () => {
   assert.equal(generated.changed, true);
   assert.equal(generated.item_count, 1);
   assert.match(readFileSync(join(dir, "CHANGELOG.md"), "utf-8"), /## smoke - 2026-05-17/);
+
+  const unchanged = JSON.parse(execFileSync(
+    pmBin,
+    [
+      "changelog",
+      "generate",
+      "--output",
+      "CHANGELOG.md",
+      "--release-version",
+      "smoke",
+      "--date",
+      "2026-05-17",
+      "--mode",
+      "prepend",
+      "--check",
+      "--json",
+    ],
+    {
+      cwd: dir,
+      encoding: "utf-8",
+    }
+  ));
+  assert.equal(unchanged.changed, false);
+
+  writeFileSync(join(dir, "CHANGELOG.md"), "# stale\n", "utf-8");
+  assert.throws(
+    () => execFileSync(
+      pmBin,
+      [
+        "changelog",
+        "generate",
+        "--output",
+        "CHANGELOG.md",
+        "--release-version",
+        "smoke",
+        "--date",
+        "2026-05-17",
+        "--mode",
+        "prepend",
+        "--check",
+        "--json",
+      ],
+      {
+        cwd: dir,
+        encoding: "utf-8",
+      }
+    ),
+    /Command \\"changelog generate\\" failed/
+  );
 });
