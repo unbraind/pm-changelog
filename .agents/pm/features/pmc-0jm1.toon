@@ -1,0 +1,40 @@
+id: pmc-0jm1
+title: Use official pm SDK without local extension shims
+description: "Replace the package-local defineExtension identity shim and runtime SDK path fallback with direct imports from the supported @unbrained/pm-cli/sdk package, after verifying the installed SDK exports defineExtension and listAllFrontMatter."
+type: Feature
+status: closed
+priority: 0
+tags[3]: extension,sdk,typescript
+created_at: "2026-05-23T22:14:51.488Z"
+updated_at: "2026-05-23T22:18:05.853Z"
+deadline: "2026-05-24T00:00:00.000Z"
+author: codex
+estimated_minutes: 45
+acceptance_criteria: "- src/extension.ts imports defineExtension and listAllFrontMatter directly from @unbrained/pm-cli/sdk.\\n- No private pm-cli internals or local SDK compatibility shim remains.\\n- TypeScript check and pm extension install smoke pass.\\n- No upstream pm-cli issue is opened because the required SDK exports are present."
+parent: pmc-t7ie
+reviewer: steve
+risk: medium
+confidence: high
+sprint: 2026-05-release
+release: v2026.05.23-7
+resolution: Replaced local extension SDK shim and runtime fallback with direct official @unbrained/pm-cli/sdk imports.
+expected_result: The extension uses only the official pm SDK public surface and installs without runtime compatibility workarounds.
+actual_result: "src/extension.ts now imports defineExtension and listAllFrontMatter directly from @unbrained/pm-cli/sdk. The installed SDK export audit showed both exports are present, npm run check passed, npm run release:check passed, and no pm-cli GitHub issue was opened because no SDK defect remains."
+dependencies[1]{id,kind,created_at,author,source_kind}:
+  pmc-t7ie,parent,"2026-05-23T22:14:51.488Z",codex,null
+comments[2]{created_at,author,text}:
+  "2026-05-23T22:14:51.488Z",codex,SDK export audit confirmed defineExtension and listAllFrontMatter are available from @unbrained/pm-cli/sdk.
+  "2026-05-23T22:17:36.840Z",codex,"Verification: npm run check passed; npm run release:check passed; temp pm package install activated the extension successfully with activation_status_totals ok=1."
+notes[1]{created_at,author,text}:
+  "2026-05-23T22:14:51.488Z",codex,Remove package-local SDK path probing so runtime behavior matches the official SDK contract.
+learnings[1]{created_at,author,text}:
+  "2026-05-23T22:14:51.488Z",codex,The public pm SDK now covers this extension use case directly; compatibility fallbacks are no longer needed.
+files[1]{path,scope,note}:
+  src/extension.ts,project,SDK import surface
+tests[2]{command,path,scope,timeout_seconds,pm_context_mode,env_set,env_clear,shared_host_safe,assert_stdout_contains,assert_stdout_regex,assert_stderr_contains,assert_stderr_regex,assert_stdout_min_lines,assert_json_field_equals,assert_json_field_gte,note}:
+  node -e import('@unbrained/pm-cli/sdk') exports check,null,project,30,null,null,null,null,null,null,null,null,null,null,null,null
+  npm run check,null,project,120,null,null,null,null,null,null,null,null,null,null,null,null
+docs[1]{path,scope,note}:
+  docs/development.md,project,SDK policy
+close_reason: Official SDK compliance implemented and verified
+body: "The package extension should depend only on the official public SDK export surface. The installed SDK currently exports both defineExtension and listAllFrontMatter, so no upstream pm-cli issue is required for this pass."

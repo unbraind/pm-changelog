@@ -1,0 +1,41 @@
+id: pmc-yzeq
+title: Convert test source to typed TypeScript
+description: "Move the node:test coverage from a JavaScript .mjs source file to TypeScript, add a dedicated test compiler config, and run tests from compiled output so repository-authored code remains TypeScript-only."
+type: Task
+status: closed
+priority: 0
+tags[2]: testing,typescript
+created_at: "2026-05-23T22:14:51.489Z"
+updated_at: "2026-05-23T22:18:06.603Z"
+deadline: "2026-05-24T00:00:00.000Z"
+author: codex
+estimated_minutes: 45
+acceptance_criteria: "- test/generator.test.ts replaces the JavaScript test source.\\n- tsconfig.test.json compiles tests with allowJs=false.\\n- npm test builds source, builds tests, and runs node --test on compiled test output.\\n- dist-test is ignored and never published."
+parent: pmc-t7ie
+reviewer: steve
+risk: medium
+confidence: high
+sprint: 2026-05-release
+release: v2026.05.23-7
+resolution: "Converted repository test authoring from JavaScript to TypeScript with compiled node:test execution."
+expected_result: "Repository-authored test source is TypeScript, compiles with allowJs disabled, and the Node test suite remains green."
+actual_result: "test/generator.test.ts replaces test/generator.test.mjs, tsconfig.test.json compiles tests with allowJs=false into ignored dist-test output, npm test runs node --test dist-test/*.js, and npm run release:check passed with 18 tests."
+dependencies[1]{id,kind,created_at,author,source_kind}:
+  pmc-t7ie,parent,"2026-05-23T22:14:51.489Z",codex,null
+comments[2]{created_at,author,text}:
+  "2026-05-23T22:14:51.489Z",codex,Converted test authoring plan opened after identifying test/generator.test.mjs as repository JavaScript source.
+  "2026-05-23T22:17:35.178Z",codex,Initial test script path was corrected from dist-test/test to dist-test/*.js after Node treated the directory as a file; final release gate passed.
+notes[1]{created_at,author,text}:
+  "2026-05-23T22:14:51.489Z",codex,Keep dist-test out of git and npm package contents.
+learnings[1]{created_at,author,text}:
+  "2026-05-23T22:14:51.489Z",codex,Node test execution can remain native by compiling TypeScript tests into an ignored dist-test tree.
+files[3]{path,scope,note}:
+  test/generator.test.ts,project,typed test source
+  tsconfig.test.json,project,test compiler config
+  .gitignore,project,compiled test output ignore
+tests[1]{command,path,scope,timeout_seconds,pm_context_mode,env_set,env_clear,shared_host_safe,assert_stdout_contains,assert_stdout_regex,assert_stderr_contains,assert_stderr_regex,assert_stdout_min_lines,assert_json_field_equals,assert_json_field_gte,note}:
+  npm test,null,project,240,null,null,null,null,null,null,null,null,null,null,null,null
+docs[1]{path,scope,note}:
+  docs/development.md,project,TypeScript policy
+close_reason: TypeScript test conversion implemented and verified
+body: The package can still publish compiled JavaScript in dist because npm and Node execute JavaScript. Repository-authored implementation and test source should be TypeScript and compiled before execution.

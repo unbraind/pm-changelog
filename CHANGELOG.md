@@ -1,5 +1,21 @@
 # Changelog
 
+## v2026.05.23-7
+
+### Added
+
+- Restructure documentation for agent progressive disclosure (pmc-nuci)
+- Use official pm SDK without local extension shims (pmc-0jm1)
+
+### Security
+
+- Verify release readiness with GitHub npm pm and history checks (pmc-scof)
+
+### Other
+
+- Production readiness refresh for pm-changelog v2026.05.23-7 (pmc-t7ie)
+- Convert test source to typed TypeScript (pmc-yzeq)
+
 ## v2026.05.23-6
 
 ### Added
