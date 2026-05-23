@@ -22,7 +22,7 @@ The gate:
 
 The workflow skips publishing when there are no commits after the latest release tag. When changes exist, it:
 
-- Computes the next date-based tag.
+- Computes the next date-based tag in the configured release timezone, currently `Europe/Vienna`.
 - Updates `package.json`, `package-lock.json`, `manifest.json`, and `src/extension.ts`.
 - Rebuilds `dist/`.
 - Generates `CHANGELOG.md` with `pm-changelog` itself.
@@ -57,6 +57,8 @@ npm package versions use the SemVer-compatible equivalent without the leading `v
 2026.5.23
 2026.5.23-1
 ```
+
+The automated workflow uses `RELEASE_TIMEZONE=Europe/Vienna` when computing date-based tags. This avoids UTC rollover surprises for manual dispatches near local midnight.
 
 ## GitHub Checks
 

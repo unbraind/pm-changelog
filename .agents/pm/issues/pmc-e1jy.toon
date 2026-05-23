@@ -1,0 +1,45 @@
+id: pmc-e1jy
+title: Release workflow used UTC date for local 2026-05-24 release
+description: The Daily Release workflow computed v2026.05.23-7 because it used date -u while the project operator timezone was already Europe/Vienna 2026-05-24. Release tags should use the configured release timezone so manual dispatch near local midnight does not publish under the previous local date.
+type: Issue
+status: closed
+priority: 0
+tags[3]: github-actions,release,timezone
+created_at: "2026-05-23T22:24:21.413Z"
+updated_at: "2026-05-23T22:25:12.417Z"
+deadline: "2026-05-24T00:00:00.000Z"
+author: codex
+estimated_minutes: 45
+acceptance_criteria: "- Release workflow computes date tags using Europe/Vienna timezone.\\n- Release documentation states the release timezone.\\n- Changelog records the timezone fix under v2026.05.24.\\n- Corrective release is published as v2026.05.24 and npm latest is 2026.5.24.\\n- Clean npm pm install verifies the corrected published package."
+reviewer: steve
+risk: high
+confidence: high
+sprint: 2026-05-release
+release: v2026.05.24
+reporter: steve
+severity: high
+environment: GitHub Actions Daily Release workflow_dispatch at local midnight
+repro_steps: Trigger release.yml after Europe/Vienna midnight but before UTC midnight; old workflow uses date -u and produces the previous local date.
+resolution: Changed the Daily Release workflow to compute date-based release tags with RELEASE_TIMEZONE=Europe/Vienna and documented the release timezone.
+expected_result: "At Europe/Vienna 2026-05-24, the workflow creates v2026.05.24 and npm version 2026.5.24."
+actual_result: "The workflow now sets RELEASE_TIMEZONE to Europe/Vienna and uses TZ= date +%Y.%m.%d instead of date -u. docs/release.md documents the release timezone. Local verification confirmed TZ=Europe/Vienna date returns 2026.05.24, and npm run release:check passed with 18 tests, zero production vulnerabilities, package dry-run, and changelog check."
+component: release-workflow
+dependencies[1]{id,kind,created_at,author,source_kind}:
+  pmc-t7ie,related,"2026-05-23T22:24:21.413Z",codex,null
+comments[2]{created_at,author,text}:
+  "2026-05-23T22:24:21.413Z",codex,User reported the date mismatch immediately after v2026.05.23-7 publication.
+  "2026-05-23T22:25:11.011Z",codex,"The incorrect v2026.05.23-7 release remains published as historical evidence,but the corrective release will be v2026.05.24."
+notes[1]{created_at,author,text}:
+  "2026-05-23T22:24:21.413Z",codex,Use an explicit RELEASE_TIMEZONE environment variable rather than relying on runner default timezone.
+learnings[1]{created_at,author,text}:
+  "2026-05-23T22:24:21.413Z",codex,Date-based release workflows must define the business timezone or near-midnight dispatches can publish under the wrong date.
+files[2]{path,scope,note}:
+  .github/workflows/release.yml,project,release date computation
+  docs/release.md,project,release timezone documentation
+tests[2]{command,path,scope,timeout_seconds,pm_context_mode,env_set,env_clear,shared_host_safe,assert_stdout_contains,assert_stdout_regex,assert_stderr_contains,assert_stderr_regex,assert_stdout_min_lines,assert_json_field_equals,assert_json_field_gte,note}:
+  "npm run release:check",null,project,240,null,null,null,null,null,null,null,null,null,null,null,null
+  TZ=Europe/Vienna date +%Y.%m.%d,null,project,30,null,null,null,null,null,null,null,null,null,null,null,null
+docs[1]{path,scope,note}:
+  docs/release.md,project,timezone policy
+close_reason: Release workflow timezone fixed and verified
+body: "Observed at 2026-05-24 00:23 Europe/Vienna while UTC was still 2026-05-23 22:23. The workflow line release_date=\"2026.05.23\" caused the corrective production-readiness release to publish as v2026.05.23-7 instead of v2026.05.24."
