@@ -16,6 +16,8 @@ concurrency:
 jobs:
   release:
     runs-on: ubuntu-latest
+    env:
+      RELEASE_TIMEZONE: Europe/Vienna
     steps:
       - name: Checkout
         uses: actions/checkout@v6
@@ -50,7 +52,7 @@ jobs:
             exit 0
           fi
 
-          release_date="$(date -u +%Y.%m.%d)"
+          release_date="$(TZ="$RELEASE_TIMEZONE" date +%Y.%m.%d)"
           base_tag="v${release_date}"
           max_suffix=-1
           while IFS= read -r existing_tag; do
