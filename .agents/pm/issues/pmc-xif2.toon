@@ -1,0 +1,45 @@
+id: pmc-xif2
+title: Published npm package missed runtime pm SDK dependency
+description: "Clean pm install npm:pm-changelog for v2026.05.24 failed to load the extension because @unbrained/pm-cli/sdk was not available inside the installed package runtime after switching to direct official SDK imports."
+type: Issue
+status: closed
+priority: 0
+tags[4]: npm,packaging,release,sdk
+created_at: "2026-05-23T22:27:51.928Z"
+updated_at: "2026-05-23T22:28:57.011Z"
+deadline: "2026-05-24T00:00:00.000Z"
+author: codex
+estimated_minutes: 45
+acceptance_criteria: "- package.json declares @unbrained/pm-cli as a runtime dependency for the extension.\\n- package-lock.json is updated.\\n- Local release checks pass.\\n- Corrective release v2026.05.24-1 is published.\\n- Clean pm install npm:pm-changelog exposes pm changelog generate and generates a smoke changelog."
+reviewer: steve
+risk: high
+confidence: high
+sprint: 2026-05-release
+release: v2026.05.24-1
+reporter: codex
+severity: high
+environment: "Clean temporary pm consumer installing npm:pm-changelog@2026.5.24"
+repro_steps: "Run pm init, pm install npm:pm-changelog --project, then pm changelog generate in a clean temporary directory."
+resolution: Added @unbrained/pm-cli as a runtime dependency so the official @unbrained/pm-cli/sdk import is available when the package is installed as a pm extension.
+expected_result: The installed extension loads through the official SDK and exposes pm changelog generate.
+actual_result: "package.json now declares @unbrained/pm-cli under dependencies and package-lock.json is updated. npm run release:check passed with 18 tests and zero production vulnerabilities. Clean local pm install /tmp/pm-changelog-v2026-05-24-1-local-YR2JwY loaded the extension with activation ok=1 and generated a smoke changelog with one item."
+component: package-metadata
+dependencies[1]{id,kind,created_at,author,source_kind}:
+  pmc-e1jy,related,"2026-05-23T22:27:51.928Z",codex,null
+comments[2]{created_at,author,text}:
+  "2026-05-23T22:27:51.928Z",codex,Detected during the required clean published npm install verification after v2026.05.24.
+  "2026-05-23T22:28:55.725Z",codex,Local package install proved the official SDK dependency is now available without a custom shim.
+notes[1]{created_at,author,text}:
+  "2026-05-23T22:27:51.928Z",codex,"Fix with official SDK dependency metadata,not a local shim."
+learnings[1]{created_at,author,text}:
+  "2026-05-23T22:27:51.928Z",codex,Direct SDK imports require the SDK package to be present in the published extension runtime dependency graph.
+files[2]{path,scope,note}:
+  package.json,project,runtime dependency metadata
+  package-lock.json,project,locked runtime dependency
+tests[2]{command,path,scope,timeout_seconds,pm_context_mode,env_set,env_clear,shared_host_safe,assert_stdout_contains,assert_stdout_regex,assert_stderr_contains,assert_stderr_regex,assert_stdout_min_lines,assert_json_field_equals,assert_json_field_gte,note}:
+  "clean pm install npm:pm-changelog",null,project,240,null,null,null,null,null,null,null,null,null,null,null,null
+  "npm run release:check",null,project,240,null,null,null,null,null,null,null,null,null,null,null,null
+docs[1]{path,scope,note}:
+  docs/development.md,project,SDK policy
+close_reason: Runtime SDK dependency fixed and locally verified
+body: "The package correctly uses the official @unbrained/pm-cli/sdk import, but package.json only had @unbrained/pm-cli in peerDependencies and devDependencies. A clean pm install npm:pm-changelog reported extension_load_failed_sdk_dependency_missing:pm-changelog and did not expose pm changelog generate."
