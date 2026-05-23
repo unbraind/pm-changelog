@@ -1,5 +1,11 @@
 # Changelog
 
+## v2026.05.24-1
+
+### Other
+
+- Published npm package missed runtime pm SDK dependency (pmc-xif2)
+
 ## v2026.05.24
 
 ### Other
