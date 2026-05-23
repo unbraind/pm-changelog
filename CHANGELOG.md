@@ -1,5 +1,11 @@
 # Changelog
 
+## v2026.05.23-1
+
+### Other
+
+- Fresh production readiness verification for pm-changelog (pmc-nv97)
+
 ## v2026.05.23
 
 ### Other
