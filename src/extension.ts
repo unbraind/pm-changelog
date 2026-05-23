@@ -1,8 +1,9 @@
-import { existsSync } from "node:fs";
+import {
+  listAllFrontMatter,
+  type defineExtension as defineExtensionType,
+} from "@unbrained/pm-cli/sdk";
 
-import type { defineExtension as defineExtensionType } from "@unbrained/pm-cli/sdk";
-
-import { createChangelog, mergeChangelog, readPmItems, writeChangelog } from "./generator.js";
+import { createChangelog, mergeChangelog, writeChangelog } from "./generator.js";
 import type { ChangelogGroupBy } from "./types.js";
 
 const defineExtension: typeof defineExtensionType = ((extension: unknown) => extension) as typeof defineExtensionType;
@@ -59,7 +60,7 @@ export default defineExtension({
           .map((status) => status.trim())
           .filter(Boolean);
 
-        const items = readPmItemsForExtension(ctx.pm_root);
+        const items = await listAllFrontMatter(ctx.pm_root);
         const generationOptions = {
           items,
           title: ctx.options["title"] as string | undefined,
@@ -115,25 +116,4 @@ function stringOption(options: Record<string, unknown>, kebabKey: string, camelK
 
 function booleanOption(options: Record<string, unknown>, kebabKey: string, camelKey: string): boolean {
   return Boolean(options[kebabKey] ?? options[camelKey]);
-}
-
-function readPmItemsForExtension(pmRoot: string) {
-  try {
-    return readPmItems({ pmRoot });
-  } catch (error) {
-    const currentCli = process.argv[1];
-    if (
-      typeof currentCli === "string" &&
-      currentCli.trim().length > 0 &&
-      currentCli.endsWith(".js") &&
-      existsSync(currentCli)
-    ) {
-      return readPmItems({
-        pmRoot,
-        pmBin: process.execPath,
-        pmArgs: [currentCli],
-      });
-    }
-    throw error;
-  }
 }
