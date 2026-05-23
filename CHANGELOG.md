@@ -13,6 +13,7 @@
 
 ### Other
 
+- Publish pm-changelog to npm after registry authentication (pmc-ek6t)
 - Final release verification and npm publication audit (pmc-jk1a)
 - Release pm-changelog 0.1.0 as a production-ready pm package (pmc-ysps)
 - Document pm governance for the package lifecycle (pmc-xl68)
