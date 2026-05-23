@@ -1,0 +1,39 @@
+id: pmc-l1h7
+title: Refresh production readiness governance for v2026.05.23-6
+description: "Document the continuation pass requested on 2026-05-23, including GitHub CLI review, dependency and vulnerability evidence, release workflow enablement, clean install smoke testing, self-hosted changelog regeneration, git history privacy review, commit/push, npm publication, and GitHub release verification."
+type: Chore
+status: closed
+priority: 0
+tags[3]: governance,production,release
+created_at: "2026-05-23T21:53:27.760Z"
+updated_at: "2026-05-23T21:59:30.410Z"
+deadline: "2026-05-23T00:00:00.000Z"
+author: codex
+estimated_minutes: 90
+acceptance_criteria: "- Current work is represented in pm with detailed feature, task, and chore records.\\n- pm health and strict validation pass.\\n- Closure comments capture exact verification and publication evidence.\\n- CHANGELOG.md includes this continuation work because pm-changelog generated it from the tracker."
+reviewer: steve
+risk: medium
+confidence: high
+sprint: 2026-05-release
+release: v2026.05.23-6
+resolution: "Completed the v2026.05.23-6 continuation governance pass with detailed pm records for release workflow enablement, verification, and final production readiness evidence."
+expected_result: The v2026.05.23-6 continuation pass is fully represented in pm with detailed evidence and can be consumed by pm-changelog to generate public release notes.
+actual_result: "pm health was ok before changes; new Feature, Task, and Chore records were created with full required metadata. GitHub state, npm state, actionlint, release checks, temp install, and history secret scan evidence were recorded. Secret history scan had only documented synthetic fixture exclusions: token=secret sanitizer tests and password-clearing code."
+dependencies[1]{id,kind,created_at,author,source_kind}:
+  pmc-qjl9,related,"2026-05-23T21:53:27.760Z",codex,null
+comments[3]{created_at,author,text}:
+  "2026-05-23T21:53:27.760Z",codex,Continuation governance opened for v2026.05.23-6 after identifying the missing scheduled release workflow.
+  "2026-05-23T21:59:11.170Z",codex,"GitHub evidence: repo is public,issues enabled,no open issues or PRs,Dependabot alerts empty,recent CI green,v2026.05.23-5 public release present,and NPM_TOKEN repository secret is configured."
+  "2026-05-23T21:59:11.170Z",codex,"Security evidence: full reachable-history scan was rerun with documented synthetic fixture exclusions; no private keys,npm tokens,GitHub tokens,env files,credential files,or unexpected secret-like literals were found."
+notes[1]{created_at,author,text}:
+  "2026-05-23T21:53:27.760Z",codex,"Close this item only after validation,changelog regeneration,commit,push,npm publication,and GitHub release verification are recorded."
+learnings[1]{created_at,author,text}:
+  "2026-05-23T21:53:27.760Z",codex,"Strict pm create policies require complete operational context up front,which improves release evidence quality."
+files[1]{path,scope,note}:
+  .agents/pm/settings.json,project,pm tracker settings
+tests[1]{command,path,scope,timeout_seconds,pm_context_mode,env_set,env_clear,shared_host_safe,assert_stdout_contains,assert_stdout_regex,assert_stderr_contains,assert_stderr_regex,assert_stdout_min_lines,assert_json_field_equals,assert_json_field_gte,note}:
+  pm validate --json --check-metadata --check-resolution --check-lifecycle --check-command-references --check-history-drift --strict-exit,null,project,120,null,null,null,null,null,null,null,null,null,null,null,null
+docs[1]{path,scope,note}:
+  CHANGELOG.md,project,Self-generated changelog
+close_reason: "Continuation governance documented with verification evidence; final changelog regeneration, commit, push, workflow dispatch, npm publication, and release verification proceed from these closed records."
+body: "This chore is the governance envelope for the continuation pass. It records the decisions, evidence, and final release state so the changelog generated from pm items reflects the full production-readiness activity."

@@ -1,5 +1,16 @@
 # Changelog
 
+## v2026.05.23-6
+
+### Added
+
+- Enable scheduled npm and GitHub auto release workflow (pmc-mklv)
+
+### Other
+
+- Verify pm-changelog release workflow and package install path (pmc-6zxg)
+- Refresh production readiness governance for v2026.05.23-6 (pmc-l1h7)
+
 ## v2026.05.23-5
 
 ### Other

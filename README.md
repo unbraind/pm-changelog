@@ -77,6 +77,17 @@ The release gate type-checks the TypeScript source, runs the full test suite, au
 
 Release tags follow the pm CLI date-based convention: `vYYYY.MM.DD`, or `vYYYY.MM.DD-N` for additional releases on the same day. npm package metadata uses the SemVer-compatible equivalent without the leading `v` or zero-padded numeric components, for example `2026.5.23`.
 
+## Automated Release
+
+The repository includes a free GitHub Actions scheduled release workflow in `.github/workflows/release.yml`.
+It runs daily and can also be started manually from the Actions tab. The workflow skips publishing when there are no commits after the latest release tag. When changes exist, it computes the next date-based tag, updates npm and pm package version metadata, rebuilds `dist/`, generates changelog output with `pm-changelog`, runs the release gate checks, commits the release files, publishes to npm using the `NPM_TOKEN` repository secret, and creates the public GitHub release.
+
+Required repository secret:
+
+```text
+NPM_TOKEN
+```
+
 ## CLI
 
 Generate `CHANGELOG.md` from the current pm project:

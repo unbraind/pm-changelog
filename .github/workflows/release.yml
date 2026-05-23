@@ -1,0 +1,130 @@
+name: Daily Release
+
+on:
+  schedule:
+    - cron: "17 3 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  id-token: write
+
+concurrency:
+  group: daily-release
+  cancel-in-progress: false
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: 20
+          cache: npm
+          registry-url: "https://registry.npmjs.org"
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Decide release
+        id: decide
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          latest_tag="$(git tag --sort=-creatordate | head -n 1 || true)"
+          if [[ -n "$latest_tag" ]] && git diff --quiet "$latest_tag"..HEAD -- .; then
+            {
+              echo "should_release=false"
+              echo "latest_tag=$latest_tag"
+            } >> "$GITHUB_OUTPUT"
+            echo "No changes since $latest_tag; skipping release." >> "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
+
+          release_date="$(date -u +%Y.%m.%d)"
+          next_values="$(RELEASE_DATE="$release_date" node -e 'const { execSync } = require("node:child_process"); const releaseDate = process.env.RELEASE_DATE; const escapedDate = releaseDate.replaceAll(".", "\\\\."); const tags = execSync(`git tag -l "v${releaseDate}*"`, { encoding: "utf-8" }).split(/\\r?\\n/).filter(Boolean); let maxSuffix = -1; for (const tag of tags) { if (tag === `v${releaseDate}`) { maxSuffix = Math.max(maxSuffix, 0); continue; } const match = tag.match(new RegExp(`^v${escapedDate}-(\\\\d+)$`)); if (match) maxSuffix = Math.max(maxSuffix, Number(match[1])); } const suffix = maxSuffix >= 0 ? `-${maxSuffix + 1}` : ""; const tag = `v${releaseDate}${suffix}`; const npmVersion = tag.slice(1).replace(/^(\\d+)\\.0?(\\d+)\\.0?(\\d+)/, (_all, year, month, day) => `${Number(year)}.${Number(month)}.${Number(day)}`); console.log(`tag=${tag}`); console.log(`npm_version=${npmVersion}`);')"
+
+          {
+            echo "should_release=true"
+            echo "latest_tag=$latest_tag"
+            echo "$next_values"
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Update release version
+        if: steps.decide.outputs.should_release == 'true'
+        shell: bash
+        run: |
+          set -euo pipefail
+          npm version "${{ steps.decide.outputs.npm_version }}" --no-git-tag-version
+          node -e 'const { readFileSync, writeFileSync } = require("node:fs"); const version = process.env.NPM_VERSION; const manifest = JSON.parse(readFileSync("manifest.json", "utf-8")); manifest.version = version; writeFileSync("manifest.json", `${JSON.stringify(manifest, null, 2)}\n`, "utf-8"); const extensionPath = "src/extension.ts"; const extension = readFileSync(extensionPath, "utf-8").replace(/version:\s*"[^"]+"/, `version: "${version}"`); writeFileSync(extensionPath, extension, "utf-8");'
+        env:
+          NPM_VERSION: ${{ steps.decide.outputs.npm_version }}
+
+      - name: Run release checks
+        if: steps.decide.outputs.should_release == 'true'
+        shell: bash
+        run: |
+          set -euo pipefail
+          npm run check
+          npm test
+          npm run audit:prod
+          npm run pack:dry-run
+
+      - name: Build and generate changelog
+        if: steps.decide.outputs.should_release == 'true'
+        shell: bash
+        run: |
+          set -euo pipefail
+          npm run build
+          node dist/cli.js \
+            --mode replace \
+            --output CHANGELOG.md \
+            --group-by release \
+            --github-step-summary
+          node dist/cli.js \
+            --mode replace \
+            --output CHANGELOG.md \
+            --group-by release \
+            --check
+
+      - name: Commit release files
+        if: steps.decide.outputs.should_release == 'true'
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add package.json package-lock.json manifest.json src/extension.ts dist CHANGELOG.md
+          git commit -m "Release pm-changelog ${{ steps.decide.outputs.tag }}"
+          git tag "${{ steps.decide.outputs.tag }}"
+          git push origin HEAD:main
+          git push origin "${{ steps.decide.outputs.tag }}"
+
+      - name: Publish npm package
+        if: steps.decide.outputs.should_release == 'true'
+        run: npm publish --access public --provenance
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+
+      - name: Create GitHub release
+        if: steps.decide.outputs.should_release == 'true'
+        shell: bash
+        run: |
+          set -euo pipefail
+          node dist/cli.js \
+            --stdout \
+            --version "${{ steps.decide.outputs.tag }}" \
+            > RELEASE_NOTES.md
+          gh release create "${{ steps.decide.outputs.tag }}" \
+            --title "pm-changelog ${{ steps.decide.outputs.tag }}" \
+            --notes-file RELEASE_NOTES.md \
+            --verify-tag
+        env:
+          GH_TOKEN: ${{ github.token }}

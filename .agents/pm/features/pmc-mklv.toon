@@ -1,0 +1,39 @@
+id: pmc-mklv
+title: Enable scheduled npm and GitHub auto release workflow
+description: "Add a free GitHub Actions workflow for pm-changelog that runs daily and by manual dispatch, skips when no commits exist after the latest release tag, computes the next pm date-based release tag, updates npm and pm package version surfaces, regenerates changelog output with pm-changelog itself, runs release quality gates, commits release artifacts, publishes to npm, and creates a public GitHub release."
+type: Feature
+status: closed
+priority: 0
+tags[4]: automation,github-actions,npm,release
+created_at: "2026-05-23T21:53:29.093Z"
+updated_at: "2026-05-23T21:59:31.243Z"
+deadline: "2026-05-23T00:00:00.000Z"
+author: codex
+estimated_minutes: 90
+acceptance_criteria: "- .github/workflows/release.yml exists and is enabled for daily schedule plus workflow_dispatch.\\n- Workflow uses only free GitHub Actions features and repository GITHUB_TOKEN permissions.\\n- Workflow exits without publishing when HEAD has no diff from the latest release tag.\\n- Workflow updates package.json, package-lock.json, manifest.json, src/extension.ts, dist, and CHANGELOG.md before tagging.\\n- Workflow publishes npm with the NPM_TOKEN repository secret and creates a public GitHub release after all checks pass."
+reviewer: steve
+risk: high
+confidence: high
+sprint: 2026-05-release
+release: v2026.05.23-6
+resolution: "Implemented .github/workflows/release.yml with daily schedule, workflow_dispatch, no-change skip logic, date-based tag computation, version metadata updates, build/check/audit/pack gates, pm-changelog generated changelog output, release commit/tag push, npm publish with NPM_TOKEN, and GitHub release creation."
+expected_result: "The repository has an enabled scheduled release workflow that publishes only when changes exist since the latest release tag and performs versioning, changelog generation, npm publish, and GitHub release creation after checks pass."
+actual_result: "actionlint passed for ci.yml and release.yml; README documents NPM_TOKEN and automated release behavior; workflow uses free GitHub Actions schedule, workflow_dispatch, GITHUB_TOKEN contents write, and id-token write for npm provenance."
+dependencies[1]{id,kind,created_at,author,source_kind}:
+  pmc-qjl9,related,"2026-05-23T21:53:29.093Z",codex,null
+comments[2]{created_at,author,text}:
+  "2026-05-23T21:53:29.093Z",codex,Workflow implementation started after gh audit confirmed no existing scheduled release workflow.
+  "2026-05-23T21:59:11.761Z",codex,"Verification: downloaded rhysd/actionlint with gh and actionlint passed .github/workflows/ci.yml plus .github/workflows/release.yml; YAML parsing passed with Ruby."
+notes[1]{created_at,author,text}:
+  "2026-05-23T21:53:29.093Z",codex,"Keep release automation on free GitHub Actions primitives: schedule,workflow_dispatch,repository GITHUB_TOKEN,and npm token secret."
+learnings[1]{created_at,author,text}:
+  "2026-05-23T21:53:29.093Z",codex,The repository CI workflow is not enough for daily release automation because it never tags or publishes npm artifacts.
+files[2]{path,scope,note}:
+  .github/workflows/release.yml,project,Daily auto release workflow
+  README.md,project,Automated release documentation
+tests[1]{command,path,scope,timeout_seconds,pm_context_mode,env_set,env_clear,shared_host_safe,assert_stdout_contains,assert_stdout_regex,assert_stderr_contains,assert_stderr_regex,assert_stdout_min_lines,assert_json_field_equals,assert_json_field_gte,note}:
+  workflow syntax and release gate verification,null,project,240,null,null,null,null,null,null,null,null,null,null,null,null
+docs[1]{path,scope,note}:
+  README.md,project,Release automation operating notes
+close_reason: "Scheduled release workflow implemented and locally validated with actionlint, YAML parsing, README documentation, and release gate compatibility."
+body: "This feature closes the missing automation gap: daily release automation must exist in-repo, be enabled, avoid duplicate publishes, and remain compatible with the package's self-hosted changelog workflow."
