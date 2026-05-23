@@ -45,7 +45,10 @@
     "check": "tsc --noEmit",
     "changelog": "node dist/cli.js --mode prepend --output CHANGELOG.md",
     "changelog:check": "node dist/cli.js --mode prepend --output CHANGELOG.md --check",
+    "audit:prod": "npm audit --omit=dev",
+    "pack:dry-run": "npm pack --dry-run",
     "prepack": "npm run build",
+    "release:check": "npm run check && npm test && npm run audit:prod && npm run pack:dry-run && npm run changelog:check",
     "test": "npm run build && node --test"
   },
   "pm": {

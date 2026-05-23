@@ -59,10 +59,21 @@ pm install ./pm-changelog --project
 pm-changelog/
   manifest.json       # pm extension manifest loaded by the package manager
   package.json        # npm metadata plus pm package catalog/install metadata
+  LICENSE             # MIT license for npm and public repository consumers
   dist/               # built CLI, API, and extension runtime tracked for pm installs
   src/                # TypeScript source
   test/               # node:test coverage for generator, CLI, and runner behavior
 ```
+
+## Release Verification
+
+Run the full local release gate before tagging or publishing:
+
+```bash
+npm run release:check
+```
+
+The release gate type-checks the TypeScript source, runs the full test suite, audits production dependencies, verifies the npm package contents with a dry run, and checks that `CHANGELOG.md` is current.
 
 ## CLI
 

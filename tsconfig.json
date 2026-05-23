@@ -12,7 +12,7 @@
     "esModuleInterop": true,
     "types": ["node"],
     "skipLibCheck": true,
-    "noEmitOnError": false,
+    "noEmitOnError": true,
     "forceConsistentCasingInFileNames": true
   },
   "include": ["src/**/*.ts"],
