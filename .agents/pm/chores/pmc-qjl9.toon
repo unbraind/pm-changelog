@@ -6,7 +6,7 @@ status: closed
 priority: 0
 tags[5]: github,governance,npm,release,verification
 created_at: "2026-05-23T21:39:36.740Z"
-updated_at: "2026-05-23T21:42:48.261Z"
+updated_at: "2026-05-23T21:47:29.867Z"
 deadline: "2026-05-23T00:00:00.000Z"
 author: codex-pm-changelog
 estimated_minutes: 90
@@ -21,12 +21,15 @@ expected_result: "pm-changelog 2026.5.23-5 is release-ready, governed by strict 
 actual_result: "gh checks found all issues closed, no PRs, latest CI success, empty Dependabot alerts, enabled vulnerability alerts and automated security fixes, and public/free-feature repo settings. npm outdated returned {}, npm audit reported 0 vulnerabilities, npm run release:check passed with 18 tests and pack dry-run, strict pm validate passed, and /tmp/pm-changelog-2026-5-23-5-local-ulnPKD verified pm install plus changelog generation."
 dependencies[1]{id,kind,created_at,author,source_kind}:
   pmc-ysps,related,"2026-05-23T21:39:36.740Z",codex-pm-changelog,null
-comments[5]{created_at,author,text}:
+comments[8]{created_at,author,text}:
   "2026-05-23T21:39:36.740Z",codex-pm-changelog,Started from a clean main branch at origin/main; package.json is ahead of the latest published npm dist-tag and needs a current release pass.
   "2026-05-23T21:42:31.008Z",codex,"GitHub evidence: gh issue list shows issues #1, #2, and #3 all closed; gh pr list is empty; gh run list shows latest CI run 26343824903 completed successfully; gh repo view reports PUBLIC visibility, main default branch, Issues enabled, Projects/Wiki disabled, MIT license, README homepage, and release topics. Dependabot alerts endpoint returned [], vulnerability alerts endpoint returned HTTP 204 enabled, and automated-security-fixes reports enabled=true paused=false. Code scanning endpoint reports no analysis found and secret scanning endpoint reports disabled; no paid GitHub security feature was enabled."
   "2026-05-23T21:42:32.863Z",codex,"Dependency evidence: npm update refreshed @types/node lockfile entry to 25.9.1 and @unbrained/pm-cli lockfile entry to 2026.5.18. npm outdated --json returned {}; npm audit --omit=dev --json and npm audit in release:check reported 0 vulnerabilities."
   "2026-05-23T21:42:34.235Z",codex,"Verification evidence: npm run release:check passed for pm-changelog@2026.5.23-5 with tsc --noEmit, 18 node:test tests, npm audit --omit=dev, npm pack --dry-run with 25 files, and changelog:check reporting CHANGELOG.md up to date."
   "2026-05-23T21:42:36.227Z",codex,"Temp install evidence: clean project /tmp/pm-changelog-2026-5-23-5-local-ulnPKD ran pm init, pm install local checkout --project, created and closed a smoke Task, ran pm changelog generate, produced CHANGELOG.md containing Verify local 2026.5.23-5 install, and pm package doctor --project --json --strict-exit returned ok=true with zero warnings."
+  "2026-05-23T21:47:27.186Z",codex,"Final publication evidence: updated GitHub Actions secret NPM_TOKEN from local NPM_MEDIA_SERVER with gh secret set; gh secret list shows NPM_TOKEN updated at 2026-05-23T21:45:49Z. npm publish --access public --tag latest succeeded for pm-changelog@2026.5.23-5 using a temporary npm config sourced from NPM_MEDIA_SERVER."
+  "2026-05-23T21:47:28.556Z",codex,"Final registry and release evidence: npm dist-tag ls pm-changelog reports latest: 2026.5.23-5; npm versions include 2026.5.23-5. gh release create published https://github.com/unbraind/pm-changelog/releases/tag/v2026.05.23-5 for commit 66c2119."
+  "2026-05-23T21:47:29.867Z",codex,"Final published install evidence: clean project /tmp/pm-changelog-2026-5-23-5-npm-3Ijzii ran pm init, pm install npm:pm-changelog --project, created and closed a smoke Task, ran pm changelog generate, produced CHANGELOG.md containing Verify published 2026.5.23-5 npm install, and pm package doctor --project --json --strict-exit returned ok=true with zero warnings."
 notes[1]{created_at,author,text}:
   "2026-05-23T21:39:36.740Z",codex-pm-changelog,"Use only free GitHub features: public repository,Issues,Releases,and Actions CI; GitHub Projects remains disabled."
 learnings[1]{created_at,author,text}:
