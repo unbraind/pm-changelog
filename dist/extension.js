@@ -1,5 +1,5 @@
-import { existsSync } from "node:fs";
-import { createChangelog, mergeChangelog, readPmItems, writeChangelog } from "./generator.js";
+import { listAllFrontMatter, } from "@unbrained/pm-cli/sdk";
+import { createChangelog, mergeChangelog, writeChangelog } from "./generator.js";
 const defineExtension = ((extension) => extension);
 export default defineExtension({
     name: "pm-changelog",
@@ -49,7 +49,7 @@ export default defineExtension({
                     ?.split(",")
                     .map((status) => status.trim())
                     .filter(Boolean);
-                const items = readPmItemsForExtension(ctx.pm_root);
+                const items = await listAllFrontMatter(ctx.pm_root);
                 const generationOptions = {
                     items,
                     title: ctx.options["title"],
@@ -101,24 +101,5 @@ function stringOption(options, kebabKey, camelKey) {
 }
 function booleanOption(options, kebabKey, camelKey) {
     return Boolean(options[kebabKey] ?? options[camelKey]);
-}
-function readPmItemsForExtension(pmRoot) {
-    try {
-        return readPmItems({ pmRoot });
-    }
-    catch (error) {
-        const currentCli = process.argv[1];
-        if (typeof currentCli === "string" &&
-            currentCli.trim().length > 0 &&
-            currentCli.endsWith(".js") &&
-            existsSync(currentCli)) {
-            return readPmItems({
-                pmRoot,
-                pmBin: process.execPath,
-                pmArgs: [currentCli],
-            });
-        }
-        throw error;
-    }
 }
 //# sourceMappingURL=extension.js.map
