@@ -11,7 +11,7 @@ const defineExtension: typeof defineExtensionType = ((extension: unknown) => ext
 
 export default defineExtension({
   name: "pm-changelog",
-  version: "2026.5.23-5",
+  version: "2026.5.23-6",
 
   activate(api) {
     api.registerCommand({
