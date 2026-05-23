@@ -75,6 +75,8 @@ npm run release:check
 
 The release gate type-checks the TypeScript source, runs the full test suite, audits production dependencies, verifies the npm package contents with a dry run, and checks that `CHANGELOG.md` is current.
 
+Release tags follow the pm CLI date-based convention: `vYYYY.MM.DD`, or `vYYYY.MM.DD-N` for additional releases on the same day. npm package metadata uses the SemVer-compatible equivalent without the leading `v` or zero-padded numeric components, for example `2026.5.23`.
+
 ## CLI
 
 Generate `CHANGELOG.md` from the current pm project:
