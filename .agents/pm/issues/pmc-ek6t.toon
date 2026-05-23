@@ -6,7 +6,7 @@ status: blocked
 priority: 0
 tags[3]: blocked,npm,release
 created_at: "2026-05-23T19:36:09.869Z"
-updated_at: "2026-05-23T19:36:09.869Z"
+updated_at: "2026-05-23T19:51:25.234Z"
 deadline: "2026-05-23T00:00:00.000Z"
 assignee: steve
 author: codex
@@ -26,8 +26,10 @@ actual_result: "npm publish --dry-run succeeds with the 25-file package payload,
 component: npm-publication
 dependencies[1]{id,kind,created_at,author,source_kind}:
   pmc-ysps,related,"2026-05-23T19:36:09.869Z",codex,null
-comments[1]{created_at,author,text}:
+comments[3]{created_at,author,text}:
   "2026-05-23T19:36:09.869Z",codex,npm publish --access public failed with ENEEDAUTH; dry-run succeeded and GitHub release v0.1.0 is published.
+  "2026-05-23T19:48:40.704Z",codex,Updated NPM_TOKEN repo secret from NPM_TOKEN_UNBRAINED on 2026-05-23 without printing the token. Retried npm publish with a temporary npm config; publish reached the registry endpoint but failed with E404 Not Found / no permission for pm-changelog@0.1.0. This indicates the token is loaded but lacks permission to create or publish this package name.
+  "2026-05-23T19:51:25.234Z",codex,"Retried after NPM_TOKEN_UNBRAINED was updated again and refreshed the GitHub Actions NPM_TOKEN secret at 2026-05-23T19:50Z. npm whoami with a temporary npm config still returned E401, and npm publish --access public reached the npm publish endpoint but failed with E404 Not Found / no permission for pm-changelog@0.1.0. The token is loaded, but npm does not authorize it to create or publish the unscoped package name."
 notes[1]{created_at,author,text}:
   "2026-05-23T19:36:09.869Z",codex,"author=codex,created_at=now,text=After npm auth is configured, rerun npm publish --access public and then verify pm install npm:pm-changelog --project in a clean temp folder."
 learnings[1]{created_at,author,text}:
