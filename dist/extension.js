@@ -5,7 +5,7 @@ import { createChangelog, mergeChangelog, writeChangelog } from "./generator.js"
 const defineExtension = ((extension) => extension);
 export default defineExtension({
     name: "pm-changelog",
-    version: "0.1.0",
+    version: "2026.5.23-5",
     activate(api) {
         api.registerCommand({
             name: "changelog generate",

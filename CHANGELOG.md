@@ -1,5 +1,11 @@
 # Changelog
 
+## v2026.05.23-5
+
+### Other
+
+- Production release readiness pass for pm-changelog 2026.5.23-5 (pmc-qjl9)
+
 ## v2026.05.23-2
 
 ### Fixed

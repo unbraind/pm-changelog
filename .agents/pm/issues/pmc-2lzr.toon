@@ -6,8 +6,14 @@ status: closed
 priority: 0
 tags[4]: bug,changelog,extension,release
 created_at: "2026-05-23T20:36:00.133Z"
-updated_at: "2026-05-23T20:46:28.101Z"
+updated_at: "2026-05-23T21:38:43.533Z"
 author: codex-pm-changelog
+estimated_minutes: 45
+acceptance_criteria: "- readPmItems handles pm list-all --json output larger than Node's default spawnSync buffer.\\n- A regression test covers JSON output above 1 MiB.\\n- The shipped dist artifacts are rebuilt from TypeScript source.\\n- npm run release:check passes after changelog regeneration."
+reviewer: steve
+risk: high
+confidence: high
+sprint: 2026-05-release
 release: v2026.05.23-2
 severity: high
 resolution: "Raised readPmItems default maxBuffer to 64 MiB with an explicit maxBuffer override, rebuilt shipped dist artifacts, and added regression coverage for >1 MiB pm JSON."
@@ -19,8 +25,9 @@ component: generator
 comments[2]{created_at,author,text}:
   "2026-05-23T20:36:00.133Z",codex-pm-changelog,"Upstream issue: https://github.com/unbraind/pm-changelog/issues/1"
   "2026-05-23T20:37:35.799Z",codex-pm-changelog,"Verification: direct npm run release:check passed after regenerating CHANGELOG.md from pm items. A linked pm test --run wrapper failed during its own temp cleanup with ENOTEMPTY /tmp/pm-linked-test-*/schema after command execution; treating as pm linked-test harness noise, not package failure."
-files[6]{path,scope,note}:
-  dist,project,Built runtime artifacts shipped by the npm/pm package
+files[7]{path,scope,note}:
+  dist/generator.js,project,Built generator runtime shipped by the npm/pm package
+  dist/types.d.ts,project,Built type declarations exposing readPmItems maxBuffer
   manifest.json,project,Keeps pm package manifest version aligned with package.json for installed package diagnostics
   src/extension.ts,project,Makes extension --check fail when generated changelog would change
   src/generator.ts,project,Raises readPmItems child-process JSON buffer for large trackers
