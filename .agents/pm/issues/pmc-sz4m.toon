@@ -6,7 +6,7 @@ status: closed
 priority: 2
 tags[3]: docs,packaging,security
 created_at: "2026-05-23T23:38:56.042Z"
-updated_at: "2026-05-23T23:40:33.719Z"
+updated_at: "2026-05-23T23:43:02.267Z"
 author: codex-changelog-integration
 severity: high
 environment: pm-cli CI installing pm-changelog@2026.5.24-1
@@ -15,9 +15,10 @@ resolution: "Removed the host-specific absolute local install path from docs/dev
 expected_result: Published package docs avoid host-specific absolute paths or omit development-only host-local examples.
 actual_result: Published docs include a host-specific absolute home path in the local install example.
 component: package-docs
-comments[2]{created_at,author,text}:
+comments[3]{created_at,author,text}:
   "2026-05-23T23:38:56.042Z",codex-changelog-integration,"Duplicate check: searched 'absolute home path docs package'; no dedicated open item exists. GitHub issue unbraind/pm-changelog#5 records the external report from pm-cli CI run 26346422405."
   "2026-05-23T23:40:23.293Z",codex-changelog-integration,"Evidence: replaced docs/development.md host-specific install path with a package_root variable, bumped package to 2026.5.24-2, redacted the path from item history, rg no longer finds host-specific absolute path patterns in package docs/source, and npm run release:check passed."
+  "2026-05-23T23:43:02.267Z",codex-changelog-integration,"Evidence update: generated CHANGELOG.md with pm-changelog after closing pmc-sz4m, hardened .github/workflows/release.yml with --allow-same-version for corrective releases, and npm run release:check passed again."
 files[2]{path,scope,note}:
   docs/development.md,project,Host-specific install example
   package.json,project,Patch release version
