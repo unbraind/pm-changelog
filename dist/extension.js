@@ -79,6 +79,9 @@ export default defineExtension({
                     mode,
                     check: Boolean(ctx.options["check"]),
                 });
+                if (result.changed && Boolean(ctx.options["check"])) {
+                    throw new Error(`Changelog is out of date: ${result.output}`);
+                }
                 return {
                     file: result.output,
                     action: result.action,

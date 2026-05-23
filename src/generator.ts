@@ -16,6 +16,7 @@ import type {
 
 const DEFAULT_TITLE = "Changelog";
 const DEFAULT_STATUSES = ["closed"];
+const DEFAULT_PM_JSON_MAX_BUFFER = 64 * 1024 * 1024;
 
 const CATEGORY_ORDER = [
   "Added",
@@ -135,6 +136,7 @@ export function readPmItems(options: ReadPmItemsOptions = {}): PmItem[] {
     cwd: options.cwd,
     env: options.env,
     encoding: "utf-8",
+    maxBuffer: options.maxBuffer ?? DEFAULT_PM_JSON_MAX_BUFFER,
   });
   if (result.status !== 0) {
     throw new Error(result.stderr || `${pmBin} list-all --json failed`);
