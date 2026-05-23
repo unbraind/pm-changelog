@@ -6,7 +6,7 @@ status: closed
 priority: 0
 tags[3]: governance,release,verification
 created_at: "2026-05-23T20:05:46.615Z"
-updated_at: "2026-05-23T20:15:54.521Z"
+updated_at: "2026-05-23T20:17:55.922Z"
 deadline: "2026-05-23T00:00:00.000Z"
 author: codex
 estimated_minutes: 60
@@ -16,12 +16,12 @@ risk: medium
 confidence: high
 sprint: 2026-05-release
 release: v2026.05.23
-resolution: "Post-release continuation audit verified release gates, npm registry visibility, GitHub free-feature repository and release settings, clean temp-folder pm install from npm, extension activation, changelog generation, and pm package doctor health."
+resolution: "Completed date-based production release v2026.05.23 with npm-compatible package version 2026.5.23, deterministic pm-release grouped changelog generation, passing release gates, strict pm validation, public npm publication, public GitHub release, and clean temp-folder pm install verification."
 expected_result: "pm-changelog remains production-ready, public, installable via pm install npm:pm-changelog --project, and governed by valid pm records."
-actual_result: All checked release gates passed; npm exposes 0.1.0 as latest; GitHub release v0.1.0 is public/non-draft/non-prerelease; clean temp project /tmp/pm-changelog-prod-fPCquv generated a changelog containing Verify production npm install; pm package doctor returned ok=true with zero warnings.
+actual_result: "All checked release gates passed under package version 2026.5.23; npm exposes 2026.5.23 as latest; GitHub release v2026.05.23 is public and latest; clean temp project /tmp/pm-changelog-date-lTmdf1 installed npm:pm-changelog, generated a changelog containing Verify date release npm install, package doctor returned ok=true with zero warnings, and the installed extension version is 2026.5.23."
 dependencies[1]{id,kind,created_at,author,source_kind}:
   pmc-ysps,related,"2026-05-23T20:05:46.615Z",codex,null
-comments[9]{created_at,author,text}:
+comments[12]{created_at,author,text}:
   "2026-05-23T20:05:46.615Z",codex,Continuation audit started after pm validate showed the previous release hierarchy is closed and healthy.
   "2026-05-23T20:07:12.268Z",codex,"GitHub evidence: gh release view v0.1.0 reports tag v0.1.0, published 2026-05-23T19:35:03Z, non-draft and non-prerelease. gh repo view reports PUBLIC visibility, main default branch, Issues enabled, Wiki and Projects disabled, README homepage, and release-related topics."
   "2026-05-23T20:07:12.268Z",codex,"npm evidence: npm view pm-changelog reports version=0.1.0, dist-tags.latest=0.1.0, license=MIT, repository=git+https://github.com/unbraind/pm-changelog.git."
@@ -31,6 +31,9 @@ comments[9]{created_at,author,text}:
   "2026-05-23T20:14:52.148Z",codex,"Release scope corrected per maintainer direction: pm-changelog now follows pm CLI date-based release versioning. npm metadata uses SemVer-compatible 2026.5.23, while GitHub tag/release naming uses v2026.05.23."
   "2026-05-23T20:15:54.488Z",codex,"Changelog script update: npm run changelog and npm run changelog:check now use --group-by release with replace mode so CHANGELOG.md is rebuilt deterministically from pm release metadata, including v2026.05.23."
   "2026-05-23T20:15:54.488Z",codex,"Package metadata update: package.json, package-lock.json, and manifest.json now use npm-compatible date version 2026.5.23. The public GitHub tag/release target is v2026.05.23."
+  "2026-05-23T20:17:55.914Z",codex,"Final GitHub evidence: git tag v2026.05.23 was pushed to origin with main, and gh release create published https://github.com/unbraind/pm-changelog/releases/tag/v2026.05.23 as the latest release."
+  "2026-05-23T20:17:55.914Z",codex,"Final npm-source install evidence: clean project /tmp/pm-changelog-date-lTmdf1 ran pm init, pm install npm:pm-changelog --project, generated CHANGELOG.md with item_count=1 for Verify date release npm install, pm package doctor returned ok=true with zero warnings, and installed extension package.json reported version 2026.5.23."
+  "2026-05-23T20:17:55.914Z",codex,"Final publication evidence: npm publish completed for pm-changelog@2026.5.23 using a temporary npm config, npm view reports latest=2026.5.23, and npm registry lists versions 0.1.0 and 2026.5.23."
 notes[4]{created_at,author,text}:
   "2026-05-23T20:05:46.615Z",codex,This pass should not reopen prior release items; it records fresh evidence against the already-published package.
   "2026-05-23T20:07:12.268Z",codex,An earlier temp harness at /tmp/pm-changelog-prod-fOTUwq failed because it used an unsupported pm create flag and guessed an internal managed package path; the corrected set -e smoke at /tmp/pm-changelog-prod-fPCquv is the accepted verification evidence.
