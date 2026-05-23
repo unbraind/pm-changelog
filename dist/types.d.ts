@@ -50,6 +50,7 @@ export interface ReadPmItemsOptions {
     pmArgs?: string[];
     cwd?: string;
     env?: NodeJS.ProcessEnv;
+    maxBuffer?: number;
 }
 export interface WriteChangelogOptions extends GenerateChangelogOptions {
     output?: string;

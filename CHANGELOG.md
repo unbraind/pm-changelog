@@ -1,5 +1,11 @@
 # Changelog
 
+## v2026.05.23-2
+
+### Fixed
+
+- Fix large tracker generation buffer limit (pmc-2lzr)
+
 ## v2026.05.23-1
 
 ### Other
