@@ -125,14 +125,26 @@ function findPreviousTag(cwd: string, releaseTag: string | undefined): string | 
 }
 
 function listReleaseTags(cwd: string, pattern: string): ReleaseTag[] {
-  const output = runGit(cwd, ["tag", "--list", pattern]);
+  const output = runGit(cwd, [
+    "tag",
+    "--list",
+    pattern,
+    "--format=%(refname:short)%09%(*committerdate:iso-strict)%09%(committerdate:iso-strict)",
+  ]);
   if (!output) return [];
   return output
     .split("\n")
-    .map((name) => name.trim())
-    .filter(Boolean)
-    .map((name) => ({ name, timestamp: gitCommitTimestamp(cwd, name) }))
+    .map(parseTagLine)
+    .filter((tag): tag is ReleaseTag => Boolean(tag))
     .sort((a, b) => Date.parse(b.timestamp) - Date.parse(a.timestamp));
+}
+
+function parseTagLine(line: string): ReleaseTag | undefined {
+  const [name, peeledCommitterDate, directCommitterDate] = line.split("\t");
+  const tagName = name?.trim();
+  const timestamp = (peeledCommitterDate || directCommitterDate)?.trim();
+  if (!tagName || !timestamp) return undefined;
+  return { name: tagName, timestamp };
 }
 
 function gitCommitTimestamp(cwd: string, ref: string): string {
