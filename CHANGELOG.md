@@ -8,6 +8,7 @@
 
 ### Other
 
+- Production readiness pass 2026-05-24 session (pmc-96zn)
 - Published package sourcemaps point to missing source files (pmc-l9z0)
 
 ## v2026.05.24-2

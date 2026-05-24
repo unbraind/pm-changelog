@@ -6,11 +6,15 @@ status: closed
 priority: 1
 tags[3]: chore,production-readiness,release
 created_at: "2026-05-24T00:04:56.960Z"
-updated_at: "2026-05-24T00:15:12.126Z"
+updated_at: "2026-05-24T00:42:14.094Z"
 deadline: "2026-05-24T00:00:00.000Z"
 author: claude
 estimated_minutes: 90
 acceptance_criteria: "- GitHub issue #4 resolved\\n- inlineSources: true in tsconfig.json\\n- CHANGELOG.md regenerated and correct\\n- npm run release:check passes\\n- Clean pm install test passes in temp folder\\n- No private data in git history\\n- All commits pushed to main"
+reviewer: steve
+risk: low
+confidence: high
+sprint: 2026-05-release
 release: v2026.05.24-3
 resolution: "Fixed sourcemaps (pmc-l9z0), corrected CHANGELOG release field for pmc-sz4m, regenerated CHANGELOG, ran full release gate (18 tests, 0 vulns), tested clean pm install in temp folder, scanned git history for private data."
 expected_result: All release checks pass; CHANGELOG correct; temp install works; no private data leaked.

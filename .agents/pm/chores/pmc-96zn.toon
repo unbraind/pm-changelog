@@ -1,0 +1,41 @@
+id: pmc-96zn
+title: Production readiness pass 2026-05-24 session
+description: Fix pm validate metadata gaps and verify full release readiness.
+type: Chore
+status: closed
+priority: 2
+tags[3]: governance,metadata,release
+created_at: "2026-05-24T00:46:49.267Z"
+updated_at: "2026-05-24T00:46:49.267Z"
+deadline: "2026-05-24T23:59:59.000Z"
+assignee: codex
+author: codex
+estimated_minutes: 30
+acceptance_criteria: pm validate passes; 18 tests pass; 0 vulnerabilities; npm install ok.
+reviewer: steve
+risk: low
+confidence: high
+sprint: 2026-05-release
+release: v2026.05.24-3
+resolution: All pm validate metadata gaps patched with --force. All release checks pass.
+expected_result: pm validate --check-metadata passes with 0 warnings; 18 tests pass; npm install ok.
+actual_result: "pm validate: ok=true, 0 warnings. 18 tests pass. 0 vulnerabilities. Local and npm installs confirmed ok."
+dependencies[3]{id,kind,created_at,author,source_kind}:
+  pmc-l9z0,related,"2026-05-24T00:46:49.267Z",codex,null
+  pmc-pm02,related,"2026-05-24T00:46:49.267Z",codex,null
+  pmc-sz4m,related,"2026-05-24T00:46:49.267Z",codex,null
+comments[1]{created_at,author,text}:
+  "2026-05-24T00:46:49.267Z",codex,"All checks passed. pm validate: 0 warnings. Tests: 18/18. Audit: 0 vulns. Local and npm install ok."
+notes[1]{created_at,author,text}:
+  "2026-05-24T00:46:49.267Z",codex,"Fixes metadata gaps on pmc-sz4m, pmc-l9z0, pmc-pm02."
+learnings[1]{created_at,author,text}:
+  "2026-05-24T00:46:49.267Z",codex,"pm validate strict profile requires acceptance_criteria, estimated_minutes, reviewer, risk, confidence, sprint on all types. Set these at creation time."
+files[1]{path,scope,note}:
+  package.json,project,null
+tests[3]{command,path,scope,timeout_seconds,pm_context_mode,env_set,env_clear,shared_host_safe,assert_stdout_contains,assert_stdout_regex,assert_stderr_contains,assert_stderr_regex,assert_stdout_min_lines,assert_json_field_equals,assert_json_field_gte,note}:
+  "npm run audit:prod",null,project,null,null,null,null,null,null,null,null,null,null,null,null,null
+  npm test,null,project,null,null,null,null,null,null,null,null,null,null,null,null,null
+  pm validate --check-metadata --json,null,project,null,null,null,null,null,null,null,null,null,null,null,null,null
+docs[1]{path,scope,note}:
+  docs/development.md,project,null
+body: "Fix pm validate strict metadata gaps. Verify 18 tests, 0 prod vulnerabilities, clean local and npm package installs."
