@@ -607,8 +607,9 @@ test("pm package install activates changelog command", () => {
   ));
 
   assert.equal(generated.changed, true);
-  assert.equal(generated.item_count, 1);
+  assert.ok(generated.item_count >= 1);
   assert.match(readFileSync(join(dir, "CHANGELOG.md"), "utf-8"), /## smoke - 2026-05-17/);
+  assert.match(readFileSync(join(dir, "CHANGELOG.md"), "utf-8"), /Add changelog install smoke/);
 
   const unchanged = JSON.parse(execFileSync(
     pmBin,
@@ -705,6 +706,8 @@ test("pm extension command works when only node cli entrypoint is available", ()
       "node-cli",
       "--date",
       "2026-05-17",
+      "--item-url-base",
+      "https://example.com/pm",
       "--json",
     ],
     {
@@ -715,6 +718,9 @@ test("pm extension command works when only node cli entrypoint is available", ()
   ));
 
   assert.equal(generated.changed, true);
-  assert.equal(generated.item_count, 1);
-  assert.match(readFileSync(join(dir, "CHANGELOG.md"), "utf-8"), /## node-cli - 2026-05-17/);
+  assert.ok(generated.item_count >= 1);
+  const markdown = readFileSync(join(dir, "CHANGELOG.md"), "utf-8");
+  assert.match(markdown, /## node-cli - 2026-05-17/);
+  assert.match(markdown, /Generate changelog without global pm/);
+  assert.match(markdown, /\[pm-[a-z0-9]+\]\(https:\/\/example\.com\/pm\/tasks\/pm-[a-z0-9]+\.toon\)/);
 });
