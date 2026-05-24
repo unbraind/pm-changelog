@@ -117,7 +117,7 @@ jobs:
           set -euo pipefail
           npm run build
           node dist/cli.js \
-            --mode replace \
+            --mode prepend \
             --output CHANGELOG.md \
             --version "${{ steps.decide.outputs.npm_version }}" \
             --since-previous-tag \
@@ -125,7 +125,7 @@ jobs:
             --pm-bin ./node_modules/.bin/pm \
             --github-step-summary
           node dist/cli.js \
-            --mode replace \
+            --mode prepend \
             --output CHANGELOG.md \
             --version "${{ steps.decide.outputs.npm_version }}" \
             --since-previous-tag \

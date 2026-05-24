@@ -1,0 +1,29 @@
+id: pmc-nh7q
+title: Prepend mode duplicates Keep a Changelog bracketed release sections
+description: "GitHub issue unbraind/pm-changelog#9: pm-changelog --mode prepend must replace existing Keep a Changelog bracketed release headings such as ## [2026.5.24] - 2026-05-24 when generated headings use ## 2026.5.24 - 2026-05-24, preserving older release history for consumers like pm-cli."
+type: Issue
+status: closed
+priority: 2
+tags[3]: changelog,keep-a-changelog,release
+created_at: "2026-05-24T14:16:18.072Z"
+updated_at: "2026-05-24T14:18:13.681Z"
+author: codex-changelog-verify
+resolution: fixed
+expected_result: pm-changelog --mode prepend replaces equivalent Keep a Changelog bracketed release headings and preserves older release sections.
+actual_result: Regression test passes; release scripts/workflow now use prepend mode; local check/test/audit/pack gates passed.
+comments[1]{created_at,author,text}:
+  "2026-05-24T14:17:51.637Z",codex-changelog-verify,"Evidence: fixed mergeChangelog/--mode prepend to normalize generated and Keep a Changelog bracketed release headings; updated upstream release workflow/scripts to prepend; npm run check, npm test, npm audit --omit=dev, and npm pack --dry-run all passed locally."
+files[4]{path,scope,note}:
+  .github/workflows/release.yml,project,Use prepend mode in package release workflow to preserve history
+  package.json,project,Package changelog scripts use prepend mode
+  src/generator.ts,project,Normalize release headings so prepend replaces bracketed Keep a Changelog sections
+  test/generator.test.ts,project,Regression coverage for bracketed heading replacement
+tests[4]{command,path,scope,timeout_seconds,pm_context_mode,env_set,env_clear,shared_host_safe,assert_stdout_contains,assert_stdout_regex,assert_stderr_contains,assert_stderr_regex,assert_stdout_min_lines,assert_json_field_equals,assert_json_field_gte,note}:
+  PM_PATH=.agents/pm PM_GLOBAL_PATH=/tmp/pm-changelog-global npm audit --omit=dev,null,project,120,null,null,null,null,null,null,null,null,null,null,null,Production dependency audit
+  PM_PATH=.agents/pm PM_GLOBAL_PATH=/tmp/pm-changelog-global npm pack --dry-run,null,project,120,null,null,null,null,null,null,null,null,null,null,null,Pack contents verification
+  PM_PATH=.agents/pm PM_GLOBAL_PATH=/tmp/pm-changelog-global npm run check,null,project,120,null,null,null,null,null,null,null,null,null,null,null,Typecheck upstream package
+  PM_PATH=.agents/pm PM_GLOBAL_PATH=/tmp/pm-changelog-global npm test,null,project,240,null,null,null,null,null,null,null,null,null,null,null,Upstream package regression suite
+docs[1]{path,scope,note}:
+  docs/release.md,project,Document release workflow preserving older changelog sections
+close_reason: Fixed in pm-changelog source with regression coverage; GitHub issue #9 documented; local package gates passed.
+body: ""
