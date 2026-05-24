@@ -154,7 +154,14 @@ test("resolveReleaseTagWindows derives newest-first git tag windows", () => {
       GIT_COMMITTER_DATE: "2026-05-17T12:00:00Z",
     },
   });
-  execFileSync("git", ["tag", "v1.2.0"], { cwd: dir, encoding: "utf-8" });
+  execFileSync("git", ["tag", "-a", "v1.2.0", "-m", "two"], {
+    cwd: dir,
+    encoding: "utf-8",
+    env: {
+      ...process.env,
+      GIT_COMMITTER_DATE: "2026-05-20T12:00:00Z",
+    },
+  });
 
   const windows = resolveReleaseTagWindows({ cwd: dir });
 
