@@ -36,7 +36,7 @@ export interface ReleaseContext {
 export function resolveReleaseContext(options: ReleaseContextOptions): ReleaseContext {
   const cwd = resolve(options.cwd ?? process.cwd());
   const version = options.version ?? (options.versionFromPackage ? readPackageVersion(cwd) : undefined);
-  const releaseTag = version ? findExistingTag(cwd, [`v${version}`, version]) : undefined;
+  const releaseTag = version ? findExistingTag(cwd, releaseTagCandidates(version)) : undefined;
   const previousTag = options.sincePreviousTag ? findPreviousTag(cwd, releaseTag) : undefined;
 
   return {
@@ -105,6 +105,18 @@ function findExistingTag(cwd: string, candidates: string[]): string | undefined 
     if (result) return candidate;
   }
   return undefined;
+}
+
+function releaseTagCandidates(version: string): string[] {
+  const trimmed = version.trim();
+  const candidates = [`v${trimmed}`, trimmed];
+  const calendar = trimmed.match(/^(\d{4})\.(\d{1,2})\.(\d{1,2})(-.+)?$/);
+  if (calendar) {
+    const [, year, month, day, suffix = ""] = calendar;
+    const padded = `${year}.${month.padStart(2, "0")}.${day.padStart(2, "0")}${suffix}`;
+    candidates.push(`v${padded}`, padded);
+  }
+  return Array.from(new Set(candidates));
 }
 
 function findPreviousTag(cwd: string, releaseTag: string | undefined): string | undefined {
