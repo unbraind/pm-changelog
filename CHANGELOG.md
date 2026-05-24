@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## v2026.05.24-3
 
 ### Fixed
 
