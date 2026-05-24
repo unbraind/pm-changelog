@@ -5,7 +5,7 @@ import type { ChangelogGroupBy } from "./types.js";
 
 export default defineExtension({
   name: "pm-changelog",
-  version: "2026.5.24-8",
+  version: "2026.5.24-9",
 
   activate(api) {
     api.registerCommand({
