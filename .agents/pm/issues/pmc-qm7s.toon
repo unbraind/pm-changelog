@@ -6,14 +6,16 @@ status: in_progress
 priority: 2
 tags[4]: changelog,ci,git-tags,release
 created_at: "2026-05-24T15:23:16.720Z"
-updated_at: "2026-05-24T15:33:42.987Z"
+updated_at: "2026-05-24T15:36:35.883Z"
 assignee: codex-changelog-full-history
 author: codex-changelog-full-history
-comments[3]{created_at,author,text}:
+comments[4]{created_at,author,text}:
   "2026-05-24T15:29:52.358Z",codex-changelog-full-history,"Evidence: implemented --all-release-tags for CLI and pm extension, including git tag windows with Unreleased, release-window item assignment, docs, and contract tests. npm run release:check passed for pm-changelog@2026.5.24-12."
   "2026-05-24T15:32:20.124Z",codex-changelog-full-history,"Linked-test note: default schema sandbox makes changelog:check compare against an empty tracker, so this package release gate must run in tracker context when linked through pm test. Direct npm run release:check passed in the real project context."
   "2026-05-24T15:33:42.987Z",codex-changelog-full-history,"Evidence: direct npm run release:check passed, and linked pm test passed with env -u PM_PATH -u PM_GLOBAL_PATH npm run release:check so the package release gate validates against the real package tracker while still being recorded through pm."
-files[7]{path,scope,note}:
+  "2026-05-24T15:36:31.291Z",codex-changelog-full-history,"CI follow-up: unbraind/pm-changelog CI failed because actions/checkout was shallow and tag-window changelog checks could not resolve the previous release tag. Updated CI checkout to fetch full history and tags."
+files[8]{path,scope,note}:
+  .github/workflows/ci.yml,project,Fetch tags for tag-window changelog checks in CI
   CHANGELOG.md,project,Generated package changelog through pm-changelog
   package.json,project,Release pm-changelog 2026.5.24-12 with new full-history flag
   src/cli.ts,project,Expose --all-release-tags in standalone CLI
