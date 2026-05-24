@@ -6,7 +6,7 @@ status: closed
 priority: 0
 tags[4]: bug,changelog,extension,release
 created_at: "2026-05-23T20:36:00.133Z"
-updated_at: "2026-05-23T21:38:43.533Z"
+updated_at: "2026-05-24T12:09:13.715Z"
 author: codex-pm-changelog
 estimated_minutes: 45
 acceptance_criteria: "- readPmItems handles pm list-all --json output larger than Node's default spawnSync buffer.\\n- A regression test covers JSON output above 1 MiB.\\n- The shipped dist artifacts are rebuilt from TypeScript source.\\n- npm run release:check passes after changelog regeneration."
@@ -25,6 +25,8 @@ component: generator
 comments[2]{created_at,author,text}:
   "2026-05-23T20:36:00.133Z",codex-pm-changelog,"Upstream issue: https://github.com/unbraind/pm-changelog/issues/1"
   "2026-05-23T20:37:35.799Z",codex-pm-changelog,"Verification: direct npm run release:check passed after regenerating CHANGELOG.md from pm items. A linked pm test --run wrapper failed during its own temp cleanup with ENOTEMPTY /tmp/pm-linked-test-*/schema after command execution; treating as pm linked-test harness noise, not package failure."
+notes[1]{created_at,author,text}:
+  "2026-05-24T12:09:13.689Z",codex,"Fix files reference: test/generator.test.mjs renamed to test/generator.test.ts in TypeScript migration"
 files[7]{path,scope,note}:
   dist/generator.js,project,Built generator runtime shipped by the npm/pm package
   dist/types.d.ts,project,Built type declarations exposing readPmItems maxBuffer
@@ -32,7 +34,7 @@ files[7]{path,scope,note}:
   src/extension.ts,project,Makes extension --check fail when generated changelog would change
   src/generator.ts,project,Raises readPmItems child-process JSON buffer for large trackers
   src/types.ts,project,Exposes maxBuffer override for readPmItems consumers
-  test/generator.test.mjs,project,Regression coverage for pm JSON larger than Node's default spawnSync buffer
+  test/generator.test.ts,project,Regression coverage for pm JSON larger than Node's default spawnSync buffer
 tests[1]{command,path,scope,timeout_seconds,pm_context_mode,env_set,env_clear,shared_host_safe,assert_stdout_contains,assert_stdout_regex,assert_stderr_contains,assert_stderr_regex,assert_stdout_min_lines,assert_json_field_equals,assert_json_field_gte,note}:
   "npm run release:check",null,project,240,null,null,null,null,null,null,null,null,null,null,null,null
 close_reason: "Fixed readPmItems maxBuffer for large pm list-all JSON, added regression coverage, rebuilt dist, and verified with npm run release:check before changelog regeneration."

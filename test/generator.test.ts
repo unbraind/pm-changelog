@@ -131,6 +131,71 @@ test("createChangelog strips query and hash data from item links", () => {
   assert.doesNotMatch(result.markdown, /token|secret|private-note/);
 });
 
+test("createChangelog makes item IDs clickable links when itemUrlBase is set", () => {
+  const base = "https://github.com/example/repo/blob/main/.agents/pm";
+
+  const issueResult = createChangelog({
+    items: [
+      {
+        id: "pmc-abc",
+        title: "Fix something important",
+        status: "closed",
+        type: "Issue",
+        updated_at: "2026-05-17T10:00:00Z",
+      },
+    ],
+    version: "1.2.0",
+    date: "2026-05-17",
+    itemUrlBase: base,
+  });
+
+  assert.match(
+    issueResult.markdown,
+    /- Fix something important \(\[pmc-abc\]\(https:\/\/github\.com\/example\/repo\/blob\/main\/\.agents\/pm\/issues\/pmc-abc\.toon\)\)/
+  );
+
+  const choreResult = createChangelog({
+    items: [
+      {
+        id: "pmc-def",
+        title: "Update dependencies",
+        status: "closed",
+        type: "Chore",
+        updated_at: "2026-05-17T10:00:00Z",
+      },
+    ],
+    version: "1.2.0",
+    date: "2026-05-17",
+    itemUrlBase: base,
+  });
+
+  assert.match(
+    choreResult.markdown,
+    /\[pmc-def\]\(https:\/\/github\.com\/example\/repo\/blob\/main\/\.agents\/pm\/chores\/pmc-def\.toon\)/
+  );
+
+  const taskResult = createChangelog({
+    items: [
+      {
+        id: "pmc-ghi",
+        title: "Set up CI",
+        status: "closed",
+        type: "Task",
+        updated_at: "2026-05-17T10:00:00Z",
+      },
+    ],
+    version: "1.2.0",
+    date: "2026-05-17",
+    itemUrlBase: `${base}/`,
+  });
+
+  assert.match(
+    taskResult.markdown,
+    /\[pmc-ghi\]\(https:\/\/github\.com\/example\/repo\/blob\/main\/\.agents\/pm\/tasks\/pmc-ghi\.toon\)/
+  );
+  assert.doesNotMatch(taskResult.markdown, /pm\/\/tasks/);
+});
+
 test("mergeChangelog creates a missing changelog", () => {
   const generated = createChangelog({
     items,

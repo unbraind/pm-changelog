@@ -1,0 +1,39 @@
+id: pmc-gn92
+title: "Fix stale file path references in pm items (mjs → ts, dist → dist/cli.js)"
+description: Keep pm item file references in sync with actual repo file paths to avoid pm validate warnings about missing linked paths.
+type: Chore
+status: closed
+priority: 0
+tags[3]: files,maintenance,pm-validate
+created_at: "2026-05-24T12:11:30.262Z"
+updated_at: "2026-05-24T12:12:10.483Z"
+deadline: "2026-05-24T00:00:00.000Z"
+author: codex
+estimated_minutes: 20
+acceptance_criteria: "pm validate reports missing_linked_paths_count: 0; no test/generator.test.mjs or bare dist references in pm items."
+reviewer: steve
+risk: low
+confidence: high
+sprint: 2026-05-production
+release: v2026.05.24-7
+resolution: Updated file references; pm validate missing_linked_paths_count is 0.
+expected_result: "pm validate missing_linked_paths_count: 0."
+actual_result: "pm validate missing_linked_paths_count: 0; all functional checks pass."
+dependencies[1]{id,kind,created_at,author,source_kind}:
+  "pmc-91po,related",related,"2026-05-24T12:11:30.262Z",null,null
+comments[1]{created_at,author,text}:
+  "2026-05-24T12:11:30.262Z",codex,"pm validate --json showed missing_linked_paths: [dist, test/generator.test.mjs]. Fixed by editing toon files and re-registering with pm update --note --force."
+notes[1]{created_at,author,text}:
+  "2026-05-24T12:11:30.262Z",codex,Caused by TypeScript migration that renamed test/generator.test.mjs to test/generator.test.ts in earlier session.
+learnings[1]{created_at,author,text}:
+  "2026-05-24T12:11:30.262Z",codex,"Always update pm item file references when renaming files. pm validate files check catches stale paths. Use pm update --file to add references (it appends, not replaces, so direct toon edits are sometimes needed)."
+files[3]{path,scope,note}:
+  ".agents/pm/issues/pmc-91po.toon,project,Fixed test/generator.test.mjs reference",project,null
+  ".agents/pm/issues/pmc-2lzr.toon,project,Fixed test/generator.test.mjs reference",project,null
+  ".agents/pm/issues/pmc-l9z0.toon,project,Fixed dist directory reference",project,null
+tests[1]{command,path,scope,timeout_seconds,pm_context_mode,env_set,env_clear,shared_host_safe,assert_stdout_contains,assert_stdout_regex,assert_stderr_contains,assert_stderr_regex,assert_stdout_min_lines,assert_json_field_equals,assert_json_field_gte,note}:
+  "pm validate,null,project,30,null,null,null,null,null,null,null,null,null,null,null,null",null,project,null,null,null,null,null,null,null,null,null,null,null,null,null
+docs[1]{path,scope,note}:
+  "docs/development.md,project,pm item metadata",project,null
+close_reason: File references corrected; pm validate missing_linked_paths_count is 0.
+body: pm validate reported missing_linked_paths for test/generator.test.mjs (deleted in TypeScript migration) and dist (directory path not resolved by pm validate). Fixed by updating files references to correct paths.
