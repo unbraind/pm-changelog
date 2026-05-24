@@ -1,0 +1,19 @@
+id: pmc-34gb
+title: Add package-owned release context flags
+description: "Fix unbraind/pm-changelog#8 by adding package-owned release context flags that derive the release version from package.json, the since boundary from the previous git tag, and the until boundary from the current release tag when present."
+type: Issue
+status: closed
+priority: 0
+tags[3]: changelog,ci,release
+created_at: "2026-05-24T14:00:07.666Z"
+updated_at: "2026-05-24T14:00:50.924Z"
+author: codex-changelog-upstream
+release: 2026.5.24-10
+comments[1]{created_at,author,text}:
+  "2026-05-24T14:00:50.924Z",codex-changelog-upstream,"Evidence update: regenerated CHANGELOG.md after creating pmc-34gb; npm run release:check passed (tsc, 21 node tests, npm audit --omit=dev, npm pack --dry-run, changelog:check)."
+files[4]{path,scope,note}:
+  src/cli.ts,project,Expose release context flags in standalone CLI
+  src/extension.ts,project,Expose release context flags through pm extension command contracts
+  src/release-context.ts,project,Derive package release version and git tag bounds
+  test/generator.test.ts,project,Regression for package-version and tag-range derivation
+body: ""

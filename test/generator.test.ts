@@ -409,6 +409,87 @@ test("CLI stdout JSON includes markdown for runners without writing output", () 
   assert.throws(() => readFileSync(output, "utf-8"));
 });
 
+test("CLI can derive package release version and git tag range", () => {
+  const dir = mkdtempSync(join(tmpdir(), "pm-changelog-release-context-"));
+  const input = join(dir, "items.json");
+  const cli = join(process.cwd(), "dist", "cli.js");
+  writeFileSync(join(dir, "package.json"), JSON.stringify({ version: "1.2.0" }), "utf-8");
+  execFileSync("git", ["init"], { cwd: dir, encoding: "utf-8" });
+  execFileSync("git", ["config", "user.email", "test@example.com"], { cwd: dir, encoding: "utf-8" });
+  execFileSync("git", ["config", "user.name", "Test"], { cwd: dir, encoding: "utf-8" });
+  writeFileSync(join(dir, "file.txt"), "one\n", "utf-8");
+  execFileSync("git", ["add", "."], { cwd: dir, encoding: "utf-8" });
+  execFileSync("git", ["commit", "-m", "one"], {
+    cwd: dir,
+    env: {
+      ...process.env,
+      GIT_AUTHOR_DATE: "2026-05-01T00:00:00Z",
+      GIT_COMMITTER_DATE: "2026-05-01T00:00:00Z",
+    },
+    encoding: "utf-8",
+  });
+  execFileSync("git", ["tag", "v1.1.0"], { cwd: dir, encoding: "utf-8" });
+  writeFileSync(join(dir, "file.txt"), "two\n", "utf-8");
+  execFileSync("git", ["commit", "-am", "two"], {
+    cwd: dir,
+    env: {
+      ...process.env,
+      GIT_AUTHOR_DATE: "2026-05-10T00:00:00Z",
+      GIT_COMMITTER_DATE: "2026-05-10T00:00:00Z",
+    },
+    encoding: "utf-8",
+  });
+  execFileSync("git", ["tag", "v1.2.0"], { cwd: dir, encoding: "utf-8" });
+  writeFileSync(
+    input,
+    JSON.stringify([
+      {
+        id: "pm-old",
+        title: "Old release item",
+        status: "closed",
+        type: "bug",
+        closed_at: "2026-04-20T00:00:00Z",
+      },
+      {
+        id: "pm-new",
+        title: "Current release item",
+        status: "closed",
+        type: "feature",
+        closed_at: "2026-05-05T00:00:00Z",
+      },
+      {
+        id: "pm-next",
+        title: "Post-release item",
+        status: "closed",
+        type: "task",
+        closed_at: "2026-05-12T00:00:00Z",
+      },
+    ]),
+    "utf-8"
+  );
+
+  const stdout = execFileSync(
+    process.execPath,
+    [
+      cli,
+      "--input",
+      input,
+      "--stdout",
+      "--release-version-from-package",
+      "--since-previous-tag",
+      "--until-release-tag",
+    ],
+    {
+      cwd: dir,
+      encoding: "utf-8",
+    }
+  );
+
+  assert.match(stdout, /## 1\.2\.0/);
+  assert.match(stdout, /Current release item/);
+  assert.doesNotMatch(stdout, /Old release item|Post-release item|## Unreleased/);
+});
+
 test("readPmItems supports runner wrappers with custom binaries, args, cwd, and env", () => {
   const dir = mkdtempSync(join(tmpdir(), "pm-changelog-"));
   const fixture = join(dir, "fixture.json");

@@ -16,4 +16,16 @@ test("extension command exposes item-url-base for clickable item IDs", () => {
     registeredCommand.flags?.some((flag) => flag.long === "--item-url-base"),
     "changelog generate should expose --item-url-base through pm contracts"
   );
+  assert.ok(
+    registeredCommand.flags?.some((flag) => flag.long === "--release-version-from-package"),
+    "changelog generate should expose package-version release mode through pm contracts"
+  );
+  assert.ok(
+    registeredCommand.flags?.some((flag) => flag.long === "--since-previous-tag"),
+    "changelog generate should expose previous-tag release range through pm contracts"
+  );
+  assert.ok(
+    registeredCommand.flags?.some((flag) => flag.long === "--until-release-tag"),
+    "changelog generate should expose release-tag cap through pm contracts"
+  );
 });
