@@ -1,12 +1,12 @@
 import { defineExtension, listAllFrontMatter } from "@unbrained/pm-cli/sdk";
 
 import { createChangelog, mergeChangelog, writeChangelog } from "./generator.js";
-import { resolveReleaseContext } from "./release-context.js";
+import { resolveReleaseContext, resolveReleaseTagWindows } from "./release-context.js";
 import type { ChangelogGroupBy } from "./types.js";
 
 export default defineExtension({
   name: "pm-changelog",
-  version: "2026.5.24-11",
+  version: "2026.5.24-12",
 
   activate(api) {
     api.registerCommand({
@@ -17,6 +17,7 @@ export default defineExtension({
         "pm changelog generate",
         "pm changelog generate --release-version 1.2.0",
         "pm changelog generate --release-version-from-package --since-previous-tag --until-release-tag",
+        "pm changelog generate --all-release-tags --mode replace",
         "pm changelog generate --output RELEASE_NOTES.md --since 2026-05-01",
         "pm changelog generate --stdout --group-by release",
         "pm changelog generate --stdout --group-by milestone",
@@ -33,6 +34,8 @@ export default defineExtension({
         { long: "--since-previous-tag", description: "Derive --since from the previous git tag" },
         { long: "--until", value_name: "date", description: "Include items changed on or before this date" },
         { long: "--until-release-tag", description: "Derive --until from the current release tag when it exists" },
+        { long: "--all-release-tags", description: "Rebuild full history from git release tag windows" },
+        { long: "--release-tag-pattern", value_name: "glob", description: "Git tag glob for --all-release-tags (default: v*)" },
         { long: "--status", value_name: "list", description: "Comma-separated statuses (default: closed)" },
         { long: "--group-by", value_name: "mode", description: "version, release, or milestone (default: version)" },
         { long: "--mode", value_name: "mode", description: "replace or prepend existing changelog (default: replace)" },
@@ -61,15 +64,24 @@ export default defineExtension({
           .map((status) => status.trim())
           .filter(Boolean);
 
-        const releaseContext = resolveReleaseContext({
-          cwd: process.cwd(),
-          version: stringOption(ctx.options, "release-version", "releaseVersion"),
-          versionFromPackage: booleanOption(ctx.options, "release-version-from-package", "releaseVersionFromPackage"),
-          since: ctx.options["since"] as string | undefined,
-          sincePreviousTag: booleanOption(ctx.options, "since-previous-tag", "sincePreviousTag"),
-          until: ctx.options["until"] as string | undefined,
-          untilReleaseTag: booleanOption(ctx.options, "until-release-tag", "untilReleaseTag"),
-        });
+        const allReleaseTags = booleanOption(ctx.options, "all-release-tags", "allReleaseTags");
+        const releaseContext = allReleaseTags
+          ? { version: undefined, since: undefined, until: undefined }
+          : resolveReleaseContext({
+              cwd: process.cwd(),
+              version: stringOption(ctx.options, "release-version", "releaseVersion"),
+              versionFromPackage: booleanOption(ctx.options, "release-version-from-package", "releaseVersionFromPackage"),
+              since: ctx.options["since"] as string | undefined,
+              sincePreviousTag: booleanOption(ctx.options, "since-previous-tag", "sincePreviousTag"),
+              until: ctx.options["until"] as string | undefined,
+              untilReleaseTag: booleanOption(ctx.options, "until-release-tag", "untilReleaseTag"),
+            });
+        const releaseWindows = allReleaseTags
+          ? resolveReleaseTagWindows({
+              cwd: process.cwd(),
+              tagPattern: stringOption(ctx.options, "release-tag-pattern", "releaseTagPattern"),
+            })
+          : undefined;
 
         const items = await listAllFrontMatter(ctx.pm_root);
         const generationOptions = {
@@ -79,6 +91,7 @@ export default defineExtension({
           date: ctx.options["date"] as string | undefined,
           since: releaseContext.since,
           until: releaseContext.until,
+          releaseWindows,
           includeStatuses: statuses,
           groupBy,
           includeEmpty: booleanOption(ctx.options, "include-empty", "includeEmpty"),

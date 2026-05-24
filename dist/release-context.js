@@ -14,6 +14,31 @@ export function resolveReleaseContext(options) {
         until: options.until ?? (options.untilReleaseTag && releaseTag ? gitCommitTimestamp(cwd, releaseTag) : undefined),
     };
 }
+export function resolveReleaseTagWindows(options = {}) {
+    const cwd = resolve(options.cwd ?? process.cwd());
+    const tags = listReleaseTags(cwd, options.tagPattern ?? "v*");
+    if (tags.length === 0)
+        return [];
+    const windows = [];
+    if (options.includeUnreleased !== false) {
+        windows.push({
+            heading: "Unreleased",
+            since: tags[0].timestamp,
+            sinceExclusive: true,
+        });
+    }
+    for (let index = 0; index < tags.length; index++) {
+        const tag = tags[index];
+        const previous = tags[index + 1];
+        windows.push({
+            heading: `${formatTagVersion(tag.name)} - ${formatDate(tag.timestamp)}`,
+            since: previous?.timestamp,
+            sinceExclusive: Boolean(previous),
+            until: tag.timestamp,
+        });
+    }
+    return windows;
+}
 function readPackageVersion(cwd) {
     const packageJsonPath = findPackageJson(cwd);
     if (!packageJsonPath) {
@@ -49,6 +74,17 @@ function findPreviousTag(cwd, releaseTag) {
     const ref = releaseTag ? `${releaseTag}^` : "HEAD";
     return runGit(cwd, ["describe", "--tags", "--abbrev=0", ref]);
 }
+function listReleaseTags(cwd, pattern) {
+    const output = runGit(cwd, ["tag", "--list", pattern]);
+    if (!output)
+        return [];
+    return output
+        .split("\n")
+        .map((name) => name.trim())
+        .filter(Boolean)
+        .map((name) => ({ name, timestamp: gitCommitTimestamp(cwd, name) }))
+        .sort((a, b) => Date.parse(b.timestamp) - Date.parse(a.timestamp));
+}
 function gitCommitTimestamp(cwd, ref) {
     const timestamp = runGit(cwd, ["log", "-1", "--format=%cI", ref]);
     if (!timestamp) {
@@ -68,5 +104,14 @@ function runGit(cwd, args) {
     catch {
         return undefined;
     }
+}
+function formatTagVersion(tag) {
+    return tag.replace(/^v/i, "");
+}
+function formatDate(timestamp) {
+    const date = new Date(timestamp);
+    if (Number.isNaN(date.getTime()))
+        return timestamp.slice(0, 10);
+    return date.toISOString().slice(0, 10);
 }
 //# sourceMappingURL=release-context.js.map

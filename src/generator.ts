@@ -71,7 +71,7 @@ export function createChangelog(options: GenerateChangelogOptions): GeneratedCha
   return {
     markdown: lines.join("\n").trimEnd() + "\n",
     sections,
-    itemCount: items.length,
+    itemCount: sections.reduce((sum, section) => sum + section.items.length, 0),
   };
 }
 
@@ -198,11 +198,19 @@ function replaceChangelog(
 }
 
 function filterItems(options: GenerateChangelogOptions): PmItem[] {
+  const items = filterItemsByStatus(options);
+  if (options.releaseWindows && options.releaseWindows.length > 0) return items;
+
+  return filterItemsByTime(items, {
+    since: options.since,
+    until: options.until,
+  });
+}
+
+function filterItemsByStatus(options: GenerateChangelogOptions): PmItem[] {
   const statuses = new Set(
     (options.includeStatuses ?? DEFAULT_STATUSES).map((status) => status.toLowerCase())
   );
-  const since = options.since ? Date.parse(options.since) : undefined;
-  const until = options.until ? Date.parse(options.until) : undefined;
 
   return options.items
     .filter((item) => item.title)
@@ -210,19 +218,19 @@ function filterItems(options: GenerateChangelogOptions): PmItem[] {
       if (statuses.size === 0) return true;
       return statuses.has(String(item.status ?? "").toLowerCase());
     })
-    .filter((item) => {
-      const timestamp = item.closed_at ?? item.updated_at ?? item.created_at;
-      if (!timestamp) return since === undefined && until === undefined;
-      const value = Date.parse(timestamp);
-      if (Number.isNaN(value)) return false;
-      if (since !== undefined && value < since) return false;
-      if (until !== undefined && value > until) return false;
-      return true;
-    })
     .sort(compareItems);
 }
 
 function buildSections(items: PmItem[], options: GenerateChangelogOptions): ChangelogSection[] {
+  if (options.releaseWindows && options.releaseWindows.length > 0) {
+    return options.releaseWindows
+      .map((window) => ({
+        heading: window.heading,
+        items: filterItemsByTime(items, window),
+      }))
+      .filter((section) => options.includeEmpty || section.items.length > 0);
+  }
+
   if (options.groupBy === "release" && !options.version) {
     return groupSectionsByMetadata(items, "release", "Unreleased");
   }
@@ -237,6 +245,24 @@ function buildSections(items: PmItem[], options: GenerateChangelogOptions): Chan
       items,
     },
   ];
+}
+
+function filterItemsByTime(
+  items: PmItem[],
+  window: { since?: string; sinceExclusive?: boolean; until?: string }
+): PmItem[] {
+  const since = window.since ? Date.parse(window.since) : undefined;
+  const until = window.until ? Date.parse(window.until) : undefined;
+
+  return items.filter((item) => {
+    const timestamp = itemTimestamp(item);
+    if (!timestamp) return since === undefined && until === undefined;
+    const value = Date.parse(timestamp);
+    if (Number.isNaN(value)) return false;
+    if (since !== undefined && (window.sinceExclusive ? value <= since : value < since)) return false;
+    if (until !== undefined && value > until) return false;
+    return true;
+  });
 }
 
 function groupSectionsByMetadata(
@@ -435,12 +461,16 @@ function getStringField(item: PmItem, field: "release" | "milestone"): string | 
 }
 
 function compareItems(a: PmItem, b: PmItem): number {
-  const aTime = Date.parse(a.closed_at ?? a.updated_at ?? a.created_at ?? "");
-  const bTime = Date.parse(b.closed_at ?? b.updated_at ?? b.created_at ?? "");
+  const aTime = Date.parse(itemTimestamp(a) ?? "");
+  const bTime = Date.parse(itemTimestamp(b) ?? "");
   if (!Number.isNaN(aTime) && !Number.isNaN(bTime) && aTime !== bTime) {
     return bTime - aTime;
   }
   return a.title.localeCompare(b.title);
+}
+
+function itemTimestamp(item: PmItem): string | undefined {
+  return item.closed_at ?? item.updated_at ?? item.created_at;
 }
 
 function escapeMarkdown(value: string): string {

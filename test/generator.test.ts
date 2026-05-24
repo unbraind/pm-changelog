@@ -5,7 +5,13 @@ import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import test from "node:test";
 
-import { createChangelog, mergeChangelog, readPmItems, writeChangelog } from "../dist/index.js";
+import {
+  createChangelog,
+  mergeChangelog,
+  readPmItems,
+  resolveReleaseTagWindows,
+  writeChangelog,
+} from "../dist/index.js";
 
 const items = [
   {
@@ -69,6 +75,96 @@ test("createChangelog can group items by release metadata", () => {
   assert.equal(result.itemCount, 3);
   assert.match(result.markdown, /## 1\.2\.0\n\n### Added[\s\S]*## 1\.1\.0\n\n### Changed/);
   assert.match(result.markdown, /- Improve release note rendering \(pm-4\)/);
+});
+
+test("createChangelog can build full history from git tag windows", () => {
+  const result = createChangelog({
+    items: [
+      {
+        id: "pm-post",
+        title: "Document post-release cleanup",
+        status: "closed",
+        type: "task",
+        closed_at: "2026-05-18T12:00:00Z",
+      },
+      {
+        id: "pm-current",
+        title: "Add release window generation",
+        status: "closed",
+        type: "feature",
+        closed_at: "2026-05-17T12:00:00Z",
+      },
+      {
+        id: "pm-previous",
+        title: "Fix previous release notes",
+        status: "closed",
+        type: "bug",
+        closed_at: "2026-05-10T12:00:00Z",
+      },
+    ],
+    releaseWindows: [
+      { heading: "Unreleased", since: "2026-05-17T13:00:00Z", sinceExclusive: true },
+      {
+        heading: "1.2.0 - 2026-05-17",
+        since: "2026-05-10T13:00:00Z",
+        sinceExclusive: true,
+        until: "2026-05-17T13:00:00Z",
+      },
+      { heading: "1.1.0 - 2026-05-10", until: "2026-05-10T13:00:00Z" },
+    ],
+  });
+
+  assert.equal(result.itemCount, 3);
+  assert.match(result.markdown, /## Unreleased[\s\S]*Document post-release cleanup \(pm-post\)/);
+  assert.match(result.markdown, /## 1\.2\.0 - 2026-05-17[\s\S]*Add release window generation \(pm-current\)/);
+  assert.match(result.markdown, /## 1\.1\.0 - 2026-05-10[\s\S]*Fix previous release notes \(pm-previous\)/);
+  assert.doesNotMatch(
+    result.markdown.match(/## 1\.2\.0 - 2026-05-17[\s\S]*?(?=## 1\.1\.0)/)?.[0] ?? "",
+    /pm-previous/
+  );
+});
+
+test("resolveReleaseTagWindows derives newest-first git tag windows", () => {
+  const dir = mkdtempSync(join(tmpdir(), "pm-changelog-tags-"));
+  execFileSync("git", ["init"], { cwd: dir, encoding: "utf-8" });
+  execFileSync("git", ["config", "user.name", "pm changelog test"], { cwd: dir, encoding: "utf-8" });
+  execFileSync("git", ["config", "user.email", "pm-changelog@example.com"], { cwd: dir, encoding: "utf-8" });
+
+  writeFileSync(join(dir, "file.txt"), "one\n");
+  execFileSync("git", ["add", "file.txt"], { cwd: dir, encoding: "utf-8" });
+  execFileSync("git", ["commit", "-m", "one"], {
+    cwd: dir,
+    encoding: "utf-8",
+    env: {
+      ...process.env,
+      GIT_AUTHOR_DATE: "2026-05-10T12:00:00Z",
+      GIT_COMMITTER_DATE: "2026-05-10T12:00:00Z",
+    },
+  });
+  execFileSync("git", ["tag", "v1.1.0"], { cwd: dir, encoding: "utf-8" });
+
+  writeFileSync(join(dir, "file.txt"), "two\n");
+  execFileSync("git", ["add", "file.txt"], { cwd: dir, encoding: "utf-8" });
+  execFileSync("git", ["commit", "-m", "two"], {
+    cwd: dir,
+    encoding: "utf-8",
+    env: {
+      ...process.env,
+      GIT_AUTHOR_DATE: "2026-05-17T12:00:00Z",
+      GIT_COMMITTER_DATE: "2026-05-17T12:00:00Z",
+    },
+  });
+  execFileSync("git", ["tag", "v1.2.0"], { cwd: dir, encoding: "utf-8" });
+
+  const windows = resolveReleaseTagWindows({ cwd: dir });
+
+  assert.equal(windows.length, 3);
+  assert.equal(windows[0].heading, "Unreleased");
+  assert.equal(windows[0].since, "2026-05-17T12:00:00Z");
+  assert.equal(windows[1].heading, "1.2.0 - 2026-05-17");
+  assert.equal(windows[1].since, "2026-05-10T12:00:00Z");
+  assert.equal(windows[1].until, "2026-05-17T12:00:00Z");
+  assert.equal(windows[2].heading, "1.1.0 - 2026-05-10");
 });
 
 test("createChangelog omits item links unless explicitly enabled", () => {
@@ -682,6 +778,8 @@ test("pm package install activates changelog command", () => {
     pmBin,
     [
       "create",
+      "--create-mode",
+      "progressive",
       "--type",
       "task",
       "--title",
@@ -791,6 +889,8 @@ test("pm extension command works when only node cli entrypoint is available", ()
     pmBin,
     [
       "create",
+      "--create-mode",
+      "progressive",
       "--type",
       "task",
       "--title",
@@ -835,5 +935,5 @@ test("pm extension command works when only node cli entrypoint is available", ()
   const markdown = readFileSync(join(dir, "CHANGELOG.md"), "utf-8");
   assert.match(markdown, /## node-cli - 2026-05-17/);
   assert.match(markdown, /Generate changelog without global pm/);
-  assert.match(markdown, /\[pm-[a-z0-9]+\]\(https:\/\/example\.com\/pm\/tasks\/pm-[a-z0-9]+\.toon\)/);
+  assert.match(markdown, /\[pmc?-[a-z0-9]+\]\(https:\/\/example\.com\/pm\/tasks\/pmc?-[a-z0-9]+\.toon\)/);
 });
