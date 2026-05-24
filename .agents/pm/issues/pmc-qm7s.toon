@@ -2,13 +2,15 @@ id: pmc-qm7s
 title: Support full historical changelog generation from git release tags
 description: "Add package-owned full-history generation to pm-changelog so downstream projects can rebuild CHANGELOG.md from actual git release tag windows, with an Unreleased section for post-latest-tag closed work and item links/check mode intact. Mirrors GitHub issue unbraind/pm-changelog#10."
 type: Issue
-status: in_progress
+status: closed
 priority: 2
 tags[4]: changelog,ci,git-tags,release
 created_at: "2026-05-24T15:23:16.720Z"
-updated_at: "2026-05-24T15:36:35.883Z"
-assignee: codex-changelog-full-history
+updated_at: "2026-05-24T15:39:05.704Z"
 author: codex-changelog-full-history
+resolution: completed
+expected_result: pm-changelog can generate a full project CHANGELOG.md from actual git release tag windows through package-owned CLI and extension flags.
+actual_result: "Published pm-changelog 2026.5.24-12 with --all-release-tags and --release-tag-pattern, full-history release-window tests, docs, CI tag checkout fix, npm latest verification, and GitHub release."
 comments[4]{created_at,author,text}:
   "2026-05-24T15:29:52.358Z",codex-changelog-full-history,"Evidence: implemented --all-release-tags for CLI and pm extension, including git tag windows with Unreleased, release-window item assignment, docs, and contract tests. npm run release:check passed for pm-changelog@2026.5.24-12."
   "2026-05-24T15:32:20.124Z",codex-changelog-full-history,"Linked-test note: default schema sandbox makes changelog:check compare against an empty tracker, so this package release gate must run in tracker context when linked through pm test. Direct npm run release:check passed in the real project context."
@@ -28,4 +30,5 @@ tests[1]{command,path,scope,timeout_seconds,pm_context_mode,env_set,env_clear,sh
 docs[2]{path,scope,note}:
   docs/usage.md,project,Document full-history git tag generation
   README.md,project,Document default full-history command
+close_reason: "Completed: pm-changelog 2026.5.24-12 adds package-owned --all-release-tags full historical changelog generation from git release tag windows, exposes it through CLI and pm extension contracts, documents it, passes release:check and linked pm evidence, and is published to npm/GitHub release."
 body: ""
