@@ -124,11 +124,26 @@ test("createChangelog can build full history from git tag windows", () => {
   );
 });
 
+test("createChangelog preserves empty release windows", () => {
+  const result = createChangelog({
+    items: [],
+    releaseWindows: [
+      { heading: "Unreleased", since: "2026-05-18T12:00:00Z", sinceExclusive: true },
+      { heading: "1.2.0 - 2026-05-17", until: "2026-05-17T12:00:00Z" },
+    ],
+  });
+
+  assert.equal(result.itemCount, 0);
+  assert.match(result.markdown, /## Unreleased\n\nNo changes\./);
+  assert.match(result.markdown, /## 1\.2\.0 - 2026-05-17\n\nNo changes\./);
+});
+
 test("resolveReleaseTagWindows derives newest-first git tag windows", () => {
   const dir = mkdtempSync(join(tmpdir(), "pm-changelog-tags-"));
   execFileSync("git", ["init"], { cwd: dir, encoding: "utf-8" });
   execFileSync("git", ["config", "user.name", "pm changelog test"], { cwd: dir, encoding: "utf-8" });
   execFileSync("git", ["config", "user.email", "pm-changelog@example.com"], { cwd: dir, encoding: "utf-8" });
+  const defaultBranch = execFileSync("git", ["branch", "--show-current"], { cwd: dir, encoding: "utf-8" }).trim();
 
   writeFileSync(join(dir, "file.txt"), "one\n");
   execFileSync("git", ["add", "file.txt"], { cwd: dir, encoding: "utf-8" });
@@ -142,6 +157,21 @@ test("resolveReleaseTagWindows derives newest-first git tag windows", () => {
     },
   });
   execFileSync("git", ["tag", "v1.1.0"], { cwd: dir, encoding: "utf-8" });
+
+  execFileSync("git", ["switch", "-c", "side-release"], { cwd: dir, encoding: "utf-8" });
+  writeFileSync(join(dir, "side.txt"), "side\n");
+  execFileSync("git", ["add", "side.txt"], { cwd: dir, encoding: "utf-8" });
+  execFileSync("git", ["commit", "-m", "side"], {
+    cwd: dir,
+    encoding: "utf-8",
+    env: {
+      ...process.env,
+      GIT_AUTHOR_DATE: "2026-05-30T12:00:00Z",
+      GIT_COMMITTER_DATE: "2026-05-30T12:00:00Z",
+    },
+  });
+  execFileSync("git", ["tag", "v9.9.9"], { cwd: dir, encoding: "utf-8" });
+  execFileSync("git", ["switch", defaultBranch], { cwd: dir, encoding: "utf-8" });
 
   writeFileSync(join(dir, "file.txt"), "two\n");
   execFileSync("git", ["add", "file.txt"], { cwd: dir, encoding: "utf-8" });
@@ -163,15 +193,23 @@ test("resolveReleaseTagWindows derives newest-first git tag windows", () => {
     },
   });
 
-  const windows = resolveReleaseTagWindows({ cwd: dir });
+  const windows = resolveReleaseTagWindows({
+    cwd: dir,
+    pendingVersion: "1.3.0",
+    pendingTimestamp: "2026-05-20T12:00:00Z",
+  });
 
-  assert.equal(windows.length, 3);
+  assert.equal(windows.length, 4);
   assert.equal(windows[0].heading, "Unreleased");
-  assert.equal(windows[0].since, "2026-05-17T12:00:00Z");
-  assert.equal(windows[1].heading, "1.2.0 - 2026-05-17");
-  assert.equal(windows[1].since, "2026-05-10T12:00:00Z");
-  assert.equal(windows[1].until, "2026-05-17T12:00:00Z");
-  assert.equal(windows[2].heading, "1.1.0 - 2026-05-10");
+  assert.equal(windows[0].since, "2026-05-20T12:00:00.000Z");
+  assert.equal(windows[1].heading, "1.3.0 - 2026-05-20");
+  assert.equal(windows[1].since, "2026-05-17T12:00:00Z");
+  assert.equal(windows[1].until, "2026-05-20T12:00:00.000Z");
+  assert.equal(windows[2].heading, "1.2.0 - 2026-05-17");
+  assert.equal(windows[2].since, "2026-05-10T12:00:00Z");
+  assert.equal(windows[2].until, "2026-05-17T12:00:00Z");
+  assert.equal(windows[3].heading, "1.1.0 - 2026-05-10");
+  assert.ok(windows.every((window) => !window.heading.startsWith("9.9.9")));
 });
 
 test("createChangelog omits item links unless explicitly enabled", () => {

@@ -18,6 +18,8 @@ export interface ReleaseTagHistoryOptions {
   cwd?: string;
   tagPattern?: string;
   includeUnreleased?: boolean;
+  pendingVersion?: string;
+  pendingTimestamp?: string;
 }
 
 interface ReleaseTag {
@@ -51,20 +53,22 @@ export function resolveReleaseContext(options: ReleaseContextOptions): ReleaseCo
 export function resolveReleaseTagWindows(options: ReleaseTagHistoryOptions = {}): ChangelogReleaseWindow[] {
   const cwd = resolve(options.cwd ?? process.cwd());
   const tags = listReleaseTags(cwd, options.tagPattern ?? "v*");
-  if (tags.length === 0) return [];
+  const pending = resolvePendingReleaseTag(options, tags);
+  const orderedTags = pending ? [pending, ...tags] : tags;
+  if (orderedTags.length === 0) return [];
 
   const windows: ChangelogReleaseWindow[] = [];
   if (options.includeUnreleased !== false) {
     windows.push({
       heading: "Unreleased",
-      since: tags[0].timestamp,
+      since: orderedTags[0].timestamp,
       sinceExclusive: true,
     });
   }
 
-  for (let index = 0; index < tags.length; index++) {
-    const tag = tags[index];
-    const previous = tags[index + 1];
+  for (let index = 0; index < orderedTags.length; index++) {
+    const tag = orderedTags[index];
+    const previous = orderedTags[index + 1];
     windows.push({
       heading: `${formatTagVersion(tag.name)} - ${formatDate(tag.timestamp)}`,
       since: previous?.timestamp,
@@ -74,6 +78,15 @@ export function resolveReleaseTagWindows(options: ReleaseTagHistoryOptions = {})
   }
 
   return windows;
+}
+
+function resolvePendingReleaseTag(options: ReleaseTagHistoryOptions, existingTags: ReleaseTag[]): ReleaseTag | undefined {
+  const version = options.pendingVersion?.trim();
+  if (!version) return undefined;
+  const candidates = new Set(releaseTagCandidates(version));
+  if (existingTags.some((tag) => candidates.has(tag.name))) return undefined;
+  const timestamp = normalizeTimestamp(options.pendingTimestamp ?? new Date().toISOString());
+  return { name: version, timestamp };
 }
 
 function readPackageVersion(cwd: string): string {
@@ -129,6 +142,8 @@ function listReleaseTags(cwd: string, pattern: string): ReleaseTag[] {
     "tag",
     "--list",
     pattern,
+    "--merged",
+    "HEAD",
     "--format=%(refname:short)%09%(*committerdate:iso-strict)%09%(committerdate:iso-strict)",
   ]);
   if (!output) return [];
@@ -176,4 +191,10 @@ function formatDate(timestamp: string): string {
   const date = new Date(timestamp);
   if (Number.isNaN(date.getTime())) return timestamp.slice(0, 10);
   return date.toISOString().slice(0, 10);
+}
+
+function normalizeTimestamp(value: string): string {
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return value;
+  return date.toISOString();
 }
