@@ -1,0 +1,38 @@
+id: pmc-x3cf
+title: Update @unbrained/pm-cli dev dependency to 2026.5.24
+description: Keep devDependencies pin aligned with the latest released @unbrained/pm-cli to benefit from SDK fixes and avoid outdated package warnings.
+type: Chore
+status: closed
+priority: 0
+tags[3]: dependency,pm-cli,upgrade
+created_at: "2026-05-24T12:10:42.261Z"
+updated_at: "2026-05-24T12:11:12.630Z"
+deadline: "2026-05-24T00:00:00.000Z"
+author: codex
+estimated_minutes: 15
+acceptance_criteria: "devDependencies pin updated to ^2026.5.24; installed version is 2026.5.24; all 18 tests pass; npm run release:check green."
+reviewer: steve
+risk: low
+confidence: high
+sprint: 2026-05-production
+release: v2026.05.24-7
+resolution: Updated devDependencies pin to 2026.5.24. All 18 tests pass.
+expected_result: "devDependencies pin at 2026.5.24; npm run release:check passes."
+actual_result: All 18 tests pass; release check green; 0 vulns.
+dependencies[1]{id,kind,created_at,author,source_kind}:
+  "pmc-dcji,related",related,"2026-05-24T12:10:42.261Z",null,null
+comments[1]{created_at,author,text}:
+  "2026-05-24T12:10:42.261Z",codex,npm outdated showed @unbrained/pm-cli 2026.5.18 installed vs 2026.5.24 available. Updated with npm install @unbrained/pm-cli@latest.
+notes[1]{created_at,author,text}:
+  "2026-05-24T12:10:42.261Z",codex,Latest pm-cli release is 2026.5.24 as of 2026-05-24. No API breaking changes detected.
+learnings[1]{created_at,author,text}:
+  "2026-05-24T12:10:42.261Z",codex,Keep devDependencies pin up to date each session; outdated devDeps can mask SDK incompatibilities before they reach CI.
+files[2]{path,scope,note}:
+  "package.json,project,Updated devDependencies pin to ^2026.5.24",project,null
+  "package-lock.json,project,Lock file updated to pm-cli 2026.5.24",project,null
+tests[1]{command,path,scope,timeout_seconds,pm_context_mode,env_set,env_clear,shared_host_safe,assert_stdout_contains,assert_stdout_regex,assert_stderr_contains,assert_stderr_regex,assert_stdout_min_lines,assert_json_field_equals,assert_json_field_gte,note}:
+  "npm test,null,project,120,null,null,null,null,null,null,null,null,null,null,null,null",null,project,null,null,null,null,null,null,null,null,null,null,null,null,null
+docs[1]{path,scope,note}:
+  "docs/development.md,project,Dependency management",project,null
+close_reason: "devDependencies pin updated to ^2026.5.24; 18/18 tests pass; release:check green; package-lock.json updated."
+body: "Bumped @unbrained/pm-cli devDependencies pin from ^2026.5.14 to ^2026.5.24. peerDependencies/dependencies ranges (>=2026.5.14) unchanged. All 18 tests pass; npm run release:check green."

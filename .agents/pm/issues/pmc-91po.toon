@@ -6,7 +6,7 @@ status: closed
 priority: 0
 tags[3]: history,release,security
 created_at: "2026-05-23T19:19:07.254Z"
-updated_at: "2026-05-23T19:22:50.153Z"
+updated_at: "2026-05-24T12:09:09.760Z"
 deadline: "2026-05-23T00:00:00.000Z"
 author: codex
 estimated_minutes: 45
@@ -27,8 +27,10 @@ actual_result: "Pattern scan matched only sanitizer code that clears URL passwor
 component: repository-security
 comments[1]{created_at,author,text}:
   "2026-05-23T19:22:35.063Z",codex,"Commands executed: git grep over 1e9bb8caf3f39f0fe76d2b5325bed95067eef3f7\n5436bf223298bda8d05a8d98eff5f4ad79ba5d89\n8fb2eacaa8567f4fe6b1db7dcff6c4c0aae06110\n1be6beaf23f06af750587fe9e3068598c6fed940\n853e5f2c7a1efb5966eb1b87b0e9110a8e00bd05\na1f30619a75bbccbe2e9cf3a89fa63c4c0f01246\n441450befce63281be1644119e5f7023652df99b\n95ed298148277f75ea7653e9442182b4ab9c5944\n776a497b0f56ec02444190ff91dd3ca787180879\n1ebacabaeba7133b8059a6067e2404ab6a2417aa\nf01a8110893d34957a4141faba072f4d6c862242 with common token/key/password patterns; historical filename enumeration with env/key/credential/secret/token pattern matching."
+notes[1]{created_at,author,text}:
+  "2026-05-24T12:09:09.740Z",codex,"Fix files reference: test/generator.test.mjs renamed to test/generator.test.ts in TypeScript migration"
 files[1]{path,scope,note}:
-  test/generator.test.mjs,project,null
+  test/generator.test.ts,project,null
 tests[1]{command,path,scope,timeout_seconds,pm_context_mode,env_set,env_clear,shared_host_safe,assert_stdout_contains,assert_stdout_regex,assert_stderr_contains,assert_stderr_regex,assert_stdout_min_lines,assert_json_field_equals,assert_json_field_gte,note}:
   "git grep -n -I -E \"secret-patterns\" $(git rev-list --all) && historical filename secret-pattern scan",null,project,null,null,null,null,null,null,null,null,null,null,null,null,null
 close_reason: History scan found no confirmed private data; only intentional sanitizer fixtures and password-clearing code matched.

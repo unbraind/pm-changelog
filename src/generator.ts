@@ -378,9 +378,27 @@ function hasAny(value: string, needles: string[]): boolean {
 
 function formatItem(item: PmItem, options: GenerateChangelogOptions): string {
   const title = escapeMarkdown(toSingleLine(item.title));
-  const id = item.id ? ` (${escapeMarkdown(item.id)})` : "";
+  const id = formatItemId(item, options);
   const link = options.includeLinks ? formatLink(item.url) : "";
   return `${title}${id}${link}`;
+}
+
+function formatItemId(item: PmItem, options: GenerateChangelogOptions): string {
+  if (!item.id) return "";
+  const escapedId = escapeMarkdown(item.id);
+  if (options.itemUrlBase) {
+    const base = options.itemUrlBase.replace(/\/$/, "");
+    const typeDir = itemTypeToDir(item.type);
+    const url = `${base}/${typeDir}/${item.id}.toon`;
+    return ` ([${escapedId}](${url}))`;
+  }
+  return ` (${escapedId})`;
+}
+
+function itemTypeToDir(type: string | undefined): string {
+  const t = (type ?? "issue").toLowerCase();
+  const irregular: Record<string, string> = { story: "stories" };
+  return irregular[t] ?? `${t}s`;
 }
 
 function formatLink(url: string | undefined): string {
