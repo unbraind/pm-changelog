@@ -1,0 +1,43 @@
+id: pmc-36lr
+title: Changelog sections out of version order when items have different updated_at times
+description: "When using --group-by release, sections were ordered by when the first item was last updated, not by release version. Fixed by sorting sections by version heading descending after grouping."
+type: Issue
+status: closed
+priority: 0
+tags[3]: bug,changelog,ordering
+created_at: "2026-05-24T07:00:59.777Z"
+updated_at: "2026-05-24T07:01:11.472Z"
+deadline: "2026-05-24T00:00:00.000Z"
+author: steve
+estimated_minutes: 30
+acceptance_criteria: Changelog sections appear in descending version order regardless of item update timestamps. Unreleased section always appears first.
+reviewer: steve
+risk: low
+confidence: high
+sprint: 2026-05-production
+release: v2026.05.24-6
+reporter: steve
+severity: medium
+environment: any project using pm-changelog --group-by release or --group-by milestone
+repro_steps: "Create items with older release having more recent updated_at than newer release items, then generate changelog with --group-by release"
+resolution: Added compareVersionHeadings and compareVersionStrings sort functions. Sections now sorted descending by version with Unreleased first.
+expected_result: Sections appear newest-first ordered by release version string
+actual_result: "Sections appeared in order of most-recently-updated item, causing older releases to appear before newer ones"
+fixed_version: v2026.05.24-6
+component: generator.ts
+dependencies[1]{id,kind,created_at,author,source_kind}:
+  pmc-9tmr,related,"2026-05-24T07:00:00.000Z",steve,null
+comments[1]{created_at,author,text}:
+  "2026-05-24T07:00:59.777Z",steve,"Root cause: Map insertion order in groupSectionsByMetadata depended on item updated_at,not release version. Fix sorts sections by version string descending."
+notes[1]{created_at,author,text}:
+  "2026-05-24T07:00:59.777Z",steve,Fixed in same session it was discovered. Closes GitHub issue #6.
+learnings[1]{created_at,author,text}:
+  "2026-05-24T07:00:59.777Z",steve,"Map insertion order in groupSectionsByMetadata is driven by item sort order,not by section key order. Always sort sections explicitly after grouping."
+files[1]{path,scope,note}:
+  src/generator.ts,project,groupSectionsByMetadata function
+tests[1]{command,path,scope,timeout_seconds,pm_context_mode,env_set,env_clear,shared_host_safe,assert_stdout_contains,assert_stdout_regex,assert_stderr_contains,assert_stderr_regex,assert_stdout_min_lines,assert_json_field_equals,assert_json_field_gte,note}:
+  npm test,null,project,120,null,null,null,null,null,null,null,null,null,null,null,null
+docs[1]{path,scope,note}:
+  docs/usage.md,project,group-by flag documentation
+close_reason: "Fixed: sections now sorted descending by version string with Unreleased always first. All 18 tests pass."
+body: "GitHub issue: https://github.com/unbraind/pm-changelog/issues/6\\n\\nFix: added compareVersionHeadings/compareVersionStrings to groupSectionsByMetadata in src/generator.ts."
