@@ -2,16 +2,19 @@ id: pmc-f4yg
 title: Expose item-url-base through pm changelog extension command
 description: "GitHub #7: package CLI and generator support itemUrlBase, but the pm extension command rejects --item-url-base and cannot generate clickable pm item references through the default pm package flow."
 type: Issue
-status: in_progress
+status: closed
 priority: 0
 tags[4]: changelog,extension,links,release
 created_at: "2026-05-24T12:41:56.829Z"
-updated_at: "2026-05-24T12:46:30.453Z"
-assignee: codex-pm-changelog-fix
+updated_at: "2026-05-24T13:00:36.898Z"
 author: codex-pm-changelog-fix
 parent: pmc-w906
-comments[1]{created_at,author,text}:
+resolution: Released pm-changelog 2026.5.24-9 with extension-level --item-url-base support.
+expected_result: pm changelog generate exposes --item-url-base and can generate clickable pm item ID links through the package extension command.
+actual_result: GitHub issue #7 is closed; release run 26361652123 published pm-changelog 2026.5.24-9; downstream pm-cli installed it and generated clickable main changelog links.
+comments[2]{created_at,author,text}:
   "2026-05-24T12:46:30.453Z",codex-pm-changelog-fix,"Evidence: GitHub issue unbraind/pm-changelog#7 filed and corrected. Fix exposes --item-url-base in src/extension.ts and passes itemUrlBase into createChangelog/writeChangelog. npm run release:check passed in repo context; PM_PATH sandbox override was intentionally not used for that gate because changelog:check must read the package repository pm history."
+  "2026-05-24T12:48:05.188Z",codex-pm-changelog-fix,"Release evidence: GitHub Actions Daily Release run 26361652123 passed, publishing the fix to npm and creating the GitHub release. Next verification is npm latest plus downstream pm-cli reinstall."
 files[4]{path,scope,note}:
   dist/extension.js,project,Built extension runtime for pm package installs
   src/extension.ts,project,Expose and pass item-url-base through the pm extension command
@@ -20,4 +23,5 @@ files[4]{path,scope,note}:
 tests[2]{command,path,scope,timeout_seconds,pm_context_mode,env_set,env_clear,shared_host_safe,assert_stdout_contains,assert_stdout_regex,assert_stderr_contains,assert_stderr_regex,assert_stdout_min_lines,assert_json_field_equals,assert_json_field_gte,note}:
   "PM_PATH=/tmp/pm-changelog-release-pm PM_GLOBAL_PATH=/tmp/pm-changelog-release-global npm run release:check",null,project,300,null,null,null,null,null,null,null,null,null,null,null,Full package release gate with isolated pm roots
   PM_PATH=/tmp/pm-changelog-test-pm PM_GLOBAL_PATH=/tmp/pm-changelog-test-global npm test,null,project,240,null,null,null,null,null,null,null,null,null,null,null,Package regression and build verification with isolated pm roots
+close_reason: "Fixed by exposing --item-url-base through the pm extension command, adding regression coverage, passing release checks, publishing pm-changelog 2026.5.24-9, and closing GitHub issue #7."
 body: ""
