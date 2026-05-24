@@ -263,6 +263,8 @@ function applyReleaseContext(options: CliOptions): void {
     options.releaseWindows = resolveReleaseTagWindows({
       cwd: options.pmCwd ? resolve(options.pmCwd) : process.cwd(),
       tagPattern: options.releaseTagPattern,
+      pendingVersion: options.version,
+      pendingTimestamp: options.until ?? options.date,
     });
     return;
   }

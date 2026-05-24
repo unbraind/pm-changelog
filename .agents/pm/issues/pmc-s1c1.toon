@@ -1,0 +1,30 @@
+id: pmc-s1c1
+title: Stabilize full-history release windows for release automation
+description: "Follow-up from pm-cli#62 bot review: full-history changelog generation should preserve empty tag windows, ignore matching tags not merged into HEAD, and support preparing a pending release window with --release-version so release pipeline output matches post-tag CI checks."
+type: Issue
+status: closed
+priority: 1
+tags[3]: changelog,release,review
+created_at: "2026-05-24T16:21:29.997Z"
+updated_at: "2026-05-24T16:24:40.737Z"
+author: codex-pm-changelog-review
+resolution: "Full-history mode now preserves empty release windows, limits git release tags to tags merged into HEAD, and supports a pending release window from --release-version/--date so release prep and post-tag CI use the same generated changelog shape."
+expected_result: "pm-changelog full-history mode can be used consistently by release prep and CI, preserving complete tag history and avoiding unrelated branch tags."
+actual_result: "pm-changelog@2026.5.24-15 includes the review fixes with regression tests for empty windows, unmerged tags, annotated tag commit dates, and pending release windows."
+comments[1]{created_at,author,text}:
+  "2026-05-24T16:24:39.298Z",codex-pm-changelog-review,"Evidence: GitHub issue unbraind/pm-changelog#12 filed from pm-cli#62 review. Implemented full-history release windows that preserve empty sections, filter tags with --merged HEAD, and use --release-version as a pending release window for pre-tag release automation."
+files[9]{path,scope,note}:
+  dist,project,Built package output for fixed full-history release automation
+  manifest.json,project,Expose fixed extension package version
+  package-lock.json,project,Lock fixed full-history release automation version
+  package.json,project,Publish fixed full-history release automation version
+  src/cli.ts,project,Wire --release-version into full-history pending release generation
+  src/extension.ts,project,Expose pending release generation through pm extension command
+  src/generator.ts,project,Preserve empty release windows in generated full history
+  src/release-context.ts,project,Preserve HEAD-merged tag windows and pending release windows
+  test/generator.test.ts,project,"Cover empty sections,merged tags,and pending release windows"
+tests[2]{command,path,scope,timeout_seconds,pm_context_mode,env_set,env_clear,shared_host_safe,assert_stdout_contains,assert_stdout_regex,assert_stderr_contains,assert_stderr_regex,assert_stdout_min_lines,assert_json_field_equals,assert_json_field_gte,note}:
+  npm run check,null,project,240,null,null,null,null,null,null,null,null,null,null,null,null
+  PM_PATH=/tmp/pm-changelog-linked-test PM_GLOBAL_PATH=/tmp/pm-changelog-linked-global npm test,null,project,240,null,null,null,null,null,null,null,null,null,null,null,null
+close_reason: Fixed full-history release automation review feedback and prepared pm-changelog@2026.5.24-15.
+body: ""

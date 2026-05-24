@@ -54,6 +54,11 @@ export function createChangelog(options: GenerateChangelogOptions): GeneratedCha
 
   for (const section of sections) {
     lines.push(`## ${section.heading}`, "");
+    if (section.items.length === 0) {
+      lines.push("No changes.", "");
+      continue;
+    }
+
     const grouped = groupByCategory(section.items);
 
     for (const category of CATEGORY_ORDER) {
@@ -223,12 +228,10 @@ function filterItemsByStatus(options: GenerateChangelogOptions): PmItem[] {
 
 function buildSections(items: PmItem[], options: GenerateChangelogOptions): ChangelogSection[] {
   if (options.releaseWindows && options.releaseWindows.length > 0) {
-    return options.releaseWindows
-      .map((window) => ({
-        heading: window.heading,
-        items: filterItemsByTime(items, window),
-      }))
-      .filter((section) => options.includeEmpty || section.items.length > 0);
+    return options.releaseWindows.map((window) => ({
+      heading: window.heading,
+      items: filterItemsByTime(items, window),
+    }));
   }
 
   if (options.groupBy === "release" && !options.version) {
