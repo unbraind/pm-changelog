@@ -1,0 +1,36 @@
+id: pmc-l9z0
+title: Published package sourcemaps point to missing source files
+description: "Add inlineSources: true to tsconfig.json so dist/.js.map files embed TypeScript source content. V8 uses the embedded sourcesContent and stops warning about missing .ts files when the package is installed without the src/ directory."
+type: Issue
+status: closed
+priority: 2
+tags[3]: packaging,sourcemaps,tsconfig
+created_at: "2026-05-24T00:04:42.271Z"
+updated_at: "2026-05-24T00:09:06.069Z"
+deadline: "2026-05-24T00:00:00.000Z"
+author: claude
+estimated_minutes: 30
+acceptance_criteria: "inlineSources: true added to tsconfig.json; dist rebuilt; npm run release:check passes; clean pm install no longer emits sourcemap warnings; GitHub issue #4 closed"
+release: Unreleased
+severity: high
+resolution: "Added inlineSources: true to tsconfig.json; rebuilt dist; sourcesContent embedded in all .js.map files."
+expected_result: No V8 sourcemap warnings; .js.map files contain sourcesContent.
+actual_result: "inlineSources: true added; dist rebuilt; sourcesContent verified in all .js.map; 18/18 tests pass; npm run release:check passes."
+dependencies[1]{id,kind,created_at,author,source_kind}:
+  pmc-0jm1,related,"2026-05-24T00:04:42.271Z",claude,null
+comments[1]{created_at,author,text}:
+  "2026-05-24T00:04:42.271Z",claude,"Duplicate check: GitHub issue #4 is open and matches. No separate pm item exists for this issue."
+notes[1]{created_at,author,text}:
+  "2026-05-24T00:04:42.271Z",claude,"Reported in unbraind/pm-changelog GitHub issue #4. Fix is inlineSources: true in tsconfig.json."
+learnings[1]{created_at,author,text}:
+  "2026-05-24T00:04:42.271Z",claude,"Published npm packages that include dist/ without src/ must use inlineSources: true to avoid V8 sourcemap warnings in downstream tooling."
+files[2]{path,scope,note}:
+  tsconfig.json,project,"add inlineSources: true"
+  dist,project,rebuilt after tsconfig change
+tests[2]{command,path,scope,timeout_seconds,pm_context_mode,env_set,env_clear,shared_host_safe,assert_stdout_contains,assert_stdout_regex,assert_stderr_contains,assert_stderr_regex,assert_stdout_min_lines,assert_json_field_equals,assert_json_field_gte,note}:
+  npm run check,null,project,60,null,null,null,null,null,null,null,null,null,null,null,null
+  "npm run release:check",null,project,300,null,null,null,null,null,null,null,null,null,null,null,null
+docs[1]{path,scope,note}:
+  docs/development.md,project,TypeScript policy
+close_reason: "Fixed: inlineSources: true added to tsconfig.json; sourcesContent embedded in .js.map files; V8 source resolution satisfied; all release checks pass."
+body: "github_issue_url=https://github.com/unbraind/pm-changelog/issues/4,reporter=github-issue-4,component=tsconfig"

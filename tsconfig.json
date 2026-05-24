@@ -9,6 +9,7 @@
     "declaration": true,
     "declarationMap": true,
     "sourceMap": true,
+    "inlineSources": true,
     "esModuleInterop": true,
     "types": ["node"],
     "skipLibCheck": true,
