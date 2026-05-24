@@ -119,14 +119,16 @@ jobs:
           node dist/cli.js \
             --mode replace \
             --output CHANGELOG.md \
-            --group-by release \
+            --release-version "${{ steps.decide.outputs.npm_version }}" \
+            --since-previous-tag \
             --item-url-base https://github.com/unbraind/pm-changelog/blob/main/.agents/pm \
             --pm-bin ./node_modules/.bin/pm \
             --github-step-summary
           node dist/cli.js \
             --mode replace \
             --output CHANGELOG.md \
-            --group-by release \
+            --release-version "${{ steps.decide.outputs.npm_version }}" \
+            --since-previous-tag \
             --item-url-base https://github.com/unbraind/pm-changelog/blob/main/.agents/pm \
             --pm-bin ./node_modules/.bin/pm \
             --check
