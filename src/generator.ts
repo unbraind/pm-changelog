@@ -309,7 +309,10 @@ function replaceReleaseSection(
 ): { markdown: string; replaced: boolean } {
   const releaseHeading = /^##\s+(.+)$/gm;
   const matches = Array.from(markdown.matchAll(releaseHeading));
-  const matchIndex = matches.findIndex((match) => match[1].trim() === heading);
+  const targetHeadingKey = normalizeReleaseHeadingKey(heading);
+  const matchIndex = matches.findIndex(
+    (match) => normalizeReleaseHeadingKey(match[1].trim()) === targetHeadingKey
+  );
   if (matchIndex === -1) return { markdown, replaced: false };
 
   const match = matches[matchIndex];
@@ -320,6 +323,13 @@ function replaceReleaseSection(
   const after = markdown.slice(end).trimStart();
   const merged = after ? `${before}\n\n${replacement}\n\n${after}` : `${before}\n\n${replacement}`;
   return { markdown: merged, replaced: true };
+}
+
+function normalizeReleaseHeadingKey(heading: string): string {
+  const trimmed = heading.trim();
+  const bracketed = trimmed.match(/^\[([^\]]+)\](?:\([^)]+\))?(?:\s+-\s+.+)?$/);
+  const version = bracketed?.[1] ?? trimmed.split(/\s+-\s+/, 1)[0] ?? trimmed;
+  return version.trim().replace(/^v/i, "").toLowerCase();
 }
 
 function ensureTitle(markdown: string, title: string | undefined): string {

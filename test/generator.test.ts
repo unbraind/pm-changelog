@@ -260,6 +260,38 @@ test("mergeChangelog replaces an existing generated release", () => {
   assert.match(result.markdown, /## 1\.2\.0 - 2026-05-17[\s\S]*## 1\.1\.0 - 2026-05-01/);
 });
 
+test("mergeChangelog replaces Keep a Changelog bracketed release headings", () => {
+  const existing = `# Changelog
+
+All notable changes to this project are documented in this file.
+
+## [1.2.0] - 2026-05-17
+
+### Fixed
+
+- Old generated line
+
+## [1.1.0] - 2026-05-01
+
+### Fixed
+
+- Existing historical fix
+`;
+  const generated = createChangelog({
+    items,
+    version: "1.2.0",
+    date: "2026-05-17",
+  });
+
+  const result = mergeChangelog(existing, generated.markdown);
+
+  assert.equal(result.action, "replaced");
+  assert.doesNotMatch(result.markdown, /Old generated line/);
+  assert.match(result.markdown, /All notable changes to this project are documented/);
+  assert.match(result.markdown, /## 1\.2\.0 - 2026-05-17[\s\S]*## \[1\.1\.0\] - 2026-05-01/);
+  assert.match(result.markdown, /- Existing historical fix/);
+});
+
 test("writeChangelog writes and reports unchanged check runs", () => {
   const dir = mkdtempSync(join(tmpdir(), "pm-changelog-"));
   const output = join(dir, "CHANGELOG.md");

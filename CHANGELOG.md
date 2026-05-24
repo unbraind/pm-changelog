@@ -1,11 +1,9 @@
 # Changelog
 
-## 2026.5.24-10 - 2026-05-24
-
-### Added
-
-- Add package-owned release context flags ([pmc-34gb](https://github.com/unbraind/pm-changelog/blob/main/.agents/pm/issues/pmc-34gb.toon))
+## 2026.5.24-11 - 2026-05-24
 
 ### Other
 
-- Expose item-url-base through pm changelog extension command ([pmc-f4yg](https://github.com/unbraind/pm-changelog/blob/main/.agents/pm/issues/pmc-f4yg.toon))
+- Prepend mode duplicates Keep a Changelog bracketed release sections ([pmc-nh7q](https://github.com/unbraind/pm-changelog/blob/main/.agents/pm/issues/pmc-nh7q.toon))
+
+## 2026.5.24-10 - 2026-05-24
