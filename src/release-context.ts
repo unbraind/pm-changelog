@@ -2,6 +2,8 @@ import { execFileSync } from "node:child_process";
 import { existsSync, readFileSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 
+import type { ChangelogReleaseWindow } from "./types.js";
+
 export interface ReleaseContextOptions {
   cwd?: string;
   version?: string;
@@ -10,6 +12,17 @@ export interface ReleaseContextOptions {
   sincePreviousTag?: boolean;
   until?: string;
   untilReleaseTag?: boolean;
+}
+
+export interface ReleaseTagHistoryOptions {
+  cwd?: string;
+  tagPattern?: string;
+  includeUnreleased?: boolean;
+}
+
+interface ReleaseTag {
+  name: string;
+  timestamp: string;
 }
 
 export interface ReleaseContext {
@@ -33,6 +46,34 @@ export function resolveReleaseContext(options: ReleaseContextOptions): ReleaseCo
     since: options.since ?? (previousTag ? gitCommitTimestamp(cwd, previousTag) : undefined),
     until: options.until ?? (options.untilReleaseTag && releaseTag ? gitCommitTimestamp(cwd, releaseTag) : undefined),
   };
+}
+
+export function resolveReleaseTagWindows(options: ReleaseTagHistoryOptions = {}): ChangelogReleaseWindow[] {
+  const cwd = resolve(options.cwd ?? process.cwd());
+  const tags = listReleaseTags(cwd, options.tagPattern ?? "v*");
+  if (tags.length === 0) return [];
+
+  const windows: ChangelogReleaseWindow[] = [];
+  if (options.includeUnreleased !== false) {
+    windows.push({
+      heading: "Unreleased",
+      since: tags[0].timestamp,
+      sinceExclusive: true,
+    });
+  }
+
+  for (let index = 0; index < tags.length; index++) {
+    const tag = tags[index];
+    const previous = tags[index + 1];
+    windows.push({
+      heading: `${formatTagVersion(tag.name)} - ${formatDate(tag.timestamp)}`,
+      since: previous?.timestamp,
+      sinceExclusive: Boolean(previous),
+      until: tag.timestamp,
+    });
+  }
+
+  return windows;
 }
 
 function readPackageVersion(cwd: string): string {
@@ -71,6 +112,17 @@ function findPreviousTag(cwd: string, releaseTag: string | undefined): string | 
   return runGit(cwd, ["describe", "--tags", "--abbrev=0", ref]);
 }
 
+function listReleaseTags(cwd: string, pattern: string): ReleaseTag[] {
+  const output = runGit(cwd, ["tag", "--list", pattern]);
+  if (!output) return [];
+  return output
+    .split("\n")
+    .map((name) => name.trim())
+    .filter(Boolean)
+    .map((name) => ({ name, timestamp: gitCommitTimestamp(cwd, name) }))
+    .sort((a, b) => Date.parse(b.timestamp) - Date.parse(a.timestamp));
+}
+
 function gitCommitTimestamp(cwd: string, ref: string): string {
   const timestamp = runGit(cwd, ["log", "-1", "--format=%cI", ref]);
   if (!timestamp) {
@@ -90,4 +142,14 @@ function runGit(cwd: string, args: string[]): string | undefined {
   } catch {
     return undefined;
   }
+}
+
+function formatTagVersion(tag: string): string {
+  return tag.replace(/^v/i, "");
+}
+
+function formatDate(timestamp: string): string {
+  const date = new Date(timestamp);
+  if (Number.isNaN(date.getTime())) return timestamp.slice(0, 10);
+  return date.toISOString().slice(0, 10);
 }

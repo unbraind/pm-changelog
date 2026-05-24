@@ -27,6 +27,13 @@ export interface PmItem {
 
 export type ChangelogGroupBy = "version" | "release" | "milestone";
 
+export interface ChangelogReleaseWindow {
+  heading: string;
+  since?: string;
+  sinceExclusive?: boolean;
+  until?: string;
+}
+
 export interface GenerateChangelogOptions {
   items: PmItem[];
   title?: string;
@@ -36,6 +43,7 @@ export interface GenerateChangelogOptions {
   until?: string;
   includeStatuses?: string[];
   groupBy?: ChangelogGroupBy;
+  releaseWindows?: ChangelogReleaseWindow[];
   includeEmpty?: boolean;
   includeLinks?: boolean;
   /** Base URL used to construct clickable links for pm item IDs.

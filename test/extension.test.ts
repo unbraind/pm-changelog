@@ -28,4 +28,12 @@ test("extension command exposes item-url-base for clickable item IDs", () => {
     registeredCommand.flags?.some((flag) => flag.long === "--until-release-tag"),
     "changelog generate should expose release-tag cap through pm contracts"
   );
+  assert.ok(
+    registeredCommand.flags?.some((flag) => flag.long === "--all-release-tags"),
+    "changelog generate should expose full git-tag history mode through pm contracts"
+  );
+  assert.ok(
+    registeredCommand.flags?.some((flag) => flag.long === "--release-tag-pattern"),
+    "changelog generate should expose full-history tag glob configuration through pm contracts"
+  );
 });

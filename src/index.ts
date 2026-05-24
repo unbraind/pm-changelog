@@ -6,9 +6,10 @@ export {
   readPmItems,
   writeChangelog,
 } from "./generator.js";
-export { resolveReleaseContext } from "./release-context.js";
+export { resolveReleaseContext, resolveReleaseTagWindows } from "./release-context.js";
 export type {
   ChangelogGroupBy,
+  ChangelogReleaseWindow,
   ChangelogSection,
   ChangelogMergeAction,
   ChangelogOutputMode,
