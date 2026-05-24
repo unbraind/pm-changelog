@@ -6,9 +6,8 @@ status: closed
 priority: 2
 tags[3]: governance,metadata,release
 created_at: "2026-05-24T00:46:49.267Z"
-updated_at: "2026-05-24T00:46:49.267Z"
+updated_at: "2026-05-24T06:56:24.973Z"
 deadline: "2026-05-24T23:59:59.000Z"
-assignee: codex
 author: codex
 estimated_minutes: 30
 acceptance_criteria: pm validate passes; 18 tests pass; 0 vulnerabilities; npm install ok.
@@ -38,4 +37,5 @@ tests[3]{command,path,scope,timeout_seconds,pm_context_mode,env_set,env_clear,sh
   pm validate --check-metadata --json,null,project,null,null,null,null,null,null,null,null,null,null,null,null,null
 docs[1]{path,scope,note}:
   docs/development.md,project,null
+close_reason: Production readiness pass completed successfully for v2026.05.24-3 session.
 body: "Fix pm validate strict metadata gaps. Verify 18 tests, 0 prod vulnerabilities, clean local and npm package installs."

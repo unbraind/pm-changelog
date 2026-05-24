@@ -6,13 +6,17 @@ status: open
 priority: 0
 tags[4]: install,pm-cli,sdk,upstream
 created_at: "2026-05-24T06:49:25.474Z"
-updated_at: "2026-05-24T06:49:25.474Z"
+updated_at: "2026-05-24T06:55:36.140Z"
 deadline: "2026-05-31T00:00:00.000Z"
 assignee: steve
 author: steve
 estimated_minutes: 0
 acceptance_criteria: "pm-cli fixes npm install to provide SDK dependency resolution or documents a workaround. pm install npm:pm-changelog works from a clean temp project without warnings."
+reviewer: steve
+risk: medium
+confidence: high
 sprint: 2026-05-production
+release: pending-pm-cli-fix
 reporter: steve
 severity: high
 environment: clean temp project with pm-cli@2026.5.18
