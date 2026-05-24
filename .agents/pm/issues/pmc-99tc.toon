@@ -6,17 +6,20 @@ status: closed
 priority: 1
 tags[3]: changelog,performance,review
 created_at: "2026-05-24T16:04:37.969Z"
-updated_at: "2026-05-24T16:06:58.736Z"
+updated_at: "2026-05-24T16:08:50.177Z"
 author: codex-pm-changelog-review
 resolution: "Replaced per-tag git log timestamp resolution with one formatted git tag listing that returns tag names and peeled/direct commit dates, preserving commit-date release windows for annotated and lightweight tags."
 expected_result: Full-history changelog release tag discovery resolves tag names and commit timestamps with a bounded git process count instead of spawning once per tag.
 actual_result: "Full-history release tag discovery now uses one git tag --list --format call for matching tags, parses timestamps in process, and passes regression coverage for annotated tag commit dates."
 comments[1]{created_at,author,text}:
   "2026-05-24T16:06:44.726Z",codex-pm-changelog-review,"Evidence: GitHub issue unbraind/pm-changelog#11 filed from Gemini review on pm-cli#62. Implemented package-side batch tag timestamp lookup with one formatted git tag command and a regression test that annotated tags use the target commit timestamp, not tagger date."
-files[5]{path,scope,note}:
+files[8]{path,scope,note}:
+  dist/extension.js,project,Built extension metadata for published package version
+  dist/extension.js.map,project,Built extension metadata sourcemap for published package version
   manifest.json,project,Expose patched extension manifest version
   package-lock.json,project,Lock patched pm-changelog package version
   package.json,project,Publish patched pm-changelog package version
+  src/extension.ts,project,Keep extension metadata aligned with published package version
   src/release-context.ts,project,Batch release tag timestamp lookup through one git format call
   test/generator.test.ts,project,Protect annotated tag commit-date window behavior
 tests[2]{command,path,scope,timeout_seconds,pm_context_mode,env_set,env_clear,shared_host_safe,assert_stdout_contains,assert_stdout_regex,assert_stderr_contains,assert_stderr_regex,assert_stdout_min_lines,assert_json_field_equals,assert_json_field_gte,note}:
