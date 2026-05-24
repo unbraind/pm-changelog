@@ -1,0 +1,41 @@
+id: pmc-w906
+title: Add --item-url-base option to make pm item IDs clickable links
+description: "When --item-url-base is supplied, each pm item ID in the changelog is rendered as a markdown hyperlink pointing to the item's .toon file. The type subdirectory (issues/, tasks/, chores/, features/, epics/) is resolved automatically from the item type field, so all item types are correctly linked without any per-type configuration."
+type: Feature
+status: closed
+priority: 1
+tags[4]: changelog,feature,github,links
+created_at: "2026-05-24T12:25:27.480Z"
+updated_at: "2026-05-24T12:25:41.498Z"
+deadline: "2026-05-24T00:00:00.000Z"
+author: codex
+estimated_minutes: 45
+acceptance_criteria: "- --item-url-base <url> CLI flag accepted. - Item IDs rendered as [pmc-abc](url/issues/pmc-abc.toon) (type dir derived from item type). - Works for all pm item types (Issue, Task, Chore, Feature, Epic). - 19 tests pass. - changelog:check passes after regeneration."
+reviewer: steve
+risk: low
+confidence: high
+sprint: 2026-05-production
+release: v2026.05.24-7
+resolution: "Implemented itemUrlBase in types.ts, generator.ts, cli.ts. Added itemTypeToDir() to derive type subdirectory from item.type. Test 5 added and passing. docs/usage.md updated."
+expected_result: Item IDs in changelog are clickable links to correct type subdirectory .toon files on GitHub. 19 tests pass.
+actual_result: "19/19 tests pass including new itemUrlBase test covering Issue, Chore, Task types. changelog:check passes after regeneration."
+dependencies[1]{id,kind,created_at,author,source_kind}:
+  "pmc-dcji,related",related,"2026-05-24T12:25:27.480Z",null,null
+comments[1]{created_at,author,text}:
+  "2026-05-24T12:25:27.480Z",codex,"No pm-cli or SDK changes required. This is a pure pm-changelog feature: the generator derives the type directory from item.type using a simple lowercase+plural rule."
+notes[1]{created_at,author,text}:
+  "2026-05-24T12:25:27.480Z",codex,"Requested to satisfy requirement: generated changelog must link to pm items with GitHub web-compatible links so users can click through to .toon file details."
+learnings[1]{created_at,author,text}:
+  "2026-05-24T12:25:27.480Z",codex,"pm stores items in type-specific subdirectories: .agents/pm/{issues,tasks,chores,features,epics}/. Always derive the subdir from item.type when constructing item URLs; never hardcode a single type directory."
+files[5]{path,scope,note}:
+  "src/types.ts,project,Added itemUrlBase option to GenerateChangelogOptions",project,null
+  "src/generator.ts,project,formatItemId and itemTypeToDir functions",project,null
+  "src/cli.ts,project,--item-url-base CLI flag",project,null
+  "docs/usage.md,project,itemUrlBase documentation and example",project,null
+  "test/generator.test.ts,project,Test 5: createChangelog makes item IDs clickable links when itemUrlBase is set",project,null
+tests[1]{command,path,scope,timeout_seconds,pm_context_mode,env_set,env_clear,shared_host_safe,assert_stdout_contains,assert_stdout_regex,assert_stderr_contains,assert_stderr_regex,assert_stdout_min_lines,assert_json_field_equals,assert_json_field_gte,note}:
+  "npm test,null,project,120,null,null,null,null,null,null,null,null,null,null,null,null",null,project,null,null,null,null,null,null,null,null,null,null,null,null,null
+docs[1]{path,scope,note}:
+  "docs/usage.md,project,--item-url-base option",project,null
+close_reason: itemUrlBase implemented; all item types correctly linked; 19/19 tests pass; docs updated.
+body: "Implements itemUrlBase option across src/types.ts, src/generator.ts, and src/cli.ts. Adds test coverage (test 5) and updates docs/usage.md."

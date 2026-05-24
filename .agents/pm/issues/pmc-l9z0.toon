@@ -6,7 +6,7 @@ status: closed
 priority: 2
 tags[3]: packaging,sourcemaps,tsconfig
 created_at: "2026-05-24T00:04:42.271Z"
-updated_at: "2026-05-24T00:42:10.828Z"
+updated_at: "2026-05-24T12:09:21.173Z"
 deadline: "2026-05-24T00:00:00.000Z"
 author: claude
 estimated_minutes: 30
@@ -24,13 +24,14 @@ dependencies[1]{id,kind,created_at,author,source_kind}:
   pmc-0jm1,related,"2026-05-24T00:04:42.271Z",claude,null
 comments[1]{created_at,author,text}:
   "2026-05-24T00:04:42.271Z",claude,"Duplicate check: GitHub issue #4 is open and matches. No separate pm item exists for this issue."
-notes[1]{created_at,author,text}:
+notes[2]{created_at,author,text}:
   "2026-05-24T00:04:42.271Z",claude,"Reported in unbraind/pm-changelog GitHub issue #4. Fix is inlineSources: true in tsconfig.json."
+  "2026-05-24T12:09:21.159Z",codex,"Fix files reference: dist directory reference changed to dist/cli.js for pm validate file path resolution"
 learnings[1]{created_at,author,text}:
   "2026-05-24T00:04:42.271Z",claude,"Published npm packages that include dist/ without src/ must use inlineSources: true to avoid V8 sourcemap warnings in downstream tooling."
 files[2]{path,scope,note}:
   tsconfig.json,project,"add inlineSources: true"
-  dist,project,rebuilt after tsconfig change
+  dist/cli.js,project,rebuilt after tsconfig change
 tests[2]{command,path,scope,timeout_seconds,pm_context_mode,env_set,env_clear,shared_host_safe,assert_stdout_contains,assert_stdout_regex,assert_stderr_contains,assert_stderr_regex,assert_stdout_min_lines,assert_json_field_equals,assert_json_field_gte,note}:
   npm run check,null,project,60,null,null,null,null,null,null,null,null,null,null,null,null
   "npm run release:check",null,project,300,null,null,null,null,null,null,null,null,null,null,null,null
