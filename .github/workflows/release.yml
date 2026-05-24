@@ -120,12 +120,14 @@ jobs:
             --mode replace \
             --output CHANGELOG.md \
             --group-by release \
+            --item-url-base https://github.com/unbraind/pm-changelog/blob/main/.agents/pm \
             --pm-bin ./node_modules/.bin/pm \
             --github-step-summary
           node dist/cli.js \
             --mode replace \
             --output CHANGELOG.md \
             --group-by release \
+            --item-url-base https://github.com/unbraind/pm-changelog/blob/main/.agents/pm \
             --pm-bin ./node_modules/.bin/pm \
             --check
 
@@ -156,6 +158,7 @@ jobs:
           node dist/cli.js \
             --stdout \
             --version "${{ steps.decide.outputs.tag }}" \
+            --item-url-base https://github.com/unbraind/pm-changelog/blob/main/.agents/pm \
             --pm-bin ./node_modules/.bin/pm \
             > RELEASE_NOTES.md
           gh release create "${{ steps.decide.outputs.tag }}" \
