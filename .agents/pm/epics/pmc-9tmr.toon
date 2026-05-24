@@ -6,12 +6,13 @@ status: closed
 priority: 0
 tags[3]: production-readiness,release,verification
 created_at: "2026-05-24T06:47:22.697Z"
-updated_at: "2026-05-24T06:50:12.321Z"
+updated_at: "2026-05-24T06:54:20.381Z"
 deadline: "2026-05-24T00:00:00.000Z"
 author: steve
 estimated_minutes: 90
 acceptance_criteria: "- npm run release:check passes all gates (TypeScript, tests, audit, pack, changelog)\\n- Local pm install temp test works and generates correct output\\n- No untracked open issues in pm-changelog or pm-cli affecting this package\\n- GitHub repo is correctly configured (public, issues enabled)\\n- Git history has no private data"
 sprint: 2026-05-production
+release: v2026.05.24-5
 resolution: "All primary production readiness checks pass. Release gate (18/18 tests, 0 vulns, pack, changelog) passes. Local temp install works. GitHub repo is healthy. Upstream pm-cli#53 reopened with fresh evidence and tracked in pmc-dcji."
 expected_result: "All release gates pass, local install works, repo is healthy, upstream issues tracked"
 actual_result: "npm run release:check passes all gates. Local install test OK. GitHub state: public, no open issues. Git history clean. npm install npm:pm-changelog broken upstream - tracked in pmc-dcji."

@@ -6,13 +6,14 @@ status: closed
 priority: 0
 tags[3]: release,testing,verification
 created_at: "2026-05-24T06:47:51.698Z"
-updated_at: "2026-05-24T06:51:35.809Z"
+updated_at: "2026-05-24T06:54:24.592Z"
 deadline: "2026-05-24T00:00:00.000Z"
 author: steve
 estimated_minutes: 45
 acceptance_criteria: "- npm run release:check exits 0\\n- Temp local install works and pm changelog generate succeeds\\n- GitHub repo: public, issues enabled, no open issues\\n- Git history: no private credentials"
 parent: pmc-9tmr
 sprint: 2026-05-production
+release: v2026.05.24-5
 resolution: "Completed: npm run release:check passed (18/18 tests, 0 vulns, pack OK, changelog up to date). Temp local install verified. GitHub repo is public, issues enabled, no open issues. Git history scan clean. pm-cli #53 (npm install SDK dependency issue) reopened with fresh evidence."
 expected_result: "All release gates pass, local install works, repo is healthy"
 actual_result: "npm run release:check passes all gates. Local temp install works. GitHub repo public, latest release v2026.05.24-3. Git history clean. pm install npm:pm-changelog broken upstream (pm-cli#53 reopened)."
