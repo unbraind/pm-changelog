@@ -1,0 +1,37 @@
+id: pmc-dcji
+title: "pm install npm:pm-changelog fails due to missing SDK dependency (upstream pm-cli#53)"
+description: "When users install pm-changelog via pm install npm:pm-changelog, the extension fails to load with extension_load_failed_sdk_dependency_missing. pm-cli does not install node_modules for npm-backed extensions so @unbrained/pm-cli/sdk is unresolvable."
+type: Issue
+status: open
+priority: 0
+tags[4]: install,pm-cli,sdk,upstream
+created_at: "2026-05-24T06:49:25.474Z"
+updated_at: "2026-05-24T06:49:25.474Z"
+deadline: "2026-05-31T00:00:00.000Z"
+assignee: steve
+author: steve
+estimated_minutes: 0
+acceptance_criteria: "pm-cli fixes npm install to provide SDK dependency resolution or documents a workaround. pm install npm:pm-changelog works from a clean temp project without warnings."
+sprint: 2026-05-production
+reporter: steve
+severity: high
+environment: clean temp project with pm-cli@2026.5.18
+repro_steps: "cd into mktemp dir, pm init, pm install npm:pm-changelog --project, pm package doctor --project"
+expected_result: "pm install npm:pm-changelog loads extension and changelog command is available"
+actual_result: "extension_load_failed_sdk_dependency_missing:pm-changelog - @unbrained/pm-cli/sdk import fails"
+component: pm-extension-install
+dependencies[1]{id,kind,created_at,author,source_kind}:
+  pmc-9tmr,related,"2026-05-24T06:47:22.697Z",steve,null
+comments[1]{created_at,author,text}:
+  "2026-05-24T06:49:25.474Z",steve,pm-cli#53 was closed without resolution on 2026-05-23 and reopened with fresh evidence on 2026-05-24.
+notes[1]{created_at,author,text}:
+  "2026-05-24T06:49:25.474Z",steve,Upstream issue. No fix in pm-changelog without violating official SDK usage requirement.
+learnings[1]{created_at,author,text}:
+  "2026-05-24T06:49:25.474Z",steve,pm does not install npm dependencies when extracting an extension from npm. Local path installs include node_modules and work correctly.
+files[1]{path,scope,note}:
+  src/extension.ts,project,Extension that imports from SDK
+tests[1]{command,path,scope,timeout_seconds,pm_context_mode,env_set,env_clear,shared_host_safe,assert_stdout_contains,assert_stdout_regex,assert_stderr_contains,assert_stderr_regex,assert_stdout_min_lines,assert_json_field_equals,assert_json_field_gte,note}:
+  pm package doctor --project --json,null,project,60,null,null,null,null,null,null,null,null,null,null,null,null
+docs[1]{path,scope,note}:
+  docs/usage.md,project,Install documentation
+body: Upstream pm-cli issue tracked at github.com/unbraind/pm-cli/issues/53
