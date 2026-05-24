@@ -1,0 +1,34 @@
+id: pmc-ws4p
+title: Run full release gate and temp install verification 2026-05-24 session 2
+description: "Execute the full release check (tsc, 18 tests, audit, pack dry-run, changelog check), run a temp folder local pm install and pm changelog generate, verify GitHub repo state and git history for secrets."
+type: Chore
+status: closed
+priority: 0
+tags[3]: release,testing,verification
+created_at: "2026-05-24T06:47:51.698Z"
+updated_at: "2026-05-24T06:51:35.809Z"
+deadline: "2026-05-24T00:00:00.000Z"
+author: steve
+estimated_minutes: 45
+acceptance_criteria: "- npm run release:check exits 0\\n- Temp local install works and pm changelog generate succeeds\\n- GitHub repo: public, issues enabled, no open issues\\n- Git history: no private credentials"
+parent: pmc-9tmr
+sprint: 2026-05-production
+resolution: "Completed: npm run release:check passed (18/18 tests, 0 vulns, pack OK, changelog up to date). Temp local install verified. GitHub repo is public, issues enabled, no open issues. Git history scan clean. pm-cli #53 (npm install SDK dependency issue) reopened with fresh evidence."
+expected_result: "All release gates pass, local install works, repo is healthy"
+actual_result: "npm run release:check passes all gates. Local temp install works. GitHub repo public, latest release v2026.05.24-3. Git history clean. pm install npm:pm-changelog broken upstream (pm-cli#53 reopened)."
+dependencies[1]{id,kind,created_at,author,source_kind}:
+  pmc-9tmr,parent,"2026-05-24T06:47:22.697Z",steve,null
+comments[1]{created_at,author,text}:
+  "2026-05-24T06:47:51.698Z",steve,"Evidence: npm run release:check OK,18/18 tests pass,0 vulns,temp local install OK,GitHub repo public,latest release v2026.05.24-3,git history scan clean."
+notes[1]{created_at,author,text}:
+  "2026-05-24T06:47:51.698Z",steve,All primary checks passed. Upstream npm install issue (pm-cli #53) was found closed without resolution and has been reopened.
+learnings[1]{created_at,author,text}:
+  "2026-05-24T06:47:51.698Z",steve,"pm install npm:pm-changelog fails with extension_load_failed_sdk_dependency_missing because no node_modules are present after npm-source install. Upstream issue pm-cli#53."
+files[1]{path,scope,note}:
+  .github/workflows/release.yml,project,Release automation workflow
+tests[1]{command,path,scope,timeout_seconds,pm_context_mode,env_set,env_clear,shared_host_safe,assert_stdout_contains,assert_stdout_regex,assert_stderr_contains,assert_stderr_regex,assert_stdout_min_lines,assert_json_field_equals,assert_json_field_gte,note}:
+  "npm run release:check",null,project,120,null,null,null,null,null,null,null,null,null,null,null,null
+docs[1]{path,scope,note}:
+  docs/release.md,project,Release documentation
+close_reason: All release gates pass. Local install works. pm-cli #53 reopened.
+body: "Verification scope:\\n1. npm run release:check (TypeScript, 18 tests, 0 vulns, pack, changelog)\\n2. Temp local install in mktemp dir\\n3. GitHub repo state via gh CLI\\n4. Git history secret scan\\n5. pm-cli npm install issue tracking (pm-cli #53 reopened)"

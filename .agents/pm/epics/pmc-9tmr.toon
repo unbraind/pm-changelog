@@ -1,0 +1,34 @@
+id: pmc-9tmr
+title: Production readiness verification 2026-05-24 session 2
+description: "Full production readiness continuation pass for pm-changelog: TypeScript check, 18 tests, security audit, pack dry-run, changelog freshness check, temp local install test, GitHub repo config check, and upstream pm-cli issue tracking."
+type: Epic
+status: closed
+priority: 0
+tags[3]: production-readiness,release,verification
+created_at: "2026-05-24T06:47:22.697Z"
+updated_at: "2026-05-24T06:50:12.321Z"
+deadline: "2026-05-24T00:00:00.000Z"
+author: steve
+estimated_minutes: 90
+acceptance_criteria: "- npm run release:check passes all gates (TypeScript, tests, audit, pack, changelog)\\n- Local pm install temp test works and generates correct output\\n- No untracked open issues in pm-changelog or pm-cli affecting this package\\n- GitHub repo is correctly configured (public, issues enabled)\\n- Git history has no private data"
+sprint: 2026-05-production
+resolution: "All primary production readiness checks pass. Release gate (18/18 tests, 0 vulns, pack, changelog) passes. Local temp install works. GitHub repo is healthy. Upstream pm-cli#53 reopened with fresh evidence and tracked in pmc-dcji."
+expected_result: "All release gates pass, local install works, repo is healthy, upstream issues tracked"
+actual_result: "npm run release:check passes all gates. Local install test OK. GitHub state: public, no open issues. Git history clean. npm install npm:pm-changelog broken upstream - tracked in pmc-dcji."
+dependencies[1]{id,kind,created_at,author,source_kind}:
+  pmc-t7ie,related,"2026-05-24T06:38:00.000Z",steve,null
+comments[1]{created_at,author,text}:
+  "2026-05-24T06:47:22.697Z",steve,"Session evidence: 18/18 tests pass,0 vulns,pack dry-run OK,changelog up to date,GitHub repo public,latest release v2026.05.24-3."
+notes[1]{created_at,author,text}:
+  "2026-05-24T06:47:22.697Z",steve,"npm install npm:pm-changelog is broken upstream (pm-cli #53 reopened). CI uses local install path which works correctly."
+learnings[1]{created_at,author,text}:
+  "2026-05-24T06:47:22.697Z",steve,"pm install npm:X does not install node_modules for extension SDK imports - tracked upstream in pm-cli #53. Local path install works."
+files[2]{path,scope,note}:
+  package.json,project,pm package metadata
+  .github/workflows/release.yml,project,CI release automation
+tests[1]{command,path,scope,timeout_seconds,pm_context_mode,env_set,env_clear,shared_host_safe,assert_stdout_contains,assert_stdout_regex,assert_stderr_contains,assert_stderr_regex,assert_stdout_min_lines,assert_json_field_equals,assert_json_field_gte,note}:
+  "npm run release:check",null,project,120,null,null,null,null,null,null,null,null,null,null,null,null
+docs[1]{path,scope,note}:
+  docs/release.md,project,Release and CI documentation
+close_reason: "Production readiness verified: all release gates pass, local install works, upstream npm install issue tracked in pmc-dcji."
+body: "Governs the 2026-05-24 continuation production readiness session.\\n\\nAll primary checks pass. Upstream pm-cli issue #53 (npm install not providing node_modules for extension SDK) was found closed without resolution and has been reopened with fresh evidence."
