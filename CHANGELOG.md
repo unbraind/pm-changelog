@@ -1,5 +1,12 @@
 # Changelog
 
+## Unreleased
+
+### Other
+
+- Run full release gate and temp install verification 2026-05-24 session 2 (pmc-ws4p)
+- Production readiness verification 2026-05-24 session 2 (pmc-9tmr)
+
 ## v2026.05.24-3
 
 ### Fixed
