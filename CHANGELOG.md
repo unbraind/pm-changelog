@@ -2,9 +2,9 @@
 
 ## Unreleased
 
-### Other
+### Fixed
 
-- Release tag date drift makes changelog check fail ([pmc-7dm6](https://github.com/unbraind/pm-changelog/blob/main/.agents/pm/issues/pmc-7dm6.toon))
+- Fix release tag date drift in changelog checks ([pmc-7dm6](https://github.com/unbraind/pm-changelog/blob/main/.agents/pm/issues/pmc-7dm6.toon))
 
 ## 2026.05.25 - 2026-05-25
 

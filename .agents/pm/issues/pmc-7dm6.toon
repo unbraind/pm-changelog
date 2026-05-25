@@ -1,22 +1,22 @@
 id: pmc-7dm6
-title: Release tag date drift makes changelog check fail
+title: Fix release tag date drift in changelog checks
 description: "npm run changelog:check -- --json regenerates the current package release heading with today's date instead of the existing release tag date when --release-version-from-package and --until-release-tag are used."
 type: Issue
 status: closed
 priority: 1
 tags[3]: changelog,check,release
 created_at: "2026-05-25T20:39:28.655Z"
-updated_at: "2026-05-25T21:47:18.107Z"
+updated_at: "2026-05-25T22:09:45.518Z"
 author: codex
 acceptance_criteria: "Release-context generation derives the release heading date from the existing release tag when no explicit --date is passed, and changelog:check passes."
 reporter: codex
 severity: medium
 environment: pm-changelog main at 2026.5.24-15
 repro_steps: "npm run changelog:check -- --json"
-resolution: "Fixed in release-context, CLI, and extension: the existing release tag timestamp now provides the default changelog heading date when --until-release-tag is used without an explicit --date."
+resolution: "Fixed in release-context, CLI, extension, and explicit --version handling: existing release tag timestamps now provide the default changelog heading date when a release tag can be resolved, while --until remains gated by --until-release-tag."
 expected_result: Check mode reports changed=false when CHANGELOG.md already matches the package release tag.
 actual_result: Check mode exits 1 with changed=true because the generated heading is 2026.5.24-15 - 2026-05-25 while the checked-in heading is 2026.5.24-15 - 2026-05-24.
-fixed_version: pending
+fixed_version: 2026.5.25
 component: release-context
 comments[4]{created_at,author,text}:
   "2026-05-25T21:20:35.021Z",codex-active-continuation,"Followed up on PR review feedback after the initial fix: release tag timestamp is now resolved whenever a matching package release tag exists so the heading date is stable even without --until-release-tag, while --until remains gated by --until-release-tag. Expanded timestamp date parsing to accept T, space, or date-only separators. Added CLI coverage for package-version tag date derivation without limiting the release window. Verified npm test, npm run changelog:check -- --json, and npm run check."

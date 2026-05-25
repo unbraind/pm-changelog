@@ -65,7 +65,7 @@ export default defineExtension({
                 const releaseContext = allReleaseTags
                     ? { version: undefined, date: undefined, since: undefined, until: undefined }
                     : resolveReleaseContext({
-                        cwd: process.cwd(),
+                        cwd: ctx.pm_root,
                         version: releaseVersion,
                         versionFromPackage: booleanOption(ctx.options, "release-version-from-package", "releaseVersionFromPackage"),
                         since: sinceOption,
@@ -75,7 +75,7 @@ export default defineExtension({
                     });
                 const releaseWindows = allReleaseTags
                     ? resolveReleaseTagWindows({
-                        cwd: process.cwd(),
+                        cwd: ctx.pm_root,
                         tagPattern: stringOption(ctx.options, "release-tag-pattern", "releaseTagPattern"),
                         pendingVersion: releaseVersion,
                         pendingTimestamp: untilOption ?? dateOption,
