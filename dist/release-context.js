@@ -6,7 +6,7 @@ export function resolveReleaseContext(options) {
     const version = options.version ?? (options.versionFromPackage ? readPackageVersion(cwd) : undefined);
     const releaseTag = version ? findExistingTag(cwd, releaseTagCandidates(version)) : undefined;
     const previousTag = options.sincePreviousTag ? findPreviousTag(cwd, releaseTag) : undefined;
-    const releaseTimestamp = releaseTag ? gitCommitTimestamp(cwd, releaseTag) : undefined;
+    const releaseTimestamp = releaseTag ? tryGitCommitTimestamp(cwd, releaseTag) : undefined;
     return {
         version,
         date: releaseTimestamp ? formatLocalTimestampDate(releaseTimestamp) : undefined,
@@ -35,7 +35,7 @@ export function resolveReleaseTagWindows(options = {}) {
         const tag = orderedTags[index];
         const previous = orderedTags[index + 1];
         windows.push({
-            heading: `${formatTagVersion(tag.name)} - ${formatDate(tag.timestamp)}`,
+            heading: `${formatTagVersion(tag.name)} - ${formatLocalTimestampDate(tag.timestamp)}`,
             releaseTag: tag.name,
             since: previous?.timestamp,
             sinceExclusive: Boolean(previous),
@@ -139,6 +139,14 @@ function gitCommitTimestamp(cwd, ref) {
         throw new Error(`Could not resolve git timestamp for ${ref}`);
     }
     return timestamp;
+}
+function tryGitCommitTimestamp(cwd, ref) {
+    try {
+        return gitCommitTimestamp(cwd, ref);
+    }
+    catch {
+        return undefined;
+    }
 }
 function runGit(cwd, args) {
     try {

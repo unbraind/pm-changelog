@@ -261,7 +261,7 @@ test("resolveReleaseTagWindows derives newest-first git tag windows", () => {
   const windows = resolveReleaseTagWindows({
     cwd: dir,
     pendingVersion: "1.3.0",
-    pendingTimestamp: "2026-05-20T12:00:00Z",
+    pendingTimestamp: "2026-05-20 12:00:00 +0000",
   });
 
   assert.equal(windows.length, 4);
