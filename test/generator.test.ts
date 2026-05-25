@@ -124,18 +124,83 @@ test("createChangelog can build full history from git tag windows", () => {
   );
 });
 
-test("createChangelog preserves empty release windows", () => {
+test("createChangelog buckets items by release field when window has releaseTag", () => {
+  const result = createChangelog({
+    items: [
+      {
+        id: "pm-late-stamp",
+        title: "Item stamped after release",
+        status: "closed",
+        type: "feature",
+        release: "v1.2.0",
+        updated_at: "2026-05-25T12:00:00Z",
+      },
+      {
+        id: "pm-recent",
+        title: "Item without release field",
+        status: "closed",
+        type: "bug",
+        closed_at: "2026-05-20T12:00:00Z",
+      },
+    ],
+    releaseWindows: [
+      {
+        heading: "Unreleased",
+        since: "2026-05-17T13:00:00Z",
+        sinceExclusive: true,
+      },
+      {
+        heading: "1.2.0 - 2026-05-17",
+        releaseTag: "v1.2.0",
+        until: "2026-05-17T13:00:00Z",
+      },
+    ],
+  });
+
+  assert.equal(result.itemCount, 2);
+  const v120 = result.markdown.match(/## 1\.2\.0 - 2026-05-17[\s\S]*?(?=\n## |$)/)?.[0] ?? "";
+  assert.match(v120, /Item stamped after release \(pm-late-stamp\)/);
+  assert.doesNotMatch(v120, /pm-recent/);
+  const unreleased = result.markdown.match(/## Unreleased[\s\S]*?(?=\n## |$)/)?.[0] ?? "";
+  assert.match(unreleased, /Item without release field \(pm-recent\)/);
+  assert.doesNotMatch(unreleased, /pm-late-stamp/);
+});
+
+test("createChangelog preserves empty release windows when includeEmpty is set", () => {
   const result = createChangelog({
     items: [],
     releaseWindows: [
       { heading: "Unreleased", since: "2026-05-18T12:00:00Z", sinceExclusive: true },
       { heading: "1.2.0 - 2026-05-17", until: "2026-05-17T12:00:00Z" },
     ],
+    includeEmpty: true,
   });
 
   assert.equal(result.itemCount, 0);
   assert.match(result.markdown, /## Unreleased\n\nNo changes\./);
   assert.match(result.markdown, /## 1\.2\.0 - 2026-05-17\n\nNo changes\./);
+});
+
+test("createChangelog omits empty release windows by default", () => {
+  const result = createChangelog({
+    items: [
+      {
+        id: "pm-1",
+        title: "Add release window generation",
+        status: "closed",
+        type: "feature",
+        closed_at: "2026-05-17T12:00:00Z",
+      },
+    ],
+    releaseWindows: [
+      { heading: "Unreleased", since: "2026-05-17T13:00:00Z", sinceExclusive: true },
+      { heading: "1.2.0 - 2026-05-17", until: "2026-05-17T13:00:00Z" },
+    ],
+  });
+
+  assert.equal(result.itemCount, 1);
+  assert.doesNotMatch(result.markdown, /## Unreleased/);
+  assert.match(result.markdown, /## 1\.2\.0 - 2026-05-17[\s\S]*pm-1/);
 });
 
 test("resolveReleaseTagWindows derives newest-first git tag windows", () => {

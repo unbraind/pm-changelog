@@ -1,0 +1,41 @@
+id: pmc-iuqg
+title: Auto-generate full-history CHANGELOG.md in CI without duplicates
+description: "CHANGELOG.md must be regenerated automatically by CI/CD using pm-changelog itself, covering full release tag history with GitHub-compatible links and no duplicate entries or empty sections."
+type: Feature
+status: closed
+priority: 1
+tags[4]: automation,changelog,ci,governance
+created_at: "2026-05-25T20:08:30.324Z"
+updated_at: "2026-05-25T20:49:43.219Z"
+deadline: "2026-05-26T20:08:30.324Z"
+author: claude
+estimated_minutes: 60
+acceptance_criteria: "CHANGELOG.md contains all 22+ historical releases in version-descending order, every closed pm item with a release tag is linked, no duplicate sections, and CI fails if CHANGELOG.md drifts from regeneration."
+value: Provides downstream consumers a trustworthy machine- and human-readable release history that cross-references pm items.
+impact: Prevents partial or duplicated changelog regressions like the empty 2026.5.24-12 section.
+outcome: Committed CHANGELOG.md regenerates deterministically from git tags + pm items and CI gate enforces it.
+why_now: Discovered gaps in existing CHANGELOG.md during 2026-05-25 readiness audit.
+parent: pmc-9mck
+reviewer: claude
+release: v2026.05.25-1
+resolution: fixed
+expected_result: CHANGELOG.md regenerates deterministically from git tags + pm items with no duplicates; CI gate enforces it
+actual_result: "Items now bucket by release: field when matching tag windows; empty windows omitted by default; release.yml runs --mode replace --all-release-tags --check on every release run"
+dependencies[1]{id,kind,created_at,author,source_kind}:
+  pmc-git tag history,related,"2026-05-25T20:08:30.324Z",null,null
+comments[1]{created_at,author,text}:
+  "2026-05-25T20:08:30.324Z",claude,Existing CHANGELOG.md is missing 16 of 22 historical releases and contains an empty 2026.5.24-12 section.
+notes[1]{created_at,author,text}:
+  "2026-05-25T20:08:30.324Z",claude,Use replace mode in CI verification rather than prepend to detect any drift.
+learnings[1]{created_at,author,text}:
+  "2026-05-25T20:08:30.324Z",claude,"--all-release-tags mode enables deterministic rebuild from git history when combined with --mode replace."
+files[3]{path,scope,note}:
+  CHANGELOG.md,project,null
+  .github/workflows/ci.yml,project,null
+  .github/workflows/release.yml,project,null
+tests[1]{command,path,scope,timeout_seconds,pm_context_mode,env_set,env_clear,shared_host_safe,assert_stdout_contains,assert_stdout_regex,assert_stderr_contains,assert_stderr_regex,assert_stdout_min_lines,assert_json_field_equals,assert_json_field_gte,note}:
+  "npm run changelog:check",null,project,null,null,null,null,null,null,null,null,null,null,null,null,null
+docs[1]{path,scope,note}:
+  docs/release.md,project,null
+close_reason: Full-history CHANGELOG.md is auto-generated and gated in CI without duplicates
+body: Use --all-release-tags --mode replace --item-url-base to rebuild CHANGELOG.md so every historical release is captured with pm item links. Wire CI to assert the committed CHANGELOG.md matches that output.

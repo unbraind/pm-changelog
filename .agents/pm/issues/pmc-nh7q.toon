@@ -6,8 +6,9 @@ status: closed
 priority: 2
 tags[3]: changelog,keep-a-changelog,release
 created_at: "2026-05-24T14:16:18.072Z"
-updated_at: "2026-05-24T14:18:13.681Z"
+updated_at: "2026-05-25T20:04:53.660Z"
 author: codex-changelog-verify
+release: v2026.05.24-11
 resolution: fixed
 expected_result: pm-changelog --mode prepend replaces equivalent Keep a Changelog bracketed release headings and preserves older release sections.
 actual_result: Regression test passes; release scripts/workflow now use prepend mode; local check/test/audit/pack gates passed.

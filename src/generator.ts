@@ -3,6 +3,7 @@ import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import { resolve } from "node:path";
 
 import type {
+  ChangelogReleaseWindow,
   ChangelogSection,
   GeneratedChangelog,
   GenerateChangelogOptions,
@@ -52,7 +53,19 @@ export function createChangelog(options: GenerateChangelogOptions): GeneratedCha
     };
   }
 
-  for (const section of sections) {
+  const visibleSections = options.includeEmpty
+    ? sections
+    : sections.filter((section) => section.items.length > 0);
+
+  if (visibleSections.length === 0) {
+    return {
+      markdown: lines.join("\n").trimEnd() + "\n",
+      sections,
+      itemCount: 0,
+    };
+  }
+
+  for (const section of visibleSections) {
     lines.push(`## ${section.heading}`, "");
     if (section.items.length === 0) {
       lines.push("No changes.", "");
@@ -76,7 +89,7 @@ export function createChangelog(options: GenerateChangelogOptions): GeneratedCha
   return {
     markdown: lines.join("\n").trimEnd() + "\n",
     sections,
-    itemCount: sections.reduce((sum, section) => sum + section.items.length, 0),
+    itemCount: visibleSections.reduce((sum, section) => sum + section.items.length, 0),
   };
 }
 
@@ -228,10 +241,7 @@ function filterItemsByStatus(options: GenerateChangelogOptions): PmItem[] {
 
 function buildSections(items: PmItem[], options: GenerateChangelogOptions): ChangelogSection[] {
   if (options.releaseWindows && options.releaseWindows.length > 0) {
-    return options.releaseWindows.map((window) => ({
-      heading: window.heading,
-      items: filterItemsByTime(items, window),
-    }));
+    return assignItemsToReleaseWindows(items, options.releaseWindows);
   }
 
   if (options.groupBy === "release" && !options.version) {
@@ -248,6 +258,48 @@ function buildSections(items: PmItem[], options: GenerateChangelogOptions): Chan
       items,
     },
   ];
+}
+
+function assignItemsToReleaseWindows(
+  items: PmItem[],
+  windows: ChangelogReleaseWindow[]
+): ChangelogSection[] {
+  const buckets = new Map<string, PmItem[]>();
+  for (const window of windows) buckets.set(window.heading, []);
+
+  const releaseIndex = new Map<string, string>();
+  for (const window of windows) {
+    if (!window.releaseTag) continue;
+    const key = normalizeReleaseKey(window.releaseTag);
+    if (!key || releaseIndex.has(key)) continue;
+    releaseIndex.set(key, window.heading);
+  }
+
+  const remaining: PmItem[] = [];
+  for (const item of items) {
+    const releaseField = getStringField(item, "release");
+    const key = releaseField ? normalizeReleaseKey(releaseField) : "";
+    const heading = key ? releaseIndex.get(key) : undefined;
+    if (heading) {
+      buckets.get(heading)!.push(item);
+      continue;
+    }
+    remaining.push(item);
+  }
+
+  for (const window of windows) {
+    const filtered = filterItemsByTime(remaining, window);
+    buckets.get(window.heading)!.push(...filtered);
+  }
+
+  return windows.map((window) => ({
+    heading: window.heading,
+    items: buckets.get(window.heading) ?? [],
+  }));
+}
+
+function normalizeReleaseKey(value: string): string {
+  return value.trim().replace(/^v/i, "").toLowerCase();
 }
 
 function filterItemsByTime(
