@@ -6,7 +6,7 @@ status: closed
 priority: 1
 tags[5]: 2026-05-25,audit,governance,readiness,release
 created_at: "2026-05-25T20:05:49.496Z"
-updated_at: "2026-05-25T21:05:30.035Z"
+updated_at: "2026-05-25T21:12:51.658Z"
 deadline: "2026-05-26T20:05:49.496Z"
 author: claude
 estimated_minutes: 240
@@ -16,7 +16,7 @@ impact: Removes regression risk from inline JavaScript in release automation and
 outcome: Cut pm-changelog v2026.05.25-1 to npm and GitHub with full-history CHANGELOG.md and zero leaked secrets.
 why_now: User explicitly requested production readiness check on 2026-05-25.
 reviewer: claude
-release: v2026.05.25-1
+release: v2026.05.25
 resolution: fixed
 expected_result: "Strict TypeScript, latest SDK, no JS, deterministic full-history CHANGELOG, temp-folder install passes, CI workflow regenerates changelog"
 actual_result: "All readiness gates pass: 31 unit tests, 0 vulnerabilities, dist regenerated, CHANGELOG.md regenerated deterministically with no duplicates, temp folder pm install verified end-to-end"

@@ -6,7 +6,7 @@ status: closed
 priority: 1
 tags[3]: release,typescript,workflow
 created_at: "2026-05-25T20:07:37.874Z"
-updated_at: "2026-05-25T20:49:23.848Z"
+updated_at: "2026-05-25T21:12:41.059Z"
 deadline: "2026-05-26T20:07:37.874Z"
 author: claude
 estimated_minutes: 45
@@ -17,7 +17,7 @@ outcome: release.yml uses TS helper.
 why_now: Readiness audit 2026-05-25.
 parent: pmc-9mck
 reviewer: claude
-release: v2026.05.25-1
+release: v2026.05.25
 resolution: fixed
 expected_result: release.yml uses a typed TypeScript helper instead of inline node -e
 actual_result: release.yml invokes node dist/sync-version.js with NPM_VERSION; src/sync-version.ts is fully typed and unit-tested (3 tests)
