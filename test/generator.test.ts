@@ -728,6 +728,72 @@ test("CLI can derive package release version and git tag range", () => {
   assert.doesNotMatch(stdout, /Old release item|Post-release item|## Unreleased/);
 });
 
+test("CLI derives release heading date from existing package tag without limiting the window", () => {
+  const dir = mkdtempSync(join(tmpdir(), "pm-changelog-release-date-"));
+  const input = join(dir, "items.json");
+  const cli = join(process.cwd(), "dist", "cli.js");
+  writeFileSync(join(dir, "package.json"), JSON.stringify({ version: "1.3.0" }), "utf-8");
+  execFileSync("git", ["init"], { cwd: dir, encoding: "utf-8" });
+  execFileSync("git", ["config", "user.email", "test@example.com"], { cwd: dir, encoding: "utf-8" });
+  execFileSync("git", ["config", "user.name", "Test"], { cwd: dir, encoding: "utf-8" });
+  writeFileSync(join(dir, "file.txt"), "one\n", "utf-8");
+  execFileSync("git", ["add", "."], { cwd: dir, encoding: "utf-8" });
+  execFileSync("git", ["commit", "-m", "one"], {
+    cwd: dir,
+    env: {
+      ...process.env,
+      GIT_AUTHOR_DATE: "2026-05-03T00:00:00Z",
+      GIT_COMMITTER_DATE: "2026-05-03 14:00:00 +0000",
+    },
+    encoding: "utf-8",
+  });
+  execFileSync("git", ["tag", "v1.2.0"], { cwd: dir, encoding: "utf-8" });
+  writeFileSync(join(dir, "file.txt"), "two\n", "utf-8");
+  execFileSync("git", ["commit", "-am", "two"], {
+    cwd: dir,
+    env: {
+      ...process.env,
+      GIT_AUTHOR_DATE: "2026-05-11T00:00:00Z",
+      GIT_COMMITTER_DATE: "2026-05-11 14:00:00 +0000",
+    },
+    encoding: "utf-8",
+  });
+  execFileSync("git", ["tag", "v1.3.0"], { cwd: dir, encoding: "utf-8" });
+  writeFileSync(
+    input,
+    JSON.stringify([
+      {
+        id: "pm-current",
+        title: "Current package item",
+        status: "closed",
+        type: "feature",
+        closed_at: "2026-05-10T00:00:00Z",
+      },
+      {
+        id: "pm-after",
+        title: "Post tag tracker closure",
+        status: "closed",
+        type: "task",
+        closed_at: "2026-05-12T00:00:00Z",
+      },
+    ]),
+    "utf-8"
+  );
+
+  const stdout = execFileSync(
+    process.execPath,
+    [cli, "--input", input, "--stdout", "--release-version-from-package", "--since-previous-tag"],
+    {
+      cwd: dir,
+      encoding: "utf-8",
+    }
+  );
+
+  assert.match(stdout, /## 1\.3\.0 - 2026-05-11/);
+  assert.match(stdout, /Current package item/);
+  assert.match(stdout, /Post tag tracker closure/);
+});
+
 test("CLI matches zero-padded calendar release tags for npm versions", () => {
   const dir = mkdtempSync(join(tmpdir(), "pm-changelog-calendar-tags-"));
   const input = join(dir, "items.json");
