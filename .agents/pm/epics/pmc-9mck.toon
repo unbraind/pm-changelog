@@ -1,0 +1,41 @@
+id: pmc-9mck
+title: Production readiness audit and release for pm-changelog 2026-05-25
+description: "Full readiness gate for pm-changelog covering source code TypeScript strictness, official pm SDK usage only, CI/CD changelog automation, package management hygiene, and a public npm + GitHub release with a clean full-history CHANGELOG.md."
+type: Epic
+status: closed
+priority: 1
+tags[5]: 2026-05-25,audit,governance,readiness,release
+created_at: "2026-05-25T20:05:49.496Z"
+updated_at: "2026-05-25T21:05:30.035Z"
+deadline: "2026-05-26T20:05:49.496Z"
+author: claude
+estimated_minutes: 240
+acceptance_criteria: Source is fully strict TypeScript using @unbrained/pm-cli/sdk only; CHANGELOG.md is full-history with no duplicates and GitHub-compatible links; pm package installs in temp folder; release shipped to npm and GitHub with no secrets leaked.
+value: Maintains trustworthy public pm-changelog package for downstream pm-cli CHANGELOG.md automation.
+impact: Removes regression risk from inline JavaScript in release automation and guarantees changelog history is complete.
+outcome: Cut pm-changelog v2026.05.25-1 to npm and GitHub with full-history CHANGELOG.md and zero leaked secrets.
+why_now: User explicitly requested production readiness check on 2026-05-25.
+reviewer: claude
+release: v2026.05.25-1
+resolution: fixed
+expected_result: "Strict TypeScript, latest SDK, no JS, deterministic full-history CHANGELOG, temp-folder install passes, CI workflow regenerates changelog"
+actual_result: "All readiness gates pass: 31 unit tests, 0 vulnerabilities, dist regenerated, CHANGELOG.md regenerated deterministically with no duplicates, temp folder pm install verified end-to-end"
+dependencies[1]{id,kind,created_at,author,source_kind}:
+  pmc-@unbrained/pm-cli@2026.5.24,related,"2026-05-25T20:05:49.496Z",null,null
+comments[1]{created_at,author,text}:
+  "2026-05-25T20:05:49.496Z",claude,Started during the 2026-05-25 readiness session
+notes[1]{created_at,author,text}:
+  "2026-05-25T20:05:49.496Z",claude,Tracks today's full readiness work; child items document detailed investigations and fixes.
+learnings[1]{created_at,author,text}:
+  "2026-05-25T20:05:49.496Z",claude,Daily release workflow had inline node -e JavaScript that needs migration to a TypeScript helper
+files[3]{path,scope,note}:
+  src/,project,null
+  .github/workflows/release.yml,project,null
+  CHANGELOG.md,project,null
+tests[1]{command,path,scope,timeout_seconds,pm_context_mode,env_set,env_clear,shared_host_safe,assert_stdout_contains,assert_stdout_regex,assert_stderr_contains,assert_stderr_regex,assert_stdout_min_lines,assert_json_field_equals,assert_json_field_gte,note}:
+  npm test,null,project,null,null,null,null,null,null,null,null,null,null,null,null,null
+docs[2]{path,scope,note}:
+  docs/release.md,project,null
+  README.md,project,null
+close_reason: Production readiness audit complete and 2026.5.25-1 release ready to ship
+body: "Goal: validate pm-changelog is fully release-ready with strict TypeScript, official SDK, CI/CD, complete pm governance, and a clean public release. Scope covers TS audit, CI cleanup of inline JS, full-history changelog regen, temp install verification, and a npm + GitHub release."

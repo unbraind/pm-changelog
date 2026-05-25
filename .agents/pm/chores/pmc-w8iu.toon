@@ -1,0 +1,36 @@
+id: pmc-w8iu
+title: Bump @types/node to ^25.9.1 and rewire CI to full-history changelog
+description: Pick up latest @types/node minor and switch release.yml to --mode replace --all-release-tags --version for deterministic CHANGELOG.md regeneration on every release run.
+type: Chore
+status: closed
+priority: 2
+tags[4]: changelog,ci,deps,typescript
+created_at: "2026-05-25T20:48:54.973Z"
+updated_at: "2026-05-25T20:49:09.050Z"
+deadline: "2026-05-26T20:00:00.000Z"
+assignee: claude
+author: claude
+estimated_minutes: 30
+acceptance_criteria: "@types/node ^25.9.1 installed, release workflow uses --all-release-tags with pending --version flag, RELEASE_NOTES.md is windowed to the new release tag."
+parent: pmc-9mck
+release: v2026.05.25-1
+resolution: fixed
+expected_result: deps and CI changes committed; release pipeline produces full-history CHANGELOG.md and per-release GitHub release notes
+actual_result: package.json + release.yml updated; 31 unit tests still pass; npm audit shows 0 vulnerabilities
+dependencies[1]{id,kind,created_at,author,source_kind}:
+  pmc-9mck,related,"2026-05-25T20:48:54.973Z",null,null
+comments[1]{created_at,author,text}:
+  "2026-05-25T20:48:54.973Z",claude,Picked up after npm view confirmed 25.9.1 latest.
+notes[1]{created_at,author,text}:
+  "2026-05-25T20:48:54.973Z",claude,"package.json now also exposes changelog:full for local full-history rebuilds and changelog:check uses replace mode to catch drift."
+learnings[1]{created_at,author,text}:
+  "2026-05-25T20:48:54.973Z",claude,"GitHub release notes should use --since-previous-tag/--until-release-tag windowing so the release body shows just the new tag's changes, while the committed CHANGELOG.md shows the full history."
+files[3]{path,scope,note}:
+  package.json,project,null
+  package-lock.json,project,null
+  .github/workflows/release.yml,project,null
+tests[1]{command,path,scope,timeout_seconds,pm_context_mode,env_set,env_clear,shared_host_safe,assert_stdout_contains,assert_stdout_regex,assert_stderr_contains,assert_stderr_regex,assert_stdout_min_lines,assert_json_field_equals,assert_json_field_gte,note}:
+  "npm run release:check",null,project,null,null,null,null,null,null,null,null,null,null,null,null,null
+docs[1]{path,scope,note}:
+  docs/release.md,project,null
+body: Replaces release.yml changelog steps with --mode replace --all-release-tags so the full CHANGELOG.md is regenerated every release. Adds --since-previous-tag/--until-release-tag to the RELEASE_NOTES.md step so only the new release tag's items appear in the GitHub release body. Bumps @types/node devDependency to ^25.9.1.

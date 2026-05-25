@@ -1,0 +1,39 @@
+id: pmc-3jj2
+title: Verify pm-changelog install and CLI work in a clean temp folder
+description: Smoke-test that pm-changelog can be installed into a fresh temporary project via local path and that the pm extension command activates and produces a CHANGELOG.md.
+type: Task
+status: closed
+priority: 2
+tags[3]: temp-install,test,verification
+created_at: "2026-05-25T20:08:45.747Z"
+updated_at: "2026-05-25T20:49:47.298Z"
+deadline: "2026-05-26T20:08:45.747Z"
+author: claude
+estimated_minutes: 20
+acceptance_criteria: "Temp install activates the pm changelog command, generate --stdout returns non-empty markdown with release headings, and no errors are emitted on stderr."
+value: Catches packaging regressions before publishing to npm.
+impact: Protects downstream consumers from broken installs of pm-changelog.
+outcome: Verification run logged; CHANGELOG.md from temp project matches expected shape.
+why_now: Required by 2026-05-25 readiness audit.
+parent: pmc-9mck
+reviewer: claude
+release: v2026.05.25-1
+resolution: fixed
+expected_result: Temp install activates pm changelog command; --stdout produces non-empty markdown for closed items
+actual_result: "Verified in /tmp/pm-changelog-test-*: pm install activated extension; pm changelog generate --stdout returned a release section for one closed task"
+dependencies[1]{id,kind,created_at,author,source_kind}:
+  pmc-@unbrained/pm-cli@2026.5.24,related,"2026-05-25T20:08:45.747Z",null,null
+comments[1]{created_at,author,text}:
+  "2026-05-25T20:08:45.747Z",claude,Temp install verification gate.
+notes[1]{created_at,author,text}:
+  "2026-05-25T20:08:45.747Z",claude,Use a unique temp directory per run to avoid stale state.
+learnings[1]{created_at,author,text}:
+  "2026-05-25T20:08:45.747Z",claude,pm install with a local path bypasses the npm SDK dependency bug (pm-cli #53).
+files[1]{path,scope,note}:
+  test/extension.test.ts,project,null
+tests[1]{command,path,scope,timeout_seconds,pm_context_mode,env_set,env_clear,shared_host_safe,assert_stdout_contains,assert_stdout_regex,assert_stderr_contains,assert_stderr_regex,assert_stdout_min_lines,assert_json_field_equals,assert_json_field_gte,note}:
+  npm test,null,project,null,null,null,null,null,null,null,null,null,null,null,null,null
+docs[1]{path,scope,note}:
+  docs/usage.md,project,null
+close_reason: Temp install + extension command verified on 2026-05-25
+body: "Pack the package, install it into /tmp/pm-changelog-verify-2026-05-25, run pm install ./package.tgz --project, exercise pm changelog generate --stdout, and confirm exit codes plus markdown shape."
