@@ -25,7 +25,7 @@ export default defineExtension({
                 { long: "--title", value_name: "text", description: "Changelog title (default: Changelog)" },
                 { long: "--release-version", value_name: "version", description: "Release/version heading (default: Unreleased)" },
                 { long: "--release-version-from-package", description: "Read release/version heading from nearest package.json" },
-                { long: "--date", value_name: "date", description: "Release date (default: today)" },
+                { long: "--date", value_name: "date", description: "Release date (default: resolved tag date when available, otherwise today)" },
                 { long: "--since", value_name: "date", description: "Include items changed on or after this date" },
                 { long: "--since-previous-tag", description: "Derive --since from the previous git tag" },
                 { long: "--until", value_name: "date", description: "Include items changed on or before this date" },
@@ -59,6 +59,7 @@ export default defineExtension({
                     .filter(Boolean);
                 const allReleaseTags = booleanOption(ctx.options, "all-release-tags", "allReleaseTags");
                 const releaseVersion = stringOption(ctx.options, "release-version", "releaseVersion");
+                const titleOption = stringOption(ctx.options, "title", "title");
                 const dateOption = stringOption(ctx.options, "date", "date");
                 const sinceOption = stringOption(ctx.options, "since", "since");
                 const untilOption = stringOption(ctx.options, "until", "until");
@@ -84,7 +85,7 @@ export default defineExtension({
                 const items = await listAllFrontMatter(ctx.pm_root);
                 const generationOptions = {
                     items,
-                    title: ctx.options["title"],
+                    title: titleOption,
                     version: releaseContext.version,
                     date: dateOption ?? releaseContext.date,
                     since: releaseContext.since,
@@ -99,7 +100,7 @@ export default defineExtension({
                 const generated = createChangelog(generationOptions);
                 if (stdout) {
                     const merged = mode === "prepend"
-                        ? mergeChangelog(undefined, generated.markdown, { title: ctx.options["title"] })
+                        ? mergeChangelog(undefined, generated.markdown, { title: titleOption })
                         : { markdown: generated.markdown, action: "replaced", changed: true };
                     return {
                         changelog: merged.markdown,

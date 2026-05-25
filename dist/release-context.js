@@ -12,7 +12,7 @@ export function resolveReleaseContext(options) {
         date: releaseTimestamp ? formatLocalTimestampDate(releaseTimestamp) : undefined,
         releaseTag,
         previousTag,
-        since: options.since ?? (previousTag ? gitCommitTimestamp(cwd, previousTag) : undefined),
+        since: options.since ?? (previousTag ? tryGitCommitTimestamp(cwd, previousTag) : undefined),
         until: options.until ?? (options.untilReleaseTag ? releaseTimestamp : undefined),
     };
 }
