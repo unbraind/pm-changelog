@@ -6,7 +6,7 @@ status: closed
 priority: 1
 tags[3]: changelog,check,release
 created_at: "2026-05-25T20:39:28.655Z"
-updated_at: "2026-05-25T21:20:35.021Z"
+updated_at: "2026-05-25T21:22:27.553Z"
 author: codex
 acceptance_criteria: "Release-context generation derives the release heading date from the existing release tag when no explicit --date is passed, and changelog:check passes."
 reporter: codex
@@ -18,8 +18,9 @@ expected_result: Check mode reports changed=false when CHANGELOG.md already matc
 actual_result: Check mode exits 1 with changed=true because the generated heading is 2026.5.24-15 - 2026-05-25 while the checked-in heading is 2026.5.24-15 - 2026-05-24.
 fixed_version: pending
 component: release-context
-comments[1]{created_at,author,text}:
+comments[2]{created_at,author,text}:
   "2026-05-25T21:20:35.021Z",codex-active-continuation,"Followed up on PR review feedback after the initial fix: release tag timestamp is now resolved whenever a matching package release tag exists so the heading date is stable even without --until-release-tag, while --until remains gated by --until-release-tag. Expanded timestamp date parsing to accept T, space, or date-only separators. Added CLI coverage for package-version tag date derivation without limiting the release window. Verified npm test, npm run changelog:check -- --json, and npm run check."
+  "2026-05-25T21:22:27.553Z",codex-active-continuation,"Post-rebase verification found the package-owned all-release-tags changelog check was stale on the updated 2026.5.25 main base. Regenerated CHANGELOG.md with npm run changelog:full -- --json and re-ran npm run changelog:check -- --json successfully (changed=false, itemCount=48)."
 notes[1]{created_at,author,text}:
   "2026-05-25T20:41:05.751Z",codex,"Implemented release-context date propagation: existing release tag timestamp now supplies the generated heading date when --until-release-tag is used and --date is omitted."
 tests[2]{command,path,scope,timeout_seconds,pm_context_mode,env_set,env_clear,shared_host_safe,assert_stdout_contains,assert_stdout_regex,assert_stderr_contains,assert_stderr_regex,assert_stdout_min_lines,assert_json_field_equals,assert_json_field_gte,note}:
