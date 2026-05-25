@@ -6,7 +6,7 @@ status: closed
 priority: 2
 tags[3]: temp-install,test,verification
 created_at: "2026-05-25T20:08:45.747Z"
-updated_at: "2026-05-25T20:49:47.298Z"
+updated_at: "2026-05-25T21:12:35.780Z"
 deadline: "2026-05-26T20:08:45.747Z"
 author: claude
 estimated_minutes: 20
@@ -17,7 +17,7 @@ outcome: Verification run logged; CHANGELOG.md from temp project matches expecte
 why_now: Required by 2026-05-25 readiness audit.
 parent: pmc-9mck
 reviewer: claude
-release: v2026.05.25-1
+release: v2026.05.25
 resolution: fixed
 expected_result: Temp install activates pm changelog command; --stdout produces non-empty markdown for closed items
 actual_result: "Verified in /tmp/pm-changelog-test-*: pm install activated extension; pm changelog generate --stdout returned a release section for one closed task"

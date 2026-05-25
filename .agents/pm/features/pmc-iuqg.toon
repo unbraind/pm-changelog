@@ -6,7 +6,7 @@ status: closed
 priority: 1
 tags[4]: automation,changelog,ci,governance
 created_at: "2026-05-25T20:08:30.324Z"
-updated_at: "2026-05-25T20:49:43.219Z"
+updated_at: "2026-05-25T21:12:27.936Z"
 deadline: "2026-05-26T20:08:30.324Z"
 author: claude
 estimated_minutes: 60
@@ -17,7 +17,7 @@ outcome: Committed CHANGELOG.md regenerates deterministically from git tags + pm
 why_now: Discovered gaps in existing CHANGELOG.md during 2026-05-25 readiness audit.
 parent: pmc-9mck
 reviewer: claude
-release: v2026.05.25-1
+release: v2026.05.25
 resolution: fixed
 expected_result: CHANGELOG.md regenerates deterministically from git tags + pm items with no duplicates; CI gate enforces it
 actual_result: "Items now bucket by release: field when matching tag windows; empty windows omitted by default; release.yml runs --mode replace --all-release-tags --check on every release run"
