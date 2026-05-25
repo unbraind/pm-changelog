@@ -29,7 +29,7 @@ export default defineExtension({
         { long: "--title", value_name: "text", description: "Changelog title (default: Changelog)" },
         { long: "--release-version", value_name: "version", description: "Release/version heading (default: Unreleased)" },
         { long: "--release-version-from-package", description: "Read release/version heading from nearest package.json" },
-        { long: "--date", value_name: "date", description: "Release date (default: today)" },
+        { long: "--date", value_name: "date", description: "Release date (default: resolved tag date when available, otherwise today)" },
         { long: "--since", value_name: "date", description: "Include items changed on or after this date" },
         { long: "--since-previous-tag", description: "Derive --since from the previous git tag" },
         { long: "--until", value_name: "date", description: "Include items changed on or before this date" },
@@ -66,32 +66,36 @@ export default defineExtension({
 
         const allReleaseTags = booleanOption(ctx.options, "all-release-tags", "allReleaseTags");
         const releaseVersion = stringOption(ctx.options, "release-version", "releaseVersion");
+        const titleOption = stringOption(ctx.options, "title", "title");
+        const dateOption = stringOption(ctx.options, "date", "date");
+        const sinceOption = stringOption(ctx.options, "since", "since");
+        const untilOption = stringOption(ctx.options, "until", "until");
         const releaseContext = allReleaseTags
-          ? { version: undefined, since: undefined, until: undefined }
+          ? { version: undefined, date: undefined, since: undefined, until: undefined }
           : resolveReleaseContext({
-              cwd: process.cwd(),
+              cwd: ctx.pm_root,
               version: releaseVersion,
               versionFromPackage: booleanOption(ctx.options, "release-version-from-package", "releaseVersionFromPackage"),
-              since: ctx.options["since"] as string | undefined,
+              since: sinceOption,
               sincePreviousTag: booleanOption(ctx.options, "since-previous-tag", "sincePreviousTag"),
-              until: ctx.options["until"] as string | undefined,
+              until: untilOption,
               untilReleaseTag: booleanOption(ctx.options, "until-release-tag", "untilReleaseTag"),
             });
         const releaseWindows = allReleaseTags
           ? resolveReleaseTagWindows({
-              cwd: process.cwd(),
+              cwd: ctx.pm_root,
               tagPattern: stringOption(ctx.options, "release-tag-pattern", "releaseTagPattern"),
               pendingVersion: releaseVersion,
-              pendingTimestamp: stringOption(ctx.options, "until", "until") ?? stringOption(ctx.options, "date", "date"),
+              pendingTimestamp: untilOption ?? dateOption,
             })
           : undefined;
 
         const items = await listAllFrontMatter(ctx.pm_root);
         const generationOptions = {
           items,
-          title: ctx.options["title"] as string | undefined,
+          title: titleOption,
           version: releaseContext.version,
-          date: ctx.options["date"] as string | undefined,
+          date: dateOption ?? releaseContext.date,
           since: releaseContext.since,
           until: releaseContext.until,
           releaseWindows,
@@ -105,7 +109,7 @@ export default defineExtension({
 
         if (stdout) {
           const merged = mode === "prepend"
-            ? mergeChangelog(undefined, generated.markdown, { title: ctx.options["title"] as string | undefined })
+            ? mergeChangelog(undefined, generated.markdown, { title: titleOption })
             : { markdown: generated.markdown, action: "replaced" as const, changed: true };
           return {
             changelog: merged.markdown,
