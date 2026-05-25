@@ -66,15 +66,18 @@ export default defineExtension({
 
         const allReleaseTags = booleanOption(ctx.options, "all-release-tags", "allReleaseTags");
         const releaseVersion = stringOption(ctx.options, "release-version", "releaseVersion");
+        const dateOption = stringOption(ctx.options, "date", "date");
+        const sinceOption = stringOption(ctx.options, "since", "since");
+        const untilOption = stringOption(ctx.options, "until", "until");
         const releaseContext = allReleaseTags
           ? { version: undefined, date: undefined, since: undefined, until: undefined }
           : resolveReleaseContext({
               cwd: process.cwd(),
               version: releaseVersion,
               versionFromPackage: booleanOption(ctx.options, "release-version-from-package", "releaseVersionFromPackage"),
-              since: ctx.options["since"] as string | undefined,
+              since: sinceOption,
               sincePreviousTag: booleanOption(ctx.options, "since-previous-tag", "sincePreviousTag"),
-              until: ctx.options["until"] as string | undefined,
+              until: untilOption,
               untilReleaseTag: booleanOption(ctx.options, "until-release-tag", "untilReleaseTag"),
             });
         const releaseWindows = allReleaseTags
@@ -82,7 +85,7 @@ export default defineExtension({
               cwd: process.cwd(),
               tagPattern: stringOption(ctx.options, "release-tag-pattern", "releaseTagPattern"),
               pendingVersion: releaseVersion,
-              pendingTimestamp: stringOption(ctx.options, "until", "until") ?? stringOption(ctx.options, "date", "date"),
+              pendingTimestamp: untilOption ?? dateOption,
             })
           : undefined;
 
@@ -91,7 +94,7 @@ export default defineExtension({
           items,
           title: ctx.options["title"] as string | undefined,
           version: releaseContext.version,
-          date: (ctx.options["date"] as string | undefined) ?? releaseContext.date,
+          date: dateOption ?? releaseContext.date,
           since: releaseContext.since,
           until: releaseContext.until,
           releaseWindows,

@@ -794,6 +794,48 @@ test("CLI derives release heading date from existing package tag without limitin
   assert.match(stdout, /Post tag tracker closure/);
 });
 
+test("CLI derives release heading date from explicit version tag", () => {
+  const dir = mkdtempSync(join(tmpdir(), "pm-changelog-explicit-version-date-"));
+  const input = join(dir, "items.json");
+  const cli = join(process.cwd(), "dist", "cli.js");
+  execFileSync("git", ["init"], { cwd: dir, encoding: "utf-8" });
+  execFileSync("git", ["config", "user.email", "test@example.com"], { cwd: dir, encoding: "utf-8" });
+  execFileSync("git", ["config", "user.name", "Test"], { cwd: dir, encoding: "utf-8" });
+  writeFileSync(join(dir, "file.txt"), "release\n", "utf-8");
+  execFileSync("git", ["add", "."], { cwd: dir, encoding: "utf-8" });
+  execFileSync("git", ["commit", "-m", "release"], {
+    cwd: dir,
+    env: {
+      ...process.env,
+      GIT_AUTHOR_DATE: "2026-05-15T00:00:00Z",
+      GIT_COMMITTER_DATE: "2026-05-15T16:30:00Z",
+    },
+    encoding: "utf-8",
+  });
+  execFileSync("git", ["tag", "v2.0.0"], { cwd: dir, encoding: "utf-8" });
+  writeFileSync(
+    input,
+    JSON.stringify([
+      {
+        id: "pm-explicit",
+        title: "Explicit release item",
+        status: "closed",
+        type: "feature",
+        closed_at: "2026-05-15T12:00:00Z",
+      },
+    ]),
+    "utf-8"
+  );
+
+  const stdout = execFileSync(process.execPath, [cli, "--input", input, "--stdout", "--version", "2.0.0"], {
+    cwd: dir,
+    encoding: "utf-8",
+  });
+
+  assert.match(stdout, /## 2\.0\.0 - 2026-05-15/);
+  assert.match(stdout, /Explicit release item/);
+});
+
 test("CLI matches zero-padded calendar release tags for npm versions", () => {
   const dir = mkdtempSync(join(tmpdir(), "pm-changelog-calendar-tags-"));
   const input = join(dir, "items.json");

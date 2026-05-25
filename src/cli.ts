@@ -277,7 +277,7 @@ function applyReleaseContext(options: CliOptions): void {
     return;
   }
 
-  if (!options.versionFromPackage && !options.sincePreviousTag && !options.untilReleaseTag) return;
+  if (!options.version && !options.versionFromPackage && !options.sincePreviousTag && !options.untilReleaseTag) return;
   const context = resolveReleaseContext({
     cwd: options.pmCwd ? resolve(options.pmCwd) : process.cwd(),
     version: options.version,

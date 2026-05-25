@@ -59,15 +59,18 @@ export default defineExtension({
                     .filter(Boolean);
                 const allReleaseTags = booleanOption(ctx.options, "all-release-tags", "allReleaseTags");
                 const releaseVersion = stringOption(ctx.options, "release-version", "releaseVersion");
+                const dateOption = stringOption(ctx.options, "date", "date");
+                const sinceOption = stringOption(ctx.options, "since", "since");
+                const untilOption = stringOption(ctx.options, "until", "until");
                 const releaseContext = allReleaseTags
                     ? { version: undefined, date: undefined, since: undefined, until: undefined }
                     : resolveReleaseContext({
                         cwd: process.cwd(),
                         version: releaseVersion,
                         versionFromPackage: booleanOption(ctx.options, "release-version-from-package", "releaseVersionFromPackage"),
-                        since: ctx.options["since"],
+                        since: sinceOption,
                         sincePreviousTag: booleanOption(ctx.options, "since-previous-tag", "sincePreviousTag"),
-                        until: ctx.options["until"],
+                        until: untilOption,
                         untilReleaseTag: booleanOption(ctx.options, "until-release-tag", "untilReleaseTag"),
                     });
                 const releaseWindows = allReleaseTags
@@ -75,7 +78,7 @@ export default defineExtension({
                         cwd: process.cwd(),
                         tagPattern: stringOption(ctx.options, "release-tag-pattern", "releaseTagPattern"),
                         pendingVersion: releaseVersion,
-                        pendingTimestamp: stringOption(ctx.options, "until", "until") ?? stringOption(ctx.options, "date", "date"),
+                        pendingTimestamp: untilOption ?? dateOption,
                     })
                     : undefined;
                 const items = await listAllFrontMatter(ctx.pm_root);
@@ -83,7 +86,7 @@ export default defineExtension({
                     items,
                     title: ctx.options["title"],
                     version: releaseContext.version,
-                    date: ctx.options["date"] ?? releaseContext.date,
+                    date: dateOption ?? releaseContext.date,
                     since: releaseContext.since,
                     until: releaseContext.until,
                     releaseWindows,
