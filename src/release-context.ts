@@ -175,20 +175,8 @@ function parseTagLine(line: string): ReleaseTag | undefined {
   return { name: tagName, timestamp };
 }
 
-function gitCommitTimestamp(cwd: string, ref: string): string {
-  const timestamp = runGit(cwd, ["log", "-1", "--format=%cI", ref]);
-  if (!timestamp) {
-    throw new Error(`Could not resolve git timestamp for ${ref}`);
-  }
-  return timestamp;
-}
-
 function tryGitCommitTimestamp(cwd: string, ref: string): string | undefined {
-  try {
-    return gitCommitTimestamp(cwd, ref);
-  } catch {
-    return undefined;
-  }
+  return runGit(cwd, ["log", "-1", "--format=%cI", ref]);
 }
 
 function runGit(cwd: string, args: string[]): string | undefined {
