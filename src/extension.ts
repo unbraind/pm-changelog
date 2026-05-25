@@ -67,7 +67,7 @@ export default defineExtension({
         const allReleaseTags = booleanOption(ctx.options, "all-release-tags", "allReleaseTags");
         const releaseVersion = stringOption(ctx.options, "release-version", "releaseVersion");
         const releaseContext = allReleaseTags
-          ? { version: undefined, since: undefined, until: undefined }
+          ? { version: undefined, date: undefined, since: undefined, until: undefined }
           : resolveReleaseContext({
               cwd: process.cwd(),
               version: releaseVersion,
@@ -91,7 +91,7 @@ export default defineExtension({
           items,
           title: ctx.options["title"] as string | undefined,
           version: releaseContext.version,
-          date: ctx.options["date"] as string | undefined,
+          date: (ctx.options["date"] as string | undefined) ?? releaseContext.date,
           since: releaseContext.since,
           until: releaseContext.until,
           releaseWindows,

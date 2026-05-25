@@ -288,6 +288,7 @@ function applyReleaseContext(options: CliOptions): void {
     untilReleaseTag: options.untilReleaseTag,
   });
   options.version = context.version;
+  options.date = options.date ?? context.date;
   options.since = context.since;
   options.until = context.until;
 }

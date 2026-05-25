@@ -723,7 +723,7 @@ test("CLI can derive package release version and git tag range", () => {
     }
   );
 
-  assert.match(stdout, /## 1\.2\.0/);
+  assert.match(stdout, /## 1\.2\.0 - 2026-05-10/);
   assert.match(stdout, /Current release item/);
   assert.doesNotMatch(stdout, /Old release item|Post-release item|## Unreleased/);
 });
@@ -797,7 +797,7 @@ test("CLI matches zero-padded calendar release tags for npm versions", () => {
     }
   );
 
-  assert.match(stdout, /## 2026\.5\.24-12/);
+  assert.match(stdout, /## 2026\.5\.24-12 - 2026-05-24/);
   assert.match(stdout, /Released calendar item/);
   assert.doesNotMatch(stdout, /Post tag tracker closure/);
 });

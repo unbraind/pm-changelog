@@ -29,6 +29,7 @@ interface ReleaseTag {
 
 export interface ReleaseContext {
   version?: string;
+  date?: string;
   since?: string;
   until?: string;
   releaseTag?: string;
@@ -40,13 +41,15 @@ export function resolveReleaseContext(options: ReleaseContextOptions): ReleaseCo
   const version = options.version ?? (options.versionFromPackage ? readPackageVersion(cwd) : undefined);
   const releaseTag = version ? findExistingTag(cwd, releaseTagCandidates(version)) : undefined;
   const previousTag = options.sincePreviousTag ? findPreviousTag(cwd, releaseTag) : undefined;
+  const releaseTimestamp = releaseTag ? gitCommitTimestamp(cwd, releaseTag) : undefined;
 
   return {
     version,
+    date: releaseTimestamp ? formatLocalTimestampDate(releaseTimestamp) : undefined,
     releaseTag,
     previousTag,
     since: options.since ?? (previousTag ? gitCommitTimestamp(cwd, previousTag) : undefined),
-    until: options.until ?? (options.untilReleaseTag && releaseTag ? gitCommitTimestamp(cwd, releaseTag) : undefined),
+    until: options.until ?? (options.untilReleaseTag ? releaseTimestamp : undefined),
   };
 }
 
@@ -201,6 +204,12 @@ function formatDate(timestamp: string): string {
   const date = new Date(timestamp);
   if (Number.isNaN(date.getTime())) return timestamp.slice(0, 10);
   return date.toISOString().slice(0, 10);
+}
+
+function formatLocalTimestampDate(timestamp: string): string {
+  const match = timestamp.match(/^(\d{4}-\d{2}-\d{2})(?:[T\s]|$)/);
+  if (match) return match[1];
+  return formatDate(timestamp);
 }
 
 function normalizeTimestamp(value: string): string {
