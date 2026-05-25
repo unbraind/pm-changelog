@@ -160,19 +160,21 @@ jobs:
       - name: Create GitHub release
         if: steps.decide.outputs.should_release == 'true'
         shell: bash
-        run: |
-          set -euo pipefail
-          node dist/cli.js \
-            --stdout \
-            --version "${{ steps.decide.outputs.tag }}" \
-            --since-previous-tag \
-            --until-release-tag \
-            --item-url-base https://github.com/unbraind/pm-changelog/blob/main/.agents/pm \
-            --pm-bin ./node_modules/.bin/pm \
-            > RELEASE_NOTES.md
-          gh release create "${{ steps.decide.outputs.tag }}" \
-            --title "pm-changelog ${{ steps.decide.outputs.tag }}" \
-            --notes-file RELEASE_NOTES.md \
-            --verify-tag
         env:
           GH_TOKEN: ${{ github.token }}
+          RELEASE_TAG: ${{ steps.decide.outputs.tag }}
+        run: |
+          set -euo pipefail
+          tag_pattern="^## v?${RELEASE_TAG#v}( |$)"
+          node dist/cli.js \
+            --stdout \
+            --all-release-tags \
+            --release-version-from-package \
+            --item-url-base https://github.com/unbraind/pm-changelog/blob/main/.agents/pm \
+            --pm-bin ./node_modules/.bin/pm \
+            | awk -v pat="$tag_pattern" '/^## /{p=0} $0 ~ pat {p=1} p' \
+            > RELEASE_NOTES.md
+          gh release create "$RELEASE_TAG" \
+            --title "pm-changelog $RELEASE_TAG" \
+            --notes-file RELEASE_NOTES.md \
+            --verify-tag
