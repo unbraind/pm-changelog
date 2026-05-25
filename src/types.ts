@@ -29,6 +29,11 @@ export type ChangelogGroupBy = "version" | "release" | "milestone";
 
 export interface ChangelogReleaseWindow {
   heading: string;
+  /** Git tag name (e.g. "v1.2.0") for this window. When set, items whose
+   * `release` field matches this tag are bucketed here regardless of their
+   * timestamps, eliminating duplicates from `pm update --release` bumping
+   * `updated_at` after the tag was created. */
+  releaseTag?: string;
   since?: string;
   sinceExclusive?: boolean;
   until?: string;

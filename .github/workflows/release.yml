@@ -96,7 +96,8 @@ jobs:
         run: |
           set -euo pipefail
           npm version "${{ steps.decide.outputs.npm_version }}" --no-git-tag-version --allow-same-version
-          node -e 'const { readFileSync, writeFileSync } = require("node:fs"); const version = process.env.NPM_VERSION; const manifest = JSON.parse(readFileSync("manifest.json", "utf-8")); manifest.version = version; writeFileSync("manifest.json", `${JSON.stringify(manifest, null, 2)}\n`, "utf-8"); const extensionPath = "src/extension.ts"; const extension = readFileSync(extensionPath, "utf-8").replace(/version:\s*"[^"]+"/, `version: "${version}"`); writeFileSync(extensionPath, extension, "utf-8");'
+          npm run build
+          node dist/sync-version.js "${{ steps.decide.outputs.npm_version }}"
         env:
           NPM_VERSION: ${{ steps.decide.outputs.npm_version }}
 
@@ -117,18 +118,18 @@ jobs:
           set -euo pipefail
           npm run build
           node dist/cli.js \
-            --mode prepend \
+            --mode replace \
             --output CHANGELOG.md \
-            --version "${{ steps.decide.outputs.npm_version }}" \
-            --since-previous-tag \
+            --all-release-tags \
+            --version "${{ steps.decide.outputs.tag }}" \
             --item-url-base https://github.com/unbraind/pm-changelog/blob/main/.agents/pm \
             --pm-bin ./node_modules/.bin/pm \
             --github-step-summary
           node dist/cli.js \
-            --mode prepend \
+            --mode replace \
             --output CHANGELOG.md \
-            --version "${{ steps.decide.outputs.npm_version }}" \
-            --since-previous-tag \
+            --all-release-tags \
+            --version "${{ steps.decide.outputs.tag }}" \
             --item-url-base https://github.com/unbraind/pm-changelog/blob/main/.agents/pm \
             --pm-bin ./node_modules/.bin/pm \
             --check
@@ -164,6 +165,8 @@ jobs:
           node dist/cli.js \
             --stdout \
             --version "${{ steps.decide.outputs.tag }}" \
+            --since-previous-tag \
+            --until-release-tag \
             --item-url-base https://github.com/unbraind/pm-changelog/blob/main/.agents/pm \
             --pm-bin ./node_modules/.bin/pm \
             > RELEASE_NOTES.md

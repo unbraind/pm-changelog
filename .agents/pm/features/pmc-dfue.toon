@@ -1,0 +1,36 @@
+id: pmc-dfue
+title: Bucket items by release field in full-history changelog
+description: "Add release-field-aware bucketing so items with an explicit release: field appear in their tagged release section, eliminating duplicate Unreleased entries when pm update --release bumps updated_at after the tag was created."
+type: Feature
+status: closed
+priority: 1
+tags[3]: bucketing,changelog,full-history
+created_at: "2026-05-25T20:48:11.269Z"
+updated_at: "2026-05-25T20:48:29.297Z"
+deadline: "2026-05-26T20:00:00.000Z"
+assignee: claude
+author: claude
+estimated_minutes: 60
+acceptance_criteria: Items with release field matching a known git tag bucket to that section; items without release field fall back to timestamp window; empty release windows are omitted unless includeEmpty is set.
+parent: pmc-9mck
+release: v2026.05.25-1
+resolution: fixed
+expected_result: items with release field bucket correctly in --all-release-tags mode
+actual_result: items with release field bucket correctly; empty windows omitted; 31 tests pass
+dependencies[1]{id,kind,created_at,author,source_kind}:
+  pmc-9mck,related,"2026-05-25T20:48:11.269Z",null,null
+comments[1]{created_at,author,text}:
+  "2026-05-25T20:48:11.269Z",claude,Replaces the previous timestamp-only filtering in --all-release-tags mode that misplaced items into Unreleased after their release field was stamped.
+notes[1]{created_at,author,text}:
+  "2026-05-25T20:48:11.269Z",claude,Adds optional releaseTag field to ChangelogReleaseWindow; release-context populates this when scanning git tags.
+learnings[1]{created_at,author,text}:
+  "2026-05-25T20:48:11.269Z",claude,"Closed pm items typically get their release field stamped AFTER the git tag is created, so updated_at sorts them into the wrong release window with the legacy timestamp filter."
+files[3]{path,scope,note}:
+  src/generator.ts,project,null
+  src/release-context.ts,project,null
+  src/types.ts,project,null
+tests[1]{command,path,scope,timeout_seconds,pm_context_mode,env_set,env_clear,shared_host_safe,assert_stdout_contains,assert_stdout_regex,assert_stderr_contains,assert_stderr_regex,assert_stdout_min_lines,assert_json_field_equals,assert_json_field_gte,note}:
+  npm test,null,project,null,null,null,null,null,null,null,null,null,null,null,null,null
+docs[1]{path,scope,note}:
+  docs/usage.md,project,null
+body: "Items with release field matching a known git tag bucket to that section; items without release field fall back to timestamp window. Empty release windows are omitted unless includeEmpty is set. The generator runs release-field bucketing first, then timestamp filtering for remaining items, guaranteeing each item appears in exactly one section."

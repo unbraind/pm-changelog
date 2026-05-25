@@ -6,8 +6,9 @@ status: closed
 priority: 2
 tags[4]: changelog,ci,git-tags,release
 created_at: "2026-05-24T15:23:16.720Z"
-updated_at: "2026-05-24T15:41:41.306Z"
+updated_at: "2026-05-25T20:04:52.098Z"
 author: codex-changelog-full-history
+release: v2026.05.24-13
 resolution: completed
 expected_result: pm-changelog can generate a full project CHANGELOG.md from actual git release tag windows through package-owned CLI and extension flags.
 actual_result: "Published pm-changelog 2026.5.24-12 with --all-release-tags and --release-tag-pattern, full-history release-window tests, docs, CI tag checkout fix, npm latest verification, and GitHub release."

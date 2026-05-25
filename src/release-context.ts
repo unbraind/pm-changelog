@@ -71,6 +71,7 @@ export function resolveReleaseTagWindows(options: ReleaseTagHistoryOptions = {})
     const previous = orderedTags[index + 1];
     windows.push({
       heading: `${formatTagVersion(tag.name)} - ${formatDate(tag.timestamp)}`,
+      releaseTag: tag.name,
       since: previous?.timestamp,
       sinceExclusive: Boolean(previous),
       until: tag.timestamp,
@@ -83,10 +84,19 @@ export function resolveReleaseTagWindows(options: ReleaseTagHistoryOptions = {})
 function resolvePendingReleaseTag(options: ReleaseTagHistoryOptions, existingTags: ReleaseTag[]): ReleaseTag | undefined {
   const version = options.pendingVersion?.trim();
   if (!version) return undefined;
-  const candidates = new Set(releaseTagCandidates(version));
-  if (existingTags.some((tag) => candidates.has(tag.name))) return undefined;
+  const candidates = releaseTagCandidates(version);
+  const candidateSet = new Set(candidates);
+  if (existingTags.some((tag) => candidateSet.has(tag.name))) return undefined;
+  const canonical = canonicalPendingTagName(candidates, version);
   const timestamp = normalizeTimestamp(options.pendingTimestamp ?? new Date().toISOString());
-  return { name: version, timestamp };
+  return { name: canonical, timestamp };
+}
+
+function canonicalPendingTagName(candidates: string[], fallback: string): string {
+  const preferred = candidates.find((candidate) => /^v\d{4}\.\d{2}\.\d{2}/.test(candidate))
+    ?? candidates.find((candidate) => candidate.startsWith("v"))
+    ?? fallback;
+  return preferred;
 }
 
 function readPackageVersion(cwd: string): string {
