@@ -1,0 +1,30 @@
+id: pmc-14cx
+title: Release readiness hardening for pm-changelog
+description: "Align package metadata, pm package manifest, CI, daily release automation, changelog generation, and privacy checks for release readiness."
+type: Task
+status: closed
+priority: 1
+tags[3]: automation,package,release
+created_at: "2026-05-25T22:47:34.953Z"
+updated_at: "2026-05-25T22:47:34.953Z"
+deadline: "2026-05-26T22:47:34.953Z"
+assignee: codex
+author: codex
+estimated_minutes: 60
+acceptance_criteria: "Package metadata uses current pm CLI/SDK; pm-changelog generates CHANGELOG and release notes; CI and daily release workflows cover GitHub, npm, and Bun-compatible installs; package remains private until full privacy/history checks pass."
+comments[1]{created_at,author,text}:
+  "2026-05-25T22:47:34.953Z",codex,Package-level pm tracking initialized or reused; duplicate items avoided by title lookup.
+notes[1]{created_at,author,text}:
+  "2026-05-25T22:47:34.953Z",codex,Created during ecosystem-wide package hardening pass using pm CLI 2026.5.24.
+learnings[1]{created_at,author,text}:
+  "2026-05-25T22:47:34.953Z",codex,"Release readiness must be tracked inside each package repo,not only the website companion tracker."
+files[4]{path,scope,note}:
+  package.json,project,package metadata and scripts
+  manifest.json,project,pm package manifest
+  .github/workflows/ci.yml,project,CI workflow
+  .github/workflows/release.yml,project,daily release workflow
+tests[1]{command,path,scope,timeout_seconds,pm_context_mode,env_set,env_clear,shared_host_safe,assert_stdout_contains,assert_stdout_regex,assert_stderr_contains,assert_stderr_regex,assert_stdout_min_lines,assert_json_field_equals,assert_json_field_gte,note}:
+  "npm run release:check",.,project,null,null,null,null,null,null,null,null,null,null,null,null,null
+docs[1]{path,scope,note}:
+  README.md,project,package docs
+body: "Cross-package hardening item created by Codex on 2026-05-26 Europe/Vienna. Scope: metadata, manifest, package scripts, CI, daily release workflow, pm-changelog integration, and verification evidence."
