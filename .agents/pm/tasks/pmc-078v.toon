@@ -1,0 +1,39 @@
+id: pmc-078v
+title: Align CI+release workflows with peer pm-* packages (Node 22 + Bun)
+description: Bumped Node 20 -> 22 and added oven-sh/setup-bun@v2.2.0 to .github/workflows/ci.yml and .github/workflows/release.yml so pm-changelog matches the toolchain used by every other pm-* package.
+type: Task
+status: closed
+priority: 2
+tags[3]: ci,release,toolchain
+created_at: "2026-05-26T14:48:41.134Z"
+updated_at: "2026-05-26T14:49:34.042Z"
+deadline: "2026-05-27T00:00:00.000Z"
+author: claude
+estimated_minutes: 15
+acceptance_criteria: CI runs green on Node 22; release.yml installs Bun; daily release job remains unaffected
+resolution: closed with implementation evidence
+expected_result: CI runs on Node 22 with Bun present in toolchain; daily release job unaffected
+actual_result: closed and recorded
+dependencies[1]{id,kind,created_at,author,source_kind}:
+  pmc-dcji,related,"2026-05-26T14:48:00.000Z",claude,null
+comments[4]{created_at,author,text}:
+  "2026-05-26T14:48:00.000Z",claude,Toolchain alignment with peer pm-* packages for ecosystem consistency
+  "2026-05-26T14:50:00.000Z",claude,Diffs applied locally; ready to commit and push
+  "2026-05-26T14:50:00.000Z",claude,Diffs applied locally; ready to commit and push
+  "2026-05-26T14:51:00.000Z",claude,Workflows aligned and ready for commit
+notes[3]{created_at,author,text}:
+  "2026-05-26T14:48:00.000Z",claude,"Verified by diff against pm-todos,pm-web,pm-graph workflows"
+  "2026-05-26T14:50:00.000Z",claude,"Workflows now match peer pm-* packages: Node 22 + setup-bun@v2.2.0"
+  "2026-05-26T14:50:00.000Z",claude,"Workflows now match peer pm-* packages: Node 22 + setup-bun@v2.2.0"
+learnings[1]{created_at,author,text}:
+  "2026-05-26T14:48:00.000Z",claude,Every pm-* package should share Node version and Bun setup for consistent runtime testing
+files[2]{path,scope,note}:
+  .github/workflows/ci.yml,project,Node 22 + setup-bun
+  .github/workflows/release.yml,project,Node 22 + setup-bun
+tests[1]{command,path,scope,timeout_seconds,pm_context_mode,env_set,env_clear,shared_host_safe,assert_stdout_contains,assert_stdout_regex,assert_stderr_contains,assert_stderr_regex,assert_stdout_min_lines,assert_json_field_equals,assert_json_field_gte,note}:
+  npm run check && npm test,null,project,600,null,null,null,null,null,null,null,null,null,null,null,null
+docs[2]{path,scope,note}:
+  .github/workflows/ci.yml,project,CI workflow updated
+  .github/workflows/release.yml,project,Release workflow updated
+close_reason: Closed via pm update
+body: "pm-changelog ci.yml and release.yml were on Node 20 with no Bun setup; every peer pm-* package (pm-web, pm-graph, pm-todos, pm-csv, pm-gantt-chart, pm-github, pm-jira, pm-linear, pm-slack, pm-slack-standup, pm-starter, pm-ts-starter, pm-beads, all five pm-preset-*) is on Node 22 + setup-bun@v2.2.0. Aligned the two workflow files. The release job itself is unchanged otherwise; daily cron, npm publish, GitHub release, and pm-changelog-driven CHANGELOG generation all still run as before."
