@@ -118,6 +118,7 @@ jobs:
           set -euo pipefail
           npm run build
           node dist/cli.js \
+            --pm-root .agents/pm \
             --mode replace \
             --output CHANGELOG.md \
             --all-release-tags \
@@ -126,6 +127,7 @@ jobs:
             --pm-bin ./node_modules/.bin/pm \
             --github-step-summary
           node dist/cli.js \
+            --pm-root .agents/pm \
             --mode replace \
             --output CHANGELOG.md \
             --all-release-tags \
@@ -167,6 +169,7 @@ jobs:
           set -euo pipefail
           tag_pattern="^## v?${RELEASE_TAG#v}( |$)"
           node dist/cli.js \
+            --pm-root .agents/pm \
             --stdout \
             --all-release-tags \
             --release-version-from-package \
