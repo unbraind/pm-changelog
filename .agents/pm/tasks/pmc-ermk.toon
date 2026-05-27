@@ -2,13 +2,12 @@ id: pmc-ermk
 title: Add publish retry + provenance fallback to release workflow
 description: Replace npm publish step with retry-3x + non-provenance fallback
 type: Task
-status: open
+status: closed
 priority: 2
 tags[2]: ci,release
 created_at: "2026-05-27T18:44:17.526Z"
-updated_at: "2026-05-27T18:44:17.526Z"
+updated_at: "2026-05-27T18:46:28.962Z"
 deadline: "2026-05-28T00:00:00.000Z"
-assignee: codex
 author: codex
 estimated_minutes: 10
 acceptance_criteria: Release workflow auto-retries E404 publish errors and falls back to publish-without-provenance after 3 failed attempts
@@ -26,4 +25,5 @@ tests[1]{command,path,scope,timeout_seconds,pm_context_mode,env_set,env_clear,sh
   "npm run release:check",null,project,240,null,null,null,null,null,null,null,null,null,null,null,null
 docs[1]{path,scope,note}:
   .github/workflows/release.yml,project,Modified workflow
+close_reason: Merged via PR #18
 body: "On 2026-05-27 the daily release publish step in this repo plus all 18 peer pm-* repos failed with E404 even though provenance signing succeeded. The repo was tagged + committed at the new version but npm rejected the PUT. Replace the publish step with a resilient version: skip when version is already on npm, retry the provenance publish up to 3 times with 30s sleep, then fall back to a non-provenance publish."
