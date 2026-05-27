@@ -277,6 +277,66 @@ test("resolveReleaseTagWindows derives newest-first git tag windows", () => {
   assert.ok(windows.every((window) => !window.heading.startsWith("9.9.9")));
 });
 
+test("resolveReleaseTagWindows keeps unpadded calendar pending headings", () => {
+  const dir = mkdtempSync(join(tmpdir(), "pm-changelog-calver-"));
+  execFileSync("git", ["init"], { cwd: dir, encoding: "utf-8" });
+  execFileSync("git", ["config", "user.name", "pm changelog test"], { cwd: dir, encoding: "utf-8" });
+  execFileSync("git", ["config", "user.email", "pm-changelog@example.com"], { cwd: dir, encoding: "utf-8" });
+
+  writeFileSync(join(dir, "file.txt"), "one\n");
+  execFileSync("git", ["add", "file.txt"], { cwd: dir, encoding: "utf-8" });
+  execFileSync("git", ["commit", "-m", "one"], {
+    cwd: dir,
+    encoding: "utf-8",
+    env: { ...process.env, GIT_AUTHOR_DATE: "2026-05-24T12:00:00Z", GIT_COMMITTER_DATE: "2026-05-24T12:00:00Z" },
+  });
+  // Legacy zero-padded tag, as published before the unpadded convention.
+  execFileSync("git", ["tag", "v2026.05.24"], { cwd: dir, encoding: "utf-8" });
+
+  const windows = resolveReleaseTagWindows({
+    cwd: dir,
+    pendingVersion: "2026.5.27",
+    pendingTimestamp: "2026-05-27 12:00:00 +0000",
+  });
+
+  assert.equal(windows.length, 3);
+  assert.equal(windows[0].heading, "Unreleased");
+  // The pending heading must echo the caller's unpadded YYYY.M.D version so the
+  // pm-cli release pipeline can locate the `## 2026.5.27` section it asked for.
+  assert.equal(windows[1].heading, "2026.5.27 - 2026-05-27");
+  assert.doesNotMatch(windows[1].heading, /2026\.05\.27/);
+  // Historical padded tags keep their published format; we do not rewrite them.
+  assert.equal(windows[2].heading, "2026.05.24 - 2026-05-24");
+});
+
+test("resolveReleaseTagWindows dedupes a pending version against a padded tag", () => {
+  const dir = mkdtempSync(join(tmpdir(), "pm-changelog-dedupe-"));
+  execFileSync("git", ["init"], { cwd: dir, encoding: "utf-8" });
+  execFileSync("git", ["config", "user.name", "pm changelog test"], { cwd: dir, encoding: "utf-8" });
+  execFileSync("git", ["config", "user.email", "pm-changelog@example.com"], { cwd: dir, encoding: "utf-8" });
+
+  writeFileSync(join(dir, "file.txt"), "one\n");
+  execFileSync("git", ["add", "file.txt"], { cwd: dir, encoding: "utf-8" });
+  execFileSync("git", ["commit", "-m", "one"], {
+    cwd: dir,
+    encoding: "utf-8",
+    env: { ...process.env, GIT_AUTHOR_DATE: "2026-05-24T12:00:00Z", GIT_COMMITTER_DATE: "2026-05-24T12:00:00Z" },
+  });
+  execFileSync("git", ["tag", "v2026.05.24"], { cwd: dir, encoding: "utf-8" });
+
+  // Unpadded pending version for a date already tagged in padded form: the
+  // candidate set must match the existing tag so no duplicate window appears.
+  const windows = resolveReleaseTagWindows({
+    cwd: dir,
+    pendingVersion: "2026.5.24",
+    pendingTimestamp: "2026-05-24 12:00:00 +0000",
+  });
+
+  assert.equal(windows.length, 2);
+  assert.equal(windows[0].heading, "Unreleased");
+  assert.equal(windows[1].heading, "2026.05.24 - 2026-05-24");
+});
+
 test("createChangelog omits item links unless explicitly enabled", () => {
   const result = createChangelog({
     items: [
