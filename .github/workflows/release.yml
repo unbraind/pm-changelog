@@ -55,21 +55,35 @@ jobs:
             exit 0
           fi
 
-          release_date="$(TZ="$RELEASE_TIMEZONE" date +%Y.%m.%d)"
+          # Unpadded calendar version (YYYY.M.D) to match the @unbrained/pm-cli
+          # convention; npm/semver and downstream changelog headings both expect
+          # the month/day without a leading zero.
+          release_date="$(TZ="$RELEASE_TIMEZONE" date +%Y.%-m.%-d)"
           base_tag="v${release_date}"
+          # Legacy zero-padded form of the same calendar date. Tags published
+          # before the unpadded convention (e.g. v2026.05.27) must still count
+          # toward the same-day suffix, so a corrective release on a date that
+          # already shipped a padded tag bumps to -1 instead of colliding with
+          # the already-published npm version.
+          year="${release_date%%.*}"
+          date_tail="${release_date#*.}"
+          month="${date_tail%%.*}"
+          day="${date_tail#*.}"
+          padded_base_tag="$(printf 'v%s.%02d.%02d' "$year" "$((10#$month))" "$((10#$day))")"
           max_suffix=-1
           while IFS= read -r existing_tag; do
-            if [[ "$existing_tag" == "$base_tag" ]]; then
-              (( max_suffix < 0 )) && max_suffix=0
-              continue
-            fi
-            if [[ "$existing_tag" == "$base_tag-"* ]]; then
-              suffix="${existing_tag#"$base_tag-"}"
-              if [[ "$suffix" =~ ^[0-9]+$ ]] && (( suffix > max_suffix )); then
-                max_suffix="$suffix"
+            [[ -n "$existing_tag" ]] || continue
+            for bt in "$base_tag" "$padded_base_tag"; do
+              if [[ "$existing_tag" == "$bt" ]]; then
+                (( max_suffix < 0 )) && max_suffix=0
+              elif [[ "$existing_tag" == "$bt-"* ]]; then
+                suffix="${existing_tag#"$bt-"}"
+                if [[ "$suffix" =~ ^[0-9]+$ ]] && (( suffix > max_suffix )); then
+                  max_suffix="$suffix"
+                fi
               fi
-            fi
-          done < <(git tag -l "${base_tag}*")
+            done
+          done < <(git tag -l "${base_tag}*"; git tag -l "${padded_base_tag}*")
 
           if (( max_suffix >= 0 )); then
             tag="${base_tag}-$((max_suffix + 1))"
