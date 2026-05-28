@@ -1341,25 +1341,34 @@ test("createChangelog: explicit feature tag still wins over Issue→Fixed defaul
   assert.match(result.markdown, /### Added\n\n- Darkmode theme switcher/);
 });
 
-test("createChangelog: CLI-flag stripping handles `--flag=value`, `-short`, leading-digit (--2fa), and leaves in-word hyphens alone", () => {
+test("createChangelog: CLI-flag stripping handles all the messy forms users write", () => {
   // Each variant carries an "add"-looking substring that would falsely route
   // to Added if the stripper missed it. The pattern must:
   //  - strip `--flag=value` wholesale (not just `--flag`)
+  //  - strip URL/path values: `--url=https://example.com/add` wholesale
   //  - strip single-dash POSIX shorts (`-add`)
   //  - strip flags starting with a digit (`--2add`)
+  //  - strip flags wrapped in quotes / parens / brackets — `\`--add\``,
+  //    `(--add)`, `[--add]`
   //  - leave in-word hyphens alone so legitimate text like "non-add" is kept
+  //    AND so descriptive Issue titles still fall through to the Issue→Fixed
+  //    default (the "non-add issue" item should land in Fixed by default)
   for (const title of [
     "pm cmd --add=true causes corruption",
+    "pm cmd --url=https://example.com/add returns 500",
     "pm cmd -add short alias dropped",
     "pm cmd --2add unexpected exit",
+    "pm comments `--add` corrupts text",
+    "pm comments (--add) corrupts text",
+    "pm comments [--add] corrupts text",
   ]) {
     const result = createChangelog({
       items: [{ id: "pm-x", title, status: "closed", type: "Issue", release: "1.2.0", updated_at: "2026-05-28T09:00:00Z" }],
       version: "1.2.0",
       date: "2026-05-28",
     });
-    assert.match(result.markdown, /### Fixed\n/);
-    assert.doesNotMatch(result.markdown, /### Added\n/);
+    assert.match(result.markdown, /### Fixed\n/, `failed to route to Fixed for title: ${title}`);
+    assert.doesNotMatch(result.markdown, /### Added\n/, `unexpectedly routed to Added for title: ${title}`);
   }
 });
 
