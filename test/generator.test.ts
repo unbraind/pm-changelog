@@ -1289,3 +1289,51 @@ test("pm extension command works when only node cli entrypoint is available", ()
   assert.match(markdown, /Generate changelog without global pm/);
   assert.match(markdown, /\[pmc?-[a-z0-9]+\]\(https:\/\/example\.com\/pm\/tasks\/pmc?-[a-z0-9]+\.toon\)/);
 });
+
+test("createChangelog: CLI-flag tokens in titles do not falsely classify Issues as Added", () => {
+  const issueWithAddFlag = [
+    {
+      id: "pm-cli-flag-issue",
+      title: "pm comments/notes --add HTML-escapes angle brackets in stored text",
+      status: "closed",
+      type: "Issue",
+      release: "1.2.0",
+      updated_at: "2026-05-28T09:00:00Z",
+    },
+  ];
+  const result = createChangelog({ items: issueWithAddFlag, version: "1.2.0", date: "2026-05-28" });
+  assert.match(result.markdown, /### Fixed\n\n- pm comments\/notes/);
+  assert.doesNotMatch(result.markdown, /### Added\n\n- pm comments\/notes/);
+});
+
+test("createChangelog: Issue type defaults to Fixed when no keyword matches", () => {
+  const descriptiveIssue = [
+    {
+      id: "pm-descriptive",
+      title: "Calendar disagreement on weekend boundaries",
+      status: "closed",
+      type: "Issue",
+      release: "1.2.0",
+      updated_at: "2026-05-28T09:00:00Z",
+    },
+  ];
+  const result = createChangelog({ items: descriptiveIssue, version: "1.2.0", date: "2026-05-28" });
+  assert.match(result.markdown, /### Fixed\n\n- Calendar disagreement/);
+  assert.doesNotMatch(result.markdown, /### Other/);
+});
+
+test("createChangelog: explicit feature tag still wins over Issue→Fixed default", () => {
+  const issueWithFeatureTag = [
+    {
+      id: "pm-tagged",
+      title: "Add darkmode support",
+      status: "closed",
+      type: "Issue",
+      tags: ["feature"],
+      release: "1.2.0",
+      updated_at: "2026-05-28T09:00:00Z",
+    },
+  ];
+  const result = createChangelog({ items: issueWithFeatureTag, version: "1.2.0", date: "2026-05-28" });
+  assert.match(result.markdown, /### Added\n\n- Add darkmode support/);
+});

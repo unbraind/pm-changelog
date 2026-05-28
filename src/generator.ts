@@ -443,10 +443,15 @@ function groupByCategory(items: PmItem[]): Map<Category, PmItem[]> {
 }
 
 function classifyItem(item: PmItem): Category {
+  // Strip CLI-flag patterns (--foo, --foo-bar) from titles before scanning.
+  // Without this, an item titled "pm <cmd> --add fails..." gets classified as
+  // "Added" because the word "add" matches inside "--add". Tags and type still
+  // contribute their full token, so explicit feature/added tags still win.
+  const sanitizedTitle = (item.title ?? "").replace(/--[a-z][a-z0-9_-]*/gi, " ");
   const values = [
     item.type,
     ...(item.tags ?? []),
-    item.title,
+    sanitizedTitle,
   ]
     .filter(Boolean)
     .join(" ")
@@ -460,6 +465,11 @@ function classifyItem(item: PmItem): Category {
   if (hasAny(values, ["change", "changed", "refactor", "update", "updated", "improve"])) {
     return "Changed";
   }
+  // Default by item type: Issue → Fixed (most issues are bug reports), so they
+  // don't fall through to a generic "Other" bucket when the title is descriptive
+  // but lacks one of the keyword needles above.
+  const typeLowered = (item.type ?? "").toLowerCase();
+  if (typeLowered === "issue") return "Fixed";
   return "Other";
 }
 
