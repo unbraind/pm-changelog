@@ -1289,3 +1289,96 @@ test("pm extension command works when only node cli entrypoint is available", ()
   assert.match(markdown, /Generate changelog without global pm/);
   assert.match(markdown, /\[pmc?-[a-z0-9]+\]\(https:\/\/example\.com\/pm\/tasks\/pmc?-[a-z0-9]+\.toon\)/);
 });
+
+test("createChangelog: CLI-flag tokens in titles do not falsely classify Issues as Added", () => {
+  const issueWithAddFlag = [
+    {
+      id: "pm-cli-flag-issue",
+      title: "pm comments/notes --add HTML-escapes angle brackets in stored text",
+      status: "closed",
+      type: "Issue",
+      release: "1.2.0",
+      updated_at: "2026-05-28T09:00:00Z",
+    },
+  ];
+  const result = createChangelog({ items: issueWithAddFlag, version: "1.2.0", date: "2026-05-28" });
+  assert.match(result.markdown, /### Fixed\n\n- pm comments\/notes/);
+  assert.doesNotMatch(result.markdown, /### Added\n\n- pm comments\/notes/);
+});
+
+test("createChangelog: Issue type defaults to Fixed when no keyword matches", () => {
+  const descriptiveIssue = [
+    {
+      id: "pm-descriptive",
+      title: "Calendar disagreement on weekend boundaries",
+      status: "closed",
+      type: "Issue",
+      release: "1.2.0",
+      updated_at: "2026-05-28T09:00:00Z",
+    },
+  ];
+  const result = createChangelog({ items: descriptiveIssue, version: "1.2.0", date: "2026-05-28" });
+  assert.match(result.markdown, /### Fixed\n\n- Calendar disagreement/);
+  assert.doesNotMatch(result.markdown, /### Other/);
+});
+
+test("createChangelog: explicit feature tag still wins over Issue→Fixed default", () => {
+  // The title intentionally avoids the keyword "add" so the only signal that
+  // routes this to "Added" is the explicit `feature` tag — that's the
+  // behavior we want to lock down.
+  const issueWithFeatureTag = [
+    {
+      id: "pm-tagged",
+      title: "Darkmode theme switcher",
+      status: "closed",
+      type: "Issue",
+      tags: ["feature"],
+      release: "1.2.0",
+      updated_at: "2026-05-28T09:00:00Z",
+    },
+  ];
+  const result = createChangelog({ items: issueWithFeatureTag, version: "1.2.0", date: "2026-05-28" });
+  assert.match(result.markdown, /### Added\n\n- Darkmode theme switcher/);
+});
+
+test("createChangelog: CLI-flag stripping handles all the messy forms users write", () => {
+  // Each variant carries an "add"-looking substring that would falsely route
+  // to Added if the stripper missed it. The pattern must:
+  //  - strip `--flag=value` wholesale (not just `--flag`)
+  //  - strip URL/path values: `--url=https://example.com/add` wholesale
+  //  - strip single-dash POSIX shorts (`-add`)
+  //  - strip flags starting with a digit (`--2add`)
+  //  - strip flags wrapped in quotes / parens / brackets — `\`--add\``,
+  //    `(--add)`, `[--add]`
+  //  - leave in-word hyphens alone so legitimate text like "non-add" is kept
+  //    AND so descriptive Issue titles still fall through to the Issue→Fixed
+  //    default (the "non-add issue" item should land in Fixed by default)
+  for (const title of [
+    "pm cmd --add=true causes corruption",
+    "pm cmd --url=https://example.com/add returns 500",
+    "pm cmd -add short alias dropped",
+    "pm cmd --2add unexpected exit",
+    "pm comments `--add` corrupts text",
+    "pm comments (--add) corrupts text",
+    "pm comments [--add] corrupts text",
+  ]) {
+    const result = createChangelog({
+      items: [{ id: "pm-x", title, status: "closed", type: "Issue", release: "1.2.0", updated_at: "2026-05-28T09:00:00Z" }],
+      version: "1.2.0",
+      date: "2026-05-28",
+    });
+    assert.match(result.markdown, /### Fixed\n/, `failed to route to Fixed for title: ${title}`);
+    assert.doesNotMatch(result.markdown, /### Added\n/, `unexpectedly routed to Added for title: ${title}`);
+  }
+});
+
+test("createChangelog: `Bug` / `Bugfix` / `Defect` types also default to Fixed", () => {
+  for (const type of ["bug", "Bug", "Bugfix", "Defect"]) {
+    const result = createChangelog({
+      items: [{ id: "pm-x", title: "Crash on cold-start", status: "closed", type, release: "1.2.0", updated_at: "2026-05-28T09:00:00Z" }],
+      version: "1.2.0",
+      date: "2026-05-28",
+    });
+    assert.match(result.markdown, /### Fixed\n\n- Crash on cold-start/);
+  }
+});
