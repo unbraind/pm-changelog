@@ -1323,10 +1323,13 @@ test("createChangelog: Issue type defaults to Fixed when no keyword matches", ()
 });
 
 test("createChangelog: explicit feature tag still wins over Issue→Fixed default", () => {
+  // The title intentionally avoids the keyword "add" so the only signal that
+  // routes this to "Added" is the explicit `feature` tag — that's the
+  // behavior we want to lock down.
   const issueWithFeatureTag = [
     {
       id: "pm-tagged",
-      title: "Add darkmode support",
+      title: "Darkmode theme switcher",
       status: "closed",
       type: "Issue",
       tags: ["feature"],
@@ -1335,5 +1338,38 @@ test("createChangelog: explicit feature tag still wins over Issue→Fixed defaul
     },
   ];
   const result = createChangelog({ items: issueWithFeatureTag, version: "1.2.0", date: "2026-05-28" });
-  assert.match(result.markdown, /### Added\n\n- Add darkmode support/);
+  assert.match(result.markdown, /### Added\n\n- Darkmode theme switcher/);
+});
+
+test("createChangelog: CLI-flag stripping handles `--flag=value`, `-short`, leading-digit (--2fa), and leaves in-word hyphens alone", () => {
+  // Each variant carries an "add"-looking substring that would falsely route
+  // to Added if the stripper missed it. The pattern must:
+  //  - strip `--flag=value` wholesale (not just `--flag`)
+  //  - strip single-dash POSIX shorts (`-add`)
+  //  - strip flags starting with a digit (`--2add`)
+  //  - leave in-word hyphens alone so legitimate text like "non-add" is kept
+  for (const title of [
+    "pm cmd --add=true causes corruption",
+    "pm cmd -add short alias dropped",
+    "pm cmd --2add unexpected exit",
+  ]) {
+    const result = createChangelog({
+      items: [{ id: "pm-x", title, status: "closed", type: "Issue", release: "1.2.0", updated_at: "2026-05-28T09:00:00Z" }],
+      version: "1.2.0",
+      date: "2026-05-28",
+    });
+    assert.match(result.markdown, /### Fixed\n/);
+    assert.doesNotMatch(result.markdown, /### Added\n/);
+  }
+});
+
+test("createChangelog: `Bug` / `Bugfix` / `Defect` types also default to Fixed", () => {
+  for (const type of ["bug", "Bug", "Bugfix", "Defect"]) {
+    const result = createChangelog({
+      items: [{ id: "pm-x", title: "Crash on cold-start", status: "closed", type, release: "1.2.0", updated_at: "2026-05-28T09:00:00Z" }],
+      version: "1.2.0",
+      date: "2026-05-28",
+    });
+    assert.match(result.markdown, /### Fixed\n\n- Crash on cold-start/);
+  }
 });

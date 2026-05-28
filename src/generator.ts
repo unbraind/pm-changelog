@@ -443,11 +443,19 @@ function groupByCategory(items: PmItem[]): Map<Category, PmItem[]> {
 }
 
 function classifyItem(item: PmItem): Category {
-  // Strip CLI-flag patterns (--foo, --foo-bar) from titles before scanning.
-  // Without this, an item titled "pm <cmd> --add fails..." gets classified as
-  // "Added" because the word "add" matches inside "--add". Tags and type still
-  // contribute their full token, so explicit feature/added tags still win.
-  const sanitizedTitle = (item.title ?? "").replace(/--[a-z][a-z0-9_-]*/gi, " ");
+  // Strip CLI-flag-like tokens (`--foo`, `--foo-bar`, `--foo=bar`, `-x`,
+  // `--2fa`) from titles before scanning. Without this, an item titled
+  // "pm <cmd> --add fails..." gets classified as "Added" because the word
+  // "add" matches inside "--add". The pattern:
+  //   - Requires a leading whitespace or string-start (word boundary) so
+  //     in-word hyphens like "non-add" or "in-test" stay intact.
+  //   - Accepts 1 or 2 leading dashes (covers `-x` POSIX shorts too).
+  //   - First char after the dashes is alnum (lets `--2fa` work).
+  //   - Body is alnum / `_` / `-` / `=` (so `--flag=value` strips wholesale).
+  //
+  // Tags and type still contribute their full token, so an explicit
+  // `feature`/`added` tag still wins regardless of title content.
+  const sanitizedTitle = (item.title ?? "").replace(/(^|\s)-{1,2}[a-z0-9][a-z0-9_=-]*/gi, "$1 ");
   const values = [
     item.type,
     ...(item.tags ?? []),
@@ -465,11 +473,13 @@ function classifyItem(item: PmItem): Category {
   if (hasAny(values, ["change", "changed", "refactor", "update", "updated", "improve"])) {
     return "Changed";
   }
-  // Default by item type: Issue → Fixed (most issues are bug reports), so they
-  // don't fall through to a generic "Other" bucket when the title is descriptive
-  // but lacks one of the keyword needles above.
+  // Default by item type: Issue / Bug / Bugfix / Defect → Fixed (most items
+  // of these types are bug reports), so they don't fall through to "Other"
+  // when the title is descriptive but lacks one of the keyword needles above.
   const typeLowered = (item.type ?? "").toLowerCase();
-  if (typeLowered === "issue") return "Fixed";
+  if (typeLowered === "issue" || typeLowered === "bug" || typeLowered === "bugfix" || typeLowered === "defect") {
+    return "Fixed";
+  }
   return "Other";
 }
 
