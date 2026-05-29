@@ -402,14 +402,20 @@ function classifyItem(item) {
         return "Fixed";
     if (hasAny(values, ["feature", "feat", "added", "add", "new"]))
         return "Added";
-    if (hasAny(values, ["change", "changed", "refactor", "update", "updated", "improve"])) {
-        return "Changed";
-    }
-    // Default by item type: Issue / Bug / Bugfix / Defect → Fixed (most items
-    // of these types are bug reports), so they don't fall through to "Other"
-    // when the title is descriptive but lacks one of the keyword needles above.
+    // Default by item type BEFORE the weak Changed keywords: Issue / Bug / Bugfix
+    // / Defect → Fixed (most items of these types are bug reports). The "Changed"
+    // needles below (especially "update"/"updated") collide with CLI command
+    // names — an Issue titled "pm update doesn't accept …" describes a defect in
+    // the `pm update` command, not a changelog "Changed" entry. Letting the
+    // bug-like item *type* win over those weak keywords keeps such reports in
+    // Fixed, while non-bug types (task / chore) still fall through to Changed for
+    // genuine "update dependency …" / "refactor …" / "improve …" work. Explicit
+    // security/removed/fix/feature signals above still take precedence.
     if (BUG_LIKE_ITEM_TYPES.has((item.type ?? "").toLowerCase())) {
         return "Fixed";
+    }
+    if (hasAny(values, ["change", "changed", "refactor", "update", "updated", "improve"])) {
+        return "Changed";
     }
     return "Other";
 }
