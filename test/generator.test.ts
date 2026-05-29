@@ -1322,6 +1322,81 @@ test("createChangelog: Issue type defaults to Fixed when no keyword matches", ()
   assert.doesNotMatch(result.markdown, /### Other/);
 });
 
+test("createChangelog: command-name keywords (update/change) in Issue titles still route to Fixed", () => {
+  // Regression: an Issue titled after the `pm update` command matched the weak
+  // "update" needle in the Changed bucket and was misfiled under Changed. A
+  // bug-like item *type* must win over those command-name-colliding keywords.
+  const commandNameIssues = [
+    { id: "pm-u", title: "pm update doesn't accept --expected/--actual aliases that pm close accepts", type: "Issue" },
+    { id: "pm-c", title: "pm update change is not applied to nested items", type: "Issue" },
+  ].map((entry) => ({
+    ...entry,
+    status: "closed",
+    release: "1.2.0",
+    updated_at: "2026-05-28T09:00:00Z",
+  }));
+  const result = createChangelog({ items: commandNameIssues, version: "1.2.0", date: "2026-05-28" });
+  assert.match(result.markdown, /### Fixed/);
+  assert.match(result.markdown, /- pm update doesn't accept/);
+  assert.match(result.markdown, /- pm update change is not applied/);
+  assert.doesNotMatch(result.markdown, /### Changed/);
+});
+
+test("createChangelog: explicit refactor/change tag wins over the Issue→Fixed default", () => {
+  // The bug-like-type default must not swallow a STRONG (tag) Changed signal —
+  // an Issue the author deliberately tagged `refactor` should land in Changed,
+  // mirroring how an explicit `feature` tag routes to Added.
+  const taggedRefactorIssue = [
+    {
+      id: "pm-refactor",
+      title: "Consolidate the duplicated parser helpers",
+      status: "closed",
+      type: "Issue",
+      tags: ["refactor"],
+      release: "1.2.0",
+      updated_at: "2026-05-28T09:00:00Z",
+    },
+  ];
+  const result = createChangelog({ items: taggedRefactorIssue, version: "1.2.0", date: "2026-05-28" });
+  assert.match(result.markdown, /### Changed\n\n- Consolidate the duplicated parser helpers/);
+  assert.doesNotMatch(result.markdown, /### Fixed/);
+});
+
+test("createChangelog: non-string item type does not throw and falls back gracefully", () => {
+  // Defensive: malformed trackers can carry a non-string `type`. The classifier
+  // must not call .toLowerCase() on it. With no usable type/keyword signal the
+  // item lands in Other rather than crashing.
+  const malformed = [
+    {
+      id: "pm-weird",
+      title: "Mysterious entry with no keyword",
+      status: "closed",
+      type: 42 as unknown as string,
+      release: "1.2.0",
+      updated_at: "2026-05-28T09:00:00Z",
+    },
+  ];
+  const result = createChangelog({ items: malformed, version: "1.2.0", date: "2026-05-28" });
+  assert.match(result.markdown, /### Other\n\n- Mysterious entry/);
+});
+
+test("createChangelog: non-bug types still classify as Changed via update/refactor keywords", () => {
+  // The reorder must NOT swallow genuine Changed work on non-bug types — e.g. a
+  // chore titled "update dependency …" should remain under Changed.
+  const choreUpdate = [
+    {
+      id: "pm-dep",
+      title: "update dependency typescript to 5.6",
+      status: "closed",
+      type: "chore",
+      release: "1.2.0",
+      updated_at: "2026-05-28T09:00:00Z",
+    },
+  ];
+  const result = createChangelog({ items: choreUpdate, version: "1.2.0", date: "2026-05-28" });
+  assert.match(result.markdown, /### Changed\n\n- update dependency typescript/);
+});
+
 test("createChangelog: explicit feature tag still wins over Issue→Fixed default", () => {
   // The title intentionally avoids the keyword "add" so the only signal that
   // routes this to "Added" is the explicit `feature` tag — that's the
