@@ -1,0 +1,12 @@
+id: pmc-7rd8
+title: Hands-on functional test pass 2026-05-29 (real data)
+description: Hands-on functional test of pm-changelog with real data
+type: Feature
+status: closed
+priority: 1
+tags: []
+created_at: "2026-05-29T15:38:25.713Z"
+updated_at: "2026-05-29T15:39:25.024Z"
+author: codex
+close_reason: "Functional test pass complete: no functional bugs found."
+body: ""

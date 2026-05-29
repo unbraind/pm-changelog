@@ -1,0 +1,16 @@
+id: pmc-e3sy
+title: Committed CHANGELOG.md stale vs current history (orphaned release tags)
+description: "Symptom: npm run changelog:full regenerates CHANGELOG.md with a large diff (~133 line deletion) on a fresh clone. Repro: clone, npm ci, npm run build, npm run changelog:full, git diff CHANGELOG.md. Observed: many historical version sections (2026.05.24-*, 2026.05.25, 2026.05.26) collapse into a single 0.1.0 section. Expected: regen matches committed file. Root cause: 27 v* tags exist but only ~5 are reachable from main (git tag --list v* --merged HEAD); older release tags were orphaned by rebase/squash, so they are correctly excluded by the --merged HEAD semantics. NOT a pm-changelog code bug -- the --merged HEAD filter is intentional and correct. Fix/disposition: regenerate and commit CHANGELOG.md so it reflects the current reachable tag history; or restore tag reachability. No source change needed."
+type: Issue
+status: closed
+priority: 3
+tags: []
+created_at: "2026-05-29T15:38:40.777Z"
+updated_at: "2026-05-29T15:39:10.372Z"
+author: codex
+parent: pmc-7rd8
+resolution: Won't fix (not a code bug); regenerate+commit CHANGELOG to refresh
+expected_result: "changelog:full regen matches committed CHANGELOG.md"
+actual_result: regen differs because older release tags are orphaned/unreachable from HEAD; --merged HEAD correctly excludes them
+close_reason: Documented as non-code observation; --merged HEAD is intentional. No source fix required.
+body: ""
