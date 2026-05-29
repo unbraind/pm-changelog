@@ -1,0 +1,36 @@
+id: pmc-874d
+title: Classifier misroutes Issues with CLI command-name titles (update/change) to Changed not Fixed
+description: "The keyword classifier scans [type, tags, title] and matches the Changed needle 'update'/'updated' against CLI command names like 'pm update' in Issue titles. pm-cli's Issue 'pm update doesn't accept --expected/--actual aliases that pm close accepts' was filed under Changed solely because its title contains the command word 'update'. Same class of defect as #19 (CLI flag tokens leaking into Added). Fix: let a bug-like item TYPE (issue/bug/bugfix/defect) win over the weak Changed keywords (update/change/refactor/improve), keeping explicit security/removed/fix/feature signals ahead; non-bug types (task/chore) still route 'update dependency ...' to Changed."
+type: Issue
+status: closed
+priority: 2
+tags[2]: bug,classifier
+created_at: "2026-05-29T00:25:48.699Z"
+updated_at: "2026-05-29T00:26:00.823Z"
+deadline: "2026-05-30T00:00:00.000Z"
+author: maintainer-agent
+estimated_minutes: 30
+acceptance_criteria: "Issue/Bug/Defect titled with command words update/change route to Fixed; chore 'update dependency' stays Changed; explicit feature tag still wins; regression tests added; dist rebuilt; changelog:check passes"
+reviewer: steve
+severity: medium
+resolution: "Reordered classifyItem: bug-like item type (issue/bug/bugfix/defect) now defaults to Fixed BEFORE the weak change/update/refactor/improve keyword bucket, while explicit security/removed/fix/feature signals stay ahead. Added regression tests for command-name keywords in Issue titles and for non-bug 'update dependency' chores staying Changed."
+expected_result: Issues titled after CLI commands (pm update ...) classify as Fixed; chores 'update dependency' stay Changed; explicit feature tag still wins
+actual_result: All 42 tests pass; typecheck + dist rebuilt
+fixed_version: 2026.5.29-1
+component: generator
+dependencies[1]{id,kind,created_at,author,source_kind}:
+  pmc-2lzr,related,"2026-05-29T00:25:48.699Z",maintainer-agent,null
+comments[1]{created_at,author,text}:
+  "2026-05-29T00:25:48.699Z",maintainer-agent,Discovered while shipping pm-cli pm-1lws which was misfiled under Changed
+notes[1]{created_at,author,text}:
+  "2026-05-29T00:25:48.699Z",maintainer-agent,Same command-name-collision class as the #19 CLI-flag-token fix
+learnings[1]{created_at,author,text}:
+  "2026-05-29T00:25:48.699Z",maintainer-agent,Item TYPE is a stronger classification signal than ambiguous title keywords that collide with command/flag names
+files[1]{path,scope,note}:
+  src/generator.ts,project,classifier reorder
+tests[1]{command,path,scope,timeout_seconds,pm_context_mode,env_set,env_clear,shared_host_safe,assert_stdout_contains,assert_stdout_regex,assert_stderr_contains,assert_stderr_regex,assert_stdout_min_lines,assert_json_field_equals,assert_json_field_gte,note}:
+  npm test,null,project,240,null,null,null,null,null,null,null,null,null,null,null,null
+docs[1]{path,scope,note}:
+  src/generator.ts,project,classifyItem ordering
+close_reason: Classifier reordered so bug-like item types win over command-name-colliding Changed keywords; regression tests added; verified 42 tests green
+body: "Reorder classifyItem so BUG_LIKE_ITEM_TYPES default-Fixed runs before the weak change/update/refactor/improve keyword bucket, after the explicit security/removed/fix/feature checks."
