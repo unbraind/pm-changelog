@@ -6,7 +6,7 @@ status: open
 priority: 0
 tags[4]: install,pm-cli,sdk,upstream
 created_at: "2026-05-24T06:49:25.474Z"
-updated_at: "2026-05-29T22:33:41.568Z"
+updated_at: "2026-05-29T22:44:25.654Z"
 deadline: "2026-05-31T00:00:00.000Z"
 assignee: steve
 author: steve
@@ -28,9 +28,10 @@ dependencies[1]{id,kind,created_at,author,source_kind}:
   pmc-9tmr,related,"2026-05-24T06:47:22.697Z",steve,null
 comments[1]{created_at,author,text}:
   "2026-05-24T06:49:25.474Z",steve,pm-cli#53 was closed without resolution on 2026-05-23 and reopened with fresh evidence on 2026-05-24.
-notes[2]{created_at,author,text}:
+notes[3]{created_at,author,text}:
   "2026-05-24T06:49:25.474Z",steve,Upstream issue. No fix in pm-changelog without violating official SDK usage requirement.
   "2026-05-29T22:33:41.568Z",codex,"2026-05-29 release-readiness refresh: pm-changelog package dependency metadata is current for @unbrained/pm-cli >=2026.5.29 / ^2026.5.29. Verified npm run check, npm test, npm run pack:dry-run, npm run audit:prod, npm run changelog:full, npm run changelog:check, npm run release:check, and pm validate. This does not close the upstream pm-cli install-resolution issue tracked here; it records current package-side readiness evidence. Logs: /tmp/pm-changelog-*.log and /tmp/pm-active-*.tsv."
+  "2026-05-29T22:44:25.654Z",codex,"2026-05-29 CI follow-up: the GitHub runner had a fuller remote tag set than the local checkout, so npm run changelog:check correctly failed on main after the release-readiness push. Fetched origin tags with git fetch --force --tags, regenerated the full-history CHANGELOG.md with npm run changelog:full, and re-ran npm run changelog:check plus npm run release:check successfully before committing the generated correction."
 learnings[1]{created_at,author,text}:
   "2026-05-24T06:49:25.474Z",steve,pm does not install npm dependencies when extracting an extension from npm. Local path installs include node_modules and work correctly.
 files[1]{path,scope,note}:
