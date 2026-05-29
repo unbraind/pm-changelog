@@ -461,33 +461,39 @@ function classifyItem(item: PmItem): Category {
   // Tags and type still contribute their full token, so an explicit
   // `feature`/`added` tag still wins regardless of title content.
   const sanitizedTitle = (item.title ?? "").replace(/(?<![\w-])-{1,2}[a-z0-9][\w-]*(?:=\S*)?/gi, " ");
-  const values = [
-    item.type,
-    ...(item.tags ?? []),
-    sanitizedTitle,
-  ]
-    .filter(Boolean)
-    .join(" ")
-    .toLowerCase();
+  // Two signal tiers:
+  //  - STRONG: item type + tags. These are author-controlled, deliberate
+  //    classification metadata, so an explicit `refactor` tag (or a bug-like
+  //    type) is trusted fully.
+  //  - WEAK: the (flag-stripped) title. Descriptive prose collides with CLI
+  //    command names — "pm update doesn't accept …" is a defect in the `pm
+  //    update` command, not a "Changed" entry — so the title is only consulted
+  //    as a fallback, after the bug-like type default.
+  const strongValues = [item.type, ...(item.tags ?? [])].filter(Boolean).join(" ").toLowerCase();
+  const titleValue = sanitizedTitle.toLowerCase();
+  const allValues = `${strongValues} ${titleValue}`.trim();
+  const itemType = typeof item.type === "string" ? item.type.toLowerCase() : "";
 
-  if (hasAny(values, ["security", "cve", "vulnerability"])) return "Security";
-  if (hasAny(values, ["deprecated", "deprecation"])) return "Deprecated";
-  if (hasAny(values, ["removed", "remove", "deleted", "delete"])) return "Removed";
-  if (hasAny(values, ["fix", "fixed", "bug", "bugfix", "hotfix", "regression"])) return "Fixed";
-  if (hasAny(values, ["feature", "feat", "added", "add", "new"])) return "Added";
-  // Default by item type BEFORE the weak Changed keywords: Issue / Bug / Bugfix
-  // / Defect → Fixed (most items of these types are bug reports). The "Changed"
-  // needles below (especially "update"/"updated") collide with CLI command
-  // names — an Issue titled "pm update doesn't accept …" describes a defect in
-  // the `pm update` command, not a changelog "Changed" entry. Letting the
-  // bug-like item *type* win over those weak keywords keeps such reports in
-  // Fixed, while non-bug types (task / chore) still fall through to Changed for
-  // genuine "update dependency …" / "refactor …" / "improve …" work. Explicit
-  // security/removed/fix/feature signals above still take precedence.
-  if (BUG_LIKE_ITEM_TYPES.has((item.type ?? "").toLowerCase())) {
+  const CHANGED_NEEDLES = ["change", "changed", "refactor", "update", "updated", "improve"];
+
+  if (hasAny(allValues, ["security", "cve", "vulnerability"])) return "Security";
+  if (hasAny(allValues, ["deprecated", "deprecation"])) return "Deprecated";
+  if (hasAny(allValues, ["removed", "remove", "deleted", "delete"])) return "Removed";
+  if (hasAny(allValues, ["fix", "fixed", "bug", "bugfix", "hotfix", "regression"])) return "Fixed";
+  if (hasAny(allValues, ["feature", "feat", "added", "add", "new"])) return "Added";
+  // An explicit Changed signal in the STRONG tier (type/tags) wins over the
+  // bug-like-type default, mirroring how an explicit `feature` tag routes to
+  // Added — so `Issue` + `tags: ["refactor"]` is still Changed.
+  if (hasAny(strongValues, CHANGED_NEEDLES)) return "Changed";
+  // Default by item type: Issue / Bug / Bugfix / Defect → Fixed (most items of
+  // these types are bug reports). This runs BEFORE the weak title-only Changed
+  // check so command-name keywords ("update"/"change") in a defect title don't
+  // misroute it. Non-bug types (task / chore) fall through to the title check
+  // for genuine "update dependency …" / "improve …" work.
+  if (BUG_LIKE_ITEM_TYPES.has(itemType)) {
     return "Fixed";
   }
-  if (hasAny(values, ["change", "changed", "refactor", "update", "updated", "improve"])) {
+  if (hasAny(titleValue, CHANGED_NEEDLES)) {
     return "Changed";
   }
   return "Other";
