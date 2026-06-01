@@ -1220,7 +1220,11 @@ test("pm package install activates changelog command", () => {
         encoding: "utf-8",
       }
     ),
-    /Command \\"changelog generate\\" failed/
+    // The handler throws a PmCliError carrying a numeric exitCode, so the
+    // runtime propagates it cleanly (a single invocation) as a command_failed
+    // error whose detail is our message — rather than the legacy
+    // extension_command_handler_failed fallback that re-invoked the handler.
+    /Changelog is out of date/
   );
 });
 

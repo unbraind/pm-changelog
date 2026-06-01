@@ -1,4 +1,4 @@
-import { defineExtension, listAllFrontMatter } from "@unbrained/pm-cli/sdk";
+import { defineExtension, listAllFrontMatter, EXIT_CODE, PmCliError } from "@unbrained/pm-cli/sdk";
 
 import { createChangelog, mergeChangelog, writeChangelog } from "./generator.js";
 import { resolveReleaseContext, resolveReleaseTagWindows } from "./release-context.js";
@@ -50,11 +50,15 @@ export default defineExtension({
         const groupByOption = stringOption(ctx.options, "group-by", "groupBy") ?? "version";
         const modeOption = (ctx.options["mode"] as string | undefined) ?? "replace";
 
+        // Throw (with a numeric exitCode) rather than returning { error }: the
+        // runtime treats a returned object as a successful run (exit 0), so a
+        // returned error silently passed validation failures. A PmCliError
+        // carries its exitCode so the handler exits non-zero and runs once.
         if (groupByOption !== "version" && groupByOption !== "release" && groupByOption !== "milestone") {
-          return { error: "--group-by must be 'version', 'release', or 'milestone'" };
+          throw new PmCliError("--group-by must be 'version', 'release', or 'milestone'", EXIT_CODE.USAGE);
         }
         if (modeOption !== "replace" && modeOption !== "prepend") {
-          return { error: "--mode must be 'replace' or 'prepend'" };
+          throw new PmCliError("--mode must be 'replace' or 'prepend'", EXIT_CODE.USAGE);
         }
         const groupBy: ChangelogGroupBy = groupByOption;
         const mode: "replace" | "prepend" = modeOption;
@@ -126,7 +130,7 @@ export default defineExtension({
           check: Boolean(ctx.options["check"]),
         });
         if (result.changed && Boolean(ctx.options["check"])) {
-          throw new Error(`Changelog is out of date: ${result.output}`);
+          throw new PmCliError(`Changelog is out of date: ${result.output}`, EXIT_CODE.GENERIC_FAILURE);
         }
         return {
           file: result.output,
