@@ -1,0 +1,16 @@
+id: pmc-qw3g
+title: "changelog generate returned {error} (exit 0) on bad flags; plain throw on --check"
+description: "Extension returned { error } for invalid --group-by/--mode (runtime treats as success → exit 0) and threw a plain Error on --check. Now throws PmCliError with EXIT_CODE from the SDK (pm-changelog resolves @unbrained/pm-cli at runtime). Bad flags exit 2, out-of-date exits 1 via clean command_failed envelope; single invocation."
+type: Issue
+status: closed
+priority: 2
+tags: []
+created_at: "2026-06-01T10:28:31.021Z"
+updated_at: "2026-06-01T10:28:41.774Z"
+author: codex
+parent: pmc-0jm1
+resolution: "Replaced return{error}/plain-throw with PmCliError carrying EXIT_CODE"
+expected_result: Bad flags exit 2; --check out-of-date exits 1 with single invocation
+actual_result: "Verified: exit 2 / exit 1, 44 tests pass"
+close_reason: "Fixed via PmCliError + EXIT_CODE from SDK; verified bad flags exit 2, --check exits 1, 44 tests pass."
+body: ""
