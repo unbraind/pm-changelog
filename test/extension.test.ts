@@ -70,3 +70,20 @@ test("changelog exporter rejects unsupported formats", async () => {
     /--format must be 'md' or 'json'/,
   );
 });
+
+test("changelog exporter registers flags on legacy two-argument pm-cli runtimes", () => {
+  let registeredFlags: Array<{ long?: string }> | undefined;
+  const registerExporter = function (_name: string, _handler: unknown) {};
+  extension.activate({
+    registerCommand() {},
+    registerExporter,
+    registerFlags(_command: string, flags: Array<{ long?: string }>) {
+      registeredFlags = flags;
+    },
+  } as unknown as Parameters<typeof extension.activate>[0]);
+
+  assert.ok(
+    registeredFlags?.some((flag) => flag.long === "--format"),
+    "legacy pm-cli runtimes should still surface changelog export flags"
+  );
+});
