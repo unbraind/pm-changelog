@@ -12,6 +12,7 @@
   },
   "capabilities": [
     "commands",
-    "schema"
+    "schema",
+    "importers"
   ]
 }
