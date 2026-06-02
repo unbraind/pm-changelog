@@ -1,0 +1,19 @@
+id: pmc-55cp
+title: Fix changelog export format validation and metadata
+description: "Codex review on pm-cli PR #99 found two pm-changelog package defects in the managed 2026.6.2 extension: changelog export accepts unsupported --format values by falling through to markdown, and registerExporter lacks metadata for --format/--output/--since/etc. Duplicate check: pm search \"changelog export format registerExporter metadata\" found no open direct duplicate."
+type: Issue
+status: closed
+priority: 1
+tags[4]: agent-ux,contracts,exporter,extension
+created_at: "2026-06-02T16:34:13.061Z"
+updated_at: "2026-06-02T16:34:33.870Z"
+author: codex-gpt5
+comments[1]{created_at,author,text}:
+  "2026-06-02T16:34:33.411Z",codex-gpt5,"Implementation evidence: changelog export now rejects unsupported --format values and registers metadata for export flags/examples. npm test passed locally: 45 tests."
+files[2]{path,scope,note}:
+  src/extension.ts,project,Validate export format and register exporter metadata.
+  test/extension.test.ts,project,Regression coverage for exporter metadata and unsupported format rejection.
+tests[1]{command,path,scope,timeout_seconds,pm_context_mode,env_set,env_clear,shared_host_safe,assert_stdout_contains,assert_stdout_regex,assert_stderr_contains,assert_stderr_regex,assert_stdout_min_lines,assert_json_field_equals,assert_json_field_gte,note}:
+  PM_PATH=/tmp/pm-changelog-pmc-55cp PM_GLOBAL_PATH=/tmp/pm-changelog-pmc-55cp-global npm test,null,project,120,null,null,null,null,null,null,null,null,null,null,null,Package build and test suite.
+close_reason: Fixed exporter format validation and metadata; verified with npm test (45 tests).
+body: ""

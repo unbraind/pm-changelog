@@ -141,8 +141,12 @@ export default defineExtension({
         // --release-notes concise mode. Does NOT write CHANGELOG.md unless --output
         // is given, so it is side-effect free by default.
         // -----------------------------------------------------------------------
-        api.registerExporter("changelog", async (ctx) => {
+        const registerExporterWithMetadata = api.registerExporter;
+        registerExporterWithMetadata("changelog", async (ctx) => {
             const format = (stringOption(ctx.options, "format", "format") ?? "md").toLowerCase();
+            if (format !== "md" && format !== "json") {
+                throw new PmCliError("--format must be 'md' or 'json'", EXIT_CODE.USAGE);
+            }
             const groupByOption = stringOption(ctx.options, "group-by", "groupBy") ?? "version";
             if (groupByOption !== "version" && groupByOption !== "release" && groupByOption !== "milestone") {
                 throw new PmCliError("--group-by must be 'version', 'release', or 'milestone'", EXIT_CODE.USAGE);
@@ -195,6 +199,33 @@ export default defineExtension({
                 return { file: outputPath, format: "markdown", item_count: generated.itemCount };
             }
             return { changelog: generated.markdown, format: "markdown", item_count: generated.itemCount };
+        }, {
+            description: "Export changelog or release notes through the pm import/export pipeline.",
+            intent: "export changelog release notes as markdown or json",
+            examples: [
+                "pm changelog export",
+                "pm changelog export --format json",
+                "pm changelog export --release-notes --since-previous-tag --until-release-tag",
+                "pm changelog export --output RELEASE_NOTES.md --release-version-from-package",
+            ],
+            flags: [
+                { long: "--format", value_name: "md|json", description: "Export format (default: md)" },
+                { long: "--output", value_name: "file", description: "Write output to a file instead of stdout" },
+                { long: "--release-notes", description: "Use a concise release-notes title and output shape" },
+                { long: "--title", value_name: "text", description: "Output title (default: Changelog or Release Notes)" },
+                { long: "--release-version", value_name: "version", description: "Release/version heading (default: Unreleased)" },
+                { long: "--release-version-from-package", description: "Read release/version heading from nearest package.json" },
+                { long: "--date", value_name: "date", description: "Release date (default: resolved tag date when available, otherwise today)" },
+                { long: "--since", value_name: "date", description: "Include items changed on or after this date" },
+                { long: "--since-previous-tag", description: "Derive --since from the previous git tag" },
+                { long: "--until", value_name: "date", description: "Include items changed on or before this date" },
+                { long: "--until-release-tag", description: "Derive --until from the current release tag when it exists" },
+                { long: "--status", value_name: "list", description: "Comma-separated statuses (default: closed)" },
+                { long: "--group-by", value_name: "mode", description: "version, release, or milestone (default: version)" },
+                { long: "--include-empty", description: "Emit an empty release section when no items match" },
+                { long: "--include-links", description: "Include item URLs in generated entries (default: false)" },
+                { long: "--item-url-base", value_name: "url", description: "Make item IDs clickable links to .toon files under the base URL" },
+            ],
         });
     },
 });

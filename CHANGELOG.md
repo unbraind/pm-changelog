@@ -1,5 +1,11 @@
 # Changelog
 
+## Unreleased
+
+### Fixed
+
+- Fix changelog export format validation and metadata ([pmc-55cp](https://github.com/unbraind/pm-changelog/blob/main/.agents/pm/issues/pmc-55cp.toon))
+
 ## 2026.6.1 - 2026-06-01
 
 ### Fixed
