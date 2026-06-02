@@ -91,7 +91,7 @@
     ]
   },
   "peerDependencies": {
-    "@unbrained/pm-cli": ">=2026.5.29"
+    "@unbrained/pm-cli": ">=2026.5.31"
   },
   "devDependencies": {
     "@types/node": "^25.9.1",
@@ -109,8 +109,5 @@
   "engines": {
     "node": ">=20"
   },
-  "license": "MIT",
-  "dependencies": {
-    "@unbrained/pm-cli": ">=2026.5.29"
-  }
+  "license": "MIT"
 }
