@@ -1,5 +1,11 @@
 # Changelog
 
+## Unreleased
+
+### Fixed
+
+- Deduplicate label grouping tags in changelog sections ([pmc-an10](https://github.com/unbraind/pm-changelog/blob/main/.agents/pm/issues/pmc-an10.toon))
+
 ## 2026.6.3 - 2026-06-03
 
 ### Added
