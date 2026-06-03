@@ -5,7 +5,7 @@ import { buildChangelogDocument, createChangelog, mergeChangelog, writeChangelog
 import { resolveReleaseContext, resolveReleaseTagWindows } from "./release-context.js";
 export default defineExtension({
     name: "pm-changelog",
-    version: "2026.6.2",
+    version: "2026.6.3",
     activate(api) {
         api.registerCommand({
             name: "changelog generate",
