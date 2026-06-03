@@ -1,7 +1,7 @@
 import { writeFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { defineExtension, listAllFrontMatter, EXIT_CODE, PmCliError } from "@unbrained/pm-cli/sdk";
-import { createChangelog, mergeChangelog, writeChangelog } from "./generator.js";
+import { buildChangelogDocument, createChangelog, mergeChangelog, writeChangelog } from "./generator.js";
 import { resolveReleaseContext, resolveReleaseTagWindows } from "./release-context.js";
 export default defineExtension({
     name: "pm-changelog",
@@ -36,6 +36,12 @@ export default defineExtension({
                 { long: "--release-tag-pattern", value_name: "glob", description: "Git tag glob for --all-release-tags (default: v*)" },
                 { long: "--status", value_name: "list", description: "Comma-separated statuses (default: closed)" },
                 { long: "--group-by", value_name: "mode", description: "version, release, or milestone (default: version)" },
+                { long: "--section-by", value_name: "mode", description: "Within-release grouping: category, type, status, or label (default: category)" },
+                { long: "--conventional", description: "Use Conventional-Commits headings (Features/Bug Fixes/...) for category grouping" },
+                { long: "--contributors", description: "Append a Contributors list per release from item assignee/author" },
+                { long: "--limit", value_name: "n", description: "Keep only the most recent N release sections (history modes only)" },
+                { long: "--since-version", value_name: "version", description: "Keep only releases at or newer than this version (history modes only)" },
+                { long: "--changelog-json", description: "Return the full structured changelog document (releases->sections->items)" },
                 { long: "--mode", value_name: "mode", description: "replace or prepend existing changelog (default: replace)" },
                 { long: "--include-empty", description: "Emit an empty release section when no items match" },
                 { long: "--include-links", description: "Include item URLs in generated entries (default: false)" },
@@ -57,7 +63,13 @@ export default defineExtension({
                 if (modeOption !== "replace" && modeOption !== "prepend") {
                     throw new PmCliError("--mode must be 'replace' or 'prepend'", EXIT_CODE.USAGE);
                 }
+                const sectionByOption = stringOption(ctx.options, "section-by", "sectionBy") ?? "category";
+                if (sectionByOption !== "category" && sectionByOption !== "type" && sectionByOption !== "status" && sectionByOption !== "label") {
+                    throw new PmCliError("--section-by must be 'category', 'type', 'status', or 'label'", EXIT_CODE.USAGE);
+                }
+                const limitValue = parseLimitOption(ctx.options);
                 const groupBy = groupByOption;
+                const sectionBy = sectionByOption;
                 const mode = modeOption;
                 const statuses = ctx.options["status"]
                     ?.split(",")
@@ -99,10 +111,20 @@ export default defineExtension({
                     releaseWindows,
                     includeStatuses: statuses,
                     groupBy,
+                    sectionBy,
+                    conventional: booleanOption(ctx.options, "conventional", "conventional"),
+                    contributors: booleanOption(ctx.options, "contributors", "contributors"),
+                    limit: limitValue,
+                    sinceVersion: stringOption(ctx.options, "since-version", "sinceVersion"),
                     includeEmpty: booleanOption(ctx.options, "include-empty", "includeEmpty"),
                     includeLinks: booleanOption(ctx.options, "include-links", "includeLinks"),
                     itemUrlBase: stringOption(ctx.options, "item-url-base", "itemUrlBase"),
                 };
+                // OPT-IN (`--changelog-json`): structured document; never writes a file.
+                if (booleanOption(ctx.options, "changelog-json", "changelogJson")) {
+                    const document = buildChangelogDocument(generationOptions);
+                    return { document, format: "json", item_count: document.item_count };
+                }
                 const generated = createChangelog(generationOptions);
                 if (stdout) {
                     const merged = mode === "prepend"
@@ -239,5 +261,15 @@ function stringOption(options, kebabKey, camelKey) {
 }
 function booleanOption(options, kebabKey, camelKey) {
     return Boolean(options[kebabKey] ?? options[camelKey]);
+}
+function parseLimitOption(options) {
+    const raw = options["limit"];
+    if (raw === undefined || raw === null || raw === "")
+        return undefined;
+    const parsed = typeof raw === "number" ? raw : Number.parseInt(String(raw), 10);
+    if (!Number.isInteger(parsed) || parsed < 1) {
+        throw new PmCliError("--limit must be a positive integer", EXIT_CODE.USAGE);
+    }
+    return parsed;
 }
 //# sourceMappingURL=extension.js.map

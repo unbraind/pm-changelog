@@ -1,0 +1,13 @@
+id: pmc-xtwa
+title: Add --limit and --since-version release windowing
+description: Opt-in; only restricts release-window sections.
+type: Task
+status: closed
+priority: 2
+tags: []
+created_at: "2026-06-03T05:47:42.350Z"
+updated_at: "2026-06-03T05:48:27.889Z"
+author: codex
+parent: pmc-emx6
+close_reason: Shipped --limit/--since-version; window sections only; tested
+body: ""
