@@ -1,4 +1,5 @@
 export {
+  buildChangelogDocument,
   createChangelog,
   generateChangelog,
   mergeChangelog,
@@ -8,9 +9,14 @@ export {
 } from "./generator.js";
 export { resolveReleaseContext, resolveReleaseTagWindows } from "./release-context.js";
 export type {
+  ChangelogDocument,
+  ChangelogDocumentItem,
+  ChangelogDocumentRelease,
+  ChangelogDocumentSection,
   ChangelogGroupBy,
   ChangelogReleaseWindow,
   ChangelogSection,
+  ChangelogSectionBy,
   ChangelogMergeAction,
   ChangelogOutputMode,
   GeneratedChangelog,

@@ -1,0 +1,13 @@
+id: pmc-91hn
+title: Add --conventional Conventional-Commits heading mapping
+description: Opt-in heading remap; item bucketing/order unchanged.
+type: Task
+status: closed
+priority: 2
+tags: []
+created_at: "2026-06-03T05:47:41.807Z"
+updated_at: "2026-06-03T05:48:27.294Z"
+author: codex
+parent: pmc-emx6
+close_reason: Shipped --conventional heading remap; item bullets byte-identical; tested
+body: ""
