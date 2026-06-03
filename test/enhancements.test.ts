@@ -124,6 +124,37 @@ test("--section-by label deduplicates repeated tags per item", () => {
   assert.equal(md.match(/- Avoid duplicate label output/g)?.length, 1);
 });
 
+test("--section-by label ignores malformed tag values", () => {
+  const md = createChangelog({
+    items: [
+      {
+        id: "pm-malformed",
+        title: "Handle malformed labels",
+        status: "closed",
+        type: "Task",
+        release: "1.2.0",
+        tags: ["docs", 42, null, " docs "] as unknown as string[],
+        updated_at: "2026-05-28T06:00:00Z",
+      },
+      {
+        id: "pm-no-array",
+        title: "Handle non-array labels",
+        status: "closed",
+        type: "Task",
+        release: "1.2.0",
+        tags: "docs" as unknown as string[],
+        updated_at: "2026-05-28T05:00:00Z",
+      },
+    ],
+    version: "1.2.0",
+    date: "2026-05-28",
+    sectionBy: "label",
+  }).markdown;
+
+  assert.equal(md.match(/- Handle malformed labels/g)?.length, 1);
+  assert.match(md, /### Unlabeled\n\n- Handle non-array labels/);
+});
+
 // ---------------------------------------------------------------------------
 // --contributors
 // ---------------------------------------------------------------------------
