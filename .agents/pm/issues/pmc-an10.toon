@@ -1,0 +1,20 @@
+id: pmc-an10
+title: Deduplicate label grouping tags in changelog sections
+description: PR #105 review in pm-cli found that pm-changelog --section-by label can render the same item multiple times under one tag heading when item.tags contains duplicate labels. Fix upstream in pm-changelog rather than vendored pm-cli package files.
+type: Issue
+status: closed
+priority: 2
+tags[3]: label,review-follow-up,section-by
+created_at: "2026-06-03T11:44:17.948Z"
+updated_at: "2026-06-03T12:41:24.993Z"
+author: codex-pm-changelog-fix
+comments[2]{created_at,author,text}:
+  "2026-06-03T11:45:14.316Z",codex-pm-changelog-fix,"Evidence: Verified Gemini review finding from pm-cli PR #105 in upstream pm-changelog. groupByField(..., sectionBy=label) iterated raw trimmed tags, so duplicate tags on one item could render duplicate bullets under the same label heading. Fixed by deduplicating normalized tags per item with Set and added regression coverage. Verification passed: npm test (64 tests)."
+  "2026-06-03T12:41:24.993Z",codex-active-sdk-cli,"Review follow-up: Gemini flagged malformed label inputs. Added defensive label normalization so --section-by label ignores non-string tags and treats non-array tag fields as Unlabeled, with regression coverage. Verification: npm test; npm run changelog:full && npm run changelog:check."
+files[2]{path,scope,note}:
+  src/generator.ts,project,Deduplicate label grouping tags per item
+  test/enhancements.test.ts,project,Regression coverage for duplicate labels under section-by label
+tests[1]{command,path,scope,timeout_seconds,pm_context_mode,env_set,env_clear,shared_host_safe,assert_stdout_contains,assert_stdout_regex,assert_stderr_contains,assert_stderr_regex,assert_stdout_min_lines,assert_json_field_equals,assert_json_field_gte,note}:
+  PM_PATH=/tmp/pm-changelog-test PM_GLOBAL_PATH=/tmp/pm-changelog-test-global npm test,null,project,180,null,null,null,null,null,null,null,null,null,null,null,null
+close_reason: Fixed duplicate label grouping with regression coverage; npm test passed.
+body: ""
