@@ -602,7 +602,7 @@ function groupByField(
     } else if (sectionBy === "status") {
       push(titleCase(typeof item.status === "string" && item.status.trim() ? item.status.trim() : "Unknown"), item);
     } else {
-      const tags = (item.tags ?? []).map((tag) => tag.trim()).filter(Boolean);
+      const tags = [...new Set((item.tags ?? []).map((tag) => tag.trim()).filter(Boolean))];
       if (tags.length === 0) {
         push("Unlabeled", item);
       } else {

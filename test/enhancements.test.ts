@@ -103,6 +103,27 @@ test("--section-by label groups by tag; missing tags fall into Unlabeled", () =>
   assert.match(md, /### Unlabeled\n\n- Untagged work/);
 });
 
+test("--section-by label deduplicates repeated tags per item", () => {
+  const md = createChangelog({
+    items: [
+      {
+        id: "pm-dup",
+        title: "Avoid duplicate label output",
+        status: "closed",
+        type: "Task",
+        release: "1.2.0",
+        tags: ["docs", "docs", " docs "],
+        updated_at: "2026-05-28T06:00:00Z",
+      },
+    ],
+    version: "1.2.0",
+    date: "2026-05-28",
+    sectionBy: "label",
+  }).markdown;
+
+  assert.equal(md.match(/- Avoid duplicate label output/g)?.length, 1);
+});
+
 // ---------------------------------------------------------------------------
 // --contributors
 // ---------------------------------------------------------------------------
