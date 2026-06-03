@@ -1,0 +1,12 @@
+id: pmc-emx6
+title: Opt-in changelog enhancements
+description: Strictly additive opt-in flags for richer changelogs without changing default output.
+type: Feature
+status: closed
+priority: 1
+tags: []
+created_at: "2026-06-03T05:47:28.041Z"
+updated_at: "2026-06-03T05:48:28.876Z"
+author: codex
+close_reason: "All 5 enhancements shipped opt-in; 63 tests green; release:check green"
+body: ""
