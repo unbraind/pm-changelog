@@ -13,6 +13,7 @@
 
 ### Fixed
 
+- Deduplicate label grouping tags in changelog sections ([pmc-an10](https://github.com/unbraind/pm-changelog/blob/main/.agents/pm/issues/pmc-an10.toon))
 - Zero-regression guarantee for pm-changelog enhancements ([pmc-1w1r](https://github.com/unbraind/pm-changelog/blob/main/.agents/pm/decisions/pmc-1w1r.toon))
 - Fix changelog export format validation and metadata ([pmc-55cp](https://github.com/unbraind/pm-changelog/blob/main/.agents/pm/issues/pmc-55cp.toon))
 
