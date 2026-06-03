@@ -1,0 +1,13 @@
+id: pmc-gl6b
+title: Add --changelog-json structured document output
+description: Opt-in; distinct from --json summary and export --format json.
+type: Task
+status: closed
+priority: 2
+tags: []
+created_at: "2026-06-03T05:47:42.573Z"
+updated_at: "2026-06-03T05:48:28.115Z"
+author: codex
+parent: pmc-emx6
+close_reason: Shipped --changelog-json structured doc; tested
+body: ""

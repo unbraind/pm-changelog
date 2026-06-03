@@ -4,6 +4,7 @@ import { resolve } from "node:path";
 import { stdin } from "node:process";
 
 import {
+  buildChangelogDocument,
   createChangelog,
   mergeChangelog,
   parsePmItemsJson,
@@ -11,7 +12,12 @@ import {
   writeChangelog,
 } from "./generator.js";
 import { resolveReleaseContext, resolveReleaseTagWindows } from "./release-context.js";
-import type { ChangelogGroupBy, ChangelogReleaseWindow, PmItem } from "./types.js";
+import type {
+  ChangelogGroupBy,
+  ChangelogReleaseWindow,
+  ChangelogSectionBy,
+  PmItem,
+} from "./types.js";
 
 interface CliOptions {
   output: string;
@@ -35,6 +41,12 @@ interface CliOptions {
   releaseTagPattern: string;
   statuses?: string[];
   groupBy: ChangelogGroupBy;
+  sectionBy: ChangelogSectionBy;
+  conventional: boolean;
+  contributors: boolean;
+  limit?: number;
+  sinceVersion?: string;
+  changelogJson: boolean;
   releaseWindows?: ChangelogReleaseWindow[];
   includeEmpty: boolean;
   includeLinks: boolean;
@@ -51,21 +63,18 @@ async function main(): Promise<void> {
   const items = await loadItems(options);
   const outputPath = resolve(options.output);
 
+  // OPT-IN (`--changelog-json`): emit the full structured changelog document to
+  // stdout and exit, leaving every other mode and CHANGELOG.md untouched.
+  if (options.changelogJson) {
+    const document = buildChangelogDocument(buildGenerationOptions(options, items));
+    process.stdout.write(JSON.stringify(document, null, 2) + "\n");
+    return;
+  }
+
   if (!options.stdout) {
     const result = writeChangelog({
-      items,
+      ...buildGenerationOptions(options, items),
       output: outputPath,
-      title: options.title,
-      version: options.version,
-      date: options.date,
-      since: options.since,
-      until: options.until,
-      releaseWindows: options.releaseWindows,
-      includeStatuses: options.statuses,
-      groupBy: options.groupBy,
-      includeEmpty: options.includeEmpty,
-      includeLinks: options.includeLinks,
-      itemUrlBase: options.itemUrlBase,
       mode: options.mode,
       check: options.check,
     });
@@ -85,20 +94,7 @@ async function main(): Promise<void> {
     return;
   }
 
-  const generated = createChangelog({
-    items,
-    title: options.title,
-    version: options.version,
-    date: options.date,
-    since: options.since,
-    until: options.until,
-    releaseWindows: options.releaseWindows,
-    includeStatuses: options.statuses,
-    groupBy: options.groupBy,
-    includeEmpty: options.includeEmpty,
-    includeLinks: options.includeLinks,
-    itemUrlBase: options.itemUrlBase,
-  });
+  const generated = createChangelog(buildGenerationOptions(options, items));
   const existing = options.mode === "prepend" && existsSync(outputPath)
     ? readFileSync(outputPath, "utf-8")
     : undefined;
@@ -136,6 +132,10 @@ function parseArgs(args: string[]): CliOptions {
     stdin: false,
     pmArgs: [],
     groupBy: "version",
+    sectionBy: "category",
+    conventional: false,
+    contributors: false,
+    changelogJson: false,
     includeEmpty: false,
     includeLinks: false,
     mode: "replace",
@@ -235,6 +235,24 @@ function parseArgs(args: string[]): CliOptions {
       case "--group-by":
         options.groupBy = parseGroupBy(requireValue(args, ++i, arg));
         break;
+      case "--section-by":
+        options.sectionBy = parseSectionBy(requireValue(args, ++i, arg));
+        break;
+      case "--conventional":
+        options.conventional = true;
+        break;
+      case "--contributors":
+        options.contributors = true;
+        break;
+      case "--changelog-json":
+        options.changelogJson = true;
+        break;
+      case "--limit":
+        options.limit = parseLimit(requireValue(args, ++i, arg));
+        break;
+      case "--since-version":
+        options.sinceVersion = requireValue(args, ++i, arg);
+        break;
       case "--mode":
         options.mode = parseMode(requireValue(args, ++i, arg));
         break;
@@ -327,9 +345,44 @@ function parseGroupBy(value: string): ChangelogGroupBy {
   throw new Error("--group-by must be 'version', 'release', or 'milestone'");
 }
 
+function parseSectionBy(value: string): ChangelogSectionBy {
+  if (value === "category" || value === "type" || value === "status" || value === "label") return value;
+  throw new Error("--section-by must be 'category', 'type', 'status', or 'label'");
+}
+
+function parseLimit(value: string): number {
+  const parsed = Number.parseInt(value, 10);
+  if (!Number.isInteger(parsed) || parsed < 1) {
+    throw new Error("--limit must be a positive integer");
+  }
+  return parsed;
+}
+
 function parseMode(value: string): "replace" | "prepend" {
   if (value === "replace" || value === "prepend") return value;
   throw new Error("--mode must be 'replace' or 'prepend'");
+}
+
+function buildGenerationOptions(options: CliOptions, items: PmItem[]) {
+  return {
+    items,
+    title: options.title,
+    version: options.version,
+    date: options.date,
+    since: options.since,
+    until: options.until,
+    releaseWindows: options.releaseWindows,
+    includeStatuses: options.statuses,
+    groupBy: options.groupBy,
+    sectionBy: options.sectionBy,
+    conventional: options.conventional,
+    contributors: options.contributors,
+    limit: options.limit,
+    sinceVersion: options.sinceVersion,
+    includeEmpty: options.includeEmpty,
+    includeLinks: options.includeLinks,
+    itemUrlBase: options.itemUrlBase,
+  };
 }
 
 function buildSummary(
@@ -433,6 +486,12 @@ Options:
                             Git tag glob for --all-release-tags (default: v*)
       --status <list>       Comma-separated statuses (default: closed)
       --group-by <mode>     version, release, or milestone (default: version)
+      --section-by <mode>   Within-release grouping: category, type, status, or label (default: category)
+      --conventional        Use Conventional-Commits headings (Features/Bug Fixes/...) for category grouping
+      --contributors        Append a Contributors list per release from item assignee/author
+      --limit <n>           Keep only the most recent N release sections (history modes only)
+      --since-version <v>   Keep only releases at or newer than version <v> (history modes only)
+      --changelog-json      Print the full structured changelog document (releases->sections->items) to stdout
       --mode <mode>         replace or prepend existing changelog (default: replace)
       --include-empty       Emit an empty release section when no items match
       --include-links       Include item URLs in generated entries (default: false)

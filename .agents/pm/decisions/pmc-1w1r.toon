@@ -1,0 +1,13 @@
+id: pmc-1w1r
+title: Zero-regression guarantee for pm-changelog enhancements
+description: "All new flags (--section-by, --conventional, --contributors, --limit, --since-version, --changelog-json) are strictly additive and opt-in. With no new flags, every existing invocation (replace, --check, --stdout, --github-step-summary, --json) is byte-identical to published 2026.6.2. Verified by diffing a pristine baseline build against the new build across 9 modes on a real pm fixture (all PASS), exit-code contract preserved (check clean=0/dirty=1), help text additive-only, and an e2e CLI regression test pinned to a recorded baseline string. Every sibling package's release workflow depends on this."
+type: Decision
+status: closed
+priority: 1
+tags: []
+created_at: "2026-06-03T05:47:51.483Z"
+updated_at: "2026-06-03T05:48:28.544Z"
+author: codex
+parent: pmc-emx6
+close_reason: Zero-regression proven across 9 modes; exit codes preserved; e2e baseline green
+body: ""
