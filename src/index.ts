@@ -5,6 +5,7 @@ export {
   mergeChangelog,
   parsePmItemsJson,
   readPmItems,
+  suggestSemver,
   writeChangelog,
 } from "./generator.js";
 export { resolveReleaseContext, resolveReleaseTagWindows } from "./release-context.js";
@@ -26,6 +27,8 @@ export type {
   PmItem,
   PmItemStatus,
   ReadPmItemsOptions,
+  SemverBump,
+  SemverSuggestion,
   WriteChangelogOptions,
   WriteChangelogResult,
 } from "./types.js";

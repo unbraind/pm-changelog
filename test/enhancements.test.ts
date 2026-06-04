@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { buildChangelogDocument, createChangelog } from "../dist/index.js";
+import { buildChangelogDocument, createChangelog, suggestSemver } from "../dist/index.js";
 import type { PmItem } from "../dist/index.js";
 
 const items: PmItem[] = [
@@ -53,8 +53,15 @@ test("default output is unchanged when no opt-in flags are passed", () => {
     contributors: false,
     limit: undefined,
     sinceVersion: undefined,
+    breakingChanges: false,
+    bodyPreview: undefined,
+    emojiPrefix: false,
+    suggestSemver: false,
   }).markdown;
   assert.equal(explicitDefaults, base);
+  // bodyPreview: 0 and emojiPrefix: false are also pure no-ops.
+  const zeroPreview = createChangelog({ items, version: "1.2.0", date: "2026-05-28", bodyPreview: 0 }).markdown;
+  assert.equal(zeroPreview, base);
   // Sanity: the default uses keep-a-changelog headings.
   assert.match(base, /### Added\n/);
   assert.match(base, /### Fixed\n/);
@@ -236,4 +243,124 @@ test("buildChangelogDocument honors --conventional and --contributors", () => {
   const doc = buildChangelogDocument({ items, version: "1.2.0", date: "2026-05-28", conventional: true, contributors: true });
   assert.ok(doc.releases[0].sections.some((s) => s.heading === "Features"));
   assert.deepEqual(doc.releases[0].contributors, ["alice", "bob"]);
+});
+
+// ---------------------------------------------------------------------------
+// --breaking-changes
+// ---------------------------------------------------------------------------
+const breakingItems: PmItem[] = [
+  { id: "pm-brk-tag", title: "Drop legacy API", status: "closed", type: "Feature", tags: ["breaking", "feature"], release: "2.0.0", updated_at: "2026-05-28T09:00:00Z" },
+  { id: "pm-brk-flag", title: "Rename config keys", status: "closed", type: "Task", breaking: true, release: "2.0.0", updated_at: "2026-05-28T08:30:00Z" },
+  { id: "pm-brk-title", title: "BREAKING: remove --old flag", status: "closed", type: "Task", release: "2.0.0", updated_at: "2026-05-28T08:15:00Z" },
+  { id: "pm-normal", title: "Add a new widget", status: "closed", type: "Feature", tags: ["feature"], release: "2.0.0", updated_at: "2026-05-28T08:00:00Z" },
+];
+
+test("--breaking-changes emits a Breaking Changes section listing detected items", () => {
+  const md = createChangelog({ items: breakingItems, version: "2.0.0", date: "2026-05-28", breakingChanges: true }).markdown;
+  assert.match(md, /### Breaking Changes\n/);
+  assert.match(md, /### Breaking Changes\n\n- Drop legacy API/);
+  assert.match(md, /- Rename config keys/);
+  assert.match(md, /- BREAKING: remove --old flag/);
+  // The non-breaking item must NOT appear under Breaking Changes.
+  const breakingBlock = md.slice(md.indexOf("### Breaking Changes"));
+  const nextHeading = breakingBlock.indexOf("\n### ", 5);
+  const section = nextHeading >= 0 ? breakingBlock.slice(0, nextHeading) : breakingBlock;
+  assert.doesNotMatch(section, /Add a new widget/);
+});
+
+test("--breaking-changes is absent by default (byte-identical)", () => {
+  const def = createChangelog({ items: breakingItems, version: "2.0.0", date: "2026-05-28" }).markdown;
+  assert.doesNotMatch(def, /Breaking Changes/);
+});
+
+test("--breaking-changes surfaces in the structured document", () => {
+  const doc = buildChangelogDocument({ items: breakingItems, version: "2.0.0", date: "2026-05-28", breakingChanges: true });
+  const ids = (doc.releases[0].breaking_changes ?? []).map((i) => i.id);
+  assert.deepEqual(ids.sort(), ["pm-brk-flag", "pm-brk-tag", "pm-brk-title"]);
+});
+
+// ---------------------------------------------------------------------------
+// --suggest-semver
+// ---------------------------------------------------------------------------
+test("--suggest-semver recommends major when a breaking change is present", () => {
+  const s = suggestSemver({ items: breakingItems, version: "2.0.0", date: "2026-05-28" });
+  assert.equal(s.bump, "major");
+  assert.equal(s.counts.breaking, 3);
+});
+
+test("--suggest-semver recommends minor for features only", () => {
+  const feats: PmItem[] = [
+    { id: "f1", title: "Add A", status: "closed", type: "Feature", tags: ["feature"], updated_at: "2026-05-28T09:00:00Z" },
+    { id: "fx", title: "Fix B", status: "closed", type: "Issue", tags: ["bug"], updated_at: "2026-05-28T08:00:00Z" },
+  ];
+  const s = suggestSemver({ items: feats });
+  assert.equal(s.bump, "minor");
+  assert.equal(s.counts.feature, 1);
+  assert.equal(s.counts.fix, 1);
+});
+
+test("--suggest-semver recommends patch for fixes only and none when empty", () => {
+  const fixOnly = suggestSemver({ items: [{ id: "x", title: "Fix crash", status: "closed", type: "Issue", tags: ["bug"], updated_at: "2026-05-28T08:00:00Z" }] });
+  assert.equal(fixOnly.bump, "patch");
+  const empty = suggestSemver({ items: [] });
+  assert.equal(empty.bump, "none");
+});
+
+test("--suggest-semver only surfaces in the document when opted in", () => {
+  const withFlag = buildChangelogDocument({ items: breakingItems, version: "2.0.0", date: "2026-05-28", suggestSemver: true });
+  assert.equal(withFlag.suggested_semver?.bump, "major");
+  const without = buildChangelogDocument({ items: breakingItems, version: "2.0.0", date: "2026-05-28" });
+  assert.equal(without.suggested_semver, undefined);
+});
+
+// ---------------------------------------------------------------------------
+// --body-preview
+// ---------------------------------------------------------------------------
+const bodyItems: PmItem[] = [
+  { id: "pm-body", title: "Add export", status: "closed", type: "Feature", tags: ["feature"], body: "This adds a CSV export pipeline with streaming support and resumable jobs.", updated_at: "2026-05-28T09:00:00Z" },
+  { id: "pm-short", title: "Tiny fix", status: "closed", type: "Issue", tags: ["bug"], body: "ok", updated_at: "2026-05-28T08:00:00Z" },
+  { id: "pm-nobody", title: "No body item", status: "closed", type: "Task", updated_at: "2026-05-28T07:00:00Z" },
+];
+
+test("--body-preview appends a truncated body with an ellipsis", () => {
+  const md = createChangelog({ items: bodyItems, version: "1.0.0", date: "2026-05-28", bodyPreview: 20 }).markdown;
+  assert.match(md, /- Add export \(pm-body\) — This adds a CSV expo…/);
+  // Short body is not truncated and has no ellipsis.
+  assert.match(md, /- Tiny fix \(pm-short\) — ok\n/);
+  // Item without a body renders exactly as default (no separator).
+  assert.match(md, /- No body item \(pm-nobody\)\n/);
+});
+
+test("--body-preview off by default leaves entries unchanged", () => {
+  const def = createChangelog({ items: bodyItems, version: "1.0.0", date: "2026-05-28" }).markdown;
+  assert.doesNotMatch(def, /—/);
+});
+
+// ---------------------------------------------------------------------------
+// --emoji-prefix
+// ---------------------------------------------------------------------------
+test("--emoji-prefix prefixes known category headings", () => {
+  const md = createChangelog({ items, version: "1.2.0", date: "2026-05-28", emojiPrefix: true }).markdown;
+  assert.match(md, /### 🎉 Added\n/);
+  assert.match(md, /### 🐛 Fixed\n/);
+  // Item lines are unchanged.
+  assert.match(md, /- Add dark mode toggle/);
+});
+
+test("--emoji-prefix composes with --conventional headings", () => {
+  const md = createChangelog({ items, version: "1.2.0", date: "2026-05-28", emojiPrefix: true, conventional: true }).markdown;
+  assert.match(md, /### 🎉 Features\n/);
+  assert.match(md, /### 🐛 Bug Fixes\n/);
+});
+
+test("--emoji-prefix leaves unknown headings (custom labels) unchanged", () => {
+  const md = createChangelog({ items, version: "1.2.0", date: "2026-05-28", emojiPrefix: true, sectionBy: "label" }).markdown;
+  // "feature"/"bug"/"docs" are not in the emoji map and must pass through.
+  assert.match(md, /### feature\n/);
+  assert.match(md, /### docs\n/);
+});
+
+test("--emoji-prefix and --breaking-changes compose", () => {
+  const md = createChangelog({ items: breakingItems, version: "2.0.0", date: "2026-05-28", emojiPrefix: true, breakingChanges: true }).markdown;
+  assert.match(md, /### 💥 Breaking Changes\n/);
 });
