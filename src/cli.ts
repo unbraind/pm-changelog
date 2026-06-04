@@ -9,6 +9,7 @@ import {
   mergeChangelog,
   parsePmItemsJson,
   readPmItems,
+  suggestSemver,
   writeChangelog,
 } from "./generator.js";
 import { resolveReleaseContext, resolveReleaseTagWindows } from "./release-context.js";
@@ -46,6 +47,10 @@ interface CliOptions {
   contributors: boolean;
   limit?: number;
   sinceVersion?: string;
+  breakingChanges: boolean;
+  suggestSemver: boolean;
+  bodyPreview?: number;
+  emojiPrefix: boolean;
   changelogJson: boolean;
   releaseWindows?: ChangelogReleaseWindow[];
   includeEmpty: boolean;
@@ -68,6 +73,15 @@ async function main(): Promise<void> {
   if (options.changelogJson) {
     const document = buildChangelogDocument(buildGenerationOptions(options, items));
     process.stdout.write(JSON.stringify(document, null, 2) + "\n");
+    return;
+  }
+
+  // OPT-IN (`--suggest-semver`) without `--changelog-json`: emit only the
+  // semver analysis as JSON to stdout and exit. Never writes CHANGELOG.md and
+  // never touches default markdown.
+  if (options.suggestSemver) {
+    const suggestion = suggestSemver(buildGenerationOptions(options, items));
+    process.stdout.write(JSON.stringify(suggestion, null, 2) + "\n");
     return;
   }
 
@@ -135,6 +149,9 @@ function parseArgs(args: string[]): CliOptions {
     sectionBy: "category",
     conventional: false,
     contributors: false,
+    breakingChanges: false,
+    suggestSemver: false,
+    emojiPrefix: false,
     changelogJson: false,
     includeEmpty: false,
     includeLinks: false,
@@ -243,6 +260,18 @@ function parseArgs(args: string[]): CliOptions {
         break;
       case "--contributors":
         options.contributors = true;
+        break;
+      case "--breaking-changes":
+        options.breakingChanges = true;
+        break;
+      case "--suggest-semver":
+        options.suggestSemver = true;
+        break;
+      case "--body-preview":
+        options.bodyPreview = parseBodyPreview(requireValue(args, ++i, arg));
+        break;
+      case "--emoji-prefix":
+        options.emojiPrefix = true;
         break;
       case "--changelog-json":
         options.changelogJson = true;
@@ -358,6 +387,14 @@ function parseLimit(value: string): number {
   return parsed;
 }
 
+function parseBodyPreview(value: string): number {
+  const parsed = Number.parseInt(value, 10);
+  if (!Number.isInteger(parsed) || parsed < 1) {
+    throw new Error("--body-preview must be a positive integer");
+  }
+  return parsed;
+}
+
 function parseMode(value: string): "replace" | "prepend" {
   if (value === "replace" || value === "prepend") return value;
   throw new Error("--mode must be 'replace' or 'prepend'");
@@ -379,6 +416,10 @@ function buildGenerationOptions(options: CliOptions, items: PmItem[]) {
     contributors: options.contributors,
     limit: options.limit,
     sinceVersion: options.sinceVersion,
+    breakingChanges: options.breakingChanges,
+    bodyPreview: options.bodyPreview,
+    emojiPrefix: options.emojiPrefix,
+    suggestSemver: options.suggestSemver,
     includeEmpty: options.includeEmpty,
     includeLinks: options.includeLinks,
     itemUrlBase: options.itemUrlBase,
@@ -491,6 +532,10 @@ Options:
       --contributors        Append a Contributors list per release from item assignee/author
       --limit <n>           Keep only the most recent N release sections (history modes only)
       --since-version <v>   Keep only releases at or newer than version <v> (history modes only)
+      --breaking-changes    Emit a Breaking Changes section listing items detected as breaking
+      --suggest-semver      Print a suggested semver bump (major/minor/patch) as JSON; never writes the changelog
+      --body-preview <n>    Append the first N chars of each item body to its entry
+      --emoji-prefix        Prefix section headings with conventional emoji (Added 🎉, Fixed 🐛, ...)
       --changelog-json      Print the full structured changelog document (releases->sections->items) to stdout
       --mode <mode>         replace or prepend existing changelog (default: replace)
       --include-empty       Emit an empty release section when no items match
