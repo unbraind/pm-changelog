@@ -5,7 +5,7 @@ import { buildChangelogDocument, createChangelog, mergeChangelog, suggestSemver,
 import { resolveReleaseContext, resolveReleaseTagWindows } from "./release-context.js";
 export default defineExtension({
     name: "pm-changelog",
-    version: "2026.6.3",
+    version: "2026.6.4",
     activate(api) {
         api.registerCommand({
             name: "changelog generate",
