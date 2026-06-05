@@ -2,12 +2,16 @@ id: pmc-ztt5
 title: "body-preview silently empty for real pm items: body not loaded (GH #27)"
 description: "Items load via list-all --json / listAllFrontMatter which omit body. Fix: --include-body on CLI list-all; locateItem+readLocatedItem enrichment in extension when bodyPreview set. pm-cli PR #108 review."
 type: Issue
-status: in_progress
+status: closed
 priority: 2
 tags: []
 created_at: "2026-06-05T09:41:08.752Z"
-updated_at: "2026-06-05T09:52:20.782Z"
+updated_at: "2026-06-05T10:35:20.855Z"
 author: codex
+resolution: "Fixed: CLI --include-body + extension locateItem/readLocatedItem (bounded concurrency)"
+expected_result: "--body-preview renders real item body for pm items"
+actual_result: "Both CLI and extension paths render real body, description fallback retained; verified"
 comments[1]{created_at,author,text}:
   "2026-06-05T09:50:12.482Z",codex,"Fixed: CLI readPmItems adds --include-body to 'pm list-all --json' when bodyPreview>0 (verified --include-body populates body field in 2026.5.31+). Extension enrichItemBodies() re-reads bodies via public SDK locateItem+readLocatedItem (best-effort, per-item failure swallowed) when bodyPreview set. Unit test: fake pm bin returns body only with --include-body. Functionally verified both npx CLI and 'pm changelog generate --body-preview' render real body, fall back to description, no fork-bomb."
+close_reason: Fixed in PR #30 (merged bf091b7)
 body: ""
