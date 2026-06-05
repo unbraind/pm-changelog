@@ -2,12 +2,16 @@ id: pmc-18yz
 title: Breaking-change detector substring-matches non-breaking as breaking (GH #26)
 description: "isBreakingItem uses includes('breaking') so 'non-breaking' counts as breaking and --suggest-semver bumps major. Fix: strip negations + word-boundary token + explicit breaking tag. pm-cli PR #108 review."
 type: Issue
-status: in_progress
+status: closed
 priority: 2
 tags: []
 created_at: "2026-06-05T09:40:59.286Z"
-updated_at: "2026-06-05T09:52:20.606Z"
+updated_at: "2026-06-05T10:35:20.673Z"
 author: codex
+resolution: "Fixed: negation-strip + word-boundary token + explicit breaking tags in isBreakingItem"
+expected_result: non-breaking text not classified as breaking; --suggest-semver not major
+actual_result: "non-breaking→minor, real breaking→major; verified functionally + 2 unit tests"
 comments[1]{created_at,author,text}:
   "2026-06-05T09:50:12.312Z",codex,"Fixed in generator.ts isBreakingItem: explicit breaking-tag set (breaking/breaking-change/breaking_change), strip NEGATED_BREAKING (non-breaking|not breaking|no breaking) then word-boundary BREAKING_TOKEN /\\bbreaking\\b/. Unit tests: non-breaking/nonbreaking/not breaking/no breaking → breaking=0; word/tag/flag → breaking=4. Functionally verified: --suggest-semver on 'non-breaking' feature → minor; real 'breaking' → major."
+close_reason: Fixed in PR #30 (merged bf091b7)
 body: ""
