@@ -336,6 +336,19 @@ test("--body-preview off by default leaves entries unchanged", () => {
   assert.doesNotMatch(def, /—/);
 });
 
+test("--body-preview falls back to description when body is empty (real pm items)", () => {
+  // pm workspaces store prose in `description`; `body` is usually "". The
+  // preview must use `description` so the flag isn't a silent no-op.
+  const items: PmItem[] = [
+    { id: "pm-desc", title: "Desc only", status: "closed", type: "Feature", tags: ["feature"], body: "", description: "Adds a streaming CSV export with resumable jobs.", updated_at: "2026-05-28T09:00:00Z" },
+    { id: "pm-both", title: "Both fields", status: "closed", type: "Feature", tags: ["feature"], body: "BODY wins", description: "description ignored", updated_at: "2026-05-28T08:00:00Z" },
+  ];
+  const md = createChangelog({ items, version: "1.0.0", date: "2026-05-28", bodyPreview: 24 }).markdown;
+  assert.match(md, /- Desc only \(pm-desc\) — Adds a streaming CSV/);
+  // A non-empty body still takes precedence over description.
+  assert.match(md, /- Both fields \(pm-both\) — BODY wins/);
+});
+
 // ---------------------------------------------------------------------------
 // --emoji-prefix
 // ---------------------------------------------------------------------------
