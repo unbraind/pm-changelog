@@ -1,0 +1,20 @@
+id: pmc-xl7x
+title: Make body enrichment registry resolution best-effort
+description: Gemini review on pm-cli PR #113 found that pm-changelog body enrichment swallows readSettings failures but can still throw if item type registry resolution or settings-derived fields are malformed. Keep changelog generation best-effort by guarding the entire setup block upstream in pm-changelog rather than patching the managed extension copy in pm-cli.
+type: Issue
+status: closed
+priority: 2
+tags: []
+created_at: "2026-06-05T16:38:07.198Z"
+updated_at: "2026-06-05T16:39:41.552Z"
+author: codex-pm-changelog-followup
+comments[1]{created_at,author,text}:
+  "2026-06-05T16:39:16.904Z",codex-pm-changelog-followup,"Evidence: guarded readSettings, resolveItemTypeRegistry, id_prefix, and item_format setup in enrichItemBodies so --body-preview leaves front matter unchanged if registry/settings resolution fails. Verification passed locally: npm test (build + build:test + node --test dist-test/*.js, 85 tests). Linked sandbox-safe equivalent: PM_PATH=/tmp/pm-changelog-test-pm PM_GLOBAL_PATH=/tmp/pm-changelog-test-global npm test."
+files[3]{path,scope,note}:
+  dist/extension.js,project,Built package artifact for extension runtime
+  dist/extension.js.map,project,Built source map for extension runtime
+  src/extension.ts,project,Guard body enrichment setup as best-effort
+tests[1]{command,path,scope,timeout_seconds,pm_context_mode,env_set,env_clear,shared_host_safe,assert_stdout_contains,assert_stdout_regex,assert_stderr_contains,assert_stderr_regex,assert_stdout_min_lines,assert_json_field_equals,assert_json_field_gte,note}:
+  PM_PATH=/tmp/pm-changelog-test-pm PM_GLOBAL_PATH=/tmp/pm-changelog-test-global npm test,null,project,120,null,null,null,null,null,null,null,null,null,null,null,null
+close_reason: Fixed upstream by making body enrichment setup fully best-effort; linked npm test passed via sandbox-safe pm test.
+body: ""
