@@ -327,22 +327,27 @@ async function enrichItemBodies(pmRoot: string, items: PmItem[]): Promise<void> 
   const idPrefix = settings.id_prefix;
   const format = settings.item_format;
 
-  await Promise.all(
-    items.map(async (item) => {
-      if (!item.id) return;
-      if (typeof item.body === "string" && item.body.trim() !== "") return;
-      try {
-        const located = await locateItem(pmRoot, item.id, idPrefix, format, typeToFolder);
-        if (!located) return;
-        const { document } = await readLocatedItem(located);
-        if (typeof document.body === "string" && document.body.trim() !== "") {
-          item.body = document.body;
-        }
-      } catch {
-        // best-effort: a single unreadable item must not fail generation
+  const loadBody = async (item: PmItem): Promise<void> => {
+    if (!item.id) return;
+    if (typeof item.body === "string" && item.body.trim() !== "") return;
+    try {
+      const located = await locateItem(pmRoot, item.id, idPrefix, format, typeToFolder);
+      if (!located) return;
+      const { document } = await readLocatedItem(located);
+      if (typeof document.body === "string" && document.body.trim() !== "") {
+        item.body = document.body;
       }
-    })
-  );
+    } catch {
+      // best-effort: a single unreadable item must not fail generation
+    }
+  };
+
+  // Bound concurrency so a large workspace can't exhaust file descriptors
+  // (EMFILE) by issuing one locate+read per item all at once.
+  const CONCURRENCY_LIMIT = 16;
+  for (let i = 0; i < items.length; i += CONCURRENCY_LIMIT) {
+    await Promise.all(items.slice(i, i + CONCURRENCY_LIMIT).map(loadBody));
+  }
 }
 
 function stringOption(options: Record<string, unknown>, kebabKey: string, camelKey: string): string | undefined {

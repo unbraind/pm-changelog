@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { mkdtempSync, writeFileSync } from "node:fs";
+import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import test from "node:test";
@@ -418,21 +418,25 @@ test("readPmItems requests --include-body only when includeBody is set (GH #27)"
   // how `pm list-all --json` omits bodies unless the flag is passed.
   const dir = mkdtempSync(join(tmpdir(), "pm-changelog-body-"));
   const fakePm = join(dir, "fake-pm.mjs");
-  writeFileSync(
-    fakePm,
-    [
-      "const args = process.argv.slice(2);",
-      'const item = { id: "x", title: "T", status: "closed", type: "Feature", tags: ["feature"] };',
-      'if (args.includes("--include-body")) item.body = "REAL BODY CONTENT";',
-      "process.stdout.write(JSON.stringify({ items: [item] }));",
-    ].join("\n"),
-    "utf-8"
-  );
-  const node = process.execPath;
-  const withBody = readPmItems({ pmBin: node, pmArgs: [fakePm], includeBody: true });
-  assert.equal(withBody[0].body, "REAL BODY CONTENT");
-  const without = readPmItems({ pmBin: node, pmArgs: [fakePm] });
-  assert.equal(without[0].body, undefined);
+  try {
+    writeFileSync(
+      fakePm,
+      [
+        "const args = process.argv.slice(2);",
+        'const item = { id: "x", title: "T", status: "closed", type: "Feature", tags: ["feature"] };',
+        'if (args.includes("--include-body")) item.body = "REAL BODY CONTENT";',
+        "process.stdout.write(JSON.stringify({ items: [item] }));",
+      ].join("\n"),
+      "utf-8"
+    );
+    const node = process.execPath;
+    const withBody = readPmItems({ pmBin: node, pmArgs: [fakePm], includeBody: true });
+    assert.equal(withBody[0].body, "REAL BODY CONTENT");
+    const without = readPmItems({ pmBin: node, pmArgs: [fakePm] });
+    assert.equal(without[0].body, undefined);
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
 });
 
 // ---------------------------------------------------------------------------

@@ -293,7 +293,7 @@ async function enrichItemBodies(pmRoot, items) {
     const typeToFolder = resolveItemTypeRegistry(settings).type_to_folder;
     const idPrefix = settings.id_prefix;
     const format = settings.item_format;
-    await Promise.all(items.map(async (item) => {
+    const loadBody = async (item) => {
         if (!item.id)
             return;
         if (typeof item.body === "string" && item.body.trim() !== "")
@@ -310,7 +310,13 @@ async function enrichItemBodies(pmRoot, items) {
         catch {
             // best-effort: a single unreadable item must not fail generation
         }
-    }));
+    };
+    // Bound concurrency so a large workspace can't exhaust file descriptors
+    // (EMFILE) by issuing one locate+read per item all at once.
+    const CONCURRENCY_LIMIT = 16;
+    for (let i = 0; i < items.length; i += CONCURRENCY_LIMIT) {
+        await Promise.all(items.slice(i, i + CONCURRENCY_LIMIT).map(loadBody));
+    }
 }
 function stringOption(options, kebabKey, camelKey) {
     const value = options[kebabKey] ?? options[camelKey];
