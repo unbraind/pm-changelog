@@ -1,7 +1,10 @@
 import assert from "node:assert/strict";
+import { mkdtempSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import test from "node:test";
 
-import { buildChangelogDocument, createChangelog, suggestSemver } from "../dist/index.js";
+import { buildChangelogDocument, createChangelog, readPmItems, suggestSemver } from "../dist/index.js";
 import type { PmItem } from "../dist/index.js";
 
 const items: PmItem[] = [
@@ -376,4 +379,97 @@ test("--emoji-prefix leaves unknown headings (custom labels) unchanged", () => {
 test("--emoji-prefix and --breaking-changes compose", () => {
   const md = createChangelog({ items: breakingItems, version: "2.0.0", date: "2026-05-28", emojiPrefix: true, breakingChanges: true }).markdown;
   assert.match(md, /### 💥 Breaking Changes\n/);
+});
+
+// ---------------------------------------------------------------------------
+// GH #26: breaking detection must ignore negated/safe phrasings
+// ---------------------------------------------------------------------------
+test("breaking detection ignores negated phrasings like non-breaking (GH #26)", () => {
+  const safe: PmItem[] = [
+    { id: "nb1", title: "Apply a non-breaking schema change", status: "closed", type: "Feature", tags: ["feature"], updated_at: "2026-05-28T09:00:00Z" },
+    { id: "nb2", title: "This change is not breaking", status: "closed", type: "Feature", tags: ["feature"], updated_at: "2026-05-28T08:00:00Z" },
+    { id: "nb3", title: "A nonbreaking cleanup", status: "closed", type: "Task", updated_at: "2026-05-28T07:00:00Z" },
+    { id: "nb4", title: "No breaking impact expected", status: "closed", type: "Task", updated_at: "2026-05-28T06:00:00Z" },
+  ];
+  const s = suggestSemver({ items: safe });
+  assert.equal(s.counts.breaking, 0);
+  assert.notEqual(s.bump, "major");
+  const doc = buildChangelogDocument({ items: safe, version: "1.0.0", date: "2026-05-28", breakingChanges: true });
+  assert.equal((doc.releases[0].breaking_changes ?? []).length, 0);
+});
+
+test("breaking detection still flags real signals: word, tag variants, flag (GH #26)", () => {
+  const realBreaks: PmItem[] = [
+    { id: "b-word", title: "Breaking change to config format", status: "closed", type: "Task", updated_at: "2026-05-28T09:00:00Z" },
+    { id: "b-tag", title: "Drop endpoint", status: "closed", type: "Task", tags: ["breaking-change"], updated_at: "2026-05-28T08:30:00Z" },
+    { id: "b-tag2", title: "Drop another endpoint", status: "closed", type: "Task", tags: ["breaking"], updated_at: "2026-05-28T08:15:00Z" },
+    { id: "b-flag", title: "Rename keys", status: "closed", type: "Task", breaking: true, updated_at: "2026-05-28T08:00:00Z" },
+  ];
+  const s = suggestSemver({ items: realBreaks });
+  assert.equal(s.counts.breaking, 4);
+  assert.equal(s.bump, "major");
+});
+
+// ---------------------------------------------------------------------------
+// GH #27: --body-preview must load real bodies (CLI --include-body wiring)
+// ---------------------------------------------------------------------------
+test("readPmItems requests --include-body only when includeBody is set (GH #27)", () => {
+  // Fake pm bin returns a body ONLY when invoked with --include-body, mirroring
+  // how `pm list-all --json` omits bodies unless the flag is passed.
+  const dir = mkdtempSync(join(tmpdir(), "pm-changelog-body-"));
+  const fakePm = join(dir, "fake-pm.mjs");
+  writeFileSync(
+    fakePm,
+    [
+      "const args = process.argv.slice(2);",
+      'const item = { id: "x", title: "T", status: "closed", type: "Feature", tags: ["feature"] };',
+      'if (args.includes("--include-body")) item.body = "REAL BODY CONTENT";',
+      "process.stdout.write(JSON.stringify({ items: [item] }));",
+    ].join("\n"),
+    "utf-8"
+  );
+  const node = process.execPath;
+  const withBody = readPmItems({ pmBin: node, pmArgs: [fakePm], includeBody: true });
+  assert.equal(withBody[0].body, "REAL BODY CONTENT");
+  const without = readPmItems({ pmBin: node, pmArgs: [fakePm] });
+  assert.equal(without[0].body, undefined);
+});
+
+// ---------------------------------------------------------------------------
+// GH #28: semver must be computed from the visible release sections only
+// ---------------------------------------------------------------------------
+const crossReleaseItems: PmItem[] = [
+  { id: "v2-feat", title: "Add a new endpoint", status: "closed", type: "Feature", tags: ["feature"], release: "2.0.0", updated_at: "2026-05-28T00:00:00Z" },
+  { id: "v1-break", title: "BREAKING: remove legacy API", status: "closed", type: "Task", release: "1.0.0", updated_at: "2026-05-10T00:00:00Z" },
+];
+const crossReleaseWindows = [
+  { heading: "2.0.0 - 2026-05-28", releaseTag: "v2.0.0", until: "2026-05-28T00:00:00Z" },
+  { heading: "1.0.0 - 2026-05-10", releaseTag: "v1.0.0", until: "2026-05-10T00:00:00Z" },
+];
+
+test("--suggest-semver reflects only visible release sections under --limit (GH #28)", () => {
+  // Limit to the newest release: the breaking v1.0.0 item is hidden from output.
+  const doc = buildChangelogDocument({ items: crossReleaseItems, releaseWindows: crossReleaseWindows, limit: 1, suggestSemver: true });
+  assert.equal(doc.releases.length, 1);
+  assert.equal(doc.releases[0].version, "2.0.0");
+  // The bump must follow the visible feature, NOT the hidden breaking change.
+  assert.equal(doc.suggested_semver?.bump, "minor");
+  assert.equal(doc.suggested_semver?.counts.breaking, 0);
+
+  // suggestSemver(options) agrees with the document path.
+  const limited = suggestSemver({ items: crossReleaseItems, releaseWindows: crossReleaseWindows, limit: 1 });
+  assert.equal(limited.bump, "minor");
+  assert.equal(limited.counts.breaking, 0);
+});
+
+test("--suggest-semver reflects only visible release sections under --since-version (GH #28)", () => {
+  const since = suggestSemver({ items: crossReleaseItems, releaseWindows: crossReleaseWindows, sinceVersion: "2.0.0" });
+  assert.equal(since.bump, "minor");
+  assert.equal(since.counts.breaking, 0);
+});
+
+test("--suggest-semver still sees the breaking change when all releases are visible (GH #28)", () => {
+  const all = suggestSemver({ items: crossReleaseItems, releaseWindows: crossReleaseWindows });
+  assert.equal(all.bump, "major");
+  assert.equal(all.counts.breaking, 1);
 });
