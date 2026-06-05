@@ -1,0 +1,13 @@
+id: pmc-isyx
+title: suggest-semver computed over all items not visible release sections (GH #28)
+description: "With --changelog-json + --limit/--since-version, suggestSemver recomputes over filterItems(options) not visible sections. Fix: compute from visible release-section items. pm-cli PR #108 review."
+type: Issue
+status: in_progress
+priority: 2
+tags: []
+created_at: "2026-06-05T09:41:08.929Z"
+updated_at: "2026-06-05T09:52:20.958Z"
+author: codex
+comments[1]{created_at,author,text}:
+  "2026-06-05T09:50:12.655Z",codex,"Fixed: added visibleChangelogItems(options) (filter→buildSections→prune empty→limitSections→flatMap) + suggestSemverForItems(items). suggestSemver(options) now classifies visible items (identical to filterItems when no --limit/--since-version). buildChangelogDocument reuses its local visibleSections. Unit tests: breaking item in hidden v1.0.0 + feature in visible v2.0.0 → --limit 1/--since-version 2.0.0 ⇒ minor/breaking:0; no limit ⇒ major/breaking:1. 85 tests pass, default output byte-identical."
+body: ""
