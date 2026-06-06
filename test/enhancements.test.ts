@@ -59,6 +59,7 @@ test("default output is unchanged when no opt-in flags are passed", () => {
     breakingChanges: false,
     bodyPreview: undefined,
     emojiPrefix: false,
+    includeMetadata: false,
     suggestSemver: false,
   }).markdown;
   assert.equal(explicitDefaults, base);
@@ -379,6 +380,35 @@ test("--emoji-prefix leaves unknown headings (custom labels) unchanged", () => {
 test("--emoji-prefix and --breaking-changes compose", () => {
   const md = createChangelog({ items: breakingItems, version: "2.0.0", date: "2026-05-28", emojiPrefix: true, breakingChanges: true }).markdown;
   assert.match(md, /### 💥 Breaking Changes\n/);
+});
+
+// ---------------------------------------------------------------------------
+// --include-metadata
+// ---------------------------------------------------------------------------
+test("--include-metadata appends compact item metadata without changing defaults", () => {
+  const item: PmItem = {
+    id: "pm-meta",
+    title: "Ship package registry",
+    status: "closed",
+    type: "Feature",
+    priority: 1,
+    release: "2026.6.6",
+    milestone: "ecosystem",
+    updated_at: "2026-05-28T09:00:00Z",
+  };
+  const base = createChangelog({ items: [item], version: "1.0.0", date: "2026-05-28" }).markdown;
+  assert.match(base, /- Ship package registry \(pm-meta\)$/m);
+
+  const withMetadata = createChangelog({
+    items: [item],
+    version: "1.0.0",
+    date: "2026-05-28",
+    includeMetadata: true,
+  }).markdown;
+  assert.match(
+    withMetadata,
+    /- Ship package registry \(pm-meta\) _type:Feature; status:closed; P1; release:2026\.6\.6; milestone:ecosystem_/
+  );
 });
 
 // ---------------------------------------------------------------------------
