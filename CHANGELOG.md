@@ -1,5 +1,11 @@
 # Changelog
 
+## Unreleased
+
+### Other
+
+- Align package dependencies to pm CLI/SDK 2026.6.6 ([pmc-rr5l](https://github.com/unbraind/pm-changelog/blob/main/.agents/pm/chores/pmc-rr5l.toon))
+
 ## 2026.6.6 - 2026-06-06
 
 ### Fixed
