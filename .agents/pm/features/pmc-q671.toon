@@ -1,0 +1,28 @@
+id: pmc-q671
+title: Add optional item metadata to changelog entries
+description: ""
+type: Feature
+status: closed
+priority: 1
+tags[2]: context-management,enhancement
+created_at: "2026-06-06T19:32:38.326Z"
+updated_at: "2026-06-06T19:33:01.827Z"
+author: codex
+resolution: "Implemented includeMetadata option across CLI, extension, generator, types, docs, tests, and dist."
+expected_result: Default changelog output stays unchanged; --include-metadata appends compact item context.
+actual_result: Tests cover default stability and metadata output.
+files[8]{path,scope,note}:
+  dist/cli.js,project,implementation
+  dist/generator.js,project,implementation
+  src/cli.ts,project,implementation
+  src/extension.ts,project,implementation
+  src/generator.ts,project,implementation
+  src/types.ts,project,implementation
+  test/enhancements.test.ts,project,implementation
+  test/extension.test.ts,project,implementation
+tests[1]{command,path,scope,timeout_seconds,pm_context_mode,env_set,env_clear,shared_host_safe,assert_stdout_contains,assert_stdout_regex,assert_stderr_contains,assert_stderr_regex,assert_stdout_min_lines,assert_json_field_equals,assert_json_field_gte,note}:
+  PM_PATH=.agents/pm PM_GLOBAL_PATH=.agents/pm npm test,null,project,240,null,null,null,null,null,null,null,null,null,null,null,package verification
+docs[1]{path,scope,note}:
+  README.md,project,Changelog docs cover --include-metadata
+close_reason: pm-changelog can now include opt-in item metadata in release notes with tests.
+body: "Add --include-metadata and includeMetadata support to append compact type, status, priority, release, and milestone context to generated changelog entries while preserving default output."

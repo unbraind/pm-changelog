@@ -102,6 +102,9 @@ export interface GenerateChangelogOptions {
   /** OPT-IN: prefix category headings with a conventional emoji
    * (Added 🎉, Fixed 🐛, ...). Absent → headings unprefixed. */
   emojiPrefix?: boolean;
+  /** OPT-IN: append compact item metadata (`type`, `status`, `priority`,
+   * `release`, `milestone`) to each bullet. Absent → metadata omitted. */
+  includeMetadata?: boolean;
   /** OPT-IN: include a suggested semver bump in the `--changelog-json`
    * document. Never alters default markdown. Absent → no suggestion emitted. */
   suggestSemver?: boolean;
@@ -189,7 +192,10 @@ export interface ChangelogDocumentItem {
   title: string;
   type?: string;
   status?: string;
+  priority?: number;
   tags?: string[];
+  release?: string;
+  milestone?: string;
   url?: string;
 }
 
