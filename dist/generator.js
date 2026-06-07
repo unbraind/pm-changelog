@@ -604,6 +604,8 @@ function groupByCategory(items) {
     return grouped;
 }
 const BUG_LIKE_ITEM_TYPES = new Set(["issue", "bug", "bugfix", "defect"]);
+const CHANGED_NEEDLES = ["change", "changed", "refactor", "update", "updated", "improve"];
+const REMOVED_NEEDLES = ["removed", "remove", "deleted", "delete"];
 function classifyItem(item) {
     // Strip CLI-flag-like tokens from titles before scanning. Without this, an
     // item titled "pm <cmd> --add fails..." gets classified as "Added" because
@@ -633,8 +635,6 @@ function classifyItem(item) {
     const titleValue = sanitizedTitle.toLowerCase();
     const allValues = `${strongValues} ${titleValue}`.trim();
     const itemType = typeof item.type === "string" ? item.type.toLowerCase() : "";
-    const CHANGED_NEEDLES = ["change", "changed", "refactor", "update", "updated", "improve"];
-    const REMOVED_NEEDLES = ["removed", "remove", "deleted", "delete"];
     if (hasAny(allValues, ["security", "cve", "vulnerability"]))
         return "Security";
     if (hasAny(allValues, ["deprecated", "deprecation"]))

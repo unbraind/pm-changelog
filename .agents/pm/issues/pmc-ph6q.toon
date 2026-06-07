@@ -6,15 +6,16 @@ status: in_progress
 priority: 2
 tags[4]: bug,changelog,classifier,release
 created_at: "2026-06-07T12:12:22.672Z"
-updated_at: "2026-06-07T13:02:23.932Z"
+updated_at: "2026-06-07T13:06:42.328Z"
 assignee: codex-active-pm-cycle-20260607
 author: codex-active-pm-cycle-20260607
 acceptance_criteria: "- Titles containing remove/delete as command-name substrings (e.g., remove-type) do not route to Removed without strong removal signal\\n- Strong type/tag signals still drive category precedence\\n- Regression tests cover remove-type/create_default_type examples\\n- pm-cli tracking issue pm-ybiz cross-linked with this change"
-comments[4]{created_at,author,text}:
+comments[5]{created_at,author,text}:
   "2026-06-07T12:12:30.280Z",codex-active-pm-cycle-20260607,"Duplicate-check evidence: pm search 'classifier remove-type delete removed changelog' found only CLOSED classifier issue pmc-874d and no open equivalent. This is a new distinct bug variant tracked from pm-cli item pm-ybiz."
   "2026-06-07T12:12:30.427Z",codex-active-pm-cycle-20260607,"Cross-link: upstream pm-cli tracker item pm-ybiz (external dependency) requires this repo fix."
   "2026-06-07T13:01:59.205Z",codex-active-pm-cycle-20260607,"Implemented classifier precedence fix: Removed now requires a strong signal (type/tags) before weak title-only remove/delete fallback is considered, so command-name tokens like remove-type no longer misroute feature work. Added regression tests for remove-type/create_default_type and strong-signal removal preservation. Verification: npm run build && npm test && npm run check && npm run changelog:check all pass."
   "2026-06-07T13:02:23.932Z",codex-active-pm-cycle-20260607,"Linked tests executed via pm test --run --progress passed 3/3: npm run changelog:check, npm run check, npm test (with sandbox-safe PM_PATH/PM_GLOBAL_PATH prefixes)."
+  "2026-06-07T13:06:42.327Z",codex-active-pm-cycle-20260607,"Addressed Sourcery follow-up: hoisted CHANGED_NEEDLES and REMOVED_NEEDLES to module scope to avoid per-call array allocation, and relaxed Added-section regression assertion to reduce brittleness while preserving routing intent. Re-ran npm run build && npm test && npm run check && npm run changelog:check (all pass)."
 files[2]{path,scope,note}:
   src/generator.ts,project,Adjust Removed classifier precedence to avoid remove-type title false positives
   test/generator.test.ts,project,Add regressions for remove-type/create_default_type title routing

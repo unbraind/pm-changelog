@@ -1414,7 +1414,7 @@ test("createChangelog: remove/delete command-name terms in feature titles do not
   ];
   const result = createChangelog({ items: schemaPlan, version: "1.2.0", date: "2026-06-07" });
   assert.doesNotMatch(result.markdown, /### Removed/);
-  assert.match(result.markdown, /### Added\n\n- Complete schema customization epic: remove-type, add-status/);
+  assert.match(result.markdown, /### Added[\s\S]*remove-type/);
 });
 
 test("createChangelog: explicit strong removal signals still route to Removed", () => {
