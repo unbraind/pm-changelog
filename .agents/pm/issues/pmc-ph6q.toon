@@ -2,12 +2,11 @@ id: pmc-ph6q
 title: Classifier misroutes feature command names containing remove/delete to Removed section
 description: "classifyItem currently checks remove/delete keywords across strong+weak signals before Changed defaults, so feature/change titles containing command names like remove-type can be misfiled under Removed."
 type: Issue
-status: in_progress
+status: closed
 priority: 2
 tags[4]: bug,changelog,classifier,release
 created_at: "2026-06-07T12:12:22.672Z"
-updated_at: "2026-06-07T13:06:42.328Z"
-assignee: codex-active-pm-cycle-20260607
+updated_at: "2026-06-07T13:44:02.519Z"
 author: codex-active-pm-cycle-20260607
 acceptance_criteria: "- Titles containing remove/delete as command-name substrings (e.g., remove-type) do not route to Removed without strong removal signal\\n- Strong type/tag signals still drive category precedence\\n- Regression tests cover remove-type/create_default_type examples\\n- pm-cli tracking issue pm-ybiz cross-linked with this change"
 comments[5]{created_at,author,text}:
@@ -23,4 +22,5 @@ tests[3]{command,path,scope,timeout_seconds,pm_context_mode,env_set,env_clear,sh
   "PM_PATH=/tmp/pmc-ph6q-pm PM_GLOBAL_PATH=/tmp/pmc-ph6q-global npm run changelog:check",null,project,300,null,null,null,null,null,null,null,null,null,null,null,Verify changelog generation consistency
   PM_PATH=/tmp/pmc-ph6q-pm PM_GLOBAL_PATH=/tmp/pmc-ph6q-global npm run check,null,project,300,null,null,null,null,null,null,null,null,null,null,null,Type-check gate
   PM_PATH=/tmp/pmc-ph6q-pm PM_GLOBAL_PATH=/tmp/pmc-ph6q-global npm test,null,project,900,null,null,null,null,null,null,null,null,null,null,null,Run full pm-changelog test suite including classifier regressions
+close_reason: "Implemented classifier precedence fix for remove/delete command-name false positives, added regression coverage, addressed review feedback, and merged via PR #36."
 body: ""
