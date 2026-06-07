@@ -1401,6 +1401,38 @@ test("createChangelog: non-bug types still classify as Changed via update/refact
   assert.match(result.markdown, /### Changed\n\n- update dependency typescript/);
 });
 
+test("createChangelog: remove/delete command-name terms in feature titles do not misroute to Removed", () => {
+  const schemaPlan = [
+    {
+      id: "pm-schema",
+      title: "Complete schema customization epic: remove-type, add-status, per-type workflows, config create_default_type",
+      status: "closed",
+      type: "Plan",
+      release: "1.2.0",
+      updated_at: "2026-06-07T10:00:00Z",
+    },
+  ];
+  const result = createChangelog({ items: schemaPlan, version: "1.2.0", date: "2026-06-07" });
+  assert.doesNotMatch(result.markdown, /### Removed/);
+  assert.match(result.markdown, /### Added\n\n- Complete schema customization epic: remove-type, add-status/);
+});
+
+test("createChangelog: explicit strong removal signals still route to Removed", () => {
+  const explicitRemoval = [
+    {
+      id: "pm-remove",
+      title: "Stabilize schema action list parser",
+      status: "closed",
+      type: "Task",
+      tags: ["remove"],
+      release: "1.2.0",
+      updated_at: "2026-06-07T10:00:00Z",
+    },
+  ];
+  const result = createChangelog({ items: explicitRemoval, version: "1.2.0", date: "2026-06-07" });
+  assert.match(result.markdown, /### Removed\n\n- Stabilize schema action list parser/);
+});
+
 test("createChangelog: explicit feature tag still wins over Issue→Fixed default", () => {
   // The title intentionally avoids the keyword "add" so the only signal that
   // routes this to "Added" is the explicit `feature` tag — that's the

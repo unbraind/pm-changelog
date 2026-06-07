@@ -1,0 +1,25 @@
+id: pmc-ph6q
+title: Classifier misroutes feature command names containing remove/delete to Removed section
+description: "classifyItem currently checks remove/delete keywords across strong+weak signals before Changed defaults, so feature/change titles containing command names like remove-type can be misfiled under Removed."
+type: Issue
+status: in_progress
+priority: 2
+tags[4]: bug,changelog,classifier,release
+created_at: "2026-06-07T12:12:22.672Z"
+updated_at: "2026-06-07T13:02:23.932Z"
+assignee: codex-active-pm-cycle-20260607
+author: codex-active-pm-cycle-20260607
+acceptance_criteria: "- Titles containing remove/delete as command-name substrings (e.g., remove-type) do not route to Removed without strong removal signal\\n- Strong type/tag signals still drive category precedence\\n- Regression tests cover remove-type/create_default_type examples\\n- pm-cli tracking issue pm-ybiz cross-linked with this change"
+comments[4]{created_at,author,text}:
+  "2026-06-07T12:12:30.280Z",codex-active-pm-cycle-20260607,"Duplicate-check evidence: pm search 'classifier remove-type delete removed changelog' found only CLOSED classifier issue pmc-874d and no open equivalent. This is a new distinct bug variant tracked from pm-cli item pm-ybiz."
+  "2026-06-07T12:12:30.427Z",codex-active-pm-cycle-20260607,"Cross-link: upstream pm-cli tracker item pm-ybiz (external dependency) requires this repo fix."
+  "2026-06-07T13:01:59.205Z",codex-active-pm-cycle-20260607,"Implemented classifier precedence fix: Removed now requires a strong signal (type/tags) before weak title-only remove/delete fallback is considered, so command-name tokens like remove-type no longer misroute feature work. Added regression tests for remove-type/create_default_type and strong-signal removal preservation. Verification: npm run build && npm test && npm run check && npm run changelog:check all pass."
+  "2026-06-07T13:02:23.932Z",codex-active-pm-cycle-20260607,"Linked tests executed via pm test --run --progress passed 3/3: npm run changelog:check, npm run check, npm test (with sandbox-safe PM_PATH/PM_GLOBAL_PATH prefixes)."
+files[2]{path,scope,note}:
+  src/generator.ts,project,Adjust Removed classifier precedence to avoid remove-type title false positives
+  test/generator.test.ts,project,Add regressions for remove-type/create_default_type title routing
+tests[3]{command,path,scope,timeout_seconds,pm_context_mode,env_set,env_clear,shared_host_safe,assert_stdout_contains,assert_stdout_regex,assert_stderr_contains,assert_stderr_regex,assert_stdout_min_lines,assert_json_field_equals,assert_json_field_gte,note}:
+  "PM_PATH=/tmp/pmc-ph6q-pm PM_GLOBAL_PATH=/tmp/pmc-ph6q-global npm run changelog:check",null,project,300,null,null,null,null,null,null,null,null,null,null,null,Verify changelog generation consistency
+  PM_PATH=/tmp/pmc-ph6q-pm PM_GLOBAL_PATH=/tmp/pmc-ph6q-global npm run check,null,project,300,null,null,null,null,null,null,null,null,null,null,null,Type-check gate
+  PM_PATH=/tmp/pmc-ph6q-pm PM_GLOBAL_PATH=/tmp/pmc-ph6q-global npm test,null,project,900,null,null,null,null,null,null,null,null,null,null,null,Run full pm-changelog test suite including classifier regressions
+body: ""

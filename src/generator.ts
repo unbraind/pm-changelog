@@ -729,10 +729,14 @@ function classifyItem(item: PmItem): Category {
   const itemType = typeof item.type === "string" ? item.type.toLowerCase() : "";
 
   const CHANGED_NEEDLES = ["change", "changed", "refactor", "update", "updated", "improve"];
+  const REMOVED_NEEDLES = ["removed", "remove", "deleted", "delete"];
 
   if (hasAny(allValues, ["security", "cve", "vulnerability"])) return "Security";
   if (hasAny(allValues, ["deprecated", "deprecation"])) return "Deprecated";
-  if (hasAny(allValues, ["removed", "remove", "deleted", "delete"])) return "Removed";
+  // Treat Removed as a strong signal by default. Title-only remove/delete terms
+  // are evaluated later, after Added/Changed defaults, so command/feature names
+  // like "remove-type" don't eclipse explicit non-removal intent.
+  if (hasAny(strongValues, REMOVED_NEEDLES)) return "Removed";
   if (hasAny(allValues, ["fix", "fixed", "bug", "bugfix", "hotfix", "regression"])) return "Fixed";
   if (hasAny(allValues, ["feature", "feat", "added", "add", "new"])) return "Added";
   // An explicit Changed signal in the STRONG tier (type/tags) wins over the
@@ -749,6 +753,9 @@ function classifyItem(item: PmItem): Category {
   }
   if (hasAny(titleValue, CHANGED_NEEDLES)) {
     return "Changed";
+  }
+  if (hasAny(titleValue, REMOVED_NEEDLES)) {
+    return "Removed";
   }
   return "Other";
 }
