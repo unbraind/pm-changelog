@@ -4,7 +4,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import test from "node:test";
 
-import { buildChangelogDocument, createChangelog, readPmItems, suggestSemver } from "../dist/index.js";
+import { buildChangelogDocument, createChangelog, explainChangelogSelection, readPmItems, suggestSemver } from "../dist/index.js";
 import type { PmItem } from "../dist/index.js";
 
 const items: PmItem[] = [
@@ -506,4 +506,55 @@ test("--suggest-semver still sees the breaking change when all releases are visi
   const all = suggestSemver({ items: crossReleaseItems, releaseWindows: crossReleaseWindows });
   assert.equal(all.bump, "major");
   assert.equal(all.counts.breaking, 1);
+});
+
+// ---------------------------------------------------------------------------
+// --explain (selection diagnostics for agent/operator UX)
+// ---------------------------------------------------------------------------
+test("--explain reports status/time/title exclusions with actionable hints", () => {
+  const report = explainChangelogSelection({
+    items: [
+      { id: "pm-kept", title: "Ship feature", status: "closed", type: "Feature", updated_at: "2026-05-28T00:00:00Z" },
+      { id: "pm-open", title: "Still open", status: "open", type: "Task", updated_at: "2026-05-28T00:00:00Z" },
+      { id: "pm-old", title: "Old closed work", status: "closed", type: "Task", updated_at: "2026-04-01T00:00:00Z" },
+      { id: "pm-empty-title", title: "", status: "closed", type: "Task", updated_at: "2026-05-28T00:00:00Z" },
+    ],
+    since: "2026-05-01",
+  });
+
+  assert.equal(report.stage_counts.input, 4);
+  assert.equal(report.excluded_counts.missing_title, 1);
+  assert.equal(report.excluded_counts.status, 1);
+  assert.equal(report.excluded_counts.time_window, 1);
+  assert.equal(report.stage_counts.visible_items, 1);
+  assert.match(report.hints.join(" "), /--status/);
+  assert.match(report.hints.join(" "), /--since\/--until/);
+});
+
+test("--explain reports visibility narrowing caused by --limit/--since-version", () => {
+  const report = explainChangelogSelection({
+    items: crossReleaseItems,
+    releaseWindows: crossReleaseWindows,
+    limit: 1,
+  });
+
+  assert.equal(report.stage_counts.candidate_sections, 2);
+  assert.equal(report.stage_counts.visible_sections, 1);
+  assert.equal(report.excluded_counts.hidden_by_visibility, 1);
+  assert.match(report.sample_items.hidden_by_visibility.join(" "), /v1-break/);
+  assert.match(report.hints.join(" "), /--limit/);
+});
+
+test("--explain reports items outside release windows", () => {
+  const report = explainChangelogSelection({
+    items: [
+      { id: "pm-outside-window", title: "Outside release windows", status: "closed", type: "Task", release: "9.9.9", updated_at: "2025-01-01T00:00:00Z" },
+    ],
+    releaseWindows: [
+      { heading: "1.0.0 - 2026-05-10", releaseTag: "v1.0.0", since: "2026-05-01T00:00:00Z", until: "2026-05-10T00:00:00Z" },
+    ],
+  });
+
+  assert.equal(report.excluded_counts.release_window, 1);
+  assert.match(report.hints.join(" "), /release tag windows/);
 });
