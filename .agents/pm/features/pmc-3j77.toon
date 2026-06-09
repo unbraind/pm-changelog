@@ -1,0 +1,28 @@
+id: pmc-3j77
+title: Full pm ecosystem production pass for pm-changelog
+description: ""
+type: Feature
+status: in_progress
+priority: 1
+tags[3]: ecosystem,ecosystem-pass-2026-06-10,production
+created_at: "2026-06-09T22:38:38.083Z"
+updated_at: "2026-06-09T23:23:14.799Z"
+assignee: codex-5-3-sweep
+author: codex-5-3-sweep
+files[8]{path,scope,note}:
+  src/cli.ts,project,wire --explain flag across CLI outputs
+  src/extension.ts,project,surface explain diagnostics in pm extension
+  src/generator.ts,project,add explain selection diagnostics pipeline
+  src/index.ts,project,export diagnostics API
+  src/types.ts,project,add ChangelogSelectionReport contract
+  test/cli-regression.test.ts,project,verify CLI --explain stdout/json behavior
+  test/enhancements.test.ts,project,cover selection diagnostics counts and hints
+  test/extension.test.ts,project,assert extension exposes --explain flag
+tests[3]{command,path,scope,timeout_seconds,pm_context_mode,env_set,env_clear,shared_host_safe,assert_stdout_contains,assert_stdout_regex,assert_stderr_contains,assert_stderr_regex,assert_stdout_min_lines,assert_json_field_equals,assert_json_field_gte,note}:
+  "npm run release:check",null,project,3600,null,null,null,null,null,null,null,null,null,null,null,null
+  PM_PATH=.agents/pm PM_GLOBAL_PATH=.agents/pm npm test,null,project,null,null,null,null,null,null,null,null,null,null,null,null,null
+  PM_PATH=/tmp/pm-changelog PM_GLOBAL_PATH=/tmp/pm-changelog-global npm test,null,project,null,null,null,null,null,null,null,null,null,null,null,null,full TypeScript build+test validation for explain diagnostics
+docs[2]{path,scope,note}:
+  docs/usage.md,project,document explain diagnostics mode
+  README.md,project,document explain usage in quickstart
+body: ""
