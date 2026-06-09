@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { execFileSync } from "node:child_process";
+import { execFileSync, spawnSync } from "node:child_process";
 import { mkdtempSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -52,6 +52,15 @@ function runCli(args: string[]): string {
   return execFileSync(process.execPath, [CLI, ...args], { encoding: "utf-8" });
 }
 
+function runCliDetailed(args: string[]): { status: number; stdout: string; stderr: string } {
+  const result = spawnSync(process.execPath, [CLI, ...args], { encoding: "utf-8" });
+  return {
+    status: result.status ?? -1,
+    stdout: result.stdout ?? "",
+    stderr: result.stderr ?? "",
+  };
+}
+
 test("CLI default render is byte-identical to the recorded baseline", () => {
   const input = writeFixture();
   const out = runCli(["--input", input, "--version", "1.2.0", "--date", "2026-05-28", "--stdout"]);
@@ -76,6 +85,45 @@ test("CLI opt-in flags only change output when present", () => {
   assert.match(byType, /### Feature\n/);
 });
 
+test("CLI accepts --flag=value syntax for value options", () => {
+  const input = writeFixture();
+  const out = runCli([
+    "--input",
+    input,
+    "--version=1.2.0",
+    "--date=2026-05-28",
+    "--status=closed",
+    "--stdout",
+  ]);
+  assert.equal(out, BASELINE);
+});
+
+test("CLI accepts --release-version as a compatibility alias for --version", () => {
+  const input = writeFixture();
+  const out = runCli([
+    "--input",
+    input,
+    "--release-version=1.2.0",
+    "--date=2026-05-28",
+    "--stdout",
+  ]);
+  assert.equal(out, BASELINE);
+});
+
+test("CLI unknown option errors include a did-you-mean suggestion", () => {
+  const input = writeFixture();
+  const result = runCliDetailed([
+    "--input",
+    input,
+    "--versoin=1.2.0",
+    "--date=2026-05-28",
+    "--stdout",
+  ]);
+  assert.equal(result.status, 1);
+  assert.match(result.stderr, /Unknown option: --versoin=1\.2\.0/);
+  assert.match(result.stderr, /Did you mean '--version'\?/);
+});
+
 test("CLI --changelog-json emits a structured document", () => {
   const input = writeFixture();
   const out = runCli(["--input", input, "--version", "1.2.0", "--date", "2026-05-28", "--changelog-json"]);
@@ -84,6 +132,33 @@ test("CLI --changelog-json emits a structured document", () => {
   assert.equal(doc.section_by, "category");
   assert.equal(doc.item_count, 3);
   assert.equal(doc.releases[0].version, "1.2.0");
+});
+
+test("CLI --explain augments --json summaries with selection diagnostics", () => {
+  const input = writeFixture();
+  const out = runCli(["--input", input, "--version", "1.2.0", "--date", "2026-05-28", "--stdout", "--json", "--explain"]);
+  const summary = JSON.parse(out);
+  assert.equal(summary.selection_report.stage_counts.input, 4);
+  assert.equal(summary.selection_report.excluded_counts.status, 1);
+  assert.match(summary.selection_report.hints.join(" "), /--status/);
+});
+
+test("CLI --explain keeps markdown stdout byte-identical and writes diagnostics to stderr", () => {
+  const input = writeFixture();
+  const result = runCliDetailed(["--input", input, "--version", "1.2.0", "--date", "2026-05-28", "--stdout", "--explain"]);
+  assert.equal(result.status, 0);
+  assert.equal(result.stdout, BASELINE);
+  assert.match(result.stderr, /Selection report:/);
+  assert.match(result.stderr, /Hint:/);
+});
+
+test("CLI --changelog-json --explain includes selection diagnostics", () => {
+  const input = writeFixture();
+  const out = runCli(["--input", input, "--version", "1.2.0", "--date", "2026-05-28", "--changelog-json", "--explain"]);
+  const doc = JSON.parse(out);
+  assert.equal(doc.item_count, 3);
+  assert.equal(doc.selection_report.stage_counts.input, 4);
+  assert.equal(doc.selection_report.stage_counts.visible_items, 3);
 });
 
 test("CLI --check exit code contract is preserved (1 when changed, 0 when up to date)", () => {
