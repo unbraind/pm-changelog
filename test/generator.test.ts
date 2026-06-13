@@ -625,6 +625,67 @@ test("mergeChangelog replaces an existing generated release", () => {
   assert.match(result.markdown, /## 1\.2\.0 - 2026-05-17[\s\S]*## 1\.1\.0 - 2026-05-01/);
 });
 
+test("mergeChangelog promotes a leading Unreleased section into the generated release (no duplicate)", () => {
+  const existing = `# Changelog
+
+## Unreleased - 2026-05-13
+
+### Fixed
+
+- Existing fix
+- Existing fix two
+
+## 1.1.0 - 2026-05-01
+
+### Fixed
+
+- Older release fix
+`;
+  const generated = createChangelog({
+    items,
+    version: "1.2.0",
+    date: "2026-05-17",
+  });
+
+  const result = mergeChangelog(existing, generated.markdown);
+
+  assert.equal(result.action, "replaced");
+  // The stale Unreleased section is gone — promoted into the version it ships in.
+  assert.doesNotMatch(result.markdown, /## Unreleased/);
+  assert.equal((result.markdown.match(/## 1\.2\.0 - 2026-05-17/g) ?? []).length, 1);
+  // Promoted in place at the top, ahead of the preserved older release.
+  assert.match(result.markdown, /## 1\.2\.0 - 2026-05-17[\s\S]*## 1\.1\.0 - 2026-05-01/);
+  assert.match(result.markdown, /- Older release fix/);
+});
+
+test("mergeChangelog keeps a generated Unreleased section instead of promoting it", () => {
+  const existing = `# Changelog
+
+## Unreleased - 2026-05-10
+
+### Fixed
+
+- Stale pending entry
+
+## 1.1.0 - 2026-05-01
+
+### Fixed
+
+- Older release fix
+`;
+  const generated = createChangelog({
+    items,
+    date: "2026-05-17",
+  });
+
+  const result = mergeChangelog(existing, generated.markdown);
+
+  // Generator emitted an Unreleased section, so it replaces (not promotes).
+  assert.match(result.markdown, /## Unreleased/);
+  assert.doesNotMatch(result.markdown, /Stale pending entry/);
+  assert.match(result.markdown, /## 1\.1\.0 - 2026-05-01/);
+});
+
 test("mergeChangelog replaces Keep a Changelog bracketed release headings", () => {
   const existing = `# Changelog
 

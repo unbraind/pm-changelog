@@ -282,6 +282,18 @@ export function mergeChangelog(
   let next = ensureTitle(existing, options.title);
   let action: MergeChangelogResult["action"] = "unchanged";
 
+  // Keep a Changelog semantics (issue #47): when a release is generated — i.e.
+  // the generated output carries a concrete version section and no `Unreleased`
+  // section of its own — any leading `## Unreleased` section already in the
+  // changelog is the pending-release section and must be PROMOTED into the
+  // version it ships in, not left behind as a duplicate alongside the new
+  // `## <version>` heading. We only consume it once (for the first/newest
+  // generated version) and never when the generator itself emits Unreleased.
+  const generatedHasUnreleased = releaseSections.some(
+    (section) => normalizeReleaseHeadingKey(section.heading) === UNRELEASED_HEADING_KEY
+  );
+  let canPromoteUnreleased = !generatedHasUnreleased;
+
   for (const releaseSection of releaseSections) {
     const replacement = releaseSection.markdown.trimEnd();
     const replaced = replaceReleaseSection(next, releaseSection.heading, replacement);
@@ -290,6 +302,16 @@ export function mergeChangelog(
       next = replaced.markdown;
       action = "replaced";
       continue;
+    }
+
+    if (canPromoteUnreleased) {
+      const promoted = replaceReleaseSection(next, "Unreleased", replacement);
+      if (promoted.replaced) {
+        next = promoted.markdown;
+        action = "replaced";
+        canPromoteUnreleased = false;
+        continue;
+      }
     }
 
     next = insertAfterTitle(next, replacement);
@@ -590,6 +612,9 @@ function replaceReleaseSection(
   const merged = after ? `${before}\n\n${replacement}\n\n${after}` : `${before}\n\n${replacement}`;
   return { markdown: merged, replaced: true };
 }
+
+/** Normalized heading key for the pending `Unreleased` section. */
+const UNRELEASED_HEADING_KEY = "unreleased";
 
 function normalizeReleaseHeadingKey(heading: string): string {
   const trimmed = heading.trim();
