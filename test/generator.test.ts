@@ -152,6 +152,27 @@ test("createChangelog keeps a sub-second item inside the release second it close
   assert.doesNotMatch(unreleased, /pm-boundary/);
 });
 
+test("createChangelog non-exclusive since admits items in the same boundary second", () => {
+  // Documents the intentional second-granularity consequence (issue #41): a
+  // sub-second `--since` boundary admits items closed earlier in that same
+  // second, since release-tag boundaries are always second-precision.
+  const result = createChangelog({
+    items: [
+      {
+        id: "pm-same-second",
+        title: "Closed earlier in the since boundary second",
+        status: "closed",
+        type: "task",
+        closed_at: "2026-05-10T13:00:00.000Z",
+      },
+    ],
+    since: "2026-05-10T13:00:00.500Z",
+  });
+
+  assert.equal(result.itemCount, 1);
+  assert.match(result.markdown, /Closed earlier in the since boundary second \(pm-same-second\)/);
+});
+
 test("createChangelog buckets items by release field when window has releaseTag", () => {
   const result = createChangelog({
     items: [
