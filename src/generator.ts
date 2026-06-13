@@ -656,7 +656,9 @@ function insertReleaseSection(markdown: string, heading: string, replacement: st
   const start = insertBefore.index ?? 0;
   const before = markdown.slice(0, start).trimEnd();
   const after = markdown.slice(start).trimStart();
-  return `${before}\n\n${replacement}\n\n${after}`;
+  // `before` is normally the `# Changelog` title (ensureTitle runs first), but
+  // guard the empty case so we never emit leading blank lines.
+  return before ? `${before}\n\n${replacement}\n\n${after}` : `${replacement}\n\n${after}`;
 }
 
 function insertAfterTitle(markdown: string, releaseSection: string): string {
