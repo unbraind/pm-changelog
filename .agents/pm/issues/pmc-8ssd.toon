@@ -1,0 +1,15 @@
+id: pmc-8ssd
+title: Prepend merge promotes a stale Unreleased section into the released version instead of duplicating it (GH #47)
+description: "mergeChangelog in prepend mode inserted the generated ## <version> section while leaving the prior ## Unreleased section (same items) in place, so every released CHANGELOG ended up with both. Fix: when the generated output carries a concrete version and no Unreleased section of its own, promote a leading ## Unreleased into the version it ships in (Keep a Changelog semantics), consuming it once for the newest version."
+type: Issue
+status: closed
+priority: 2
+tags: []
+created_at: "2026-06-13T19:14:47.096Z"
+updated_at: "2026-06-13T19:15:55.285Z"
+author: claude
+resolution: "Promote a leading Unreleased section into the generated version in prepend merge (Keep a Changelog), consumed once for the newest version; generator-emitted Unreleased still replaces normally."
+expected_result: Released changelog has no duplicate Unreleased section
+actual_result: "No duplicate; 103 tests pass incl. 2 new merge tests; release:check green"
+close_reason: Fixed in prepend-merge promotion logic
+body: ""
