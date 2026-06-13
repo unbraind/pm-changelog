@@ -124,6 +124,34 @@ test("createChangelog can build full history from git tag windows", () => {
   );
 });
 
+test("createChangelog keeps a sub-second item inside the release second it closed in", () => {
+  // Regression for issue #41: git release-tag boundaries are second-precision
+  // while pm items carry millisecond `closed_at`. An item closed at
+  // 13:00:00.789 must stay in the release whose tag landed at 13:00:00, not
+  // resurface under Unreleased.
+  const result = createChangelog({
+    items: [
+      {
+        id: "pm-boundary",
+        title: "Closed in the same second the tag landed",
+        status: "closed",
+        type: "feature",
+        closed_at: "2026-05-17T13:00:00.789Z",
+      },
+    ],
+    releaseWindows: [
+      { heading: "Unreleased", since: "2026-05-17T13:00:00Z", sinceExclusive: true },
+      { heading: "1.2.0 - 2026-05-17", since: "2026-05-10T13:00:00Z", sinceExclusive: true, until: "2026-05-17T13:00:00Z" },
+    ],
+  });
+
+  assert.equal(result.itemCount, 1);
+  const v120 = result.markdown.match(/## 1\.2\.0 - 2026-05-17[\s\S]*?(?=\n## |$)/)?.[0] ?? "";
+  assert.match(v120, /Closed in the same second the tag landed \(pm-boundary\)/);
+  const unreleased = result.markdown.match(/## Unreleased[\s\S]*?(?=\n## |$)/)?.[0] ?? "";
+  assert.doesNotMatch(unreleased, /pm-boundary/);
+});
+
 test("createChangelog buckets items by release field when window has releaseTag", () => {
   const result = createChangelog({
     items: [
@@ -305,8 +333,9 @@ test("resolveReleaseTagWindows keeps unpadded calendar pending headings", () => 
   // pm-cli release pipeline can locate the `## 2026.5.27` section it asked for.
   assert.equal(windows[1].heading, "2026.5.27 - 2026-05-27");
   assert.doesNotMatch(windows[1].heading, /2026\.05\.27/);
-  // Historical padded tags keep their published format; we do not rewrite them.
-  assert.equal(windows[2].heading, "2026.05.24 - 2026-05-24");
+  // Padded calendar tags render unpadded headings too, so the post-tag heading
+  // matches the pre-tag pending heading and the committed CHANGELOG (issue #41).
+  assert.equal(windows[2].heading, "2026.5.24 - 2026-05-24");
 });
 
 test("resolveReleaseTagWindows dedupes a pending version against a padded tag", () => {
@@ -334,7 +363,56 @@ test("resolveReleaseTagWindows dedupes a pending version against a padded tag", 
 
   assert.equal(windows.length, 2);
   assert.equal(windows[0].heading, "Unreleased");
-  assert.equal(windows[1].heading, "2026.05.24 - 2026-05-24");
+  assert.equal(windows[1].heading, "2026.5.24 - 2026-05-24");
+});
+
+test("resolveReleaseTagWindows renders a padded calendar tag with an unpadded heading", () => {
+  // Regression for issue #41: the pm-cli release pipeline tags releases in
+  // zero-padded form (`v2026.06.09`) but commits unpadded `## 2026.6.9`
+  // headings pre-tag. The post-tag regeneration must reproduce the unpadded
+  // heading or `changelog:check` fails on every released repo at HEAD.
+  const dir = mkdtempSync(join(tmpdir(), "pm-changelog-padded-heading-"));
+  execFileSync("git", ["init"], { cwd: dir, encoding: "utf-8" });
+  execFileSync("git", ["config", "user.name", "pm changelog test"], { cwd: dir, encoding: "utf-8" });
+  execFileSync("git", ["config", "user.email", "pm-changelog@example.com"], { cwd: dir, encoding: "utf-8" });
+
+  writeFileSync(join(dir, "file.txt"), "one\n");
+  execFileSync("git", ["add", "file.txt"], { cwd: dir, encoding: "utf-8" });
+  execFileSync("git", ["commit", "-m", "one"], {
+    cwd: dir,
+    encoding: "utf-8",
+    env: { ...process.env, GIT_AUTHOR_DATE: "2026-06-09T12:00:00Z", GIT_COMMITTER_DATE: "2026-06-09T12:00:00Z" },
+  });
+  execFileSync("git", ["tag", "v2026.06.09"], { cwd: dir, encoding: "utf-8" });
+
+  // No pending version: the heading is derived purely from the existing tag.
+  const windows = resolveReleaseTagWindows({ cwd: dir, includeUnreleased: false });
+
+  assert.equal(windows.length, 1);
+  assert.equal(windows[0].releaseTag, "v2026.06.09");
+  assert.equal(windows[0].heading, "2026.6.9 - 2026-06-09");
+  assert.doesNotMatch(windows[0].heading, /2026\.06\.09/);
+});
+
+test("resolveReleaseTagWindows preserves a pre-release suffix while unpadding", () => {
+  const dir = mkdtempSync(join(tmpdir(), "pm-changelog-padded-suffix-"));
+  execFileSync("git", ["init"], { cwd: dir, encoding: "utf-8" });
+  execFileSync("git", ["config", "user.name", "pm changelog test"], { cwd: dir, encoding: "utf-8" });
+  execFileSync("git", ["config", "user.email", "pm-changelog@example.com"], { cwd: dir, encoding: "utf-8" });
+
+  writeFileSync(join(dir, "file.txt"), "one\n");
+  execFileSync("git", ["add", "file.txt"], { cwd: dir, encoding: "utf-8" });
+  execFileSync("git", ["commit", "-m", "one"], {
+    cwd: dir,
+    encoding: "utf-8",
+    env: { ...process.env, GIT_AUTHOR_DATE: "2026-06-09T12:00:00Z", GIT_COMMITTER_DATE: "2026-06-09T12:00:00Z" },
+  });
+  execFileSync("git", ["tag", "v2026.06.09-1"], { cwd: dir, encoding: "utf-8" });
+
+  const windows = resolveReleaseTagWindows({ cwd: dir, includeUnreleased: false });
+
+  assert.equal(windows.length, 1);
+  assert.equal(windows[0].heading, "2026.6.9-1 - 2026-06-09");
 });
 
 test("createChangelog omits item links unless explicitly enabled", () => {

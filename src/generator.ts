@@ -473,13 +473,25 @@ function filterItemsByTime(
   const since = window.since ? Date.parse(window.since) : undefined;
   const until = window.until ? Date.parse(window.until) : undefined;
 
+  // Release-tag boundaries come from git committer dates at second precision,
+  // while pm item timestamps carry milliseconds. Comparing the raw values
+  // pushes an item closed at 12:34:56.789 outside a window ending at
+  // 12:34:56(.000), so it resurfaces under Unreleased (issue #41). Compare at
+  // second granularity: an inclusive `until` covers the whole boundary second,
+  // and an exclusive `since` excludes the entire boundary second.
+  const toSecond = (ms: number): number => Math.floor(ms / 1000);
+
   return items.filter((item) => {
     const timestamp = itemTimestamp(item);
     if (!timestamp) return since === undefined && until === undefined;
     const value = Date.parse(timestamp);
     if (Number.isNaN(value)) return false;
-    if (since !== undefined && (window.sinceExclusive ? value <= since : value < since)) return false;
-    if (until !== undefined && value > until) return false;
+    if (since !== undefined) {
+      const sinceSecond = toSecond(since);
+      const valueSecond = toSecond(value);
+      if (window.sinceExclusive ? valueSecond <= sinceSecond : valueSecond < sinceSecond) return false;
+    }
+    if (until !== undefined && toSecond(value) > toSecond(until)) return false;
     return true;
   });
 }
