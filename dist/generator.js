@@ -263,7 +263,7 @@ export function mergeChangelog(existingMarkdown, generatedMarkdown, options = {}
                 continue;
             }
         }
-        next = insertAfterTitle(next, replacement);
+        next = insertReleaseSection(next, releaseSection.heading, replacement);
         if (action !== "replaced")
             action = "inserted";
     }
@@ -536,6 +536,34 @@ function ensureTitle(markdown, title) {
     if (/^#\s+.+$/m.test(markdown))
         return markdown;
     return `# ${title ?? DEFAULT_TITLE}\n\n${markdown.trimStart()}`;
+}
+/**
+ * Insert a release section in chronological position (Unreleased first, then
+ * newest-to-oldest by version) rather than always at the top. Used by the
+ * prepend merge when a generated section has no existing heading to replace,
+ * so a backfilled older release cannot land above newer ones or the pending
+ * `## Unreleased` section (GH #48 review).
+ */
+function insertReleaseSection(markdown, heading, replacement) {
+    const matches = Array.from(markdown.matchAll(/^##\s+(.+)$/gm));
+    if (matches.length === 0)
+        return insertAfterTitle(markdown, replacement);
+    const newKey = normalizeReleaseHeadingKey(heading);
+    const insertBefore = matches.find((match) => {
+        const key = normalizeReleaseHeadingKey(match[1].trim());
+        if (key === UNRELEASED_HEADING_KEY)
+            return false; // never displace the pending section
+        if (newKey === UNRELEASED_HEADING_KEY)
+            return true; // a new Unreleased sorts ahead of any version
+        return compareVersionStrings(newKey, key) > 0; // place before the first strictly-older release
+    });
+    if (!insertBefore) {
+        return `${markdown.trimEnd()}\n\n${replacement}`;
+    }
+    const start = insertBefore.index ?? 0;
+    const before = markdown.slice(0, start).trimEnd();
+    const after = markdown.slice(start).trimStart();
+    return `${before}\n\n${replacement}\n\n${after}`;
 }
 function insertAfterTitle(markdown, releaseSection) {
     const titleMatch = markdown.match(/^#\s+.+$/m);

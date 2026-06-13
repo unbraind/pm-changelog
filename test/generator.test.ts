@@ -736,6 +736,12 @@ test("mergeChangelog does not let an older generated section consume the pending
   assert.match(result.markdown, /## 1\.1\.0 - 2026-05-01[\s\S]*Backfilled older release/);
   // Exactly one Unreleased section remains.
   assert.equal((result.markdown.match(/## Unreleased/g) ?? []).length, 1);
+  // Sections stay in chronological order (newest to oldest); the backfilled
+  // older release is not hoisted above newer sections or Unreleased.
+  assert.match(
+    result.markdown,
+    /## Unreleased - 2026-05-20[\s\S]*## 1\.2\.0 - 2026-05-17[\s\S]*## 1\.1\.0 - 2026-05-01/
+  );
 });
 
 test("mergeChangelog promotes a bracketed Keep a Changelog Unreleased heading", () => {
