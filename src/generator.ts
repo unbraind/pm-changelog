@@ -287,14 +287,14 @@ export function mergeChangelog(
   // section of its own — any leading `## Unreleased` section already in the
   // changelog is the pending-release section and must be PROMOTED into the
   // version it ships in, not left behind as a duplicate alongside the new
-  // `## <version>` heading. We only consume it once (for the first/newest
-  // generated version) and never when the generator itself emits Unreleased.
+  // `## <version>` heading. Only the newest generated section may consume it,
+  // and never when the generator itself emits an Unreleased section.
   const generatedHasUnreleased = releaseSections.some(
     (section) => normalizeReleaseHeadingKey(section.heading) === UNRELEASED_HEADING_KEY
   );
-  let canPromoteUnreleased = !generatedHasUnreleased;
+  const canPromoteUnreleased = !generatedHasUnreleased;
 
-  for (const releaseSection of releaseSections) {
+  for (const [index, releaseSection] of releaseSections.entries()) {
     const replacement = releaseSection.markdown.trimEnd();
     const replaced = replaceReleaseSection(next, releaseSection.heading, replacement);
 
@@ -304,12 +304,15 @@ export function mergeChangelog(
       continue;
     }
 
-    if (canPromoteUnreleased) {
+    // Restrict promotion to the newest generated section (index 0). Otherwise,
+    // when the newest version already exists (replaced above) an older section
+    // that is missing could steal the pending `## Unreleased` and overwrite it,
+    // losing the pending changes (GH #48 review).
+    if (canPromoteUnreleased && index === 0) {
       const promoted = replaceReleaseSection(next, "Unreleased", replacement);
       if (promoted.replaced) {
         next = promoted.markdown;
         action = "replaced";
-        canPromoteUnreleased = false;
         continue;
       }
     }
