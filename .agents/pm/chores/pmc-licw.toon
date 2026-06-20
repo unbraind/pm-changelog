@@ -1,0 +1,22 @@
+id: pmc-licw
+title: Refresh pm-changelog dev dependency lock for clean audit
+description: Local npm audit --audit-level low reports dev-only OpenTelemetry advisories through the stale @unbrained/pm-cli lock entry. Update the dev dependency lock to the current wanted/latest pm-cli and refresh @types/node within the Node 25 range so local broad audit is clean while production audit remains clean.
+type: Chore
+status: closed
+priority: 2
+tags[3]: audit,dependencies,security
+created_at: "2026-06-20T03:14:30.460Z"
+updated_at: "2026-06-20T03:15:46.625Z"
+author: codex-implementation-agent
+parent: pmc-4279
+comments[2]{created_at,author,text}:
+  "2026-06-20T03:15:01.337Z",codex-implementation-agent,"Evidence: npm update @unbrained/pm-cli @types/node refreshed package-lock.json; npm audit --audit-level low now reports 0 vulnerabilities. Full release check will run after item closure and changelog regeneration."
+  "2026-06-20T03:15:46.625Z",codex-implementation-agent,"Final evidence: npm audit --audit-level low reports 0 vulnerabilities; npm run release:check passed with typecheck, 89 tests, production audit, pack dry-run, and changelog:check."
+files[2]{path,scope,note}:
+  package-lock.json,project,refresh dev dependency lock for current pm-cli and audit clean
+  package.json,project,declared dependency range verified while refreshing lock
+tests[2]{command,path,scope,timeout_seconds,pm_context_mode,env_set,env_clear,shared_host_safe,assert_stdout_contains,assert_stdout_regex,assert_stderr_contains,assert_stderr_regex,assert_stdout_min_lines,assert_json_field_equals,assert_json_field_gte,note}:
+  npm audit --audit-level low,null,project,120,null,null,null,null,null,null,null,null,null,null,null,null
+  "npm run release:check",null,project,600,null,null,null,null,null,null,null,null,null,null,null,null
+close_reason: Refreshed dev dependency lock and cleared local npm audit.
+body: ""

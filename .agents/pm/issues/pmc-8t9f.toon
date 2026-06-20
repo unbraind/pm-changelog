@@ -1,0 +1,30 @@
+id: pmc-8t9f
+title: Relax changelog title escaping for readable Markdown
+description: "Fix downstream pm-cli pm-3299: generated changelog entry titles over-escape harmless GitHub Markdown characters, including parentheses and intra-word underscores such as EXTENSION_AUTHOR_CONTRACTS. Keep strict escaping for IDs, metadata, links, and body previews while using title-context escaping for item titles."
+type: Issue
+status: closed
+priority: 2
+tags[3]: changelog,downstream-pm-cli,markdown
+created_at: "2026-06-20T03:11:44.884Z"
+updated_at: "2026-06-20T03:15:46.237Z"
+author: codex-implementation-agent
+parent: pmc-4279
+comments[3]{created_at,author,text}:
+  "2026-06-20T03:12:12.682Z",codex-implementation-agent,"Evidence: implemented title-context escaping for changelog item titles; npm run typecheck passed; npm test passed (89 tests); npm run audit:prod found 0 vulnerabilities; npm run pack:dry-run succeeded. changelog:check intentionally pending until this item is closed and CHANGELOG.md regenerated."
+  "2026-06-20T03:13:39.236Z",codex-implementation-agent,"Evidence: npm run release:check passed after full-history changelog regeneration. Manual temp smoke passed in /tmp/pm-changelog-title-escape-QkBnRg: local package installed with pm install <repo> --project, generated CHANGELOG.md contains 'Fix EXTENSION_AUTHOR_CONTRACTS docs (actual 1.4.0)' without escaped underscores or parentheses."
+  "2026-06-20T03:15:46.237Z",codex-implementation-agent,"Final evidence: npm run release:check passed after adding pmc-licw and regenerating CHANGELOG.md; title escaping regression remains green and full package changelog check reports up to date."
+files[4]{path,scope,note}:
+  dist/generator.js,project,rebuilt package runtime
+  dist/generator.js.map,project,rebuilt package source map
+  src/generator.ts,project,title-context markdown escaping implementation
+  test/generator.test.ts,project,regression coverage for readable title punctuation
+tests[5]{command,path,scope,timeout_seconds,pm_context_mode,env_set,env_clear,shared_host_safe,assert_stdout_contains,assert_stdout_regex,assert_stderr_contains,assert_stderr_regex,assert_stdout_min_lines,assert_json_field_equals,assert_json_field_gte,note}:
+  "npm run audit:prod",null,project,120,null,null,null,null,null,null,null,null,null,null,null,null
+  "npm run changelog:check",null,project,240,null,null,null,null,null,null,null,null,null,null,null,null
+  "npm run pack:dry-run",null,project,240,null,null,null,null,null,null,null,null,null,null,null,null
+  npm run typecheck,null,project,120,null,null,null,null,null,null,null,null,null,null,null,null
+  npm test,null,project,240,null,null,null,null,null,null,null,null,null,null,null,null
+docs[1]{path,scope,note}:
+  CHANGELOG.md,project,generated release note after item closure
+close_reason: Implemented upstream title escaping fix with regression coverage and package gates.
+body: ""

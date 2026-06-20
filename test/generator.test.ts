@@ -55,6 +55,27 @@ test("createChangelog groups closed items by category", () => {
   assert.doesNotMatch(result.markdown, /Draft release notes/);
 });
 
+test("createChangelog keeps harmless title punctuation readable", () => {
+  const result = createChangelog({
+    items: [
+      {
+        id: "pm-clean-title",
+        title: "Fix EXTENSION_AUTHOR_CONTRACTS docs (actual 1.4.0) and _ marker plus _secret_",
+        status: "closed",
+        type: "bug",
+        updated_at: "2026-06-19T09:00:00Z",
+      },
+    ],
+    version: "1.2.0",
+    date: "2026-06-19",
+  });
+
+  assert.match(result.markdown, /EXTENSION_AUTHOR_CONTRACTS docs \(actual 1\.4\.0\)/);
+  assert.doesNotMatch(result.markdown, /EXTENSION\\_AUTHOR\\_CONTRACTS|\\\(actual 1\.4\.0\\\)/);
+  assert.match(result.markdown, /and \\_ marker/);
+  assert.match(result.markdown, /plus \\_secret\\_/);
+});
+
 test("createChangelog can group items by release metadata", () => {
   const result = createChangelog({
     items: [
