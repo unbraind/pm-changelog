@@ -1,16 +1,26 @@
 # Changelog
 
-## 2026.6.14 - 2026-06-20
+## 2026.6.20 - 2026-06-20
 
 ### Fixed
 
 - Relax changelog title escaping for readable Markdown ([pmc-8t9f](https://github.com/unbraind/pm-changelog/blob/main/.agents/pm/issues/pmc-8t9f.toon))
-- Prepend merge promotes a stale Unreleased section into the released version instead of duplicating it (GH \#47) ([pmc-8ssd](https://github.com/unbraind/pm-changelog/blob/main/.agents/pm/issues/pmc-8ssd.toon))
-- Classifier misroutes feature command names containing remove/delete to Removed section ([pmc-ph6q](https://github.com/unbraind/pm-changelog/blob/main/.agents/pm/issues/pmc-ph6q.toon))
 
 ### Security
 
 - Refresh pm-changelog dev dependency lock for clean audit ([pmc-licw](https://github.com/unbraind/pm-changelog/blob/main/.agents/pm/chores/pmc-licw.toon))
+
+## 2026.6.13-1 - 2026-06-13
+
+### Fixed
+
+- Prepend merge promotes a stale Unreleased section into the released version instead of duplicating it (GH \#47) ([pmc-8ssd](https://github.com/unbraind/pm-changelog/blob/main/.agents/pm/issues/pmc-8ssd.toon))
+
+## 2026.6.8 - 2026-06-08
+
+### Fixed
+
+- Classifier misroutes feature command names containing remove/delete to Removed section ([pmc-ph6q](https://github.com/unbraind/pm-changelog/blob/main/.agents/pm/issues/pmc-ph6q.toon))
 
 ## 2026.6.7 - 2026-06-07
 
