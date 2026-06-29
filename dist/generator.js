@@ -1145,7 +1145,7 @@ function escapeMarkdown(value) {
     return value.replace(/([\\`*_[\]()#|>])/g, "\\$1");
 }
 function escapeItemTitleMarkdown(value) {
-    const escaped = value.replace(/([\\`*[\]#|>])/g, "\\$1");
+    const escaped = value.replace(/([\\*[\]#|>])/g, "\\$1");
     return escaped.replace(/_/g, (underscore, index) => {
         const previous = escaped[index - 1] ?? "";
         const next = escaped[index + 1] ?? "";

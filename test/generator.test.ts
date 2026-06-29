@@ -76,6 +76,25 @@ test("createChangelog keeps harmless title punctuation readable", () => {
   assert.match(result.markdown, /plus \\_secret\\_/);
 });
 
+test("createChangelog preserves inline code in item titles", () => {
+  const result = createChangelog({
+    items: [
+      {
+        id: "pm-inline-code",
+        title: "Dogfood: pm-kanban registers kanbanProfile so `pm profile apply kanban` works",
+        status: "closed",
+        type: "task",
+        updated_at: "2026-06-29T09:00:00Z",
+      },
+    ],
+    version: "1.2.0",
+    date: "2026-06-29",
+  });
+
+  assert.match(result.markdown, /so `pm profile apply kanban` works \(pm-inline-code\)/);
+  assert.doesNotMatch(result.markdown, /\\`pm profile apply kanban\\`/);
+});
+
 test("createChangelog can group items by release metadata", () => {
   const result = createChangelog({
     items: [
