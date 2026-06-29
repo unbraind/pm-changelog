@@ -99,6 +99,24 @@ test("createChangelog preserves inline code in item titles", () => {
   assert.doesNotMatch(result.markdown, /--flag \\\[x\\\]/);
 });
 
+test("createChangelog escapes unmatched backticks in item titles", () => {
+  const result = createChangelog({
+    items: [
+      {
+        id: "pm-unmatched-code",
+        title: "Fix unmatched ` marker before [metadata]",
+        status: "closed",
+        type: "bug",
+        updated_at: "2026-06-29T10:00:00Z",
+      },
+    ],
+    version: "1.2.0",
+    date: "2026-06-29",
+  });
+
+  assert.match(result.markdown, /Fix unmatched \\` marker before \\\[metadata\\\] \(pm-unmatched-code\)/);
+});
+
 test("createChangelog can group items by release metadata", () => {
   const result = createChangelog({
     items: [
