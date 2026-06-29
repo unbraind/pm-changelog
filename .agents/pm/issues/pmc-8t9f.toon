@@ -6,13 +6,22 @@ status: closed
 priority: 2
 tags[3]: changelog,downstream-pm-cli,markdown
 created_at: "2026-06-20T03:11:44.884Z"
-updated_at: "2026-06-20T03:15:46.237Z"
+updated_at: "2026-06-29T14:19:30.928Z"
 author: codex-implementation-agent
 parent: pmc-4279
-comments[3]{created_at,author,text}:
+resolution: "Title-context changelog escaping preserves complete backtick-delimited inline-code spans, escapes unmatched backticks in normal title text, and still escapes surrounding prose punctuation."
+expected_result: "Complete inline-code commands keep their Markdown punctuation readable, while unmatched backticks and normal bracket/underscore prose remain escaped."
+actual_result: "Regression coverage now verifies command brackets stay literal inside inline code, surrounding underscore prose is escaped, unmatched backticks are escaped, and npm test passed with 108 tests."
+comments[9]{created_at,author,text}:
   "2026-06-20T03:12:12.682Z",codex-implementation-agent,"Evidence: implemented title-context escaping for changelog item titles; npm run typecheck passed; npm test passed (89 tests); npm run audit:prod found 0 vulnerabilities; npm run pack:dry-run succeeded. changelog:check intentionally pending until this item is closed and CHANGELOG.md regenerated."
   "2026-06-20T03:13:39.236Z",codex-implementation-agent,"Evidence: npm run release:check passed after full-history changelog regeneration. Manual temp smoke passed in /tmp/pm-changelog-title-escape-QkBnRg: local package installed with pm install <repo> --project, generated CHANGELOG.md contains 'Fix EXTENSION_AUTHOR_CONTRACTS docs (actual 1.4.0)' without escaped underscores or parentheses."
   "2026-06-20T03:15:46.237Z",codex-implementation-agent,"Final evidence: npm run release:check passed after adding pmc-licw and regenerating CHANGELOG.md; title escaping regression remains green and full package changelog check reports up to date."
+  "2026-06-29T13:54:20.718Z",claude-code-agent,"Implementation note: downstream pm-cli PR #402 exposed the remaining title-escaping gap: item titles containing markdown inline code render as escaped backticks. Patched src/generator.ts to preserve literal backticks in title-context escaping while keeping strict escaping for other structural characters; added test/generator.test.ts coverage for  inline code. Verification so far: npm test passed (107 tests)."
+  "2026-06-29T13:54:32.824Z",claude-code-agent,"Correction to previous note: the added regression specifically covers the item title text \"Dogfood: pm-kanban registers kanbanProfile so `pm profile apply kanban` works\" and asserts the generated changelog preserves the inline-code backticks instead of rendering escaped backticks."
+  "2026-06-29T14:13:03.273Z",claude-code-agent,"Review follow-up: cubic identified that preserving backticks was not enough because Markdown punctuation inside an inline-code span could still be escaped. Updated title escaping to preserve complete backtick-delimited spans and escape only surrounding prose. Verification so far: npm test passed with 107 tests."
+  "2026-06-29T14:14:48.422Z",claude-code-agent,"Final follow-up evidence: pm test pmc-8t9f --run --progress passed all 5 linked checks; npm run release:check passed, including typecheck, 107 tests, npm audit --omit=dev with 0 vulnerabilities, npm pack --dry-run, and changelog:check."
+  "2026-06-29T14:18:28.502Z",claude-code-agent,"Gemini follow-up: unmatched backticks outside complete inline-code spans are escaped again, while complete backtick spans are preserved. Added a regression for an unmatched backtick before bracketed text. Verification so far: npm test passed with 108 tests."
+  "2026-06-29T14:19:30.726Z",claude-code-agent,"Final Gemini follow-up evidence: pm test pmc-8t9f --run --progress passed all 5 linked checks; npm run release:check passed with 108 tests, 0 production audit vulnerabilities, pack dry-run, and changelog:check."
 files[4]{path,scope,note}:
   dist/generator.js,project,rebuilt package runtime
   dist/generator.js.map,project,rebuilt package source map
@@ -26,5 +35,5 @@ tests[5]{command,path,scope,timeout_seconds,pm_context_mode,env_set,env_clear,sh
   npm test,null,project,240,null,null,null,null,null,null,null,null,null,null,null,null
 docs[1]{path,scope,note}:
   CHANGELOG.md,project,generated release note after item closure
-close_reason: Implemented upstream title escaping fix with regression coverage and package gates.
+close_reason: Close Gemini follow-up for unmatched backtick title escaping.
 body: ""

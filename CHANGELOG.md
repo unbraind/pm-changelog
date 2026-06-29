@@ -1,10 +1,12 @@
 # Changelog
 
-## 2026.6.20 - 2026-06-20
+## Unreleased
 
 ### Fixed
 
 - Relax changelog title escaping for readable Markdown ([pmc-8t9f](https://github.com/unbraind/pm-changelog/blob/main/.agents/pm/issues/pmc-8t9f.toon))
+
+## 2026.6.20 - 2026-06-20
 
 ### Security
 
