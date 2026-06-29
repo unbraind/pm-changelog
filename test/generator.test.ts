@@ -81,7 +81,7 @@ test("createChangelog preserves inline code in item titles", () => {
     items: [
       {
         id: "pm-inline-code",
-        title: "Dogfood: pm-kanban registers kanbanProfile so `pm profile apply kanban` works",
+        title: "Dogfood: pm-kanban registers kanbanProfile so `pm profile apply kanban --flag [x]` works with _ marker",
         status: "closed",
         type: "task",
         updated_at: "2026-06-29T09:00:00Z",
@@ -91,8 +91,12 @@ test("createChangelog preserves inline code in item titles", () => {
     date: "2026-06-29",
   });
 
-  assert.match(result.markdown, /so `pm profile apply kanban` works \(pm-inline-code\)/);
-  assert.doesNotMatch(result.markdown, /\\`pm profile apply kanban\\`/);
+  assert.match(
+    result.markdown,
+    /so `pm profile apply kanban --flag \[x\]` works with \\_ marker \(pm-inline-code\)/
+  );
+  assert.doesNotMatch(result.markdown, /\\`pm profile apply kanban/);
+  assert.doesNotMatch(result.markdown, /--flag \\\[x\\\]/);
 });
 
 test("createChangelog can group items by release metadata", () => {
