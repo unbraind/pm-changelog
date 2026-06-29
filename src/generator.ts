@@ -1260,6 +1260,28 @@ function escapeMarkdown(value: string): string {
 }
 
 function escapeItemTitleMarkdown(value: string): string {
+  let result = "";
+  let index = 0;
+  while (index < value.length) {
+    const start = value.indexOf("`", index);
+    if (start === -1) {
+      result += escapeItemTitleText(value.slice(index));
+      break;
+    }
+    result += escapeItemTitleText(value.slice(index, start));
+    const fence = value.slice(start).match(/^`+/)?.[0] ?? "`";
+    const end = value.indexOf(fence, start + fence.length);
+    if (end === -1) {
+      result += escapeItemTitleText(value.slice(start));
+      break;
+    }
+    result += value.slice(start, end + fence.length);
+    index = end + fence.length;
+  }
+  return result;
+}
+
+function escapeItemTitleText(value: string): string {
   const escaped = value.replace(/([\\`*[\]#|>])/g, "\\$1");
   return escaped.replace(/_/g, (underscore, index) => {
     const previous = escaped[index - 1] ?? "";
