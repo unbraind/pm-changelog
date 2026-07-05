@@ -176,8 +176,15 @@ function listReleaseTags(cwd: string, pattern: string): ReleaseTag[] {
 function parseTagLine(line: string): ReleaseTag | undefined {
   const [name, peeledCommitterDate, directCommitterDate] = line.split("\t");
   const tagName = name?.trim();
-  const timestamp = (peeledCommitterDate || directCommitterDate)?.trim();
-  if (!tagName || !timestamp) return undefined;
+  const rawTimestamp = (peeledCommitterDate || directCommitterDate)?.trim();
+  if (!tagName || !rawTimestamp) return undefined;
+  // Normalize to ISO `Z` form so the exported `since`/`until` window strings are
+  // stable across git versions: older git emits `...T12:00:00Z` from
+  // `%(committerdate:iso-strict)` while git >= ~2.42 emits `...T12:00:00+00:00`.
+  // Downstream `filterItemsByTime` parses via `Date.parse` (format-agnostic), so
+  // this does not change CHANGELOG output; it only makes the public API
+  // deterministic. Falls back to the raw string when parsing fails.
+  const timestamp = normalizeTimestamp(rawTimestamp);
   return { name: tagName, timestamp };
 }
 
