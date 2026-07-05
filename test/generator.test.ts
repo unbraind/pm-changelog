@@ -379,11 +379,15 @@ test("resolveReleaseTagWindows derives newest-first git tag windows", () => {
   assert.equal(windows[0].heading, "Unreleased");
   assert.equal(windows[0].since, "2026-05-20T12:00:00.000Z");
   assert.equal(windows[1].heading, "1.3.0 - 2026-05-20");
-  assert.equal(windows[1].since, "2026-05-17T12:00:00Z");
+  // Window `since`/`until` are normalized to ISO `Z` form in the source
+  // (resolveReleaseTagWindows), so they're stable regardless of the git
+  // version that produced the tag's %(committerdate:iso-strict) output
+  // (older git: `...T12:00:00Z`; git >= ~2.42: `...T12:00:00+00:00`).
+  assert.equal(windows[1].since, "2026-05-17T12:00:00.000Z");
   assert.equal(windows[1].until, "2026-05-20T12:00:00.000Z");
   assert.equal(windows[2].heading, "1.2.0 - 2026-05-17");
-  assert.equal(windows[2].since, "2026-05-10T12:00:00Z");
-  assert.equal(windows[2].until, "2026-05-17T12:00:00Z");
+  assert.equal(windows[2].since, "2026-05-10T12:00:00.000Z");
+  assert.equal(windows[2].until, "2026-05-17T12:00:00.000Z");
   assert.equal(windows[3].heading, "1.1.0 - 2026-05-10");
   assert.ok(windows.every((window) => !window.heading.startsWith("9.9.9")));
 });
