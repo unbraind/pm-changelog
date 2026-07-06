@@ -12,7 +12,7 @@ import {
   PmCliError,
 } from "@unbrained/pm-cli/sdk";
 
-import { buildChangelogDocument, createChangelog, explainChangelogSelection, mergeChangelog, suggestSemver, writeChangelog } from "./generator.js";
+import { buildChangelogDocument, createChangelog, createChangelogSummary, explainChangelogSelection, mergeChangelog, suggestSemver, writeChangelog } from "./generator.js";
 import { resolveReleaseContext, resolveReleaseTagWindows } from "./release-context.js";
 import type { ChangelogGroupBy, ChangelogSectionBy, PmItem } from "./types.js";
 
@@ -62,6 +62,8 @@ export default defineExtension({
         { long: "--include-metadata", description: "Append compact item metadata (type/status/priority/release/milestone) to each entry" },
         { long: "--changelog-json", description: "Return the full structured changelog document (releases->sections->items)" },
         { long: "--explain", description: "Return item-selection diagnostics (counts, exclusions, hints)" },
+        { long: "--summary", description: "Return a compact one-line-per-change summary instead of full markdown" },
+        { long: "--format", value_name: "md|json", description: "Output format: md (default) or json for machine-readable output" },
         { long: "--mode", value_name: "mode", description: "replace or prepend existing changelog (default: replace)" },
         { long: "--include-empty", description: "Emit an empty release section when no items match" },
         { long: "--include-links", description: "Include item URLs in generated entries (default: false)" },
@@ -159,8 +161,39 @@ export default defineExtension({
           ? explainChangelogSelection(generationOptions)
           : undefined;
 
-        // OPT-IN (`--changelog-json`): structured document; never writes a file.
-        if (booleanOption(ctx.options, "changelog-json", "changelogJson")) {
+        // OPT-IN (`--format json` without `--summary`): alias for the structured
+        // --changelog-json document so agents have a single --format flag.
+        const formatOption = stringOption(ctx.options, "format", "format");
+        const wantsJsonFormat = formatOption?.toLowerCase() === "json";
+        const summaryOption = booleanOption(ctx.options, "summary", "summary");
+
+        // OPT-IN (`--summary`): compact one-line-per-change output for quick
+        // agent scanning. Never writes a file.
+        if (summaryOption) {
+          const entries = createChangelogSummary(generationOptions);
+          if (wantsJsonFormat) {
+            return {
+              entries,
+              format: "json",
+              item_count: entries.length,
+              ...(selectionReport ? { selection_report: selectionReport } : {}),
+            };
+          }
+          const lines = entries.map((entry) => {
+            const versionLabel = entry.version ?? entry.heading.replace(/\s+-\s+.*$/, "");
+            const idSuffix = entry.id ? ` (${entry.id})` : "";
+            return `[${versionLabel}] ${entry.category}: ${entry.title}${idSuffix}`;
+          });
+          return {
+            summary: lines.join("\n"),
+            format: "text",
+            item_count: entries.length,
+            ...(selectionReport ? { selection_report: selectionReport } : {}),
+          };
+        }
+
+        // OPT-IN (`--changelog-json` or `--format json`): structured document; never writes a file.
+        if (booleanOption(ctx.options, "changelog-json", "changelogJson") || wantsJsonFormat) {
           const document = buildChangelogDocument(generationOptions);
           return {
             document,

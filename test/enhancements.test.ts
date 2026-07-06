@@ -4,7 +4,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import test from "node:test";
 
-import { buildChangelogDocument, createChangelog, explainChangelogSelection, readPmItems, suggestSemver } from "../dist/index.js";
+import { buildChangelogDocument, createChangelog, createChangelogSummary, explainChangelogSelection, readPmItems, suggestSemver } from "../dist/index.js";
 import type { PmItem } from "../dist/index.js";
 
 const items: PmItem[] = [
@@ -557,4 +557,73 @@ test("--explain reports items outside release windows", () => {
 
   assert.equal(report.excluded_counts.release_window, 1);
   assert.match(report.hints.join(" "), /release tag windows/);
+});
+
+// ---------------------------------------------------------------------------
+// --summary (compact one-line-per-change for quick agent scanning)
+// ---------------------------------------------------------------------------
+test("createChangelogSummary returns flat entries grouped by category", () => {
+  const entries = createChangelogSummary({ items, version: "1.2.0", date: "2026-05-28" });
+  assert.equal(entries.length, 3);
+  assert.equal(entries[0].version, "1.2.0");
+  assert.equal(entries[0].category, "Added");
+  assert.equal(entries[0].title, "Add dark mode toggle");
+  assert.equal(entries[0].id, "pm-feat");
+  assert.equal(entries[0].type, "Feature");
+  assert.equal(entries[1].category, "Changed");
+  assert.equal(entries[2].category, "Fixed");
+});
+
+test("createChangelogSummary respects --section-by type grouping", () => {
+  const entries = createChangelogSummary({ items, version: "1.2.0", date: "2026-05-28", sectionBy: "type" });
+  assert.equal(entries.length, 3);
+  const categories = entries.map((e) => e.category);
+  assert.ok(categories.includes("Feature"));
+  assert.ok(categories.includes("Issue"));
+  assert.ok(categories.includes("Task"));
+});
+
+test("createChangelogSummary respects --conventional heading remap", () => {
+  const entries = createChangelogSummary({ items, version: "1.2.0", date: "2026-05-28", conventional: true });
+  assert.ok(entries.some((e) => e.category === "Features"));
+  assert.ok(entries.some((e) => e.category === "Bug Fixes"));
+});
+
+test("createChangelogSummary respects --limit on release windows", () => {
+  const entries = createChangelogSummary({
+    items: crossReleaseItems,
+    releaseWindows: crossReleaseWindows,
+    limit: 1,
+  });
+  assert.equal(entries.length, 1);
+  assert.equal(entries[0].version, "2.0.0");
+});
+
+test("createChangelogSummary omits empty release windows by default", () => {
+  const entries = createChangelogSummary({
+    items: [],
+    releaseWindows: [
+      { heading: "Unreleased", since: "2026-05-18T12:00:00Z", sinceExclusive: true },
+      { heading: "1.2.0 - 2026-05-17", until: "2026-05-17T12:00:00Z" },
+    ],
+  });
+  assert.equal(entries.length, 0);
+});
+
+test("--summary is absent from default createChangelog output", () => {
+  const md = createChangelog({ items, version: "1.2.0", date: "2026-05-28" }).markdown;
+  assert.doesNotMatch(md, /^\[/m);
+});
+
+// ---------------------------------------------------------------------------
+// --since (date filtering)
+// ---------------------------------------------------------------------------
+test("createChangelog --since filters items by date", () => {
+  const datedItems: PmItem[] = [
+    { id: "pm-recent", title: "Recent fix", status: "closed", type: "Issue", closed_at: "2026-05-20T00:00:00Z" },
+    { id: "pm-old", title: "Old fix", status: "closed", type: "Issue", closed_at: "2026-04-01T00:00:00Z" },
+  ];
+  const md = createChangelog({ items: datedItems, version: "1.0.0", date: "2026-05-28", since: "2026-05-01" }).markdown;
+  assert.match(md, /Recent fix/);
+  assert.doesNotMatch(md, /Old fix/);
 });

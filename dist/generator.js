@@ -200,6 +200,65 @@ export function buildChangelogDocument(options) {
             : undefined,
     };
 }
+/**
+ * OPT-IN (`--summary`): build a compact one-line-per-change list for quick
+ * agent scanning. Reuses the same filtering, section building, visibility
+ * narrowing and grouping as the markdown / structured-document paths so the
+ * three stay in sync, but emits flat entries instead of rendered text.
+ *
+ * Each entry carries the release heading, the category or field-group the item
+ * was bucketed under, and the item's id/title/type/status. With the default
+ * `sectionBy: "category"` the `category` field is the keep-a-changelog category
+ * (Added/Changed/Fixed/...); with `sectionBy: "type"` it is the title-cased item
+ * type (Feature/Issue/Task/...); with `sectionBy: "label"` an item may appear
+ * once per tag.
+ */
+export function createChangelogSummary(options) {
+    const filtered = filterItems(options);
+    const sections = buildSections(filtered, options);
+    const candidateSections = options.includeEmpty
+        ? sections
+        : sections.filter((section) => section.items.length > 0);
+    const visibleSections = limitSections(candidateSections, options);
+    const sectionBy = options.sectionBy ?? "category";
+    const entries = [];
+    for (const section of visibleSections) {
+        const version = sectionVersionKey(section.heading);
+        if (section.items.length === 0)
+            continue;
+        if (sectionBy === "category") {
+            const grouped = groupByCategory(section.items);
+            for (const category of CATEGORY_ORDER) {
+                const categoryItems = grouped.get(category);
+                if (!categoryItems || categoryItems.length === 0)
+                    continue;
+                const heading = options.conventional ? CONVENTIONAL_HEADINGS[category] : category;
+                for (const item of categoryItems) {
+                    entries.push(toSummaryEntry(section.heading, version, heading, item));
+                }
+            }
+        }
+        else {
+            for (const group of groupByField(section.items, sectionBy)) {
+                for (const item of group.items) {
+                    entries.push(toSummaryEntry(section.heading, version, group.heading, item));
+                }
+            }
+        }
+    }
+    return entries;
+}
+function toSummaryEntry(heading, version, category, item) {
+    return {
+        heading,
+        version,
+        category,
+        id: item.id,
+        title: toSingleLine(item.title),
+        type: typeof item.type === "string" ? item.type : undefined,
+        status: typeof item.status === "string" ? item.status : undefined,
+    };
+}
 function toDocumentItem(item) {
     return {
         id: item.id,

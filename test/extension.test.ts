@@ -53,7 +53,7 @@ test("extension command exposes item-url-base for clickable item IDs", () => {
     registeredCommand.flags?.some((flag) => flag.long === "--release-tag-pattern"),
     "changelog generate should expose full-history tag glob configuration through pm contracts"
   );
-  for (const flag of ["--section-by", "--conventional", "--contributors", "--limit", "--since-version", "--include-metadata", "--changelog-json", "--explain"]) {
+  for (const flag of ["--section-by", "--conventional", "--contributors", "--limit", "--since-version", "--include-metadata", "--changelog-json", "--explain", "--summary", "--format"]) {
     assert.ok(
       registeredCommand.flags?.some((f) => f.long === flag),
       `changelog generate should expose ${flag} through pm contracts`
