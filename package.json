@@ -94,11 +94,11 @@
     ]
   },
   "peerDependencies": {
-    "@unbrained/pm-cli": ">=2026.6.7"
+    "@unbrained/pm-cli": ">=2026.7.5"
   },
   "devDependencies": {
     "@types/node": "^26.1.0",
-    "@unbrained/pm-cli": "^2026.6.13",
+    "@unbrained/pm-cli": "^2026.7.5",
     "typescript": "^6.0.3"
   },
   "keywords": [
@@ -110,7 +110,7 @@
     "ci"
   ],
   "engines": {
-    "node": ">=20"
+    "node": ">=22.18.0"
   },
   "license": "MIT",
   "publishConfig": {
