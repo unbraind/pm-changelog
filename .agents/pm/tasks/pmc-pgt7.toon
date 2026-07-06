@@ -1,0 +1,15 @@
+id: pmc-pgt7
+title: Refresh pm-changelog to latest pm CLI peer and dev toolchain
+description: Update pm-changelog peer/dev dependency metadata and lockfile to target @unbrained/pm-cli 2026.7.5.
+type: Task
+status: closed
+priority: 1
+tags: []
+created_at: "2026-07-06T00:10:51.462Z"
+updated_at: "2026-07-06T00:20:21.700Z"
+author: codex
+resolution: Updated @unbrained/pm-cli peer/dev pins to 2026.7.5 and regenerated package-lock.
+expected_result: pm-changelog release checks run against the latest pm CLI package.
+actual_result: package.json and package-lock now resolve @unbrained/pm-cli 2026.7.5.
+close_reason: pm-changelog now declares the current pm CLI peer/dev toolchain version.
+body: "Update pm-changelog peer/dev dependency metadata and lockfile to target @unbrained/pm-cli 2026.7.5, then validate the release gate and generated changelog."
