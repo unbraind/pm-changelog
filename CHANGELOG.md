@@ -1,5 +1,15 @@
 # Changelog
 
+## Unreleased
+
+### Fixed
+
+- Fix release CI ordering (publish-before-tag) ([pmc-vuhy](https://github.com/unbraind/pm-changelog/blob/main/.agents/pm/tasks/pmc-vuhy.toon))
+
+### Other
+
+- Refresh pm-changelog to latest pm CLI peer and dev toolchain ([pmc-pgt7](https://github.com/unbraind/pm-changelog/blob/main/.agents/pm/tasks/pmc-pgt7.toon))
+
 ## 2026.6.30 - 2026-06-30
 
 ### Fixed
