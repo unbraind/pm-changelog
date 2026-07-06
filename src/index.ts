@@ -1,6 +1,7 @@
 export {
   buildChangelogDocument,
   createChangelog,
+  createChangelogSummary,
   explainChangelogSelection,
   generateChangelog,
   mergeChangelog,
@@ -20,6 +21,7 @@ export type {
   ChangelogSelectionReport,
   ChangelogSection,
   ChangelogSectionBy,
+  ChangelogSummaryEntry,
   ChangelogMergeAction,
   ChangelogOutputMode,
   GeneratedChangelog,

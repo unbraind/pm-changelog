@@ -6,6 +6,7 @@ import { stdin } from "node:process";
 import {
   buildChangelogDocument,
   createChangelog,
+  createChangelogSummary,
   explainChangelogSelection,
   mergeChangelog,
   parsePmItemsJson,
@@ -19,6 +20,7 @@ import type {
   ChangelogReleaseWindow,
   ChangelogSelectionReport,
   ChangelogSectionBy,
+  ChangelogSummaryEntry,
   PmItem,
 } from "./types.js";
 
@@ -45,6 +47,8 @@ interface CliOptions {
   statuses?: string[];
   groupBy: ChangelogGroupBy;
   sectionBy: ChangelogSectionBy;
+  summary: boolean;
+  format: "md" | "json";
   conventional: boolean;
   contributors: boolean;
   limit?: number;
@@ -77,6 +81,7 @@ const VALUE_OPTIONS = new Set<string>([
   "-o",
   "--body-preview",
   "--date",
+  "--format",
   "--group-by",
   "--input",
   "--item-url-base",
@@ -113,6 +118,7 @@ const KNOWN_OPTIONS = [
   "--date",
   "--emoji-prefix",
   "--explain",
+  "--format",
   "--github-output",
   "--github-step-summary",
   "--group-by",
@@ -143,6 +149,7 @@ const KNOWN_OPTIONS = [
   "--statuses",
   "--stdin",
   "--stdout",
+  "--summary",
   "--suggest-semver",
   "--title",
   "--until",
@@ -157,6 +164,34 @@ async function main(): Promise<void> {
   const outputPath = resolve(options.output);
   const generationOptions = buildGenerationOptions(options, items);
   const selectionReport = options.explain ? explainChangelogSelection(generationOptions) : undefined;
+
+  // OPT-IN (`--format json` without `--summary`): alias for the structured
+  // `--changelog-json` document, giving agents a single standard `--format`
+  // flag for machine-readable output. `--summary --format json` is handled
+  // separately below.
+  if (options.format === "json" && !options.summary && !options.changelogJson) {
+    options.changelogJson = true;
+  }
+
+  // OPT-IN (`--summary`): compact one-line-per-change output for quick agent
+  // scanning. Emits flat entries (release heading + category + item) instead
+  // of full markdown. `--format json` switches to a JSON array; the default
+  // `--format md` renders pipe-delimited text lines. Never writes a file.
+  if (options.summary) {
+    const entries = createChangelogSummary(generationOptions);
+    if (options.format === "json") {
+      const payload = selectionReport
+        ? { entries, selection_report: selectionReport }
+        : entries;
+      process.stdout.write(JSON.stringify(payload, null, 2) + "\n");
+    } else {
+      for (const entry of entries) {
+        process.stdout.write(formatSummaryLine(entry) + "\n");
+      }
+      if (selectionReport) writeSelectionReport(selectionReport);
+    }
+    return;
+  }
 
   // OPT-IN (`--changelog-json`): emit the full structured changelog document to
   // stdout and exit, leaving every other mode and CHANGELOG.md untouched.
@@ -250,6 +285,8 @@ function parseArgs(args: string[]): CliOptions {
     pmArgs: [],
     groupBy: "version",
     sectionBy: "category",
+    summary: false,
+    format: "md",
     conventional: false,
     contributors: false,
     breakingChanges: false,
@@ -363,6 +400,12 @@ function parseArgs(args: string[]): CliOptions {
         break;
       case "--section-by":
         options.sectionBy = parseSectionBy(requireValue(normalizedArgs, ++i, rawArg));
+        break;
+      case "--summary":
+        options.summary = true;
+        break;
+      case "--format":
+        options.format = parseFormat(requireValue(normalizedArgs, ++i, rawArg));
         break;
       case "--conventional":
         options.conventional = true;
@@ -588,6 +631,13 @@ function parseMode(value: string): "replace" | "prepend" {
   throw new Error("--mode must be 'replace' or 'prepend'");
 }
 
+function parseFormat(value: string): "md" | "json" {
+  const normalized = value.trim().toLowerCase();
+  if (normalized === "md" || normalized === "markdown") return "md";
+  if (normalized === "json") return "json";
+  throw new Error("--format must be 'md' or 'json'");
+}
+
 function buildGenerationOptions(options: CliOptions, items: PmItem[]) {
   return {
     items,
@@ -613,6 +663,17 @@ function buildGenerationOptions(options: CliOptions, items: PmItem[]) {
     includeLinks: options.includeLinks,
     itemUrlBase: options.itemUrlBase,
   };
+}
+
+/**
+ * Format a single `--summary` entry as a pipe-delimited line for quick agent
+ * scanning: `[version] category: title (id)`. The version bracket uses the
+ * normalized version key when available, otherwise the full heading.
+ */
+function formatSummaryLine(entry: ChangelogSummaryEntry): string {
+  const versionLabel = entry.version ?? entry.heading.replace(/\s+-\s+.*$/, "");
+  const idSuffix = entry.id ? ` (${entry.id})` : "";
+  return `[${versionLabel}] ${entry.category}: ${entry.title}${idSuffix}`;
 }
 
 function buildSummary(
@@ -709,6 +770,8 @@ Options:
   -o, --output <file>       Write changelog to a file (default: CHANGELOG.md)
       --stdout              Print markdown instead of writing a file
       --json                Print a JSON summary for CI/runners
+      --format <md|json>     Output format: md (default) or json for machine-readable output
+      --summary             Print a compact one-line-per-change summary (pipe-delimited or JSON with --format json)
       --check               Do not write; exit 1 when output would change
       --github-output       Write summary fields to $GITHUB_OUTPUT
       --github-step-summary Append generated markdown to $GITHUB_STEP_SUMMARY
