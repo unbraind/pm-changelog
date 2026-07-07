@@ -1,0 +1,15 @@
+id: pmc-vl87
+title: Support public changelog labels or issue links for generated pm item references
+description: "Duplicate check: searched all statuses for public issue link neutral tracker label item-url-base generated changelog and internal tracker paths public changelog. Existing closed lineage pmc-w906/pmc-f4yg/pmc-ew5n added --item-url-base and exposed it through the pm changelog extension, but no item covers a generated public-doc mode that can render GitHub issue links or neutral tracker labels instead of .agents/pm blob URLs.\\n\\nContext: pm-cli PR #479 CodeRabbit flagged generated CHANGELOG.md entries linking to https://github.com/unbraind/pm-cli/blob/main/.agents/pm/... as public-doc leakage. Hand-editing pm-cli CHANGELOG.md to #467 broke its mandatory pnpm changelog:pm:check gate because pm-changelog currently regenerates links from --item-url-base. Add an upstream option/format policy so consumers can keep package-owned generated changelogs while choosing public issue/PR references or neutral labels for pm item IDs."
+type: Issue
+status: open
+priority: 2
+tags[4]: changelog,item-url-base,pm-cli-review,public-docs
+created_at: "2026-07-07T13:07:21.798Z"
+updated_at: "2026-07-07T13:07:30.759Z"
+author: codex-agent
+dependencies[3]{id,kind,created_at,author,source_kind}:
+  pmc-ew5n,related,"2026-07-07T13:07:30.740Z",null,null
+  pmc-f4yg,related,"2026-07-07T13:07:30.740Z",null,null
+  pmc-w906,related,"2026-07-07T13:07:30.740Z",null,null
+body: ""
