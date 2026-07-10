@@ -3,6 +3,7 @@ export {
   createChangelog,
   createChangelogSummary,
   explainChangelogSelection,
+  formatSummaryLine,
   generateChangelog,
   mergeChangelog,
   parsePmItemsJson,

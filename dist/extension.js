@@ -1,7 +1,7 @@
 import { writeFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { defineExtension, listAllFrontMatter, locateItem, readLocatedItem, readSettings, resolveItemTypeRegistry, EXIT_CODE, PmCliError, } from "@unbrained/pm-cli/sdk";
-import { buildChangelogDocument, createChangelog, createChangelogSummary, explainChangelogSelection, mergeChangelog, suggestSemver, writeChangelog } from "./generator.js";
+import { buildChangelogDocument, createChangelog, createChangelogSummary, explainChangelogSelection, formatSummaryLine, mergeChangelog, suggestSemver, writeChangelog } from "./generator.js";
 import { resolveReleaseContext, resolveReleaseTagWindows } from "./release-context.js";
 export default defineExtension({
     name: "pm-changelog",
@@ -75,6 +75,14 @@ export default defineExtension({
                 if (sectionByOption !== "category" && sectionByOption !== "type" && sectionByOption !== "status" && sectionByOption !== "label") {
                     throw new PmCliError("--section-by must be 'category', 'type', 'status', or 'label'", EXIT_CODE.USAGE);
                 }
+                // Validate --format up front (matching `changelog export`) instead of
+                // silently treating unsupported values as the default markdown output.
+                const formatOption = stringOption(ctx.options, "format", "format");
+                const normalizedFormat = formatOption?.trim().toLowerCase();
+                if (normalizedFormat !== undefined && normalizedFormat !== "md" && normalizedFormat !== "markdown" && normalizedFormat !== "json") {
+                    throw new PmCliError("--format must be 'md' or 'json'", EXIT_CODE.USAGE);
+                }
+                const wantsJsonFormat = normalizedFormat === "json";
                 const limitValue = parseLimitOption(ctx.options);
                 const groupBy = groupByOption;
                 const sectionBy = sectionByOption;
@@ -144,8 +152,6 @@ export default defineExtension({
                     : undefined;
                 // OPT-IN (`--format json` without `--summary`): alias for the structured
                 // --changelog-json document so agents have a single --format flag.
-                const formatOption = stringOption(ctx.options, "format", "format");
-                const wantsJsonFormat = formatOption?.toLowerCase() === "json";
                 const summaryOption = booleanOption(ctx.options, "summary", "summary");
                 // OPT-IN (`--summary`): compact one-line-per-change output for quick
                 // agent scanning. Never writes a file.
@@ -159,11 +165,7 @@ export default defineExtension({
                             ...(selectionReport ? { selection_report: selectionReport } : {}),
                         };
                     }
-                    const lines = entries.map((entry) => {
-                        const versionLabel = entry.version ?? entry.heading.replace(/\s+-\s+.*$/, "");
-                        const idSuffix = entry.id ? ` (${entry.id})` : "";
-                        return `[${versionLabel}] ${entry.category}: ${entry.title}${idSuffix}`;
-                    });
+                    const lines = entries.map((entry) => formatSummaryLine(entry));
                     return {
                         summary: lines.join("\n"),
                         format: "text",
@@ -171,8 +173,11 @@ export default defineExtension({
                         ...(selectionReport ? { selection_report: selectionReport } : {}),
                     };
                 }
-                // OPT-IN (`--changelog-json` or `--format json`): structured document; never writes a file.
-                if (booleanOption(ctx.options, "changelog-json", "changelogJson") || wantsJsonFormat) {
+                // OPT-IN (`--changelog-json` or `--format json`): structured document;
+                // never writes a file. `--suggest-semver` keeps its dedicated JSON shape
+                // below instead of being aliased to the full document.
+                const suggestSemverOption = booleanOption(ctx.options, "suggest-semver", "suggestSemver");
+                if (booleanOption(ctx.options, "changelog-json", "changelogJson") || (wantsJsonFormat && !suggestSemverOption)) {
                     const document = buildChangelogDocument(generationOptions);
                     return {
                         document,
@@ -183,7 +188,7 @@ export default defineExtension({
                 }
                 // OPT-IN (`--suggest-semver`) standalone: emit only the semver analysis;
                 // never writes a file and never alters default markdown.
-                if (booleanOption(ctx.options, "suggest-semver", "suggestSemver")) {
+                if (suggestSemverOption) {
                     const suggestion = suggestSemver(generationOptions);
                     return {
                         suggested_semver: suggestion,

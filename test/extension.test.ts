@@ -93,3 +93,19 @@ test("changelog exporter registers flags on legacy two-argument pm-cli runtimes"
     "legacy pm-cli runtimes should still surface changelog export flags"
   );
 });
+
+test("changelog generate rejects unsupported --format values", async () => {
+  let handler: ((ctx: { options: Record<string, unknown>; pm_root: string }) => Promise<unknown>) | undefined;
+  extension.activate({
+    registerCommand(command: { run?: typeof handler }) {
+      handler = command.run;
+    },
+    registerExporter() {},
+  } as unknown as Parameters<typeof extension.activate>[0]);
+
+  assert.ok(handler, "extension should register the changelog generate command");
+  await assert.rejects(
+    () => handler!({ options: { format: "js" }, pm_root: process.cwd() }),
+    /--format must be 'md' or 'json'/,
+  );
+});

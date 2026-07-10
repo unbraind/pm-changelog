@@ -24,6 +24,14 @@ export declare function buildChangelogDocument(options: GenerateChangelogOptions
  * once per tag.
  */
 export declare function createChangelogSummary(options: GenerateChangelogOptions): ChangelogSummaryEntry[];
+/**
+ * Format a single `--summary` entry as a bracketed text line for quick agent
+ * scanning: `[version] category: title (id)`. The version bracket uses the
+ * normalized version key when available, otherwise the release heading with
+ * its date suffix stripped. Shared by the standalone CLI and the `pm`
+ * extension so both render identical summary lines.
+ */
+export declare function formatSummaryLine(entry: ChangelogSummaryEntry): string;
 export declare function mergeChangelog(existingMarkdown: string | undefined, generatedMarkdown: string, options?: MergeChangelogOptions): MergeChangelogResult;
 export declare function readPmItems(options?: ReadPmItemsOptions): PmItem[];
 export declare function writeChangelog(options: WriteChangelogOptions): WriteChangelogResult;

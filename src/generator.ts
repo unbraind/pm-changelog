@@ -306,6 +306,19 @@ function toSummaryEntry(
   };
 }
 
+/**
+ * Format a single `--summary` entry as a bracketed text line for quick agent
+ * scanning: `[version] category: title (id)`. The version bracket uses the
+ * normalized version key when available, otherwise the release heading with
+ * its date suffix stripped. Shared by the standalone CLI and the `pm`
+ * extension so both render identical summary lines.
+ */
+export function formatSummaryLine(entry: ChangelogSummaryEntry): string {
+  const versionLabel = entry.version ?? entry.heading.replace(/\s+-\s+.*$/, "");
+  const idSuffix = entry.id ? ` (${entry.id})` : "";
+  return `[${versionLabel}] ${entry.category}: ${entry.title}${idSuffix}`;
+}
+
 function toDocumentItem(item: PmItem): ChangelogDocumentItem {
   return {
     id: item.id,
