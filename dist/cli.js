@@ -2,7 +2,7 @@
 import { appendFileSync, existsSync, readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { stdin } from "node:process";
-import { buildChangelogDocument, createChangelog, createChangelogSummary, explainChangelogSelection, mergeChangelog, parsePmItemsJson, readPmItems, suggestSemver, writeChangelog, } from "./generator.js";
+import { buildChangelogDocument, createChangelog, createChangelogSummary, explainChangelogSelection, formatSummaryLine, mergeChangelog, parsePmItemsJson, readPmItems, suggestSemver, writeChangelog, } from "./generator.js";
 import { resolveReleaseContext, resolveReleaseTagWindows } from "./release-context.js";
 // Compatibility aliases for value-taking options. Kept intentionally small and
 // explicit so default behavior remains stable.
@@ -98,14 +98,16 @@ async function main() {
     // OPT-IN (`--format json` without `--summary`): alias for the structured
     // `--changelog-json` document, giving agents a single standard `--format`
     // flag for machine-readable output. `--summary --format json` is handled
-    // separately below.
-    if (options.format === "json" && !options.summary && !options.changelogJson) {
+    // separately below, and `--suggest-semver` keeps its dedicated JSON shape
+    // (the semver analysis) instead of being aliased to the full document.
+    if (options.format === "json" && !options.summary && !options.changelogJson && !options.suggestSemver) {
         options.changelogJson = true;
     }
     // OPT-IN (`--summary`): compact one-line-per-change output for quick agent
     // scanning. Emits flat entries (release heading + category + item) instead
     // of full markdown. `--format json` switches to a JSON array; the default
-    // `--format md` renders pipe-delimited text lines. Never writes a file.
+    // `--format md` renders bracketed text lines (`[version] category: title (id)`).
+    // Never writes a file.
     if (options.summary) {
         const entries = createChangelogSummary(generationOptions);
         if (options.format === "json") {
@@ -580,16 +582,6 @@ function buildGenerationOptions(options, items) {
         itemUrlBase: options.itemUrlBase,
     };
 }
-/**
- * Format a single `--summary` entry as a pipe-delimited line for quick agent
- * scanning: `[version] category: title (id)`. The version bracket uses the
- * normalized version key when available, otherwise the full heading.
- */
-function formatSummaryLine(entry) {
-    const versionLabel = entry.version ?? entry.heading.replace(/\s+-\s+.*$/, "");
-    const idSuffix = entry.id ? ` (${entry.id})` : "";
-    return `[${versionLabel}] ${entry.category}: ${entry.title}${idSuffix}`;
-}
 function buildSummary(options, result, output = result.output, selectionReport) {
     const summary = {
         output,
@@ -663,8 +655,8 @@ Options:
   -o, --output <file>       Write changelog to a file (default: CHANGELOG.md)
       --stdout              Print markdown instead of writing a file
       --json                Print a JSON summary for CI/runners
-      --format <md|json>     Output format: md (default) or json for machine-readable output
-      --summary             Print a compact one-line-per-change summary (pipe-delimited or JSON with --format json)
+      --format <md|json>    Output format: md (default) or json for machine-readable output
+      --summary             Print a compact one-line-per-change summary (bracketed text or JSON with --format json)
       --check               Do not write; exit 1 when output would change
       --github-output       Write summary fields to $GITHUB_OUTPUT
       --github-step-summary Append generated markdown to $GITHUB_STEP_SUMMARY

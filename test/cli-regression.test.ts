@@ -251,3 +251,20 @@ test("CLI --format json with --explain includes selection diagnostics", () => {
   assert.equal(doc.selection_report.stage_counts.input, 4);
   assert.equal(doc.selection_report.stage_counts.visible_items, 3);
 });
+
+test("CLI --suggest-semver --format json keeps the semver-analysis shape", () => {
+  const input = writeFixture();
+  const out = runCli(["--input", input, "--version", "1.2.0", "--date", "2026-05-28", "--stdout", "--suggest-semver", "--format", "json"]);
+  const payload = JSON.parse(out);
+  // Must stay the dedicated semver contract, not the full changelog document.
+  assert.ok(payload.bump, "expected semver suggestion payload with a bump field");
+  assert.ok(payload.counts, "expected semver suggestion payload with counts");
+  assert.equal(payload.releases, undefined, "must not be aliased to the changelog document");
+});
+
+test("CLI rejects unsupported --format values", () => {
+  const input = writeFixture();
+  const result = runCliDetailed(["--input", input, "--stdout", "--format", "yaml"]);
+  assert.notEqual(result.status, 0);
+  assert.match(result.stderr, /--format must be 'md' or 'json'/);
+});
