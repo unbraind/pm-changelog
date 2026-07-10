@@ -186,3 +186,85 @@ test("CLI --check exit code contract is preserved (1 when changed, 0 when up to 
   })();
   assert.equal(cleanCode, 0, "check must exit 0 when output is up to date");
 });
+
+test("CLI --summary prints one-line-per-change text to stdout", () => {
+  const input = writeFixture();
+  const out = runCli(["--input", input, "--version", "1.2.0", "--date", "2026-05-28", "--stdout", "--summary"]);
+  const lines = out.trim().split("\n");
+  assert.equal(lines.length, 3);
+  assert.match(lines[0], /^\[1\.2\.0\] Added: Add dark mode toggle \(pm-feat\)$/);
+  assert.match(lines[1], /^\[1\.2\.0\] Changed: Update build dependencies \(pm-chore\)$/);
+  assert.match(lines[2], /^\[1\.2\.0\] Fixed: Crash on empty input \(pm-bug\)$/);
+});
+
+test("CLI --summary --format json prints a JSON array of entries", () => {
+  const input = writeFixture();
+  const out = runCli(["--input", input, "--version", "1.2.0", "--date", "2026-05-28", "--stdout", "--summary", "--format", "json"]);
+  const entries = JSON.parse(out);
+  assert.equal(Array.isArray(entries), true);
+  assert.equal(entries.length, 3);
+  assert.equal(entries[0].version, "1.2.0");
+  assert.equal(entries[0].category, "Added");
+  assert.equal(entries[0].title, "Add dark mode toggle");
+  assert.equal(entries[0].id, "pm-feat");
+});
+
+test("CLI --format json emits the structured changelog document", () => {
+  const input = writeFixture();
+  const out = runCli(["--input", input, "--version", "1.2.0", "--date", "2026-05-28", "--stdout", "--format", "json"]);
+  const doc = JSON.parse(out);
+  assert.equal(doc.title, "Changelog");
+  assert.equal(doc.section_by, "category");
+  assert.equal(doc.item_count, 3);
+  assert.equal(doc.releases[0].version, "1.2.0");
+  assert.ok(doc.releases[0].sections.some((s: { heading: string }) => s.heading === "Added"));
+});
+
+test("CLI --summary respects --section-by type", () => {
+  const input = writeFixture();
+  const out = runCli(["--input", input, "--version", "1.2.0", "--date", "2026-05-28", "--stdout", "--summary", "--section-by", "type"]);
+  const lines = out.trim().split("\n");
+  assert.equal(lines.length, 3);
+  assert.ok(lines.some((l) => l.includes("Feature:")));
+  assert.ok(lines.some((l) => l.includes("Issue:")));
+  assert.ok(lines.some((l) => l.includes("Task:")));
+});
+
+test("CLI --since filters items by date", () => {
+  const input = writeFixture();
+  const out = runCli(["--input", input, "--version", "1.0.0", "--date", "2026-05-28", "--stdout", "--since", "2026-05-28T08:30:00Z"]);
+  // Only pm-feat (09:00) and pm-bug (08:00 is before 08:30, so excluded)
+  // pm-feat is at 09:00, pm-bug is at 08:00, pm-chore is at 07:00
+  // since is inclusive at second granularity, so 08:30 admits items at/after 08:30
+  assert.match(out, /Add dark mode toggle/);
+  // pm-bug at 08:00 should be excluded (before 08:30)
+  assert.doesNotMatch(out, /Crash on empty input/);
+  // pm-chore at 07:00 should be excluded
+  assert.doesNotMatch(out, /Update build dependencies/);
+});
+
+test("CLI --format json with --explain includes selection diagnostics", () => {
+  const input = writeFixture();
+  const out = runCli(["--input", input, "--version", "1.2.0", "--date", "2026-05-28", "--stdout", "--format", "json", "--explain"]);
+  const doc = JSON.parse(out);
+  assert.equal(doc.item_count, 3);
+  assert.equal(doc.selection_report.stage_counts.input, 4);
+  assert.equal(doc.selection_report.stage_counts.visible_items, 3);
+});
+
+test("CLI --suggest-semver --format json keeps the semver-analysis shape", () => {
+  const input = writeFixture();
+  const out = runCli(["--input", input, "--version", "1.2.0", "--date", "2026-05-28", "--stdout", "--suggest-semver", "--format", "json"]);
+  const payload = JSON.parse(out);
+  // Must stay the dedicated semver contract, not the full changelog document.
+  assert.ok(payload.bump, "expected semver suggestion payload with a bump field");
+  assert.ok(payload.counts, "expected semver suggestion payload with counts");
+  assert.equal(payload.releases, undefined, "must not be aliased to the changelog document");
+});
+
+test("CLI rejects unsupported --format values", () => {
+  const input = writeFixture();
+  const result = runCliDetailed(["--input", input, "--stdout", "--format", "yaml"]);
+  assert.notEqual(result.status, 0);
+  assert.match(result.stderr, /--format must be 'md' or 'json'/);
+});

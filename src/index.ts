@@ -1,7 +1,9 @@
 export {
   buildChangelogDocument,
   createChangelog,
+  createChangelogSummary,
   explainChangelogSelection,
+  formatSummaryLine,
   generateChangelog,
   mergeChangelog,
   parsePmItemsJson,
@@ -20,6 +22,7 @@ export type {
   ChangelogSelectionReport,
   ChangelogSection,
   ChangelogSectionBy,
+  ChangelogSummaryEntry,
   ChangelogMergeAction,
   ChangelogOutputMode,
   GeneratedChangelog,

@@ -1,0 +1,13 @@
+id: pmc-ygs2
+title: Add --summary mode and unified --format json output for agents
+description: "PR #59: adds --summary (one-line-per-change, bracketed text or JSON array), --format md|json as a unified machine-readable alias of --changelog-json, createChangelogSummary()/formatSummaryLine()/ChangelogSummaryEntry exports, and pm extension parity for changelog generate."
+type: Feature
+status: in_progress
+priority: 2
+tags[2]: agent-ux,enhancement
+created_at: "2026-07-10T04:41:15.255Z"
+updated_at: "2026-07-10T04:41:15.255Z"
+assignee: claude
+author: claude
+acceptance_criteria: "--summary prints bracketed one-line entries using the same filtering/grouping as markdown; --summary --format json returns ChangelogSummaryEntry[]; --format json without --summary emits the structured document; invalid --format values exit non-zero in both CLI and pm extension; --suggest-semver --format json keeps the semver-analysis shape; default markdown stays byte-identical"
+body: ""

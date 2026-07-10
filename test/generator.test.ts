@@ -1422,18 +1422,22 @@ process.stdout.write(readFileSync(resolve(process.cwd(), "fixture.json"), "utf-8
 test("pm package install activates changelog command", () => {
   const dir = mkdtempSync(join(tmpdir(), "pm-changelog-install-"));
   const pmBin = join(process.cwd(), "node_modules", ".bin", "pm");
+  const pmEnv = { ...process.env, PM_GLOBAL_PATH: join(dir, "global-pm") };
 
   execFileSync(pmBin, ["init", "--json"], {
     cwd: dir,
+    env: pmEnv,
     encoding: "utf-8",
   });
   execFileSync(pmBin, ["install", process.cwd(), "--project", "--json"], {
     cwd: dir,
+    env: pmEnv,
     encoding: "utf-8",
   });
 
   const doctor = JSON.parse(execFileSync(pmBin, ["package", "doctor", "--project", "--json", "--detail", "deep"], {
     cwd: dir,
+    env: pmEnv,
     encoding: "utf-8",
   }));
   assert.deepEqual(doctor.warnings, []);
@@ -1457,6 +1461,7 @@ test("pm package install activates changelog command", () => {
     ],
     {
       cwd: dir,
+    env: pmEnv,
       encoding: "utf-8",
     }
   );
@@ -1478,6 +1483,7 @@ test("pm package install activates changelog command", () => {
     ],
     {
       cwd: dir,
+    env: pmEnv,
       encoding: "utf-8",
     }
   ));
@@ -1505,6 +1511,7 @@ test("pm package install activates changelog command", () => {
     ],
     {
       cwd: dir,
+    env: pmEnv,
       encoding: "utf-8",
     }
   ));
@@ -1530,6 +1537,7 @@ test("pm package install activates changelog command", () => {
       ],
       {
         cwd: dir,
+    env: pmEnv,
         encoding: "utf-8",
       }
     ),
