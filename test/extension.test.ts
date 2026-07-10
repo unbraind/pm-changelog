@@ -53,7 +53,7 @@ test("extension command exposes item-url-base for clickable item IDs", () => {
     registeredCommand.flags?.some((flag) => flag.long === "--release-tag-pattern"),
     "changelog generate should expose full-history tag glob configuration through pm contracts"
   );
-  for (const flag of ["--section-by", "--conventional", "--contributors", "--limit", "--since-version", "--include-metadata", "--changelog-json", "--explain"]) {
+  for (const flag of ["--section-by", "--conventional", "--contributors", "--limit", "--since-version", "--include-metadata", "--changelog-json", "--explain", "--summary", "--format"]) {
     assert.ok(
       registeredCommand.flags?.some((f) => f.long === flag),
       `changelog generate should expose ${flag} through pm contracts`
@@ -91,5 +91,21 @@ test("changelog exporter registers flags on legacy two-argument pm-cli runtimes"
   assert.ok(
     registeredFlags?.some((flag) => flag.long === "--format"),
     "legacy pm-cli runtimes should still surface changelog export flags"
+  );
+});
+
+test("changelog generate rejects unsupported --format values", async () => {
+  let handler: ((ctx: { options: Record<string, unknown>; pm_root: string }) => Promise<unknown>) | undefined;
+  extension.activate({
+    registerCommand(command: { run?: typeof handler }) {
+      handler = command.run;
+    },
+    registerExporter() {},
+  } as unknown as Parameters<typeof extension.activate>[0]);
+
+  assert.ok(handler, "extension should register the changelog generate command");
+  await assert.rejects(
+    () => handler!({ options: { format: "js" }, pm_root: process.cwd() }),
+    /--format must be 'md' or 'json'/,
   );
 });
