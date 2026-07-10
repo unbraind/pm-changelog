@@ -77,6 +77,22 @@ test("changelog exporter rejects unsupported formats", async () => {
   );
 });
 
+test("changelog generate rejects unsupported formats before workspace reads", async () => {
+  let command: { run?: (ctx: { options: Record<string, unknown>; pm_root: string }) => Promise<unknown> } | undefined;
+  extension.activate({
+    registerCommand(registered: typeof command) {
+      command = registered;
+    },
+    registerExporter() {},
+  } as unknown as Parameters<typeof extension.activate>[0]);
+
+  assert.ok(command?.run, "extension should register changelog generate");
+  await assert.rejects(
+    () => command!.run!({ options: { format: "jsn" }, pm_root: "/path/that/does/not/exist" }),
+    /--format must be 'md' or 'json'/,
+  );
+});
+
 test("changelog exporter registers flags on legacy two-argument pm-cli runtimes", () => {
   let registeredFlags: Array<{ long?: string }> | undefined;
   const registerExporter = function (_name: string, _handler: unknown) {};

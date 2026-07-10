@@ -18,8 +18,7 @@ export function generateChangelog(options) {
 }
 export function createChangelog(options) {
     const title = options.title ?? DEFAULT_TITLE;
-    const items = filterItems(options);
-    const sections = buildSections(items, options);
+    const { items, sections, visibleSections, sectionBy } = selectChangelogSections(options);
     const lines = [`# ${title}`, ""];
     if (sections.length === 0) {
         if (options.includeEmpty) {
@@ -32,13 +31,6 @@ export function createChangelog(options) {
             itemCount: items.length,
         };
     }
-    // Apply visibility before limiting so `--limit N` counts N releases that
-    // actually render (empty windows like a fresh "Unreleased" don't consume a
-    // slot). With no limit/since-version flags this is a pure identity pass.
-    const candidateSections = options.includeEmpty
-        ? sections
-        : sections.filter((section) => section.items.length > 0);
-    const visibleSections = limitSections(candidateSections, options);
     if (visibleSections.length === 0) {
         return {
             markdown: lines.join("\n").trimEnd() + "\n",
@@ -46,7 +38,6 @@ export function createChangelog(options) {
             itemCount: 0,
         };
     }
-    const sectionBy = options.sectionBy ?? "category";
     for (const section of visibleSections) {
         lines.push(`## ${section.heading}`, "");
         if (section.items.length === 0) {
@@ -66,31 +57,12 @@ export function createChangelog(options) {
                 lines.push("");
             }
         }
-        if (sectionBy === "category") {
-            const grouped = groupByCategory(section.items);
-            for (const category of CATEGORY_ORDER) {
-                const categoryItems = grouped.get(category);
-                if (!categoryItems || categoryItems.length === 0)
-                    continue;
-                // OPT-IN: --conventional remaps the heading text only; item order,
-                // bucketing, and bullet rendering are untouched, so dropping the flag
-                // restores byte-identical output.
-                const heading = options.conventional ? CONVENTIONAL_HEADINGS[category] : category;
-                lines.push(`### ${maybeEmoji(heading, options)}`, "");
-                for (const item of categoryItems) {
-                    lines.push(`- ${formatItem(item, options)}`);
-                }
-                lines.push("");
+        for (const group of groupSectionItems(section, sectionBy, options)) {
+            lines.push(`### ${maybeEmoji(group.heading, options)}`, "");
+            for (const item of group.items) {
+                lines.push(`- ${formatItem(item, options)}`);
             }
-        }
-        else {
-            for (const group of groupByField(section.items, sectionBy)) {
-                lines.push(`### ${maybeEmoji(group.heading, options)}`, "");
-                for (const item of group.items) {
-                    lines.push(`- ${formatItem(item, options)}`);
-                }
-                lines.push("");
-            }
+            lines.push("");
         }
         if (options.contributors) {
             const names = collectContributors(section.items);
@@ -144,6 +116,42 @@ function sectionVersionKey(heading) {
     return normalizeReleaseKey(version);
 }
 /**
+ * Resolve the one canonical filtered/visible section set used by markdown,
+ * structured JSON, summary output, and semver analysis. Keeping this pipeline
+ * shared prevents agent-facing formats from drifting when visibility rules
+ * evolve.
+ */
+function selectChangelogSections(options) {
+    const items = filterItems(options);
+    const sections = buildSections(items, options);
+    const candidateSections = options.includeEmpty
+        ? sections
+        : sections.filter((section) => section.items.length > 0);
+    return {
+        items,
+        sections,
+        visibleSections: limitSections(candidateSections, options),
+        sectionBy: options.sectionBy ?? "category",
+    };
+}
+/** Build the canonical ordered groups for one visible release section. */
+function groupSectionItems(section, sectionBy, options) {
+    if (sectionBy !== "category")
+        return groupByField(section.items, sectionBy);
+    const grouped = groupByCategory(section.items);
+    const result = [];
+    for (const category of CATEGORY_ORDER) {
+        const categoryItems = grouped.get(category);
+        if (!categoryItems || categoryItems.length === 0)
+            continue;
+        result.push({
+            heading: options.conventional ? CONVENTIONAL_HEADINGS[category] : category,
+            items: categoryItems,
+        });
+    }
+    return result;
+}
+/**
  * OPT-IN (`--changelog-json`): build a structured representation of the
  * changelog (releases -> sections -> items) for downstream tooling. This is
  * deliberately distinct from the `--json` CLI summary (action/bytes/changed)
@@ -152,30 +160,10 @@ function sectionVersionKey(heading) {
  * the two stay in sync, but emits structured data instead of rendered text.
  */
 export function buildChangelogDocument(options) {
-    const filtered = filterItems(options);
-    const sections = buildSections(filtered, options);
-    const candidateSections = options.includeEmpty
-        ? sections
-        : sections.filter((section) => section.items.length > 0);
-    const visibleSections = limitSections(candidateSections, options);
-    const sectionBy = options.sectionBy ?? "category";
+    const { visibleSections, sectionBy } = selectChangelogSections(options);
     const releases = visibleSections.map((section) => {
-        const sectionGroups = [];
-        if (sectionBy === "category") {
-            const grouped = groupByCategory(section.items);
-            for (const category of CATEGORY_ORDER) {
-                const categoryItems = grouped.get(category);
-                if (!categoryItems || categoryItems.length === 0)
-                    continue;
-                const heading = options.conventional ? CONVENTIONAL_HEADINGS[category] : category;
-                sectionGroups.push({ heading, items: categoryItems.map(toDocumentItem) });
-            }
-        }
-        else {
-            for (const group of groupByField(section.items, sectionBy)) {
-                sectionGroups.push({ heading: group.heading, items: group.items.map(toDocumentItem) });
-            }
-        }
+        const sectionGroups = groupSectionItems(section, sectionBy, options)
+            .map((group) => ({ heading: group.heading, items: group.items.map(toDocumentItem) }));
         return {
             heading: section.heading,
             version: sectionVersionKey(section.heading),
@@ -214,39 +202,28 @@ export function buildChangelogDocument(options) {
  * once per tag.
  */
 export function createChangelogSummary(options) {
-    const filtered = filterItems(options);
-    const sections = buildSections(filtered, options);
-    const candidateSections = options.includeEmpty
-        ? sections
-        : sections.filter((section) => section.items.length > 0);
-    const visibleSections = limitSections(candidateSections, options);
-    const sectionBy = options.sectionBy ?? "category";
+    const { visibleSections, sectionBy } = selectChangelogSections(options);
     const entries = [];
     for (const section of visibleSections) {
         const version = sectionVersionKey(section.heading);
         if (section.items.length === 0)
             continue;
-        if (sectionBy === "category") {
-            const grouped = groupByCategory(section.items);
-            for (const category of CATEGORY_ORDER) {
-                const categoryItems = grouped.get(category);
-                if (!categoryItems || categoryItems.length === 0)
-                    continue;
-                const heading = options.conventional ? CONVENTIONAL_HEADINGS[category] : category;
-                for (const item of categoryItems) {
-                    entries.push(toSummaryEntry(section.heading, version, heading, item));
-                }
-            }
-        }
-        else {
-            for (const group of groupByField(section.items, sectionBy)) {
-                for (const item of group.items) {
-                    entries.push(toSummaryEntry(section.heading, version, group.heading, item));
-                }
+        for (const group of groupSectionItems(section, sectionBy, options)) {
+            for (const item of group.items) {
+                entries.push(toSummaryEntry(section.heading, version, group.heading, item));
             }
         }
     }
     return entries;
+}
+/**
+ * Format one summary entry as stable bracketed text for agent scanning:
+ * `[version] category: title (id)`.
+ */
+export function formatSummaryLine(entry) {
+    const versionLabel = entry.version ?? entry.heading.replace(/\s+-\s+.*$/, "");
+    const idSuffix = entry.id ? ` (${entry.id})` : "";
+    return `[${versionLabel}] ${entry.category}: ${entry.title}${idSuffix}`;
 }
 function toSummaryEntry(heading, version, category, item) {
     return {
@@ -258,18 +235,6 @@ function toSummaryEntry(heading, version, category, item) {
         type: typeof item.type === "string" ? item.type : undefined,
         status: typeof item.status === "string" ? item.status : undefined,
     };
-}
-/**
- * Format a single `--summary` entry as a bracketed text line for quick agent
- * scanning: `[version] category: title (id)`. The version bracket uses the
- * normalized version key when available, otherwise the release heading with
- * its date suffix stripped. Shared by the standalone CLI and the `pm`
- * extension so both render identical summary lines.
- */
-export function formatSummaryLine(entry) {
-    const versionLabel = entry.version ?? entry.heading.replace(/\s+-\s+.*$/, "");
-    const idSuffix = entry.id ? ` (${entry.id})` : "";
-    return `[${versionLabel}] ${entry.category}: ${entry.title}${idSuffix}`;
 }
 function toDocumentItem(item) {
     return {
