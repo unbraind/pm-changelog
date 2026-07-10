@@ -1,0 +1,14 @@
+id: pmc-6kvp
+title: SDK 2026.7.10 alignment and production readiness pass
+description: "Align pm-changelog to pm CLI 2026.7.10 SDK, fix health directories, regenerate dist, verify release pipeline"
+type: Task
+status: in_progress
+priority: 1
+tags[4]: 2026.7.10,ecosystem,production-readiness,sdk-alignment
+created_at: "2026-07-10T19:03:51.984Z"
+updated_at: "2026-07-10T19:03:51.984Z"
+assignee: platform-web-specialist
+author: platform-web-specialist
+estimated_minutes: 60
+acceptance_criteria: "typecheck passes; build passes; all 125 tests pass; audit 0 vulnerabilities; pack:dry-run succeeds; changelog:check passes; SDK peerDep >=2026.7.10"
+body: ""

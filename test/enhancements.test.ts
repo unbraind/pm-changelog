@@ -4,7 +4,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import test from "node:test";
 
-import { buildChangelogDocument, createChangelog, createChangelogSummary, explainChangelogSelection, readPmItems, suggestSemver } from "../dist/index.js";
+import { buildChangelogDocument, createChangelog, createChangelogSummary, explainChangelogSelection, formatSummaryLine, readPmItems, suggestSemver } from "../dist/index.js";
 import type { PmItem } from "../dist/index.js";
 
 const items: PmItem[] = [
@@ -40,6 +40,19 @@ const items: PmItem[] = [
     updated_at: "2026-05-28T07:00:00Z",
   },
 ];
+
+test("formatSummaryLine exposes the canonical bracketed agent summary", () => {
+  assert.equal(
+    formatSummaryLine({
+      heading: "1.2.0 - 2026-05-28",
+      version: "1.2.0",
+      category: "Added",
+      id: "pm-feat",
+      title: "Add dark mode toggle",
+    }),
+    "[1.2.0] Added: Add dark mode toggle (pm-feat)",
+  );
+});
 
 // ---------------------------------------------------------------------------
 // Zero-regression guard: absent flags reproduce the default output exactly.

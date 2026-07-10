@@ -197,16 +197,47 @@ test("CLI --summary prints one-line-per-change text to stdout", () => {
   assert.match(lines[2], /^\[1\.2\.0\] Fixed: Crash on empty input \(pm-bug\)$/);
 });
 
-test("CLI --summary --format json prints a JSON array of entries", () => {
+test("CLI --summary --format json prints a stable summary envelope", () => {
   const input = writeFixture();
   const out = runCli(["--input", input, "--version", "1.2.0", "--date", "2026-05-28", "--stdout", "--summary", "--format", "json"]);
-  const entries = JSON.parse(out);
-  assert.equal(Array.isArray(entries), true);
-  assert.equal(entries.length, 3);
-  assert.equal(entries[0].version, "1.2.0");
-  assert.equal(entries[0].category, "Added");
-  assert.equal(entries[0].title, "Add dark mode toggle");
-  assert.equal(entries[0].id, "pm-feat");
+  const payload = JSON.parse(out);
+  assert.equal(payload.format, "json");
+  assert.equal(payload.item_count, 3);
+  assert.equal(payload.entries.length, 3);
+  assert.equal(payload.entries[0].version, "1.2.0");
+  assert.equal(payload.entries[0].category, "Added");
+  assert.equal(payload.entries[0].title, "Add dark mode toggle");
+  assert.equal(payload.entries[0].id, "pm-feat");
+});
+
+test("CLI summary JSON keeps the same envelope when --explain is added", () => {
+  const input = writeFixture();
+  const payload = JSON.parse(runCli([
+    "--input", input,
+    "--version", "1.2.0",
+    "--date", "2026-05-28",
+    "--summary",
+    "--format", "json",
+    "--explain",
+  ]));
+  assert.equal(payload.format, "json");
+  assert.equal(payload.item_count, 3);
+  assert.equal(Array.isArray(payload.entries), true);
+  assert.equal(payload.selection_report.stage_counts.input, 4);
+});
+
+test("CLI --format json preserves standalone --suggest-semver output", () => {
+  const input = writeFixture();
+  const payload = JSON.parse(runCli([
+    "--input", input,
+    "--version", "1.2.0",
+    "--date", "2026-05-28",
+    "--suggest-semver",
+    "--format", "json",
+  ]));
+  assert.equal(payload.bump, "minor");
+  assert.equal(payload.counts.feature, 1);
+  assert.equal(payload.releases, undefined);
 });
 
 test("CLI --format json emits the structured changelog document", () => {

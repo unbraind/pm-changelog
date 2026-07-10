@@ -111,9 +111,12 @@ async function main() {
     if (options.summary) {
         const entries = createChangelogSummary(generationOptions);
         if (options.format === "json") {
-            const payload = selectionReport
-                ? { entries, selection_report: selectionReport }
-                : entries;
+            const payload = {
+                entries,
+                format: "json",
+                item_count: entries.length,
+                ...(selectionReport ? { selection_report: selectionReport } : {}),
+            };
             process.stdout.write(JSON.stringify(payload, null, 2) + "\n");
         }
         else {
