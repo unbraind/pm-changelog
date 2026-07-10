@@ -1,0 +1,50 @@
+id: pmc-09bu
+title: Isolate package-install integration tests from the user's pm home
+description: "The package activation smoke test only redirected PM_GLOBAL_PATH, leaving HOME and XDG state shared with the operator. A real install test must be hermetic so it cannot read or mutate personal/global pm configuration."
+type: Issue
+status: closed
+priority: 1
+tags[4]: hermetic,package-install,privacy,test
+created_at: "2026-07-10T23:01:30.633Z"
+updated_at: "2026-07-10T23:05:34.578Z"
+deadline: "2026-07-11T23:01:30.633Z"
+closed_at: "2026-07-10T23:02:35.465Z"
+author: codex
+estimated_minutes: 45
+acceptance_criteria: "The package install smoke test runs with temporary HOME, XDG_CONFIG_HOME, and XDG_DATA_HOME directories; all activation/generate/check assertions pass against pm CLI 2026.7.10; the full release gate passes in a clean environment."
+definition_of_ready: Current origin/main is checked out; latest pm CLI dependency is installed; no unrelated working-tree changes exist.
+reviewer: greptile
+risk: low
+confidence: high
+sprint: 2026-07-production
+release: next
+reporter: codex
+severity: medium
+environment: "Node 22.19.0, npm 11.17.0, @unbrained/pm-cli 2026.7.10"
+repro_steps: Run the package-install test while a real ~/.pm-cli configuration exists and observe that only PM_GLOBAL_PATH is redirected.
+resolution: "Replaced the package smoke test's product-specific global override with temporary HOME, XDG_CONFIG_HOME, and XDG_DATA_HOME roots shared across every spawned pm command."
+expected_result: The package install integration test cannot read or write operator-level pm configuration and the complete release gate passes.
+actual_result: "128 tests passed, package install/doctor/generate/check flows succeeded, npm audit found 0 vulnerabilities, pack dry-run succeeded, and pm-changelog reported the changelog current."
+affected_version: 2026.7.10
+fixed_version: next
+component: test/generator.test.ts
+regression: false
+customer_impact: Prevents tests and review bots from coupling to or modifying private user configuration.
+dependencies[1]{id,kind,created_at,author,source_kind}:
+  pmc-3j77,related,"2026-07-10T23:01:30.633Z",codex,null
+comments[2]{created_at,author,text}:
+  "2026-07-10T23:01:30.633Z",codex,Discovered while manually running the full release gate against real local pm data.
+  "2026-07-10T23:05:34.344Z",codex,"Greptile P2 accepted: spreading process.env could preserve an operator-exported PM_GLOBAL_PATH. The test now overrides PM_GLOBAL_PATH to a temporary path in addition to HOME and XDG directories."
+notes[1]{created_at,author,text}:
+  "2026-07-10T23:01:30.633Z",codex,Use temporary HOME and XDG roots rather than only PM_GLOBAL_PATH because package lifecycle state spans standard user directories.
+learnings[2]{created_at,author,text}:
+  "2026-07-10T23:01:30.633Z",codex,Package integration tests must isolate both product-specific globals and standard HOME/XDG locations to avoid privacy leaks and nondeterminism.
+  "2026-07-10T23:05:34.577Z",codex,"When constructing a hermetic child environment, overriding HOME/XDG is insufficient if product-specific path variables can be inherited; explicitly replace every supported storage-root override after spreading process.env."
+files[1]{path,scope,note}:
+  test/generator.test.ts,project,Hermetic package installation integration test
+tests[1]{command,path,scope,timeout_seconds,pm_context_mode}:
+  npm test,test/generator.test.ts,project,120,tracker
+docs[1]{path,scope,note}:
+  README.md,project,Package installation behavior reference
+close_reason: Hermetic HOME/XDG isolation implemented and the complete release gate passed on pm CLI 2026.7.10.
+body: "## Context\\n\\nProject management is context management. Integration tests must prove package activation without consuming unrelated operator context.\\n\\n## Scope\\n\\nIsolate the package lifecycle smoke test and verify the full release contract."
