@@ -1,0 +1,26 @@
+id: pmc-yy8d
+title: SDK 2026.7.10 alignment and production readiness pass
+description: "Align pm-changelog to pm CLI 2026.7.10 SDK, fix health directories, regenerate dist, verify release pipeline"
+type: Task
+status: in_progress
+priority: 1
+tags[4]: 2026.7.10,ecosystem,production-readiness,sdk-alignment
+created_at: "2026-07-10T19:03:57.089Z"
+updated_at: "2026-07-10T19:04:46.656Z"
+assignee: platform-web-specialist
+author: platform-web-specialist
+estimated_minutes: 60
+acceptance_criteria: "typecheck passes; build passes; all 125 tests pass; audit 0 vulnerabilities; pack:dry-run succeeds; changelog:check passes; SDK peerDep >=2026.7.10"
+comments[1]{created_at,author,text,edited_at}:
+  "2026-07-10T19:04:31.846Z",codex,"Evidence: SDK aligned from 2026.7.9 to 2026.7.10. typecheck OK, build OK, 125/125 tests pass, 0 vulnerabilities, pack:dry-run OK (37 files), changelog:check OK. Health: directories fixed, history_drift repaired (3 items). pm_min_version bumped to 2026.7.10.","2026-07-10T19:04:46.656Z"
+notes[1]{created_at,author,text}:
+  "2026-07-10T19:04:32.319Z",codex,"author=platform-web-specialist,text=Decision: Align peerDep to >=2026.7.10 and devDep to ^2026.7.10. Preserve existing feat/agent-enhancement-pass edits. Do not bump package version (daily release workflow handles date-based versioning)."
+learnings[1]{created_at,author,text}:
+  "2026-07-10T19:04:32.605Z",codex,"author=platform-web-specialist,text=pm health missing .agents/pm/extensions dir is fixed by mkdir. history_drift chain_mismatches repaired by pm history-repair --all."
+files[3]{path,scope,note}:
+  manifest.json,project,pm_min_version bumped to 2026.7.10
+  package-lock.json,project,Updated for @unbrained/pm-cli 2026.7.10
+  package.json,project,SDK peerDep and devDep aligned to 2026.7.10
+tests[1]{command,scope,timeout_seconds}:
+  npm test,project,30
+body: ""

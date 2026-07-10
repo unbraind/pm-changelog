@@ -299,7 +299,7 @@ export default defineExtension({
 
     registerExporterWithMetadata("changelog", async (ctx) => {
       const format = (stringOption(ctx.options, "format", "format") ?? "md").toLowerCase();
-      if (format !== "md" && format !== "json") {
+      if (format !== "md" && format !== "markdown" && format !== "json") {
         throw new PmCliError("--format must be 'md' or 'json'", EXIT_CODE.USAGE);
       }
       const groupByOption = stringOption(ctx.options, "group-by", "groupBy") ?? "version";

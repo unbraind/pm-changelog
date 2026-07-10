@@ -6,13 +6,26 @@
   "author": "@unbraind",
   "entry": "./dist/extension.js",
   "priority": 50,
+  "pm_min_version": "2026.7.10",
+  "trusted": true,
+  "sandbox_profile": "none",
   "permissions": {
     "fs_read": true,
-    "fs_write": true
+    "fs_write": true,
+    "network": false,
+    "env_read": true,
+    "env_write": false,
+    "process_spawn": true
   },
   "capabilities": [
     "commands",
     "schema",
     "importers"
-  ]
+  ],
+  "activation": {
+    "commands": [
+      "changelog generate",
+      "changelog export"
+    ]
+  }
 }
