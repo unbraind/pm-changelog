@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
-import { chmodSync, mkdtempSync, readFileSync, writeFileSync } from "node:fs";
+import { chmodSync, mkdirSync, mkdtempSync, readFileSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import test from "node:test";
@@ -1422,7 +1422,19 @@ process.stdout.write(readFileSync(resolve(process.cwd(), "fixture.json"), "utf-8
 test("pm package install activates changelog command", () => {
   const dir = mkdtempSync(join(tmpdir(), "pm-changelog-install-"));
   const pmBin = join(process.cwd(), "node_modules", ".bin", "pm");
-  const pmEnv = { ...process.env, PM_GLOBAL_PATH: join(dir, "global-pm") };
+  const home = join(dir, "home");
+  const xdgConfigHome = join(dir, "xdg-config");
+  const xdgDataHome = join(dir, "xdg-data");
+  mkdirSync(home);
+  mkdirSync(xdgConfigHome);
+  mkdirSync(xdgDataHome);
+  const pmEnv = {
+    ...process.env,
+    HOME: home,
+    PM_GLOBAL_PATH: join(dir, "global-pm"),
+    XDG_CONFIG_HOME: xdgConfigHome,
+    XDG_DATA_HOME: xdgDataHome,
+  };
 
   execFileSync(pmBin, ["init", "--json"], {
     cwd: dir,
