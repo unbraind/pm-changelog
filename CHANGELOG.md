@@ -1,5 +1,11 @@
 # Changelog
 
+## 2026.7.11 - 2026-07-11
+
+### Fixed
+
+- Isolate package-install integration tests from the user's pm home ([pmc-09bu](https://github.com/unbraind/pm-changelog/blob/main/.agents/pm/issues/pmc-09bu.toon))
+
 ## 2026.7.6 - 2026-07-06
 
 ### Fixed

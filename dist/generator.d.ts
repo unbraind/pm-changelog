@@ -30,6 +30,7 @@ export declare function createChangelogSummary(options: GenerateChangelogOptions
  */
 export declare function formatSummaryLine(entry: ChangelogSummaryEntry): string;
 export declare function mergeChangelog(existingMarkdown: string | undefined, generatedMarkdown: string, options?: MergeChangelogOptions): MergeChangelogResult;
+export declare function buildPmListArgs(options?: ReadPmItemsOptions): string[];
 export declare function readPmItems(options?: ReadPmItemsOptions): PmItem[];
 export declare function writeChangelog(options: WriteChangelogOptions): WriteChangelogResult;
 export declare function parsePmItemsJson(raw: string): PmItem[];

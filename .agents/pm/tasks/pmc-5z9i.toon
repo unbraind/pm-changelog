@@ -6,15 +6,16 @@ status: in_progress
 priority: 1
 tags[4]: agent-audit,context-management,ecosystem,release-readiness
 created_at: "2026-07-06T15:33:32.075Z"
-updated_at: "2026-07-11T19:05:59.350Z"
+updated_at: "2026-07-11T19:14:16.323Z"
 assignee: codex
 author: codex
 estimated_minutes: 240
 acceptance_criteria: Package uses current pm CLI/SDK and pm-changelog; release/check scripts pass; pm items capture decisions; no tracked secrets/private data are introduced; GitHub PR/release state is reviewed.
-comments[3]{created_at,author,text}:
+comments[4]{created_at,author,text}:
   "2026-07-09T21:36:07.996Z",codex-foundation,"2026-07-09 scope checkpoint: inventorying GitHub reports, current PR branch, dependency versions, release automation, package activation, real-workspace behavior, and full-history privacy posture before implementation."
   "2026-07-11T19:01:13.869Z",codex,"Current inspection: no open GitHub PRs/issues or audit vulnerabilities; pm health clean. Found exact duplicate pmc-6kvp (canceled in favor of evidence-rich pmc-yy8d), preferred --pm-path not yet used in generator, and toolchain updates available."
   "2026-07-11T19:05:02.363Z",codex,"Filed https://github.com/unbraind/pm-cli/issues/516 with a minimal reproduction. Updated integration coverage to assert pm-changelog itself is installed, active, and runtime-active under isolated diagnostics."
+  "2026-07-11T19:14:16.302Z",codex,Merged three intervening Dependabot updates from main; synchronized package and lock peer floor at >=2026.7.11; added buildPmListArgs as the single argument-construction contract; added defensive doctor payload assertions. Full gate now passes 129 tests.
 notes[2]{created_at,author,text}:
   "2026-07-09T21:36:08.218Z",codex-foundation,Toolchain baseline is global pm CLI 2026.7.9. Required package target is @unbrained/pm-cli 2026.7.9 and pm-changelog 2026.7.8 after registry verification. No telemetry/observability changes are authorized.
   "2026-07-11T19:05:59.334Z",codex,"Validated @unbrained/pm-cli 2026.7.11, @types/node 26.1.1, TypeScript 7.0.2. release:check passes all 128 tests, zero audit vulnerabilities, 37-file controlled tarball, and current generated changelog. GitHub Dependabot/secret alerts zero; code scanning not configured. Tracked/full-history credential scans zero; no private host/path patterns in history."
