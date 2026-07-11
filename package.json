@@ -99,7 +99,7 @@
   "devDependencies": {
     "@types/node": "^26.1.0",
     "@unbrained/pm-cli": "^2026.7.10",
-    "typescript": "^6.0.3"
+    "typescript": "^7.0.2"
   },
   "keywords": [
     "pm-cli",
