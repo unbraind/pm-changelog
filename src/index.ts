@@ -1,5 +1,6 @@
 export {
   buildChangelogDocument,
+  buildPmListArgs,
   createChangelog,
   createChangelogSummary,
   explainChangelogSelection,
