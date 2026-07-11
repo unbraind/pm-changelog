@@ -2,24 +2,32 @@ id: pmc-5z9i
 title: Ecosystem release readiness pass 2026-07-06
 description: "July 6, 2026 fleet readiness pass for the pm package ecosystem."
 type: Task
-status: in_progress
+status: closed
 priority: 1
 tags[4]: agent-audit,context-management,ecosystem,release-readiness
 created_at: "2026-07-06T15:33:32.075Z"
-updated_at: "2026-07-11T19:21:49.272Z"
-assignee: codex
+updated_at: "2026-07-11T19:35:10.305Z"
+closed_at: "2026-07-11T19:35:10.258Z"
 author: codex
 estimated_minutes: 240
 acceptance_criteria: Package uses current pm CLI/SDK and pm-changelog; release/check scripts pass; pm items capture decisions; no tracked secrets/private data are introduced; GitHub PR/release state is reviewed.
+reviewer: codex
+confidence: high
+release: 2026.7.11-1
+resolution: "Migrated pm-changelog to canonical --pm-path runner arguments, centralized and exported argument construction, aligned pm SDK/manifest/peer metadata, upgraded TypeScript 7, hardened hermetic activation tests, configured ESM review linting, consolidated duplicate tracking, and merged PR #65."
+expected_result: "pm-changelog uses the current pm runner contract, passes deterministic integration tests without operator context, generates changelogs and release notes from real pm data, and publishes through npm/Bun/GitHub automation."
+actual_result: "PR #65 merged after 129 tests, audit, package, changelog, CI, Semgrep, Greptile, Gemini, Sourcery, CodeRabbit, Cubic, and Hound review; release 2026.7.11-1 published and independently installed through npm, Bun, and pm with canonical args verified."
+fixed_version: 2026.7.11-1
 comments[5]{created_at,author,text}:
   "2026-07-09T21:36:07.996Z",codex-foundation,"2026-07-09 scope checkpoint: inventorying GitHub reports, current PR branch, dependency versions, release automation, package activation, real-workspace behavior, and full-history privacy posture before implementation."
   "2026-07-11T19:01:13.869Z",codex,"Current inspection: no open GitHub PRs/issues or audit vulnerabilities; pm health clean. Found exact duplicate pmc-6kvp (canceled in favor of evidence-rich pmc-yy8d), preferred --pm-path not yet used in generator, and toolchain updates available."
   "2026-07-11T19:05:02.363Z",codex,"Filed https://github.com/unbraind/pm-cli/issues/516 with a minimal reproduction. Updated integration coverage to assert pm-changelog itself is installed, active, and runtime-active under isolated diagnostics."
   "2026-07-11T19:14:16.302Z",codex,Merged three intervening Dependabot updates from main; synchronized package and lock peer floor at >=2026.7.11; added buildPmListArgs as the single argument-construction contract; added defensive doctor payload assertions. Full gate now passes 129 tests.
   "2026-07-11T19:21:49.256Z",codex,Hound reported generated dist/index.js export syntax as pre-ES6. Added .jshintrc declaring ES2022 module syntax so review tooling evaluates the package output under its actual runtime contract.
-notes[2]{created_at,author,text}:
+notes[3]{created_at,author,text}:
   "2026-07-09T21:36:08.218Z",codex-foundation,Toolchain baseline is global pm CLI 2026.7.9. Required package target is @unbrained/pm-cli 2026.7.9 and pm-changelog 2026.7.8 after registry verification. No telemetry/observability changes are authorized.
   "2026-07-11T19:05:59.334Z",codex,"Validated @unbrained/pm-cli 2026.7.11, @types/node 26.1.1, TypeScript 7.0.2. release:check passes all 128 tests, zero audit vulnerabilities, 37-file controlled tarball, and current generated changelog. GitHub Dependabot/secret alerts zero; code scanning not configured. Tracked/full-history credential scans zero; no private host/path patterns in history."
+  "2026-07-11T19:35:09.365Z",codex,Published integrity sha512-apP09EwqjZjWAfnXW13wZ37oAaXdORDLXm+tQbytIq5guWOrcUCxvFhytxcqdeeT+JiYBw8ExIiG/OST193LSA==; GitHub release v2026.7.11-1; npm and Bun clean installs succeeded.
 learnings[1]{created_at,author,text}:
   "2026-07-11T19:05:02.363Z",codex,"pm 2026.7.11 can seed unrelated project-managed packages during plain init despite a fresh PM_GLOBAL_PATH; --isolated then correctly describes those leaked project packages. Upstream issue #516 filed. Package tests must assert the target extension identity/activation, not a machine-dependent aggregate count."
 files[4]{path,scope,note}:
@@ -31,4 +39,5 @@ tests[1]{command,path,scope,timeout_seconds}:
   "npm run release:check",package.json,project,240
 docs[1]{path,scope,note}:
   docs/usage.md,project,Canonical pm --pm-path documentation
+close_reason: "Completed through merged PR #65 and independently verified pm-changelog 2026.7.11-1 on npm, Bun, GitHub, and a real pm workspace."
 body: "Track the July 6, 2026 fleet pass: align package metadata with latest pm CLI/SDK and pm-changelog, verify daily release automation, run build/test/audit/package checks with real workspace data where practical, inspect GitHub state, and record privacy/history findings without changing pm-cli itself."
