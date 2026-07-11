@@ -665,7 +665,7 @@ Options:
       --github-step-summary Append generated markdown to $GITHUB_STEP_SUMMARY
   -i, --input <file>        Read pm JSON from a file instead of running pm
       --stdin               Read pm JSON from stdin
-      --pm-root <dir>       pm project root for "pm --path <dir> list-all --json"
+      --pm-root <dir>       pm project root for "pm --pm-path <dir> list-all --json"
       --pm-bin <file>       pm executable to run (default: pm)
       --pm-arg <arg>        Extra argument passed before "list-all --json" (repeatable)
       --pm-cwd <dir>        Working directory for running pm
