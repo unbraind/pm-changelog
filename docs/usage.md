@@ -238,7 +238,7 @@ pm changelog generate --stdout --explain
 | `--stdout` | false | Print markdown instead of writing a file |
 | `--input <file>` | - | Read pm JSON from a file |
 | `--stdin` | false | Read pm JSON from stdin |
-| `--pm-root <dir>` | - | Run `pm --path <dir> list-all --json` |
+| `--pm-root <dir>` | - | Run `pm --pm-path <dir> list-all --json` |
 | `--pm-bin <file>` | `pm` | pm executable to run |
 | `--pm-arg <arg>` | - | Extra argument passed before `list-all --json`; repeat for multiple args |
 | `--pm-cwd <dir>` | - | Working directory for running pm |

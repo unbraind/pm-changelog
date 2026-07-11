@@ -317,7 +317,7 @@ export function readPmItems(options = {}) {
         args.push("--include-body");
     }
     if (options.pmRoot) {
-        args.unshift("--path", options.pmRoot);
+        args.unshift("--pm-path", options.pmRoot);
     }
     const result = spawnSync(pmBin, args, {
         cwd: options.cwd,

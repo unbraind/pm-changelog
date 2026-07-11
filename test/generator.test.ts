@@ -1294,7 +1294,7 @@ test("readPmItems supports runner wrappers with custom binaries, args, cwd, and 
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 
-if (process.argv.slice(2).join(" ") !== "--profile ci list-all --json") process.exit(2);
+if (process.argv.slice(2).join(" ") !== "--pm-path .agents/pm --profile ci list-all --json") process.exit(2);
 if (process.env.PM_CHANGELOG_TEST !== "1") process.exit(3);
 process.stdout.write(readFileSync(resolve(process.cwd(), "fixture.json"), "utf-8"));
 `,
@@ -1305,6 +1305,7 @@ process.stdout.write(readFileSync(resolve(process.cwd(), "fixture.json"), "utf-8
   const result = readPmItems({
     pmBin: wrapper,
     pmArgs: ["--profile", "ci"],
+    pmRoot: ".agents/pm",
     cwd: dir,
     env: { ...process.env, PM_CHANGELOG_TEST: "1" },
   });
@@ -1435,13 +1436,19 @@ test("pm package install activates changelog command", () => {
     encoding: "utf-8",
   });
 
-  const doctor = JSON.parse(execFileSync(pmBin, ["package", "doctor", "--project", "--json", "--detail", "deep"], {
+  const doctor = JSON.parse(execFileSync(pmBin, ["package", "doctor", "--project", "--isolated", "--json", "--detail", "deep"], {
     cwd: dir,
     env: pmEnv,
     encoding: "utf-8",
   }));
   assert.deepEqual(doctor.warnings, []);
-  assert.equal(doctor.details.summary.activation_status_totals.ok, 1);
+  assert.equal(doctor.details.isolation.isolated, true);
+  const installedChangelog = doctor.details.deep.installed_extensions.find(
+    (extension: { name?: string }) => extension.name === "pm-changelog"
+  );
+  assert.ok(installedChangelog, "pm-changelog should be present in isolated project diagnostics");
+  assert.equal(installedChangelog.activation_status, "ok");
+  assert.equal(installedChangelog.runtime_active, true);
 
   execFileSync(
     pmBin,
