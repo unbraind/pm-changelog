@@ -6,12 +6,26 @@ status: in_progress
 priority: 1
 tags[4]: agent-audit,context-management,ecosystem,release-readiness
 created_at: "2026-07-06T15:33:32.075Z"
-updated_at: "2026-07-09T21:36:08.219Z"
-assignee: codex-foundation
+updated_at: "2026-07-11T19:05:59.350Z"
+assignee: codex
 author: codex
+estimated_minutes: 240
 acceptance_criteria: Package uses current pm CLI/SDK and pm-changelog; release/check scripts pass; pm items capture decisions; no tracked secrets/private data are introduced; GitHub PR/release state is reviewed.
-comments[1]{created_at,author,text}:
+comments[3]{created_at,author,text}:
   "2026-07-09T21:36:07.996Z",codex-foundation,"2026-07-09 scope checkpoint: inventorying GitHub reports, current PR branch, dependency versions, release automation, package activation, real-workspace behavior, and full-history privacy posture before implementation."
-notes[1]{created_at,author,text}:
+  "2026-07-11T19:01:13.869Z",codex,"Current inspection: no open GitHub PRs/issues or audit vulnerabilities; pm health clean. Found exact duplicate pmc-6kvp (canceled in favor of evidence-rich pmc-yy8d), preferred --pm-path not yet used in generator, and toolchain updates available."
+  "2026-07-11T19:05:02.363Z",codex,"Filed https://github.com/unbraind/pm-cli/issues/516 with a minimal reproduction. Updated integration coverage to assert pm-changelog itself is installed, active, and runtime-active under isolated diagnostics."
+notes[2]{created_at,author,text}:
   "2026-07-09T21:36:08.218Z",codex-foundation,Toolchain baseline is global pm CLI 2026.7.9. Required package target is @unbrained/pm-cli 2026.7.9 and pm-changelog 2026.7.8 after registry verification. No telemetry/observability changes are authorized.
+  "2026-07-11T19:05:59.334Z",codex,"Validated @unbrained/pm-cli 2026.7.11, @types/node 26.1.1, TypeScript 7.0.2. release:check passes all 128 tests, zero audit vulnerabilities, 37-file controlled tarball, and current generated changelog. GitHub Dependabot/secret alerts zero; code scanning not configured. Tracked/full-history credential scans zero; no private host/path patterns in history."
+learnings[1]{created_at,author,text}:
+  "2026-07-11T19:05:02.363Z",codex,"pm 2026.7.11 can seed unrelated project-managed packages during plain init despite a fresh PM_GLOBAL_PATH; --isolated then correctly describes those leaked project packages. Upstream issue #516 filed. Package tests must assert the target extension identity/activation, not a machine-dependent aggregate count."
+files[3]{path,scope,note}:
+  src/generator.ts,project,Use current canonical pm tracker path option
+  package.json,project,"Current pm SDK,Node types,and TypeScript 7 toolchain"
+  test/generator.test.ts,project,Canonical pm-path and resilient isolated activation assertions
+tests[1]{command,path,scope,timeout_seconds}:
+  "npm run release:check",package.json,project,240
+docs[1]{path,scope,note}:
+  docs/usage.md,project,Canonical pm --pm-path documentation
 body: "Track the July 6, 2026 fleet pass: align package metadata with latest pm CLI/SDK and pm-changelog, verify daily release automation, run build/test/audit/package checks with real workspace data where practical, inspect GitHub state, and record privacy/history findings without changing pm-cli itself."
