@@ -310,8 +310,7 @@ export function mergeChangelog(existingMarkdown, generatedMarkdown, options = {}
         changed: next !== existing + "\n",
     };
 }
-export function readPmItems(options = {}) {
-    const pmBin = options.pmBin ?? "pm";
+export function buildPmListArgs(options = {}) {
     const args = [...(options.pmArgs ?? []), "list-all", "--json"];
     if (options.includeBody) {
         args.push("--include-body");
@@ -319,6 +318,11 @@ export function readPmItems(options = {}) {
     if (options.pmRoot) {
         args.unshift("--pm-path", options.pmRoot);
     }
+    return args;
+}
+export function readPmItems(options = {}) {
+    const pmBin = options.pmBin ?? "pm";
+    const args = buildPmListArgs(options);
     const result = spawnSync(pmBin, args, {
         cwd: options.cwd,
         env: options.env,

@@ -392,8 +392,7 @@ export function mergeChangelog(
   };
 }
 
-export function readPmItems(options: ReadPmItemsOptions = {}): PmItem[] {
-  const pmBin = options.pmBin ?? "pm";
+export function buildPmListArgs(options: ReadPmItemsOptions = {}): string[] {
   const args = [...(options.pmArgs ?? []), "list-all", "--json"];
   if (options.includeBody) {
     args.push("--include-body");
@@ -401,6 +400,12 @@ export function readPmItems(options: ReadPmItemsOptions = {}): PmItem[] {
   if (options.pmRoot) {
     args.unshift("--pm-path", options.pmRoot);
   }
+  return args;
+}
+
+export function readPmItems(options: ReadPmItemsOptions = {}): PmItem[] {
+  const pmBin = options.pmBin ?? "pm";
+  const args = buildPmListArgs(options);
 
   const result = spawnSync(pmBin, args, {
     cwd: options.cwd,
