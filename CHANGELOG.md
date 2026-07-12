@@ -4,7 +4,6 @@
 
 ### Fixed
 
-- Adopt ItemMetadata SDK reader after pm-cli terminology migration ([pmc-4a7j](https://github.com/unbraind/pm-changelog/blob/main/.agents/pm/issues/pmc-4a7j.toon))
 - Isolate package-install integration tests from the user's pm home ([pmc-09bu](https://github.com/unbraind/pm-changelog/blob/main/.agents/pm/issues/pmc-09bu.toon))
 - Fix release CI ordering (publish-before-tag) ([pmc-vuhy](https://github.com/unbraind/pm-changelog/blob/main/.agents/pm/tasks/pmc-vuhy.toon))
 - Relax changelog title escaping for readable Markdown ([pmc-8t9f](https://github.com/unbraind/pm-changelog/blob/main/.agents/pm/issues/pmc-8t9f.toon))

@@ -3,7 +3,7 @@ import { resolve } from "node:path";
 
 import {
   defineExtension,
-  listAllItemMetadata,
+  listAllFrontMatter as listAllItemMetadata,
   locateItem,
   readLocatedItem,
   readSettings,
