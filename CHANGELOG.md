@@ -1,18 +1,33 @@
 # Changelog
 
-## 2026.7.12 - 2026-07-12
-
-### Fixed
-
-- Isolate package-install integration tests from the user's pm home ([pmc-09bu](https://github.com/unbraind/pm-changelog/blob/main/.agents/pm/issues/pmc-09bu.toon))
-- Fix release CI ordering (publish-before-tag) ([pmc-vuhy](https://github.com/unbraind/pm-changelog/blob/main/.agents/pm/tasks/pmc-vuhy.toon))
-- Relax changelog title escaping for readable Markdown ([pmc-8t9f](https://github.com/unbraind/pm-changelog/blob/main/.agents/pm/issues/pmc-8t9f.toon))
+## 2026.7.11-1 - 2026-07-11
 
 ### Other
 
 - Ecosystem release readiness pass 2026-07-06 ([pmc-5z9i](https://github.com/unbraind/pm-changelog/blob/main/.agents/pm/tasks/pmc-5z9i.toon))
+
+## 2026.7.11 - 2026-07-11
+
+### Fixed
+
+- Isolate package-install integration tests from the user's pm home ([pmc-09bu](https://github.com/unbraind/pm-changelog/blob/main/.agents/pm/issues/pmc-09bu.toon))
+
+## 2026.7.6 - 2026-07-06
+
+### Fixed
+
+- Fix release CI ordering (publish-before-tag) ([pmc-vuhy](https://github.com/unbraind/pm-changelog/blob/main/.agents/pm/tasks/pmc-vuhy.toon))
+
+### Other
+
 - Align Node engine with pm CLI runtime ([pmc-hlr7](https://github.com/unbraind/pm-changelog/blob/main/.agents/pm/tasks/pmc-hlr7.toon))
 - Refresh pm-changelog to latest pm CLI peer and dev toolchain ([pmc-pgt7](https://github.com/unbraind/pm-changelog/blob/main/.agents/pm/tasks/pmc-pgt7.toon))
+
+## 2026.6.30 - 2026-06-30
+
+### Fixed
+
+- Relax changelog title escaping for readable Markdown ([pmc-8t9f](https://github.com/unbraind/pm-changelog/blob/main/.agents/pm/issues/pmc-8t9f.toon))
 
 ## 2026.6.20 - 2026-06-20
 
