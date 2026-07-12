@@ -1,0 +1,25 @@
+id: pmc-4a7j
+title: Adopt ItemMetadata SDK reader after pm-cli terminology migration
+description: Replace pm-changelog imports and documentation of the removed listAllFrontMatter SDK export with listAllItemMetadata so the published extension activates against pm-cli's canonical TOON metadata API and pm-cli release gates remain ecosystem-safe.
+type: Issue
+status: closed
+priority: 0
+tags[4]: compatibility,metadata,pm-cli,sdk
+created_at: "2026-07-12T20:59:36.482Z"
+updated_at: "2026-07-12T21:01:17.351Z"
+closed_at: "2026-07-12T21:01:05.838Z"
+author: codex-frontmatter-vocabulary
+resolution: Fixed by migrating the extension runtime to listAllItemMetadata.
+expected_result: Published pm-changelog activates against the renamed pm-cli SDK and its commands remain available.
+actual_result: Source and dist artifacts use listAllItemMetadata; local pm-cli package activation and all 108 package tests pass.
+comments[1]{created_at,author,text}:
+  "2026-07-12T21:01:05.591Z",codex-frontmatter-vocabulary,"Evidence: pm-cli PR #531 Gates (static) failed because published pm-changelog imported removed listAllFrontMatter. Updated source and built extension artifacts to listAllItemMetadata and item metadata wording; installed the local pm-cli PR package without saving dependency changes; npm build passed and all 108 tests passed, including package install/activation coverage."
+files[3]{path,scope,note}:
+  dist/extension.js,project,Published extension build output
+  dist/extension.js.map,project,Published extension source map
+  src/extension.ts,project,Adopt canonical pm SDK metadata reader
+tests[2]{command,scope,timeout_seconds,note}:
+  "npm run release:check",project,600,Full package release gate
+  npm test,project,300,Package build and 108-test suite against local pm-cli PR SDK
+close_reason: Replaced obsolete SDK reader with listAllItemMetadata and verified the package against the pm-cli PR build with 108 passing tests.
+body: ""

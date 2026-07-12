@@ -3,7 +3,7 @@ import { resolve } from "node:path";
 
 import {
   defineExtension,
-  listAllFrontMatter,
+  listAllItemMetadata,
   locateItem,
   readLocatedItem,
   readSettings,
@@ -134,9 +134,9 @@ export default defineExtension({
             })
           : undefined;
 
-        const items = (await listAllFrontMatter(ctx.pm_root)) as PmItem[];
+        const items = (await listAllItemMetadata(ctx.pm_root)) as PmItem[];
         const bodyPreview = parseBodyPreviewOption(ctx.options);
-        // listAllFrontMatter omits item bodies, so --body-preview would silently
+        // listAllItemMetadata omits item bodies, so --body-preview would silently
         // render nothing (GH #27). Load bodies on demand only when previewing.
         if (bodyPreview !== undefined && bodyPreview > 0) {
           await enrichItemBodies(ctx.pm_root, items);
@@ -323,7 +323,7 @@ export default defineExtension({
         untilReleaseTag: booleanOption(ctx.options, "until-release-tag", "untilReleaseTag"),
       });
 
-      const items = await listAllFrontMatter(ctx.pm_root);
+      const items = await listAllItemMetadata(ctx.pm_root);
       const generated = createChangelog({
         items,
         title: stringOption(ctx.options, "title", "title") ?? (releaseNotes ? "Release Notes" : undefined),
@@ -367,9 +367,9 @@ export default defineExtension({
 });
 
 /**
- * Best-effort enrichment of front-matter items with their on-disk body, used so
+ * Best-effort enrichment of item metadata with the on-disk body, used so
  * `--body-preview` renders real body content in the extension path (GH #27).
- * `listAllFrontMatter` omits bodies, so each item is re-read via the public SDK
+ * `listAllItemMetadata` omits bodies, so each item is re-read via the public SDK
  * locate/read helpers. Items already carrying a body are skipped, and any
  * per-item read failure is swallowed so changelog generation never breaks.
  */
@@ -383,7 +383,7 @@ async function enrichItemBodies(pmRoot: string, items: PmItem[]): Promise<void> 
     idPrefix = settings.id_prefix;
     format = settings.item_format;
   } catch {
-    return; // cannot resolve settings/registry → leave front matter as-is
+    return; // cannot resolve settings/registry → leave item metadata as-is
   }
 
   const loadBody = async (item: PmItem): Promise<void> => {
