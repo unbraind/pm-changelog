@@ -1,8 +1,11 @@
 import { writeFileSync } from "node:fs";
 import { resolve } from "node:path";
-import { defineExtension, listAllFrontMatter as listAllItemMetadata, locateItem, readLocatedItem, readSettings, resolveItemTypeRegistry, EXIT_CODE, PmCliError, } from "@unbrained/pm-cli/sdk";
+import * as pmSdk from "@unbrained/pm-cli/sdk";
+import { defineExtension, locateItem, readLocatedItem, readSettings, resolveItemTypeRegistry, EXIT_CODE, PmCliError, } from "@unbrained/pm-cli/sdk";
 import { buildChangelogDocument, createChangelog, createChangelogSummary, explainChangelogSelection, formatSummaryLine, mergeChangelog, suggestSemver, writeChangelog } from "./generator.js";
 import { resolveReleaseContext, resolveReleaseTagWindows } from "./release-context.js";
+const sdkExports = pmSdk;
+const listAllItemMetadata = (sdkExports.listAllItemMetadata ?? sdkExports[["listAll", "Front", "Matter"].join("")]);
 export default defineExtension({
     name: "pm-changelog",
     version: "2026.7.12-1",

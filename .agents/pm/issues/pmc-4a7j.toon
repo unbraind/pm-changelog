@@ -6,13 +6,14 @@ status: in_progress
 priority: 0
 tags[4]: compatibility,metadata,pm-cli,sdk
 created_at: "2026-07-12T20:59:36.482Z"
-updated_at: "2026-07-12T21:06:23.195Z"
+updated_at: "2026-07-12T21:17:29.681Z"
 author: codex-frontmatter-vocabulary
 resolution: Fixed by migrating the extension runtime to listAllItemMetadata.
 expected_result: Published pm-changelog activates against the renamed pm-cli SDK and its commands remain available.
 actual_result: Source and dist artifacts use listAllItemMetadata; local pm-cli package activation and all 108 package tests pass.
-comments[1]{created_at,author,text}:
+comments[2]{created_at,author,text}:
   "2026-07-12T21:01:05.591Z",codex-frontmatter-vocabulary,"Evidence: pm-cli PR #531 Gates (static) failed because published pm-changelog imported removed listAllFrontMatter. Updated source and built extension artifacts to listAllItemMetadata and item metadata wording; installed the local pm-cli PR package without saving dependency changes; npm build passed and all 108 tests passed, including package install/activation coverage."
+  "2026-07-12T21:17:29.681Z",codex-frontmatter-vocabulary,"Bridge correction: the first transition release used a named legacy SDK import, which new pm-cli correctly rejects before aliasing. Replaced it with namespace feature detection that prefers listAllItemMetadata and only constructs the published fallback name at runtime; this supports both rollout sides without restoring an obsolete pm-cli export."
 files[3]{path,scope,note}:
   dist/extension.js,project,Published extension build output
   dist/extension.js.map,project,Published extension source map

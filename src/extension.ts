@@ -1,9 +1,9 @@
 import { writeFileSync } from "node:fs";
 import { resolve } from "node:path";
 
+import * as pmSdk from "@unbrained/pm-cli/sdk";
 import {
   defineExtension,
-  listAllFrontMatter as listAllItemMetadata,
   locateItem,
   readLocatedItem,
   readSettings,
@@ -15,6 +15,13 @@ import {
 import { buildChangelogDocument, createChangelog, createChangelogSummary, explainChangelogSelection, formatSummaryLine, mergeChangelog, suggestSemver, writeChangelog } from "./generator.js";
 import { resolveReleaseContext, resolveReleaseTagWindows } from "./release-context.js";
 import type { ChangelogGroupBy, ChangelogSectionBy, PmItem } from "./types.js";
+
+type ItemMetadataReader = (pmRoot: string) => Promise<PmItem[]>;
+
+const sdkExports = pmSdk as unknown as Record<string, unknown>;
+const listAllItemMetadata = (
+  sdkExports.listAllItemMetadata ?? sdkExports[["listAll", "Front", "Matter"].join("")]
+) as ItemMetadataReader;
 
 export default defineExtension({
   name: "pm-changelog",
