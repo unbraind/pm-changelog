@@ -1585,7 +1585,6 @@ test("pm package install activates changelog command", (t) => {
   // variables must remain excluded or be replaced with fixture-owned roots.
   for (const key of [
     "PATH",
-    "Path",
     "PATHEXT",
     "SystemRoot",
     "SystemDrive",
@@ -1620,6 +1619,13 @@ test("pm package install activates changelog command", (t) => {
   assert.equal(pmEnv.NODE_OPTIONS, undefined);
   assert.equal(pmEnv.APPDATA, appData);
   assert.equal(pmEnv.LOCALAPPDATA, localAppData);
+  // Windows treats environment keys case-insensitively, so emitting both PATH
+  // and Path would create duplicate logical entries even though Object.keys()
+  // reports distinct strings on the parent platform.
+  assert.equal(
+    Object.keys(pmEnv).filter((key) => key.toUpperCase() === "PATH").length,
+    1
+  );
   assert.notEqual(inheritedEnv.PM_PATH, projectPmPath);
   assert.equal(pmEnv.PM_PATH, projectPmPath);
   assert.notEqual(inheritedEnv.PM_GLOBAL_PATH, globalPmPath);
