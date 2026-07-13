@@ -1545,6 +1545,13 @@ test("pm package install activates changelog command", () => {
   mkdirSync(home);
   mkdirSync(xdgConfigHome);
   mkdirSync(xdgDataHome);
+  const inheritedEnv: NodeJS.ProcessEnv = {
+    ...process.env,
+    INIT_CWD: process.cwd(),
+    NODE_AUTH_TOKEN: "must-not-reach-child-processes",
+    PM_GLOBAL_PATH: join(dir, "inherited-global-pm"),
+    PM_PATH: join(dir, "inherited-project-pm"),
+  };
   const pmEnv: NodeJS.ProcessEnv = {};
   for (const key of [
     "PATH",
@@ -1566,7 +1573,7 @@ test("pm package install activates changelog command", () => {
     "SSL_CERT_FILE",
     "SSL_CERT_DIR",
   ] as const) {
-    const value = process.env[key];
+    const value = inheritedEnv[key];
     if (value !== undefined) pmEnv[key] = value;
   }
   Object.assign(pmEnv, {
@@ -1578,12 +1585,14 @@ test("pm package install activates changelog command", () => {
     XDG_DATA_HOME: xdgDataHome,
   });
 
-  // npm lifecycle scripts set INIT_CWD to the source repository. Passing it to
-  // pm would redirect this supposedly isolated install back into the checkout.
+  // Prove that hostile npm lifecycle, credential, and pm context values are
+  // removed or replaced before any child command sees the environment.
+  assert.equal(inheritedEnv.INIT_CWD, process.cwd());
   assert.equal(pmEnv.INIT_CWD, undefined);
-  // The shared system temp directory can itself be nested below an existing pm
-  // workspace. Pinning PM_PATH prevents ancestor discovery from reusing it.
+  assert.equal(pmEnv.NODE_AUTH_TOKEN, undefined);
+  assert.notEqual(inheritedEnv.PM_PATH, projectPmPath);
   assert.equal(pmEnv.PM_PATH, projectPmPath);
+  assert.notEqual(inheritedEnv.PM_GLOBAL_PATH, pmEnv.PM_GLOBAL_PATH);
 
   execFileSync(pmBin, ["init", "--json"], {
     cwd: dir,
