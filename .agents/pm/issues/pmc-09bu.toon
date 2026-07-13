@@ -6,12 +6,12 @@ status: closed
 priority: 1
 tags[4]: hermetic,package-install,privacy,test
 created_at: "2026-07-10T23:01:30.633Z"
-updated_at: "2026-07-10T23:05:34.578Z"
+updated_at: "2026-07-13T23:42:52.037Z"
 deadline: "2026-07-11T23:01:30.633Z"
-closed_at: "2026-07-10T23:02:35.465Z"
+closed_at: "2026-07-13T22:42:19.161Z"
 author: codex
 estimated_minutes: 45
-acceptance_criteria: "The package install smoke test runs with temporary HOME, XDG_CONFIG_HOME, and XDG_DATA_HOME directories; all activation/generate/check assertions pass against pm CLI 2026.7.10; the full release gate passes in a clean environment."
+acceptance_criteria: "The package-install smoke test pins a temporary PM_PATH and PM_GLOBAL_PATH, uses isolated HOME/XDG/user-profile roots, and does not inherit npm lifecycle or credential-bearing environment state; The activation/generate/check assertions pass when /tmp is already a pm workspace and INIT_CWD points at the source checkout; The full release gate passes against the repository-locked latest pm CLI SDK"
 definition_of_ready: Current origin/main is checked out; latest pm CLI dependency is installed; no unrelated working-tree changes exist.
 reviewer: greptile
 risk: low
@@ -20,31 +20,51 @@ sprint: 2026-07-production
 release: next
 reporter: codex
 severity: medium
-environment: "Node 22.19.0, npm 11.17.0, @unbrained/pm-cli 2026.7.10"
-repro_steps: Run the package-install test while a real ~/.pm-cli configuration exists and observe that only PM_GLOBAL_PATH is redirected.
-resolution: "Replaced the package smoke test's product-specific global override with temporary HOME, XDG_CONFIG_HOME, and XDG_DATA_HOME roots shared across every spawned pm command."
-expected_result: The package install integration test cannot read or write operator-level pm configuration and the complete release gate passes.
-actual_result: "128 tests passed, package install/doctor/generate/check flows succeeded, npm audit found 0 vulnerabilities, pack dry-run succeeded, and pm-changelog reported the changelog current."
-affected_version: 2026.7.10
+environment: "Node 22.19.0, npm 11.17.0, @unbrained/pm-cli 2026.7.13; /tmp contains an ancestor .agents/pm tracker and npm INIT_CWD points to the source checkout"
+repro_steps: "Run NPM_CONFIG_USERCONFIG=/dev/null npm run release:check while /tmp/.agents/pm exists; before the fix, the package-install fixture discovers the ancestor tracker and package doctor reports unrelated extension collisions."
+resolution: "Pinned project PM_PATH, global PM_GLOBAL_PATH, home, XDG, Windows app-data, and temporary roots to the fixture; replaced process.env spreading with a typed platform-aware allowlist that excludes lifecycle, code-loading, proxy, user-config, and credential state; added deterministic teardown; updated the locked pm CLI to 2026.7.13."
+expected_result: "The package-install integration test cannot discover ancestor/operator pm context or inherit npm lifecycle/credential state, and the complete release gate passes."
+actual_result: "135 tests passed, including Windows case-insensitive environment lookup and real package install/doctor/generate/check flows; typecheck and build passed; npm audit found 0 vulnerabilities; npm pack dry-run passed; pm-changelog reported CHANGELOG.md current."
+affected_version: 2026.7.13
 fixed_version: next
 component: test/generator.test.ts
-regression: false
+regression: true
 customer_impact: Prevents tests and review bots from coupling to or modifying private user configuration.
 dependencies[1]{id,kind,created_at,author,source_kind}:
   pmc-3j77,related,"2026-07-10T23:01:30.633Z",codex,null
-comments[2]{created_at,author,text}:
+comments[9]{created_at,author,text}:
   "2026-07-10T23:01:30.633Z",codex,Discovered while manually running the full release gate against real local pm data.
   "2026-07-10T23:05:34.344Z",codex,"Greptile P2 accepted: spreading process.env could preserve an operator-exported PM_GLOBAL_PATH. The test now overrides PM_GLOBAL_PATH to a temporary path in addition to HOME and XDG directories."
+  "2026-07-13T22:32:20.661Z",codex-root,"Regression reproduced on 2026-07-14: npm run release:check sets INIT_CWD to the source repository. The integration test spreads process.env into child pm commands,so pm resolves the source workspace instead of the temporary workspace,loads unrelated extensions,emits collision warnings,and creates .agents/pm/extensions in the source tree. A control probe with INIT_CWD unset reports zero warnings; the same probe with INIT_CWD set reproduces all eight warnings."
+  "2026-07-13T22:35:15.245Z",codex-root,"Root-cause correction after a controlled second probe: INIT_CWD was a real inherited context hazard,but the immediate collision source was ancestor workspace discovery. /tmp already contains a pm tracker,so pm init in /tmp/pm-changelog-install-* reused /tmp/.agents/pm and loaded its ten project extensions. Pinning PM_PATH to the test directory removes all eight warnings. The child environment remains allowlisted so INIT_CWD,npm lifecycle metadata,and registry tokens cannot leak into the integration process."
+  "2026-07-13T22:53:53.869Z",codex-root,"Pre-push Greptile review 9b6f4fa2-f517-4e9e-9186-c334f7a3f50b P2 accepted: the original allowlist assertions were invariants but did not prove sanitization of hostile input. The regression now injects inherited INIT_CWD, PM_PATH, PM_GLOBAL_PATH, and NODE_AUTH_TOKEN sentinels, then proves lifecycle/credential values are removed and pm roots are replaced. Full release gate remains green: 134/134 tests and 0 production vulnerabilities."
+  "2026-07-13T23:08:59.472Z",codex-root,"GitHub PR 67 feedback disposition: CodeRabbit exact PM_GLOBAL_PATH assertion accepted. Gemini cross-platform concern partially accepted by inheriting only locale/SystemDrive inputs and binding APPDATA, LOCALAPPDATA, TEMP, TMP, and TMPDIR to fixture roots; inherited NODE_OPTIONS, NODE_ENV, terminal, proxy, certificate, credential, and user-config variables remain intentionally excluded. Sourcery maintainability feedback produced an explicit allowlist policy comment; helper extraction is deferred because this is a single test-only call site. Greptile tagless-sandbox P1 was independently reproduced, documented as a release-gate precondition, and tracked separately as pmc-yzho for precise missing-context diagnostics."
+  "2026-07-13T23:18:56.085Z",codex-root,"Gemini second-round cleanup finding accepted: the package-install integration test now receives the node:test context and registers t.after() recursive fixture cleanup, matching existing repository test patterns. Full release gate remains green with 134/134 tests and 0 production vulnerabilities."
+  "2026-07-13T23:30:16.314Z",codex-root,"Gemini final-round Windows casing finding accepted: readEnvironmentValue preserves Windows case-insensitive system-variable lookup while retaining POSIX case sensitivity, with a synthetic regression test. Full release gate passes 135/135."
+  "2026-07-13T23:42:52.020Z",codex,"Final Gemini review finding accepted: on Windows the case-insensitive lookup plus both PATH and Path allowlist entries could emit duplicate logical environment keys. Canonicalized the child environment to one PATH key and added an assertion that exactly one case-insensitive PATH key is present. Full release gate passes: typecheck, 135 tests, production audit (0 vulnerabilities), package dry run, and tag-aware changelog check."
 notes[1]{created_at,author,text}:
   "2026-07-10T23:01:30.633Z",codex,Use temporary HOME and XDG roots rather than only PM_GLOBAL_PATH because package lifecycle state spans standard user directories.
-learnings[2]{created_at,author,text}:
+learnings[3]{created_at,author,text}:
   "2026-07-10T23:01:30.633Z",codex,Package integration tests must isolate both product-specific globals and standard HOME/XDG locations to avoid privacy leaks and nondeterminism.
   "2026-07-10T23:05:34.577Z",codex,"When constructing a hermetic child environment, overriding HOME/XDG is insufficient if product-specific path variables can be inherited; explicitly replace every supported storage-root override after spreading process.env."
-files[1]{path,scope,note}:
+  "2026-07-13T22:35:15.245Z",codex-root,"Hermetic pm integration tests must isolate both axes of context: PM_GLOBAL_PATH for global package state and PM_PATH for the project tracker. HOME/XDG isolation alone does not prevent nearest-ancestor workspace discovery in shared temporary directories."
+files[3]{path,scope,note}:
+  package-lock.json,project,Locked pm CLI dependency graph
+  package.json,project,Latest pm CLI development dependency
   test/generator.test.ts,project,Hermetic package installation integration test
-tests[1]{command,path,scope,timeout_seconds,pm_context_mode}:
-  npm test,test/generator.test.ts,project,120,tracker
-docs[1]{path,scope,note}:
+tests[2]:
+  - command: "NPM_CONFIG_USERCONFIG=/dev/null npm run release:check"
+    scope: project
+    timeout_seconds: 180
+    pm_context_mode: tracker
+    note: Full release gate with isolated npm user config
+  - command: npm test
+    path: test/generator.test.ts
+    scope: project
+    timeout_seconds: 120
+    pm_context_mode: tracker
+docs[2]{path,scope,note}:
+  docs/release.md,project,Release tag-history precondition for reproducible changelog checks
   README.md,project,Package installation behavior reference
-close_reason: Hermetic HOME/XDG isolation implemented and the complete release gate passed on pm CLI 2026.7.10.
+close_reason: Hermetic cross-platform storage and environment isolation plus deterministic fixture teardown are implemented; the latest-CLI release gate passes all 135 tests.
 body: "## Context\\n\\nProject management is context management. Integration tests must prove package activation without consuming unrelated operator context.\\n\\n## Scope\\n\\nIsolate the package lifecycle smoke test and verify the full release contract."

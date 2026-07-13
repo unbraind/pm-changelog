@@ -16,6 +16,18 @@ The gate:
 - Verifies package contents with `npm pack --dry-run`.
 - Checks that `CHANGELOG.md` is current.
 
+The changelog check derives its release window from git tags, so release
+validation requires a checkout with tag history. Both repository workflows use
+`actions/checkout` with `fetch-depth: 0`. Before running the gate in a shallow
+or tagless clone, restore the tag refs:
+
+```bash
+git fetch --tags --force
+```
+
+A sandbox that intentionally omits tags cannot reconstruct the previous-tag to
+release-tag window and is not a valid changelog release-gate environment.
+
 ## Automated Release
 
 `.github/workflows/release.yml` runs daily and by manual dispatch. It uses free GitHub Actions features only.
