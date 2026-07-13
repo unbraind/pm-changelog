@@ -21,12 +21,7 @@ export function resolveReleaseTagWindows(options = {}) {
     const tags = listReleaseTags(cwd, options.tagPattern ?? "v*");
     const pending = resolvePendingReleaseTag(options, tags);
     const orderedTags = pending
-        ? [...tags, pending].sort((a, b) => {
-            const diff = Date.parse(b.timestamp) - Date.parse(a.timestamp);
-            if (diff !== 0)
-                return diff;
-            return a.name.localeCompare(b.name);
-        })
+        ? [...tags, pending].sort(compareReleaseTags)
         : tags;
     if (orderedTags.length === 0)
         return [];
@@ -140,7 +135,39 @@ function listReleaseTags(cwd, pattern) {
         .split("\n")
         .map(parseTagLine)
         .filter((tag) => Boolean(tag))
-        .sort((a, b) => Date.parse(b.timestamp) - Date.parse(a.timestamp));
+        .sort(compareReleaseTags);
+}
+/**
+ * Total deterministic comparator for ReleaseTag pairs. Contract:
+ *  1. Valid parsed timestamps sort in descending order (newest first).
+ *  2. A tag with a valid (parseable) timestamp sorts before one with an invalid
+ *     unparseable timestamp, regardless of name.
+ *  3. Two tags with equally-invalid timestamps tie-break by name ascending.
+ *
+ * This replaces bare `Date.parse(a) - Date.parse(b)` which returns `NaN` when
+ * either timestamp is unparseable — and `Array.sort(NaN)` is non-deterministic
+ * (the spec says the sort order is implementation-defined when the comparator
+ * does not return a total order).
+ */
+function compareReleaseTags(a, b) {
+    const aTime = Date.parse(a.timestamp);
+    const bTime = Date.parse(b.timestamp);
+    const aValid = !Number.isNaN(aTime);
+    const bValid = !Number.isNaN(bTime);
+    if (aValid && bValid) {
+        // Both parse → newest first (descending)
+        const diff = bTime - aTime;
+        if (diff !== 0)
+            return diff;
+        // Same instant → name tie-break
+        return a.name.localeCompare(b.name);
+    }
+    if (aValid !== bValid) {
+        // One valid, one invalid → valid before invalid
+        return aValid ? -1 : 1;
+    }
+    // Neither parses → name tie-break (stable total order)
+    return a.name.localeCompare(b.name);
 }
 function parseTagLine(line) {
     const [name, peeledCommitterDate, directCommitterDate] = line.split("\t");
