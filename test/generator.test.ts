@@ -2047,3 +2047,24 @@ test("resolveReleaseTagWindows deterministic order with all-invalid timestamps",
   assert.match(resultA[1].heading, /2026\.7\.1/);
   assert.match(resultA[2].heading, /2026\.7\.8/);
 });
+
+test("resolveReleaseTagWindows uses locale-independent tag-name tie-breaks", () => {
+  const dir = mkdtempSync(join(tmpdir(), "pm-changelog-name-order-"));
+  execFileSync("git", ["init"], { cwd: dir, encoding: "utf-8" });
+  execFileSync("git", ["config", "user.name", "pm changelog test"], { cwd: dir, encoding: "utf-8" });
+  execFileSync("git", ["config", "user.email", "pm-changelog@example.com"], { cwd: dir, encoding: "utf-8" });
+  writeFileSync(join(dir, "file.txt"), "same timestamp\n");
+  execFileSync("git", ["add", "file.txt"], { cwd: dir, encoding: "utf-8" });
+  execFileSync("git", ["commit", "-m", "same timestamp"], {
+    cwd: dir,
+    encoding: "utf-8",
+    env: { ...process.env, GIT_AUTHOR_DATE: "2026-07-01T12:00:00Z", GIT_COMMITTER_DATE: "2026-07-01T12:00:00Z" },
+  });
+  execFileSync("git", ["tag", "vZeta"], { cwd: dir, encoding: "utf-8" });
+  execFileSync("git", ["tag", "vAlpha"], { cwd: dir, encoding: "utf-8" });
+
+  const headings = resolveReleaseTagWindows({ cwd: dir }).map((window) => window.heading);
+
+  assert.match(headings[1], /^Alpha /);
+  assert.match(headings[2], /^Zeta /);
+});

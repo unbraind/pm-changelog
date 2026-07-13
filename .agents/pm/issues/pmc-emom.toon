@@ -6,17 +6,18 @@ status: closed
 priority: 0
 tags: []
 created_at: "2026-07-13T07:36:13.690Z"
-updated_at: "2026-07-13T08:29:21.902Z"
+updated_at: "2026-07-13T08:33:59.170Z"
 closed_at: "2026-07-13T08:10:21.275Z"
 author: codex-pm-changelog
-comments[3]{created_at,author,text}:
+comments[4]{created_at,author,text}:
   "2026-07-13T07:45:32.657Z","codex-pm-changelog,created_at=now,text=ROOT CAUSE: listReleaseTags in release-context.ts used 'git tag --list --merged HEAD' which excludes orphaned release tags from rebased/squashed history. pm-slack-standup has 20 May/June tags (v2026.05.26 through v2026.06.14) that are not merged into HEAD after a history rewrite, so --all-release-tags only found 4 July tags and collapsed all 30+ pre-July closed items into the oldest reachable window (2026.7.6).","author=codex-pm-changelog,created_at=now,text=ROOT CAUSE: listReleaseTags in release-context.ts used 'git tag --list --merged HEAD' which excludes orphaned release tags from rebased/squashed history. pm-slack-standup has 20 May/June tags (v2026.05.26 through v2026.06.14) that are not merged into HEAD after a history rewrite, so --all-release-tags only found 4 July tags and collapsed all 30+ pre-July closed items into the oldest reachable window (2026.7.6).\n\nFIX: Removed --merged HEAD from the git tag listing so all matching tags are found regardless of merge status. Chronological sort ensures correct window ordering. Item-to-window assignment prefers explicit item.release metadata (already correct), then time-based assignment using closed_at/updated_at/created_at.\n\nEVIDENCE: pm-slack-standup output now shows 14 historical sections (2026.5.26 through 2026.7.10) instead of 2 collapsed sections. Full test suite: 131 pass, 0 fail. audit:prod environment-neutral (uses env -u npm_config_allow_scripts). Two new regression tests added: resolveReleaseTagWindows includes orphaned tags from non-merged branches + createChangelog preserves historical sections with orphaned-git-tag boundaries."
   "2026-07-13T08:26:11.716Z",codex-pm-changelog,"PR 66 review complete: (1) total-deterministic compareReleaseTags NaN-safe comparator + regression tests; (2) cross-platform audit:prod npm audit --omit=dev --ignore-scripts (0 vulns); (3) history-redact /home/steve... -> GitHub URL; (4) history-redact 24->20 orphaned May/June tags; (5) history-repair dry-run: no drift, chain clean; (6) release:check 133/133 pass, audit:prod 0 vulns, changelog:check up-to-date, git diff --check clean"
   "2026-07-13T08:29:21.897Z",codex-pm-changelog,"Tracker metadata cleanup after validation: removed three malformed file links from an earlier invalid CSV invocation, refreshed the package.json audit note, and removed a non-path Greptile identifier from docs. History remains append-only and chain-valid."
+  "2026-07-13T08:33:57.785Z",codex-pm-changelog,"Gemini follow-up: replaced locale-dependent localeCompare tie-breaks with deterministic UTF-16 code-unit comparison and added an equal-timestamp tag-name ordering regression. Declined a module-global Date.parse cache because release tag sets are small and unbounded global state adds lifecycle complexity without measured benefit. Release gate: 134/134 tests, audit clean, package dry-run and changelog check pass."
 files[3]{path,scope,note}:
   package.json,project,Cross-platform production audit uses npm audit --omit=dev --ignore-scripts
   src/release-context.ts,project,Removed --merged HEAD from listReleaseTags to include orphaned git tags
-  test/generator.test.ts,project,Updated existing test to expect orphaned tag inclusion; added orphaned-tag regression test and historical-boundary-preservation test
+  test/generator.test.ts,project,Regression coverage for orphan tags historical boundaries invalid timestamps and locale-independent equal-timestamp name ordering
 tests[1]{command,scope}:
   npm test,project
 docs[1]{path,scope,note}:

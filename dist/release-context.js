@@ -160,14 +160,17 @@ function compareReleaseTags(a, b) {
         if (diff !== 0)
             return diff;
         // Same instant → name tie-break
-        return a.name.localeCompare(b.name);
+        return compareTagNames(a.name, b.name);
     }
     if (aValid !== bValid) {
         // One valid, one invalid → valid before invalid
         return aValid ? -1 : 1;
     }
     // Neither parses → name tie-break (stable total order)
-    return a.name.localeCompare(b.name);
+    return compareTagNames(a.name, b.name);
+}
+function compareTagNames(a, b) {
+    return a < b ? -1 : a > b ? 1 : 0;
 }
 function parseTagLine(line) {
     const [name, peeledCommitterDate, directCommitterDate] = line.split("\t");

@@ -202,7 +202,7 @@ function compareReleaseTags(a: ReleaseTag, b: ReleaseTag): number {
     const diff = bTime - aTime;
     if (diff !== 0) return diff;
     // Same instant → name tie-break
-    return a.name.localeCompare(b.name);
+    return compareTagNames(a.name, b.name);
   }
 
   if (aValid !== bValid) {
@@ -211,7 +211,11 @@ function compareReleaseTags(a: ReleaseTag, b: ReleaseTag): number {
   }
 
   // Neither parses → name tie-break (stable total order)
-  return a.name.localeCompare(b.name);
+  return compareTagNames(a.name, b.name);
+}
+
+function compareTagNames(a: string, b: string): number {
+  return a < b ? -1 : a > b ? 1 : 0;
 }
 
 function parseTagLine(line: string): ReleaseTag | undefined {
