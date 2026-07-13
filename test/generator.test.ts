@@ -1538,49 +1538,57 @@ process.stdout.write(readFileSync(resolve(process.cwd(), "fixture.json"), "utf-8
 test("pm package install activates changelog command", () => {
   const dir = mkdtempSync(join(tmpdir(), "pm-changelog-install-"));
   const pmBin = join(process.cwd(), "node_modules", ".bin", "pm");
+  const appData = join(dir, "app-data");
+  const globalPmPath = join(dir, "global-pm");
   const home = join(dir, "home");
+  const localAppData = join(dir, "local-app-data");
   const projectPmPath = join(dir, ".agents", "pm");
   const xdgConfigHome = join(dir, "xdg-config");
   const xdgDataHome = join(dir, "xdg-data");
+  mkdirSync(appData);
   mkdirSync(home);
+  mkdirSync(localAppData);
   mkdirSync(xdgConfigHome);
   mkdirSync(xdgDataHome);
   const inheritedEnv: NodeJS.ProcessEnv = {
     ...process.env,
+    APPDATA: join(dir, "inherited-app-data"),
     INIT_CWD: process.cwd(),
+    LOCALAPPDATA: join(dir, "inherited-local-app-data"),
     NODE_AUTH_TOKEN: "must-not-reach-child-processes",
+    NODE_OPTIONS: "--require=must-not-reach-child-processes",
     PM_GLOBAL_PATH: join(dir, "inherited-global-pm"),
     PM_PATH: join(dir, "inherited-project-pm"),
   };
   const pmEnv: NodeJS.ProcessEnv = {};
+  // Only executable discovery, platform bootstrapping, and locale inputs may
+  // be inherited. Code-loading, credential, network, user-config, and terminal
+  // variables must remain excluded or be replaced with fixture-owned roots.
   for (const key of [
     "PATH",
     "Path",
     "PATHEXT",
     "SystemRoot",
+    "SystemDrive",
     "ComSpec",
     "WINDIR",
-    "TEMP",
-    "TMP",
-    "TMPDIR",
-    "HTTP_PROXY",
-    "HTTPS_PROXY",
-    "NO_PROXY",
-    "http_proxy",
-    "https_proxy",
-    "no_proxy",
-    "NODE_EXTRA_CA_CERTS",
-    "SSL_CERT_FILE",
-    "SSL_CERT_DIR",
+    "LANG",
+    "LC_ALL",
+    "LC_CTYPE",
   ] as const) {
     const value = inheritedEnv[key];
     if (value !== undefined) pmEnv[key] = value;
   }
   Object.assign(pmEnv, {
+    APPDATA: appData,
     HOME: home,
+    LOCALAPPDATA: localAppData,
     USERPROFILE: home,
-    PM_GLOBAL_PATH: join(dir, "global-pm"),
+    PM_GLOBAL_PATH: globalPmPath,
     PM_PATH: projectPmPath,
+    TEMP: dir,
+    TMP: dir,
+    TMPDIR: dir,
     XDG_CONFIG_HOME: xdgConfigHome,
     XDG_DATA_HOME: xdgDataHome,
   });
@@ -1590,9 +1598,13 @@ test("pm package install activates changelog command", () => {
   assert.equal(inheritedEnv.INIT_CWD, process.cwd());
   assert.equal(pmEnv.INIT_CWD, undefined);
   assert.equal(pmEnv.NODE_AUTH_TOKEN, undefined);
+  assert.equal(pmEnv.NODE_OPTIONS, undefined);
+  assert.equal(pmEnv.APPDATA, appData);
+  assert.equal(pmEnv.LOCALAPPDATA, localAppData);
   assert.notEqual(inheritedEnv.PM_PATH, projectPmPath);
   assert.equal(pmEnv.PM_PATH, projectPmPath);
-  assert.notEqual(inheritedEnv.PM_GLOBAL_PATH, pmEnv.PM_GLOBAL_PATH);
+  assert.notEqual(inheritedEnv.PM_GLOBAL_PATH, globalPmPath);
+  assert.equal(pmEnv.PM_GLOBAL_PATH, globalPmPath);
 
   execFileSync(pmBin, ["init", "--json"], {
     cwd: dir,

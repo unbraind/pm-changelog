@@ -6,7 +6,7 @@ status: closed
 priority: 1
 tags[4]: hermetic,package-install,privacy,test
 created_at: "2026-07-10T23:01:30.633Z"
-updated_at: "2026-07-13T22:53:53.876Z"
+updated_at: "2026-07-13T23:08:59.480Z"
 deadline: "2026-07-11T23:01:30.633Z"
 closed_at: "2026-07-13T22:42:19.161Z"
 author: codex
@@ -32,12 +32,13 @@ regression: true
 customer_impact: Prevents tests and review bots from coupling to or modifying private user configuration.
 dependencies[1]{id,kind,created_at,author,source_kind}:
   pmc-3j77,related,"2026-07-10T23:01:30.633Z",codex,null
-comments[5]{created_at,author,text}:
+comments[6]{created_at,author,text}:
   "2026-07-10T23:01:30.633Z",codex,Discovered while manually running the full release gate against real local pm data.
   "2026-07-10T23:05:34.344Z",codex,"Greptile P2 accepted: spreading process.env could preserve an operator-exported PM_GLOBAL_PATH. The test now overrides PM_GLOBAL_PATH to a temporary path in addition to HOME and XDG directories."
   "2026-07-13T22:32:20.661Z",codex-root,"Regression reproduced on 2026-07-14: npm run release:check sets INIT_CWD to the source repository. The integration test spreads process.env into child pm commands,so pm resolves the source workspace instead of the temporary workspace,loads unrelated extensions,emits collision warnings,and creates .agents/pm/extensions in the source tree. A control probe with INIT_CWD unset reports zero warnings; the same probe with INIT_CWD set reproduces all eight warnings."
   "2026-07-13T22:35:15.245Z",codex-root,"Root-cause correction after a controlled second probe: INIT_CWD was a real inherited context hazard,but the immediate collision source was ancestor workspace discovery. /tmp already contains a pm tracker,so pm init in /tmp/pm-changelog-install-* reused /tmp/.agents/pm and loaded its ten project extensions. Pinning PM_PATH to the test directory removes all eight warnings. The child environment remains allowlisted so INIT_CWD,npm lifecycle metadata,and registry tokens cannot leak into the integration process."
   "2026-07-13T22:53:53.869Z",codex-root,"Pre-push Greptile review 9b6f4fa2-f517-4e9e-9186-c334f7a3f50b P2 accepted: the original allowlist assertions were invariants but did not prove sanitization of hostile input. The regression now injects inherited INIT_CWD, PM_PATH, PM_GLOBAL_PATH, and NODE_AUTH_TOKEN sentinels, then proves lifecycle/credential values are removed and pm roots are replaced. Full release gate remains green: 134/134 tests and 0 production vulnerabilities."
+  "2026-07-13T23:08:59.472Z",codex-root,"GitHub PR 67 feedback disposition: CodeRabbit exact PM_GLOBAL_PATH assertion accepted. Gemini cross-platform concern partially accepted by inheriting only locale/SystemDrive inputs and binding APPDATA, LOCALAPPDATA, TEMP, TMP, and TMPDIR to fixture roots; inherited NODE_OPTIONS, NODE_ENV, terminal, proxy, certificate, credential, and user-config variables remain intentionally excluded. Sourcery maintainability feedback produced an explicit allowlist policy comment; helper extraction is deferred because this is a single test-only call site. Greptile tagless-sandbox P1 was independently reproduced, documented as a release-gate precondition, and tracked separately as pmc-yzho for precise missing-context diagnostics."
 notes[1]{created_at,author,text}:
   "2026-07-10T23:01:30.633Z",codex,Use temporary HOME and XDG roots rather than only PM_GLOBAL_PATH because package lifecycle state spans standard user directories.
 learnings[3]{created_at,author,text}:
@@ -59,7 +60,8 @@ tests[2]:
     scope: project
     timeout_seconds: 120
     pm_context_mode: tracker
-docs[1]{path,scope,note}:
+docs[2]{path,scope,note}:
+  docs/release.md,project,Release tag-history precondition for reproducible changelog checks
   README.md,project,Package installation behavior reference
 close_reason: Hermetic PM_PATH and PM_GLOBAL_PATH isolation plus an allowlisted child environment eliminate ancestor/operator context leakage; the latest-CLI full release gate passes all 134 tests.
 body: "## Context\\n\\nProject management is context management. Integration tests must prove package activation without consuming unrelated operator context.\\n\\n## Scope\\n\\nIsolate the package lifecycle smoke test and verify the full release contract."
