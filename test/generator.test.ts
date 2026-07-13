@@ -286,6 +286,75 @@ test("createChangelog buckets items by release field when window has releaseTag"
   assert.doesNotMatch(unreleased, /pm-late-stamp/);
 });
 
+test("createChangelog preserves historical sections with orphaned-git-tag boundaries", () => {
+  // Regression: --all-release-tags must include orphaned (non-merged) release
+  // tags so items from different months are assigned to the correct historical
+  // windows instead of collapsing into the oldest reachable window.
+  const result = createChangelog({
+    items: [
+      {
+        id: "pm-old",
+        title: "Old task from May",
+        status: "closed",
+        type: "task",
+        updated_at: "2026-05-10T12:00:00Z",
+      },
+      {
+        id: "pm-mid",
+        title: "Mid-cycle feature",
+        status: "closed",
+        type: "feature",
+        updated_at: "2026-05-20T12:00:00Z",
+        release: "v2026.5.20",
+      },
+      {
+        id: "pm-new",
+        title: "New fix in current window",
+        status: "closed",
+        type: "bug",
+        closed_at: "2026-06-01T11:00:00Z",
+      },
+    ],
+    releaseWindows: [
+      { heading: "Unreleased", since: "2026-06-01T13:00:00Z", sinceExclusive: true },
+      {
+        heading: "2026.6.1 - 2026-06-01",
+        releaseTag: "v2026.6.1",
+        since: "2026-05-20T13:00:00Z",
+        sinceExclusive: true,
+        until: "2026-06-01T13:00:00Z",
+      },
+      {
+        heading: "2026.5.20 - 2026-05-20",
+        releaseTag: "v2026.5.20",
+        since: "2026-05-10T13:00:00Z",
+        sinceExclusive: true,
+        until: "2026-05-20T13:00:00Z",
+      },
+      // Orphaned tag: items before v2026.5.20 and not matched by release
+      // metadata fall into this window via time-based assignment.
+      { heading: "2026.5.10 - 2026-05-10", until: "2026-05-10T13:00:00Z" },
+    ],
+  });
+
+  assert.equal(result.itemCount, 3);
+  // pm-mid matches releaseTag v2026.5.20 by explicit release field
+  const v520 = result.markdown.match(/## 2026\.5\.20 - 2026-05-20[\s\S]*?(?=\n## |$)/)?.[0] ?? "";
+  assert.match(v520, /Mid-cycle feature \(pm-mid\)/);
+  // pm-new is correctly in the 2026.6.1 window by closed_at timestamp
+  const v61 = result.markdown.match(/## 2026\.6\.1 - 2026-06-01[\s\S]*?(?=\n## |$)/)?.[0] ?? "";
+  assert.match(v61, /New fix in current window \(pm-new\)/);
+  // pm-old is in the May 10 window (time-based)
+  const v510 = result.markdown.match(/## 2026\.5\.10 - 2026-05-10[\s\S]*?(?=\n## |$)/)?.[0] ?? "";
+  assert.match(v510, /Old task from May \(pm-old\)/);
+  // The old window and mid window are preserved (not collapsed)
+  assert.ok(result.markdown.includes("## 2026.5.10 - 2026-05-10"));
+  assert.ok(result.markdown.includes("## 2026.5.20 - 2026-05-20"));
+  assert.ok(result.markdown.includes("## 2026.6.1 - 2026-06-01"));
+  // Unreleased gets the timestamp-less item if one is created
+  // (no unreleased items expected here)
+});
+
 test("createChangelog preserves empty release windows when includeEmpty is set", () => {
   const result = createChangelog({
     items: [],
@@ -384,21 +453,66 @@ test("resolveReleaseTagWindows derives newest-first git tag windows", () => {
     pendingTimestamp: "2026-05-20 12:00:00 +0000",
   });
 
-  assert.equal(windows.length, 4);
+  // Now includes the orphaned v9.9.9 tag from the side-release branch
+  // (the fix removes --merged HEAD so orphaned tags are no longer excluded).
+  // Pending v1.3 (May20) is merged into tags and sorted by timestamp
+  // descending, so v9.9.9 (May30) comes first, then v1.3 (May20).
+  // Every window has since <= until (no inverted windows).
+  assert.equal(windows.length, 5);
   assert.equal(windows[0].heading, "Unreleased");
-  assert.equal(windows[0].since, "2026-05-20T12:00:00.000Z");
-  assert.equal(windows[1].heading, "1.3.0 - 2026-05-20");
-  // Window `since`/`until` are normalized to ISO `Z` form in the source
-  // (resolveReleaseTagWindows), so they're stable regardless of the git
-  // version that produced the tag's %(committerdate:iso-strict) output
-  // (older git: `...T12:00:00Z`; git >= ~2.42: `...T12:00:00+00:00`).
-  assert.equal(windows[1].since, "2026-05-17T12:00:00.000Z");
-  assert.equal(windows[1].until, "2026-05-20T12:00:00.000Z");
-  assert.equal(windows[2].heading, "1.2.0 - 2026-05-17");
-  assert.equal(windows[2].since, "2026-05-10T12:00:00.000Z");
-  assert.equal(windows[2].until, "2026-05-17T12:00:00.000Z");
-  assert.equal(windows[3].heading, "1.1.0 - 2026-05-10");
-  assert.ok(windows.every((window) => !window.heading.startsWith("9.9.9")));
+  assert.equal(windows[0].since, "2026-05-30T12:00:00.000Z");
+  assert.equal(windows[1].heading, "9.9.9 - 2026-05-30");
+  assert.equal(windows[1].since, "2026-05-20T12:00:00.000Z");
+  assert.equal(windows[1].until, "2026-05-30T12:00:00.000Z");
+  assert.equal(windows[2].heading, "1.3.0 - 2026-05-20");
+  assert.equal(windows[2].since, "2026-05-17T12:00:00.000Z");
+  assert.equal(windows[2].until, "2026-05-20T12:00:00.000Z");
+  assert.equal(windows[3].heading, "1.2.0 - 2026-05-17");
+  assert.equal(windows[3].since, "2026-05-10T12:00:00.000Z");
+  assert.equal(windows[3].until, "2026-05-17T12:00:00.000Z");
+  assert.equal(windows[4].heading, "1.1.0 - 2026-05-10");
+  assert.equal(windows[4].since, undefined);
+  assert.equal(windows[4].until, "2026-05-10T12:00:00.000Z");
+});
+
+test("resolveReleaseTagWindows includes orphaned tags from non-merged branches", () => {
+  const dir = mkdtempSync(join(tmpdir(), "pm-changelog-orphan-"));
+  execFileSync("git", ["init"], { cwd: dir, encoding: "utf-8" });
+  execFileSync("git", ["config", "user.name", "pm changelog test"], { cwd: dir, encoding: "utf-8" });
+  execFileSync("git", ["config", "user.email", "pm-changelog@example.com"], { cwd: dir, encoding: "utf-8" });
+  const defaultBranch = execFileSync("git", ["branch", "--show-current"], { cwd: dir, encoding: "utf-8" }).trim();
+
+  // Create a commit and tag on main (reachable).
+  writeFileSync(join(dir, "file.txt"), "main\n");
+  execFileSync("git", ["add", "file.txt"], { cwd: dir, encoding: "utf-8" });
+  execFileSync("git", ["commit", "-m", "main"], {
+    cwd: dir,
+    encoding: "utf-8",
+    env: { ...process.env, GIT_AUTHOR_DATE: "2026-06-01T12:00:00Z", GIT_COMMITTER_DATE: "2026-06-01T12:00:00Z" },
+  });
+  execFileSync("git", ["tag", "v2026.6.1"], { cwd: dir, encoding: "utf-8" });
+
+  // Create an orphaned branch with a release tag (simulates rebase/squash).
+  execFileSync("git", ["switch", "--orphan", "old-history"], { cwd: dir, encoding: "utf-8" });
+  writeFileSync(join(dir, "old.txt"), "old\n");
+  execFileSync("git", ["add", "old.txt"], { cwd: dir, encoding: "utf-8" });
+  execFileSync("git", ["commit", "-m", "old"], {
+    cwd: dir,
+    encoding: "utf-8",
+    env: { ...process.env, GIT_AUTHOR_DATE: "2026-05-15T12:00:00Z", GIT_COMMITTER_DATE: "2026-05-15T12:00:00Z" },
+  });
+  execFileSync("git", ["tag", "v2026.5.15"], { cwd: dir, encoding: "utf-8" });
+
+  // Switch back to main — the orphaned tag should still be found.
+  execFileSync("git", ["switch", defaultBranch], { cwd: dir, encoding: "utf-8" });
+
+  const windows = resolveReleaseTagWindows({ cwd: dir });
+
+  // Should include both the reachable (v2026.6.1) and the orphaned (v2026.5.15) tag.
+  assert.equal(windows.length, 3);
+  assert.equal(windows[0].heading, "Unreleased");
+  assert.equal(windows[1].heading, "2026.6.1 - 2026-06-01");
+  assert.equal(windows[2].heading, "2026.5.15 - 2026-05-15");
 });
 
 test("resolveReleaseTagWindows keeps unpadded calendar pending headings", () => {

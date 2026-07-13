@@ -57,7 +57,13 @@ export function resolveReleaseTagWindows(options: ReleaseTagHistoryOptions = {})
   const cwd = resolve(options.cwd ?? process.cwd());
   const tags = listReleaseTags(cwd, options.tagPattern ?? "v*");
   const pending = resolvePendingReleaseTag(options, tags);
-  const orderedTags = pending ? [pending, ...tags] : tags;
+  const orderedTags = pending
+    ? [...tags, pending].sort((a, b) => {
+        const diff = Date.parse(b.timestamp) - Date.parse(a.timestamp);
+        if (diff !== 0) return diff;
+        return a.name.localeCompare(b.name);
+      })
+    : tags;
   if (orderedTags.length === 0) return [];
 
   const windows: ChangelogReleaseWindow[] = [];
@@ -157,12 +163,16 @@ function findPreviousTag(cwd: string, releaseTag: string | undefined): string | 
 }
 
 function listReleaseTags(cwd: string, pattern: string): ReleaseTag[] {
+  // Do NOT filter with `--merged HEAD`. Rebases and history rewrites orphan
+  // release tags, making them unreachable from HEAD. Excluding them would
+  // collapse all historical items into the oldest reachable window, losing
+  // month+ of legacy changelog sections. Include all matching tags; the
+  // chronological sort and the item-to-window assignment below ensure each
+  // item ends up in the correct release bucket regardless.
   const output = runGit(cwd, [
     "tag",
     "--list",
     pattern,
-    "--merged",
-    "HEAD",
     "--format=%(refname:short)%09%(*committerdate:iso-strict)%09%(committerdate:iso-strict)",
   ]);
   if (!output) return [];
