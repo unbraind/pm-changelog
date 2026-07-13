@@ -473,6 +473,7 @@ function applyReleaseContext(options) {
         options.releaseWindows = resolveReleaseTagWindows({
             cwd,
             tagPattern: options.releaseTagPattern,
+            includeOrphaned: true,
             pendingVersion: options.version,
             pendingTimestamp: options.until ?? options.date,
         });
