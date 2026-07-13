@@ -1539,18 +1539,51 @@ test("pm package install activates changelog command", () => {
   const dir = mkdtempSync(join(tmpdir(), "pm-changelog-install-"));
   const pmBin = join(process.cwd(), "node_modules", ".bin", "pm");
   const home = join(dir, "home");
+  const projectPmPath = join(dir, ".agents", "pm");
   const xdgConfigHome = join(dir, "xdg-config");
   const xdgDataHome = join(dir, "xdg-data");
   mkdirSync(home);
   mkdirSync(xdgConfigHome);
   mkdirSync(xdgDataHome);
-  const pmEnv = {
-    ...process.env,
+  const pmEnv: NodeJS.ProcessEnv = {};
+  for (const key of [
+    "PATH",
+    "Path",
+    "PATHEXT",
+    "SystemRoot",
+    "ComSpec",
+    "WINDIR",
+    "TEMP",
+    "TMP",
+    "TMPDIR",
+    "HTTP_PROXY",
+    "HTTPS_PROXY",
+    "NO_PROXY",
+    "http_proxy",
+    "https_proxy",
+    "no_proxy",
+    "NODE_EXTRA_CA_CERTS",
+    "SSL_CERT_FILE",
+    "SSL_CERT_DIR",
+  ] as const) {
+    const value = process.env[key];
+    if (value !== undefined) pmEnv[key] = value;
+  }
+  Object.assign(pmEnv, {
     HOME: home,
+    USERPROFILE: home,
     PM_GLOBAL_PATH: join(dir, "global-pm"),
+    PM_PATH: projectPmPath,
     XDG_CONFIG_HOME: xdgConfigHome,
     XDG_DATA_HOME: xdgDataHome,
-  };
+  });
+
+  // npm lifecycle scripts set INIT_CWD to the source repository. Passing it to
+  // pm would redirect this supposedly isolated install back into the checkout.
+  assert.equal(pmEnv.INIT_CWD, undefined);
+  // The shared system temp directory can itself be nested below an existing pm
+  // workspace. Pinning PM_PATH prevents ancestor discovery from reusing it.
+  assert.equal(pmEnv.PM_PATH, projectPmPath);
 
   execFileSync(pmBin, ["init", "--json"], {
     cwd: dir,
