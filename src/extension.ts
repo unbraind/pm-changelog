@@ -136,6 +136,7 @@ export default defineExtension({
           ? resolveReleaseTagWindows({
               cwd: ctx.pm_root,
               tagPattern: stringOption(ctx.options, "release-tag-pattern", "releaseTagPattern"),
+              includeOrphaned: true,
               pendingVersion: releaseVersion,
               pendingTimestamp: untilOption ?? dateOption,
             })

@@ -551,6 +551,7 @@ function applyReleaseContext(options: CliOptions): void {
     options.releaseWindows = resolveReleaseTagWindows({
       cwd,
       tagPattern: options.releaseTagPattern,
+      includeOrphaned: true,
       pendingVersion: options.version,
       pendingTimestamp: options.until ?? options.date,
     });

@@ -17,6 +17,15 @@ export interface ReleaseContextOptions {
 export interface ReleaseTagHistoryOptions {
   cwd?: string;
   tagPattern?: string;
+  /**
+   * Include release tags that are not reachable from HEAD. Rebases and history
+   * rewrites orphan release tags; excluding them collapses their items into the
+   * oldest reachable window, silently losing legacy changelog sections. The pm
+   * changelog CLI/extension set this to `true` so a full release history is
+   * preserved. Defaults to `false` so the exported helper keeps the safe,
+   * reachable-only `git tag --merged HEAD` semantics for external callers.
+   */
+  includeOrphaned?: boolean;
   includeUnreleased?: boolean;
   pendingVersion?: string;
   pendingTimestamp?: string;
@@ -55,9 +64,11 @@ export function resolveReleaseContext(options: ReleaseContextOptions): ReleaseCo
 
 export function resolveReleaseTagWindows(options: ReleaseTagHistoryOptions = {}): ChangelogReleaseWindow[] {
   const cwd = resolve(options.cwd ?? process.cwd());
-  const tags = listReleaseTags(cwd, options.tagPattern ?? "v*");
+  const tags = listReleaseTags(cwd, options.tagPattern ?? "v*", options.includeOrphaned);
   const pending = resolvePendingReleaseTag(options, tags);
-  const orderedTags = pending ? [pending, ...tags] : tags;
+  const orderedTags = pending
+    ? [...tags, pending].sort(compareReleaseTags)
+    : tags;
   if (orderedTags.length === 0) return [];
 
   const windows: ChangelogReleaseWindow[] = [];
@@ -156,21 +167,61 @@ function findPreviousTag(cwd: string, releaseTag: string | undefined): string | 
   return runGit(cwd, ["describe", "--tags", "--abbrev=0", ref]);
 }
 
-function listReleaseTags(cwd: string, pattern: string): ReleaseTag[] {
-  const output = runGit(cwd, [
-    "tag",
-    "--list",
-    pattern,
-    "--merged",
-    "HEAD",
-    "--format=%(refname:short)%09%(*committerdate:iso-strict)%09%(committerdate:iso-strict)",
-  ]);
+function listReleaseTags(cwd: string, pattern: string, includeOrphaned = false): ReleaseTag[] {
+  const args = ["tag", "--list", pattern];
+  // Default to reachable tags only. When includeOrphaned is set the `--merged
+  // HEAD` filter is dropped so tags orphaned by rebases/history rewrites are
+  // still discovered; the chronological sort and item-to-window assignment
+  // below place every item in the correct release bucket regardless of
+  // reachability.
+  if (!includeOrphaned) args.push("--merged", "HEAD");
+  args.push("--format=%(refname:short)%09%(*committerdate:iso-strict)%09%(committerdate:iso-strict)");
+  const output = runGit(cwd, args);
   if (!output) return [];
   return output
     .split("\n")
     .map(parseTagLine)
     .filter((tag): tag is ReleaseTag => Boolean(tag))
-    .sort((a, b) => Date.parse(b.timestamp) - Date.parse(a.timestamp));
+    .sort(compareReleaseTags);
+}
+
+/**
+ * Total deterministic comparator for ReleaseTag pairs. Contract:
+ *  1. Valid parsed timestamps sort in descending order (newest first).
+ *  2. A tag with a valid (parseable) timestamp sorts before one with an invalid
+ *     unparseable timestamp, regardless of name.
+ *  3. Two tags with equally-invalid timestamps tie-break by name ascending.
+ *
+ * This replaces bare `Date.parse(a) - Date.parse(b)` which returns `NaN` when
+ * either timestamp is unparseable — and `Array.sort(NaN)` is non-deterministic
+ * (the spec says the sort order is implementation-defined when the comparator
+ * does not return a total order).
+ */
+function compareReleaseTags(a: ReleaseTag, b: ReleaseTag): number {
+  const aTime = Date.parse(a.timestamp);
+  const bTime = Date.parse(b.timestamp);
+  const aValid = !Number.isNaN(aTime);
+  const bValid = !Number.isNaN(bTime);
+
+  if (aValid && bValid) {
+    // Both parse → newest first (descending)
+    const diff = bTime - aTime;
+    if (diff !== 0) return diff;
+    // Same instant → name tie-break
+    return compareTagNames(a.name, b.name);
+  }
+
+  if (aValid !== bValid) {
+    // One valid, one invalid → valid before invalid
+    return aValid ? -1 : 1;
+  }
+
+  // Neither parses → name tie-break (stable total order)
+  return compareTagNames(a.name, b.name);
+}
+
+function compareTagNames(a: string, b: string): number {
+  return a < b ? -1 : a > b ? 1 : 0;
 }
 
 function parseTagLine(line: string): ReleaseTag | undefined {

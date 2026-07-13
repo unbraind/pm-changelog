@@ -1,5 +1,11 @@
 # Changelog
 
+## Unreleased
+
+### Fixed
+
+- Fix all-release-tags collapsing legacy historical sections after orphaned git tags ([pmc-emom](https://github.com/unbraind/pm-changelog/blob/main/.agents/pm/issues/pmc-emom.toon))
+
 ## 2026.7.11-1 - 2026-07-11
 
 ### Other
