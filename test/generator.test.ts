@@ -1963,8 +1963,6 @@ test("resolveReleaseTagWindows sorts invalid pending timestamps deterministicall
   execFileSync("git", ["init"], { cwd: dir, encoding: "utf-8" });
   execFileSync("git", ["config", "user.name", "pm changelog test"], { cwd: dir, encoding: "utf-8" });
   execFileSync("git", ["config", "user.email", "pm-changelog@example.com"], { cwd: dir, encoding: "utf-8" });
-  const defaultBranch = execFileSync("git", ["branch", "--show-current"], { cwd: dir, encoding: "utf-8" }).trim();
-
   // Create a valid tag on main with a parseable timestamp.
   writeFileSync(join(dir, "file.txt"), "one\n");
   execFileSync("git", ["add", "file.txt"], { cwd: dir, encoding: "utf-8" });
@@ -2008,7 +2006,6 @@ test("resolveReleaseTagWindows deterministic order with all-invalid timestamps",
   execFileSync("git", ["init"], { cwd: dir, encoding: "utf-8" });
   execFileSync("git", ["config", "user.name", "pm changelog test"], { cwd: dir, encoding: "utf-8" });
   execFileSync("git", ["config", "user.email", "pm-changelog@example.com"], { cwd: dir, encoding: "utf-8" });
-  const defaultBranch = execFileSync("git", ["branch", "--show-current"], { cwd: dir, encoding: "utf-8" }).trim();
 
   writeFileSync(join(dir, "file.txt"), "one\n");
   execFileSync("git", ["add", "file.txt"], { cwd: dir, encoding: "utf-8" });
