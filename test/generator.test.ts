@@ -14,6 +14,24 @@ import {
   writeChangelog,
 } from "../dist/index.js";
 
+function readEnvironmentValue(
+  environment: NodeJS.ProcessEnv,
+  key: string,
+  caseInsensitive = process.platform === "win32"
+): string | undefined {
+  if (!caseInsensitive) return environment[key];
+  const normalizedKey = key.toUpperCase();
+  return Object.entries(environment).find(
+    ([candidate]) => candidate.toUpperCase() === normalizedKey
+  )?.[1];
+}
+
+test("readEnvironmentValue preserves Windows case-insensitive lookup semantics", () => {
+  const environment = { SYSTEMROOT: "C:\\Windows" };
+  assert.equal(readEnvironmentValue(environment, "SystemRoot", true), "C:\\Windows");
+  assert.equal(readEnvironmentValue(environment, "SystemRoot", false), undefined);
+});
+
 const items = [
   {
     id: "pm-2",
@@ -1577,7 +1595,7 @@ test("pm package install activates changelog command", (t) => {
     "LC_ALL",
     "LC_CTYPE",
   ] as const) {
-    const value = inheritedEnv[key];
+    const value = readEnvironmentValue(inheritedEnv, key);
     if (value !== undefined) pmEnv[key] = value;
   }
   Object.assign(pmEnv, {
