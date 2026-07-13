@@ -14,6 +14,24 @@ import {
   writeChangelog,
 } from "../dist/index.js";
 
+function readEnvironmentValue(
+  environment: NodeJS.ProcessEnv,
+  key: string,
+  caseInsensitive = process.platform === "win32"
+): string | undefined {
+  if (!caseInsensitive) return environment[key];
+  const normalizedKey = key.toUpperCase();
+  return Object.entries(environment).find(
+    ([candidate]) => candidate.toUpperCase() === normalizedKey
+  )?.[1];
+}
+
+test("readEnvironmentValue preserves Windows case-insensitive lookup semantics", () => {
+  const environment = { SYSTEMROOT: "C:\\Windows" };
+  assert.equal(readEnvironmentValue(environment, "SystemRoot", true), "C:\\Windows");
+  assert.equal(readEnvironmentValue(environment, "SystemRoot", false), undefined);
+});
+
 const items = [
   {
     id: "pm-2",
@@ -1535,22 +1553,83 @@ process.stdout.write(readFileSync(resolve(process.cwd(), "fixture.json"), "utf-8
   assert.match(stdout, /- Fix runner status export \(pm-2\)/);
 });
 
-test("pm package install activates changelog command", () => {
+test("pm package install activates changelog command", (t) => {
   const dir = mkdtempSync(join(tmpdir(), "pm-changelog-install-"));
+  t.after(() => rmSync(dir, { recursive: true, force: true }));
   const pmBin = join(process.cwd(), "node_modules", ".bin", "pm");
+  const appData = join(dir, "app-data");
+  const globalPmPath = join(dir, "global-pm");
   const home = join(dir, "home");
+  const localAppData = join(dir, "local-app-data");
+  const projectPmPath = join(dir, ".agents", "pm");
   const xdgConfigHome = join(dir, "xdg-config");
   const xdgDataHome = join(dir, "xdg-data");
+  mkdirSync(appData);
   mkdirSync(home);
+  mkdirSync(localAppData);
   mkdirSync(xdgConfigHome);
   mkdirSync(xdgDataHome);
-  const pmEnv = {
+  const inheritedEnv: NodeJS.ProcessEnv = {
     ...process.env,
+    APPDATA: join(dir, "inherited-app-data"),
+    INIT_CWD: process.cwd(),
+    LOCALAPPDATA: join(dir, "inherited-local-app-data"),
+    NODE_AUTH_TOKEN: "must-not-reach-child-processes",
+    NODE_OPTIONS: "--require=must-not-reach-child-processes",
+    PM_GLOBAL_PATH: join(dir, "inherited-global-pm"),
+    PM_PATH: join(dir, "inherited-project-pm"),
+  };
+  const pmEnv: NodeJS.ProcessEnv = {};
+  // Only executable discovery, platform bootstrapping, and locale inputs may
+  // be inherited. Code-loading, credential, network, user-config, and terminal
+  // variables must remain excluded or be replaced with fixture-owned roots.
+  for (const key of [
+    "PATH",
+    "PATHEXT",
+    "SystemRoot",
+    "SystemDrive",
+    "ComSpec",
+    "WINDIR",
+    "LANG",
+    "LC_ALL",
+    "LC_CTYPE",
+  ] as const) {
+    const value = readEnvironmentValue(inheritedEnv, key);
+    if (value !== undefined) pmEnv[key] = value;
+  }
+  Object.assign(pmEnv, {
+    APPDATA: appData,
     HOME: home,
-    PM_GLOBAL_PATH: join(dir, "global-pm"),
+    LOCALAPPDATA: localAppData,
+    USERPROFILE: home,
+    PM_GLOBAL_PATH: globalPmPath,
+    PM_PATH: projectPmPath,
+    TEMP: dir,
+    TMP: dir,
+    TMPDIR: dir,
     XDG_CONFIG_HOME: xdgConfigHome,
     XDG_DATA_HOME: xdgDataHome,
-  };
+  });
+
+  // Prove that hostile npm lifecycle, credential, and pm context values are
+  // removed or replaced before any child command sees the environment.
+  assert.equal(inheritedEnv.INIT_CWD, process.cwd());
+  assert.equal(pmEnv.INIT_CWD, undefined);
+  assert.equal(pmEnv.NODE_AUTH_TOKEN, undefined);
+  assert.equal(pmEnv.NODE_OPTIONS, undefined);
+  assert.equal(pmEnv.APPDATA, appData);
+  assert.equal(pmEnv.LOCALAPPDATA, localAppData);
+  // Windows treats environment keys case-insensitively, so emitting both PATH
+  // and Path would create duplicate logical entries even though Object.keys()
+  // reports distinct strings on the parent platform.
+  assert.equal(
+    Object.keys(pmEnv).filter((key) => key.toUpperCase() === "PATH").length,
+    1
+  );
+  assert.notEqual(inheritedEnv.PM_PATH, projectPmPath);
+  assert.equal(pmEnv.PM_PATH, projectPmPath);
+  assert.notEqual(inheritedEnv.PM_GLOBAL_PATH, globalPmPath);
+  assert.equal(pmEnv.PM_GLOBAL_PATH, globalPmPath);
 
   execFileSync(pmBin, ["init", "--json"], {
     cwd: dir,
