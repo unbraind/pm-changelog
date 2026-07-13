@@ -17,6 +17,15 @@ export interface ReleaseContextOptions {
 export interface ReleaseTagHistoryOptions {
   cwd?: string;
   tagPattern?: string;
+  /**
+   * Include release tags that are not reachable from HEAD. Rebases and history
+   * rewrites orphan release tags; excluding them collapses their items into the
+   * oldest reachable window, silently losing legacy changelog sections. The pm
+   * changelog CLI/extension set this to `true` so a full release history is
+   * preserved. Defaults to `false` so the exported helper keeps the safe,
+   * reachable-only `git tag --merged HEAD` semantics for external callers.
+   */
+  includeOrphaned?: boolean;
   includeUnreleased?: boolean;
   pendingVersion?: string;
   pendingTimestamp?: string;
@@ -55,7 +64,7 @@ export function resolveReleaseContext(options: ReleaseContextOptions): ReleaseCo
 
 export function resolveReleaseTagWindows(options: ReleaseTagHistoryOptions = {}): ChangelogReleaseWindow[] {
   const cwd = resolve(options.cwd ?? process.cwd());
-  const tags = listReleaseTags(cwd, options.tagPattern ?? "v*");
+  const tags = listReleaseTags(cwd, options.tagPattern ?? "v*", options.includeOrphaned);
   const pending = resolvePendingReleaseTag(options, tags);
   const orderedTags = pending
     ? [...tags, pending].sort(compareReleaseTags)
@@ -158,19 +167,16 @@ function findPreviousTag(cwd: string, releaseTag: string | undefined): string | 
   return runGit(cwd, ["describe", "--tags", "--abbrev=0", ref]);
 }
 
-function listReleaseTags(cwd: string, pattern: string): ReleaseTag[] {
-  // Do NOT filter with `--merged HEAD`. Rebases and history rewrites orphan
-  // release tags, making them unreachable from HEAD. Excluding them would
-  // collapse all historical items into the oldest reachable window, losing
-  // month+ of legacy changelog sections. Include all matching tags; the
-  // chronological sort and the item-to-window assignment below ensure each
-  // item ends up in the correct release bucket regardless.
-  const output = runGit(cwd, [
-    "tag",
-    "--list",
-    pattern,
-    "--format=%(refname:short)%09%(*committerdate:iso-strict)%09%(committerdate:iso-strict)",
-  ]);
+function listReleaseTags(cwd: string, pattern: string, includeOrphaned = false): ReleaseTag[] {
+  const args = ["tag", "--list", pattern];
+  // Default to reachable tags only. When includeOrphaned is set the `--merged
+  // HEAD` filter is dropped so tags orphaned by rebases/history rewrites are
+  // still discovered; the chronological sort and item-to-window assignment
+  // below place every item in the correct release bucket regardless of
+  // reachability.
+  if (!includeOrphaned) args.push("--merged", "HEAD");
+  args.push("--format=%(refname:short)%09%(*committerdate:iso-strict)%09%(committerdate:iso-strict)");
+  const output = runGit(cwd, args);
   if (!output) return [];
   return output
     .split("\n")

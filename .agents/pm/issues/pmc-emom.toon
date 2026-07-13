@@ -6,7 +6,7 @@ status: closed
 priority: 0
 tags: []
 created_at: "2026-07-13T07:36:13.690Z"
-updated_at: "2026-07-13T08:33:59.170Z"
+updated_at: "2026-07-13T18:13:22.631Z"
 closed_at: "2026-07-13T08:10:21.275Z"
 author: codex-pm-changelog
 comments[4]{created_at,author,text}:
@@ -14,6 +14,8 @@ comments[4]{created_at,author,text}:
   "2026-07-13T08:26:11.716Z",codex-pm-changelog,"PR 66 review complete: (1) total-deterministic compareReleaseTags NaN-safe comparator + regression tests; (2) cross-platform audit:prod npm audit --omit=dev --ignore-scripts (0 vulns); (3) history-redact /home/steve... -> GitHub URL; (4) history-redact 24->20 orphaned May/June tags; (5) history-repair dry-run: no drift, chain clean; (6) release:check 133/133 pass, audit:prod 0 vulns, changelog:check up-to-date, git diff --check clean"
   "2026-07-13T08:29:21.897Z",codex-pm-changelog,"Tracker metadata cleanup after validation: removed three malformed file links from an earlier invalid CSV invocation, refreshed the package.json audit note, and removed a non-path Greptile identifier from docs. History remains append-only and chain-valid."
   "2026-07-13T08:33:57.785Z",codex-pm-changelog,"Gemini follow-up: replaced locale-dependent localeCompare tie-breaks with deterministic UTF-16 code-unit comparison and added an equal-timestamp tag-name ordering regression. Declined a module-global Date.parse cache because release tag sets are small and unbounded global state adds lifecycle complexity without measured benefit. Release gate: 134/134 tests, audit clean, package dry-run and changelog check pass."
+notes[1]{created_at,author,text}:
+  "2026-07-13T18:13:22.629Z",claude-opus,"PR #66 review-response: made orphaned-tag inclusion opt-in. resolveReleaseTagWindows/listReleaseTags now default to reachable-only (git tag --merged HEAD); the new includeOrphaned flag (passed true by the CLI applyReleaseContext + extension release path) drops the filter so rebased/orphaned release tags are still discovered. Addresses Gemini high-priority findings (exported-helper default + pass includeOrphaned from options) and the mkdtempSync cleanup finding (tests now use t.after rmSync). Preserved rationale as doc comments. 134/134 tests pass; changelog:check green."
 files[3]{path,scope,note}:
   package.json,project,Cross-platform production audit uses npm audit --omit=dev --ignore-scripts
   src/release-context.ts,project,Removed --merged HEAD from listReleaseTags to include orphaned git tags

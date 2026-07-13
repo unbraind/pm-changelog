@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
-import { chmodSync, mkdirSync, mkdtempSync, readFileSync, writeFileSync } from "node:fs";
+import { chmodSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import test from "node:test";
@@ -453,30 +453,22 @@ test("resolveReleaseTagWindows derives newest-first git tag windows", () => {
     pendingTimestamp: "2026-05-20 12:00:00 +0000",
   });
 
-  // Now includes the orphaned v9.9.9 tag from the side-release branch
-  // (the fix removes --merged HEAD so orphaned tags are no longer excluded).
-  // Pending v1.3 (May20) is merged into tags and sorted by timestamp
-  // descending, so v9.9.9 (May30) comes first, then v1.3 (May20).
-  // Every window has since <= until (no inverted windows).
-  assert.equal(windows.length, 5);
+  assert.equal(windows.length, 4);
   assert.equal(windows[0].heading, "Unreleased");
-  assert.equal(windows[0].since, "2026-05-30T12:00:00.000Z");
-  assert.equal(windows[1].heading, "9.9.9 - 2026-05-30");
-  assert.equal(windows[1].since, "2026-05-20T12:00:00.000Z");
-  assert.equal(windows[1].until, "2026-05-30T12:00:00.000Z");
-  assert.equal(windows[2].heading, "1.3.0 - 2026-05-20");
-  assert.equal(windows[2].since, "2026-05-17T12:00:00.000Z");
-  assert.equal(windows[2].until, "2026-05-20T12:00:00.000Z");
-  assert.equal(windows[3].heading, "1.2.0 - 2026-05-17");
-  assert.equal(windows[3].since, "2026-05-10T12:00:00.000Z");
-  assert.equal(windows[3].until, "2026-05-17T12:00:00.000Z");
-  assert.equal(windows[4].heading, "1.1.0 - 2026-05-10");
-  assert.equal(windows[4].since, undefined);
-  assert.equal(windows[4].until, "2026-05-10T12:00:00.000Z");
+  assert.equal(windows[0].since, "2026-05-20T12:00:00.000Z");
+  assert.equal(windows[1].heading, "1.3.0 - 2026-05-20");
+  assert.equal(windows[1].since, "2026-05-17T12:00:00.000Z");
+  assert.equal(windows[1].until, "2026-05-20T12:00:00.000Z");
+  assert.equal(windows[2].heading, "1.2.0 - 2026-05-17");
+  assert.equal(windows[2].since, "2026-05-10T12:00:00.000Z");
+  assert.equal(windows[2].until, "2026-05-17T12:00:00.000Z");
+  assert.equal(windows[3].heading, "1.1.0 - 2026-05-10");
+  assert.ok(windows.every((window) => !window.heading.startsWith("9.9.9")));
 });
 
-test("resolveReleaseTagWindows includes orphaned tags from non-merged branches", () => {
+test("resolveReleaseTagWindows includes orphaned tags only when opted in", (t) => {
   const dir = mkdtempSync(join(tmpdir(), "pm-changelog-orphan-"));
+  t.after(() => rmSync(dir, { recursive: true, force: true }));
   execFileSync("git", ["init"], { cwd: dir, encoding: "utf-8" });
   execFileSync("git", ["config", "user.name", "pm changelog test"], { cwd: dir, encoding: "utf-8" });
   execFileSync("git", ["config", "user.email", "pm-changelog@example.com"], { cwd: dir, encoding: "utf-8" });
@@ -506,7 +498,7 @@ test("resolveReleaseTagWindows includes orphaned tags from non-merged branches",
   // Switch back to main — the orphaned tag should still be found.
   execFileSync("git", ["switch", defaultBranch], { cwd: dir, encoding: "utf-8" });
 
-  const windows = resolveReleaseTagWindows({ cwd: dir });
+  const windows = resolveReleaseTagWindows({ cwd: dir, includeOrphaned: true });
 
   // Should include both the reachable (v2026.6.1) and the orphaned (v2026.5.15) tag.
   assert.equal(windows.length, 3);
@@ -1959,7 +1951,7 @@ test("createChangelog: `Bug` / `Bugfix` / `Defect` types also default to Fixed",
   }
 });
 
-test("resolveReleaseTagWindows sorts invalid pending timestamps deterministically (no NaN comparator)", () => {
+test("resolveReleaseTagWindows sorts invalid pending timestamps deterministically (no NaN comparator)", (t) => {
   // Regression: Date.parse("not-parseable") returns NaN, and
   // Date.parse(a) - Date.parse(b) when either is NaN returns NaN, which
   // violates the sort comparator contract (implementation-defined ordering).
@@ -1967,6 +1959,7 @@ test("resolveReleaseTagWindows sorts invalid pending timestamps deterministicall
   // engines/V8 versions. This test runs the sorting path 100 times and
   // asserts the window headings are identical each iteration.
   const dir = mkdtempSync(join(tmpdir(), "pm-changelog-invalid-ts-"));
+  t.after(() => rmSync(dir, { recursive: true, force: true }));
   execFileSync("git", ["init"], { cwd: dir, encoding: "utf-8" });
   execFileSync("git", ["config", "user.name", "pm changelog test"], { cwd: dir, encoding: "utf-8" });
   execFileSync("git", ["config", "user.email", "pm-changelog@example.com"], { cwd: dir, encoding: "utf-8" });
@@ -2007,10 +2000,11 @@ test("resolveReleaseTagWindows sorts invalid pending timestamps deterministicall
   assert.match(allHeadings[0][2], /2026\.7\.8/);
 });
 
-test("resolveReleaseTagWindows deterministic order with all-invalid timestamps", () => {
+test("resolveReleaseTagWindows deterministic order with all-invalid timestamps", (t) => {
   // When every tag has an unparseable timestamp the name tie-breaker alone
   // must produce a stable order — Data.parse ordering must never produce NaN.
   const dir = mkdtempSync(join(tmpdir(), "pm-changelog-all-invalid-"));
+  t.after(() => rmSync(dir, { recursive: true, force: true }));
   execFileSync("git", ["init"], { cwd: dir, encoding: "utf-8" });
   execFileSync("git", ["config", "user.name", "pm changelog test"], { cwd: dir, encoding: "utf-8" });
   execFileSync("git", ["config", "user.email", "pm-changelog@example.com"], { cwd: dir, encoding: "utf-8" });
@@ -2048,8 +2042,9 @@ test("resolveReleaseTagWindows deterministic order with all-invalid timestamps",
   assert.match(resultA[2].heading, /2026\.7\.8/);
 });
 
-test("resolveReleaseTagWindows uses locale-independent tag-name tie-breaks", () => {
+test("resolveReleaseTagWindows uses locale-independent tag-name tie-breaks", (t) => {
   const dir = mkdtempSync(join(tmpdir(), "pm-changelog-name-order-"));
+  t.after(() => rmSync(dir, { recursive: true, force: true }));
   execFileSync("git", ["init"], { cwd: dir, encoding: "utf-8" });
   execFileSync("git", ["config", "user.name", "pm changelog test"], { cwd: dir, encoding: "utf-8" });
   execFileSync("git", ["config", "user.email", "pm-changelog@example.com"], { cwd: dir, encoding: "utf-8" });
