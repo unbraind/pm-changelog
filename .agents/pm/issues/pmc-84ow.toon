@@ -1,0 +1,61 @@
+id: pmc-84ow
+title: Merge release metadata before npm publication
+description: "Daily Release run 29274764877 published pm-changelog@2026.7.13 and then failed because its direct HEAD:main push was rejected by protected-branch policy. Replace the direct push with a release-branch pull-request transaction that merges validated metadata before any irreversible npm publication."
+type: Issue
+status: closed
+priority: 0
+tags[5]: branch-protection,github-actions,production-readiness,release,transaction-safety
+created_at: "2026-07-14T00:04:12.052Z"
+updated_at: "2026-07-14T00:39:35.542Z"
+deadline: "2026-07-16T00:04:12.052Z"
+closed_at: "2026-07-14T00:13:32.226Z"
+author: codex-root
+estimated_minutes: 120
+acceptance_criteria: "Workflow requests pull-requests:write and never directly pushes HEAD:main; release metadata is pushed to a deterministic branch and merged via a PR before npm publish; merged main is verified at the intended npm version; tag is created on the merged commit only after publish succeeds; retry paths reuse an existing PR/version and skip already-published npm versions; workflow syntax, full release gate, and TypeScript workflow-contract tests pass."
+definition_of_ready: Failure reproduced from GitHub logs; branch protection confirmed; npm and tag state inspected; no duplicate pm item found.
+value: "Restores trustworthy, recoverable daily releases without weakening main protection."
+impact: Prevents npm/GitHub split-brain releases across all future pm-changelog versions.
+outcome: Daily Release works with protected main using only free GitHub features and the repository GITHUB_TOKEN.
+why_now: The latest manual Daily Release failed after publication and the workflow remains broken for every future change.
+parent: pmc-yy8d
+reviewer: codex-root
+risk: critical
+confidence: high
+release: v2026.7.14
+severity: critical
+environment: GitHub Actions Daily Release run 29274764877 on protected main
+repro_steps: "Dispatch Daily Release from main with changes since the latest tag; observe npm publish succeed and git push origin HEAD:main fail with GH006."
+resolution: Protected-branch-compatible release PR transaction implemented and verified.
+expected_result: Release metadata reaches protected main before registry publication.
+actual_result: "Direct main push removed; exact-SHA PR merge, merged-main release gate, idempotent publish, and exact-commit tag are enforced by workflow and TypeScript tests."
+affected_version: 2026.7.13
+fixed_version: 2026.7.14
+component: release-automation
+regression: false
+customer_impact: "Automated releases can publish artifacts that are not represented by main, a release tag, or GitHub release notes."
+dependencies[3]{id,kind,created_at,author,source_kind}:
+  pmc-mklv,related,"2026-07-14T00:04:12.052Z",null,null
+  pmc-vuhy,related,"2026-07-14T00:04:12.052Z",null,null
+  pmc-ermk,related,"2026-07-14T00:29:54.349Z",null,null
+comments[7]{created_at,author,text}:
+  "2026-07-14T00:04:12.052Z",codex-root,"Evidence: run 29274764877 failed at Push release tag and main with GH006 after the npm publish step; repository protection requires pull requests and conversation resolution."
+  "2026-07-14T00:10:07.564Z",codex-root,"Official GitHub documentation verification: the pull-request merge endpoint accepts an expected head sha and returns the base SHA after a rebase merge. GITHUB_TOKEN-created PR events may create approval-required workflow runs, so the release transaction does not rely on that duplicate run: it executes the full release gate before PR creation and again on the exact merged SHA before npm publication."
+  "2026-07-14T00:10:07.759Z",codex-root,"Repository Actions permissions audit: default_workflow_permissions is read and can_approve_pull_request_reviews is false. GitHub documents that the latter repository setting controls whether GITHUB_TOKEN can create/approve PRs. Enable it after the reviewed workflow merges; retain read-only defaults and workflow-local contents/id-token/pull-requests scopes."
+  "2026-07-14T00:12:34.528Z",codex-root,"Linked-test correction: the first pm test run used plain npm run release:check, so npm read the host user config and failed on its legacy allow-scripts entry after all 139 tests passed. This is not a pm CLI defect. Replaced the link with NPM_CONFIG_USERCONFIG=/dev/null npm run release:check, matching the documented hermetic gate."
+  "2026-07-14T00:20:19.596Z",codex-root,"Post-closure retry hardening: an interrupted PR merge now resumes the untagged package version even after a calendar-day rollover. If npm/tag succeeded but GitHub release creation failed, the next no-change run verifies the registry artifact and reconstructs the missing release. Actionlint and five TypeScript workflow contract tests pass."
+  "2026-07-14T00:29:54.552Z",codex-root,"Pre-push Greptile review 112815e5-d3f6-47be-8c39-317a28a9d5c6 findings accepted. The prior pmc-ermk no-provenance fallback is superseded: three failed attested publishes now fail safely and rely on the same-version retry transaction. Step-order tests now anchor exact six-space YAML step names to prevent prefix matches. Both changes have direct TypeScript contract coverage."
+  "2026-07-14T00:39:35.541Z",codex-root,"Greptile follow-up 9c8f3b24-f068-464c-88e9-a8eae0ea126b returned 5/5 with no comments. Its non-blocking stale-branch observation was still implemented: the metadata-already-on-main resume path now deletes any deterministic release branch before continuing, with a TypeScript contract assertion."
+notes[1]{created_at,author,text}:
+  "2026-07-14T00:04:12.052Z",codex-root,Do not disable or bypass branch protection. Move the irreversible publish after a normal PR merge and exact merged-commit verification.
+learnings[1]{created_at,author,text}:
+  "2026-07-14T00:04:12.052Z",codex-root,Release workflows should persist and validate release metadata before publishing immutable registry artifacts; retries can then converge safely.
+files[2]{path,scope,note}:
+  .github/workflows/release.yml,project,protected release transaction
+  test/release-workflow.test.ts,project,transaction contract tests
+tests[2]{command,scope,timeout_seconds}:
+  node --test dist-test/release-workflow.test.js,project,60
+  "NPM_CONFIG_USERCONFIG=/dev/null npm run release:check",project,300
+docs[1]{path,scope,note}:
+  docs/release.md,project,protected release workflow and recovery
+close_reason: Implementation and all local acceptance gates complete; live workflow dispatch follows reviewed merge and will reopen on any production discrepancy.
+body: "The release workflow currently publishes npm before trying to persist its version and changelog commit. Protected main rejects that direct push, so npm can advance while GitHub main/tag/release remain incomplete. The workflow must create or reuse a deterministic release PR, merge it through normal branch protection, verify the merged version, then publish and tag the exact merged commit. Retries must recover cleanly from partial runs without choosing a new version or duplicating publication."
