@@ -1,5 +1,12 @@
 # Changelog
 
+## 2026.7.14 - 2026-07-14
+
+### Fixed
+
+- Merge release metadata before npm publication ([pmc-84ow](https://github.com/unbraind/pm-changelog/blob/main/.agents/pm/issues/pmc-84ow.toon))
+- Isolate package-install integration tests from the user's pm home ([pmc-09bu](https://github.com/unbraind/pm-changelog/blob/main/.agents/pm/issues/pmc-09bu.toon))
+
 ## 2026.7.13 - 2026-07-13
 
 ### Fixed
@@ -11,12 +18,6 @@
 ### Other
 
 - Ecosystem release readiness pass 2026-07-06 ([pmc-5z9i](https://github.com/unbraind/pm-changelog/blob/main/.agents/pm/tasks/pmc-5z9i.toon))
-
-## 2026.7.11 - 2026-07-11
-
-### Fixed
-
-- Isolate package-install integration tests from the user's pm home ([pmc-09bu](https://github.com/unbraind/pm-changelog/blob/main/.agents/pm/issues/pmc-09bu.toon))
 
 ## 2026.7.6 - 2026-07-06
 
