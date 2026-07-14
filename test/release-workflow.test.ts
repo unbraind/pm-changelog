@@ -10,13 +10,18 @@ const workflow = readFileSync(
 
 function stepIndex(name: string): number {
   const escapedName = name.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-  const match = new RegExp(`^ {6}- name: ${escapedName}$`, "m").exec(workflow);
+  const match = new RegExp(
+    `^[ \\t]*-[ \\t]+name:[ \\t]+${escapedName}[ \\t]*(?:#[^\\r\\n]*)?$`,
+    "m"
+  ).exec(workflow);
   assert.ok(match, `release workflow should contain the exact ${name} step`);
   return match.index;
 }
 
 test("daily release requests protected-PR permissions without a direct main push", () => {
-  assert.match(workflow, /^\s{2}pull-requests: write$/m);
+  const releaseJob = workflow.slice(workflow.indexOf("jobs:\n  release:"), stepIndex("Checkout"));
+  assert.match(releaseJob, /^ {6}pull-requests: write$/m);
+  assert.doesNotMatch(workflow.slice(0, workflow.indexOf("jobs:")), /pull-requests: write/);
   assert.doesNotMatch(workflow, /git push origin HEAD:main/);
   assert.match(workflow, /HEAD:refs\/heads\/\$\{release_branch\}/);
   assert.match(workflow, /--force-with-lease=/);
@@ -88,5 +93,12 @@ test("npm publication never downgrades provenance", () => {
 
   assert.match(publishStep, /npm publish --access public --provenance --ignore-scripts/);
   assert.doesNotMatch(publishStep, /publish_without_provenance/);
-  assert.match(publishStep, /Refusing to downgrade supply-chain attestations/);
+  assert.match(
+    publishStep,
+    /Refusing to downgrade supply-chain attestations[\s\S]*exit 1/
+  );
+  assert.match(
+    workflow,
+    /escaped_tag=.*sed 's\/\[\]\[\\\\\.\^\$\*\+\?\(\)\{\}\|\]\/\\\\&\/g'/
+  );
 });

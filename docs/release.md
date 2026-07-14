@@ -65,7 +65,7 @@ Required repository secret:
 NPM_TOKEN
 ```
 
-Required workflow permissions:
+Required `release` job permissions (scoped to that job, not the workflow):
 
 - `contents: write` for release commits, tags, and GitHub releases.
 - `id-token: write` for npm provenance.
@@ -74,7 +74,7 @@ Required workflow permissions:
 The repository must also enable **Settings → Actions → General → Workflow
 permissions → Allow GitHub Actions to create and approve pull requests**. Keep
 the repository's default `GITHUB_TOKEN` permission read-only; the release
-workflow declares only the three write capabilities above. GitHub documents
+workflow's `release` job declares only the three write capabilities above. GitHub documents
 this repository setting in [Managing GitHub Actions settings for a
 repository](https://docs.github.com/en/repositories/managing-your-repositorys-settings-and-features/enabling-features-for-your-repository/managing-github-actions-settings-for-a-repository#preventing-github-actions-from-creating-or-approving-pull-requests).
 
