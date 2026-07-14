@@ -25,7 +25,7 @@ const listAllItemMetadata = (
 
 export default defineExtension({
   name: "pm-changelog",
-  version: "2026.7.12-2",
+  version: "2026.7.14",
 
   activate(api) {
     api.registerCommand({

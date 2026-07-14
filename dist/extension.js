@@ -8,7 +8,7 @@ const sdkExports = pmSdk;
 const listAllItemMetadata = (sdkExports.listAllItemMetadata ?? sdkExports[["listAll", "Front", "Matter"].join("")]);
 export default defineExtension({
     name: "pm-changelog",
-    version: "2026.7.12-2",
+    version: "2026.7.14",
     activate(api) {
         api.registerCommand({
             name: "changelog generate",
