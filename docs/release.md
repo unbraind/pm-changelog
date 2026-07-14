@@ -40,8 +40,24 @@ The workflow skips publishing when there are no commits after the latest release
 - Generates or refreshes the current `CHANGELOG.md` release section with `pm-changelog` itself while preserving older release sections.
 - Runs release checks.
 - Commits release files.
+- Pushes the release commit to a deterministic `release/<version>` branch and creates or reuses a pull request.
+- Merges that pull request through normal `main` branch protection, then checks out and fully revalidates the exact merged commit.
 - Publishes to npm with provenance.
+- Tags the verified merged commit and removes the temporary release branch.
 - Creates the public GitHub release.
+
+The workflow never pushes a release commit directly to `main`, and it never
+publishes npm before the matching version metadata and changelog are present on
+protected `main`. If publication fails after the release PR merges, the next run
+recognizes that the release metadata is already on `main` and retries the same
+version, including after the local calendar date changes. It also skips an npm
+version that the registry already contains, which lets an interrupted run
+converge without duplicating publication. If npm and the tag exist but GitHub
+release creation was interrupted, a no-change run verifies the registry package
+and reconstructs the missing GitHub release from the tagged changelog window.
+Provenance is mandatory: after three failed attested publish attempts, the run
+fails and relies on the same-version recovery path instead of silently
+downgrading the package's supply-chain evidence.
 
 Required repository secret:
 
@@ -53,6 +69,19 @@ Required workflow permissions:
 
 - `contents: write` for release commits, tags, and GitHub releases.
 - `id-token: write` for npm provenance.
+- `pull-requests: write` for the protected release-metadata PR transaction.
+
+The repository must also enable **Settings → Actions → General → Workflow
+permissions → Allow GitHub Actions to create and approve pull requests**. Keep
+the repository's default `GITHUB_TOKEN` permission read-only; the release
+workflow declares only the three write capabilities above. GitHub documents
+this repository setting in [Managing GitHub Actions settings for a
+repository](https://docs.github.com/en/repositories/managing-your-repositorys-settings-and-features/enabling-features-for-your-repository/managing-github-actions-settings-for-a-repository#preventing-github-actions-from-creating-or-approving-pull-requests).
+
+The release merge uses GitHub's pull-request merge endpoint with the prepared
+release commit as the required head `sha`. A changed head is rejected instead
+of being merged accidentally; see [Merge a pull
+request](https://docs.github.com/en/rest/pulls/pulls#merge-a-pull-request).
 
 ## Versioning
 
