@@ -1,0 +1,37 @@
+id: pmc-70yk
+title: Retry transient package-install cleanup
+description: "The Greptile T-Rex sandbox for release PR #69 intermittently hit ENOTEMPTY while the package-install smoke fixture removed its unique temporary tree. Authoritative release and post-release CI passed, so this is a cleanup race/flakiness defect rather than a product failure."
+type: Issue
+status: closed
+priority: 2
+tags: []
+created_at: "2026-07-14T01:52:06.858Z"
+updated_at: "2026-07-14T01:56:32.131Z"
+closed_at: "2026-07-14T01:54:25.791Z"
+author: codex
+acceptance_criteria: Package-install fixture cleanup uses bounded Node-native retry semantics; Repeated focused package-install smoke tests pass; Full release gate remains green; The pm item links the Greptile evidence and affected test.
+risk: low
+confidence: high
+release: v2026.7.14-1
+severity: medium
+environment: "Greptile T-Rex run 14331123 on PR #69, Node 24.18.0/npm 11.16.0; local and GitHub Actions release gates pass."
+repro_steps: Run the full release gate repeatedly in clean sandboxes; observe that test/generator.test.ts package-install smoke cleanup can fail with ENOTEMPTY after child commands complete.
+resolution: "Use fs.rmSync recursive cleanup with five 100ms linear-backoff retries, preserving failure after the bounded window."
+expected_result: Fixture cleanup tolerates transient ENOTEMPTY/EBUSY conditions and never makes an otherwise-passing gate flaky.
+actual_result: A single recursive rmSync attempt can terminate the suite on transient ENOTEMPTY.
+affected_version: 2026.7.14
+fixed_version: 2026.7.14-1
+component: tests
+comments[3]{created_at,author,text}:
+  "2026-07-14T01:53:34.532Z",codex,Focused package-install smoke passed six consecutive clean-fixture executions after adding Node-native recursive cleanup retries. The final visible run completed in 6.2s; transient cleanup failures remain bounded and persistent errors still propagate.
+  "2026-07-14T01:54:25.556Z",codex,"Full pm-linked verification passed: affected smoke test plus release:check, 141/141 tests, zero production vulnerabilities, 37 expected package files, and current changelog."
+  "2026-07-14T01:56:32.130Z",codex,"Accepted pre-push Greptile review 65d1ae13-2b94-43eb-a9ab-f6778be60e48 P2: use Node's 100ms default retry interval with five linear-backoff retries (~1.5s total headroom) for loaded CI runners."
+files[1]{path,scope,note}:
+  test/generator.test.ts,project,Package-install smoke fixture and cleanup
+tests[2]{command,scope,timeout_seconds}:
+  "node --test --test-name-pattern=\"pm package install activates changelog command\" dist-test/generator.test.js",project,300
+  "NPM_CONFIG_USERCONFIG=/dev/null npm run release:check",project,300
+docs[1]{path,scope,note}:
+  "https://app.greptile.com/trex/runs/14331123/artifacts",project,Greptile T-Rex release-PR evidence
+close_reason: Bounded recursive cleanup retries implemented and verified with six focused repetitions plus the full release gate.
+body: ""
