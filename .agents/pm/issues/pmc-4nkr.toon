@@ -2,11 +2,16 @@ id: pmc-4nkr
 title: Harden Create-GitHub-release npm guard against read-replica propagation lag
 description: ""
 type: Issue
-status: open
+status: closed
 priority: 1
 tags[3]: ci,release,reliability
 created_at: "2026-07-14T12:34:01.362Z"
-updated_at: "2026-07-14T12:34:01.362Z"
+updated_at: "2026-07-14T12:51:09.260Z"
+closed_at: "2026-07-14T12:51:09.259Z"
 author: claude-opus
 acceptance_criteria: Create-GitHub-release step polls npm before failing; No false-negative release failures on freshly published -N prereleases
+resolution: "Create-GitHub-release step now polls npm up to 90s (6x15s) before failing, matching the publish step's retry posture"
+expected_result: Freshly published -N prereleases get their GitHub release created despite npm read-replica propagation lag
+actual_result: "Single non-retrying npm view false-negatived 3s after publish (run 29319995872), skipping the GitHub release"
+close_reason: Guard hardened + merged in PR #74 (23e70c1); missing v2026.7.14-2 release backfilled via recovery path
 body: "Daily Release run 29319995872 (2026-07-14 08:58) published pm-changelog@2026.7.14-2 to npm at 08:59:53 but the 'Create GitHub release' step's npm-existence guard read npm at 08:59:56 and got a false-negative (npm read-replica lag ~3s), failing with 'npm does not contain pm-changelog@2026.7.14-2' and skipping GitHub release creation. The publish step retries 3x but this guard did a single non-retrying npm view. Fix: poll npm up to 90s (6x15s) before declaring failure. Missing v2026.7.14-2 release recovered via workflow_dispatch (should_recover_release path)."
