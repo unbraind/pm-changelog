@@ -6,6 +6,16 @@ import { buildChangelogDocument, createChangelog, createChangelogSummary, explai
 import { resolveReleaseContext, resolveReleaseTagWindows } from "./release-context.js";
 const sdkExports = pmSdk;
 const listAllItemMetadata = (sdkExports.listAllItemMetadata ?? sdkExports[["listAll", "Front", "Matter"].join("")]);
+function renderedCommandResult(value) {
+    const output = `${JSON.stringify(value, null, 2)}\n`;
+    return { pmChangelogRendered: true, output };
+}
+function renderCommandResult(context) {
+    const result = context?.result;
+    return result?.pmChangelogRendered === true && typeof result.output === "string"
+        ? result.output
+        : null;
+}
 export default defineExtension({
     name: "pm-changelog",
     version: "2026.7.14-1",
@@ -162,12 +172,12 @@ export default defineExtension({
                 if (summaryOption) {
                     const entries = createChangelogSummary(generationOptions);
                     if (wantsJsonFormat) {
-                        return {
+                        return renderedCommandResult({
                             entries,
                             format: "json",
                             item_count: entries.length,
                             ...(selectionReport ? { selection_report: selectionReport } : {}),
-                        };
+                        });
                     }
                     const lines = entries.map((entry) => formatSummaryLine(entry));
                     return {
@@ -183,22 +193,22 @@ export default defineExtension({
                 const suggestSemverOption = booleanOption(ctx.options, "suggest-semver", "suggestSemver");
                 if (booleanOption(ctx.options, "changelog-json", "changelogJson") || (wantsJsonFormat && !suggestSemverOption)) {
                     const document = buildChangelogDocument(generationOptions);
-                    return {
+                    return renderedCommandResult({
                         document,
                         format: "json",
                         item_count: document.item_count,
                         ...(selectionReport ? { selection_report: selectionReport } : {}),
-                    };
+                    });
                 }
                 // OPT-IN (`--suggest-semver`) standalone: emit only the semver analysis;
                 // never writes a file and never alters default markdown.
                 if (suggestSemverOption) {
                     const suggestion = suggestSemver(generationOptions);
-                    return {
+                    return renderedCommandResult({
                         suggested_semver: suggestion,
                         format: "json",
                         ...(selectionReport ? { selection_report: selectionReport } : {}),
-                    };
+                    });
                 }
                 const generated = createChangelog(generationOptions);
                 if (stdout) {
@@ -321,7 +331,7 @@ export default defineExtension({
                     writeFileSync(resolve(outputPath), JSON.stringify(payload, null, 2) + "\n", "utf-8");
                     return { file: outputPath, format: "json", item_count: generated.itemCount };
                 }
-                return payload;
+                return renderedCommandResult(payload);
             }
             if (outputPath) {
                 writeFileSync(resolve(outputPath), generated.markdown.endsWith("\n") ? generated.markdown : generated.markdown + "\n", "utf-8");
@@ -331,6 +341,14 @@ export default defineExtension({
         }, changelogExportMetadata);
         if (api.registerExporter.length < 3 && typeof api.registerFlags === "function") {
             api.registerFlags("changelog export", changelogExportMetadata.flags);
+        }
+        // Register renderer overrides so json-mode results print verbatim JSON to
+        // stdout under both the default (toon) and global --json renderers. Guarded
+        // for older hosts without renderer support.
+        const registerRenderer = api.registerRenderer;
+        if (typeof registerRenderer === "function") {
+            registerRenderer("toon", renderCommandResult);
+            registerRenderer("json", renderCommandResult);
         }
     },
 });

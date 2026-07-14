@@ -1,0 +1,20 @@
+id: pmc-nagj
+title: changelog --format json emits TOON on stdout without global --json
+description: "pm-extension 'changelog generate --format json' and 'changelog export --format json' returned a structured object rendered as TOON on stdout; valid JSON required global --json. Fix: renderedCommandResult marker + toon/json renderer overrides so json-mode prints verbatim JSON; non-json returns fall through unchanged; default md byte-identical."
+type: Issue
+status: closed
+priority: 3
+tags[1]: bug
+created_at: "2026-07-14T08:18:05.765Z"
+updated_at: "2026-07-14T08:18:41.774Z"
+closed_at: "2026-07-14T08:18:41.771Z"
+author: claude-opus
+acceptance_criteria: generate/export --format json emit valid JSON on stdout without --json; default md byte-identical; no new test failures.
+resolution: Added renderedCommandResult marker + toon/json renderer overrides (renderers capability); wrapped generate/export json-mode returns.
+expected_result: changelog generate/export --format json emit valid JSON on stdout without global --json
+actual_result: "Verified: both emit valid JSON on stdout; default md byte-identical; 139 tests pass (2 pre-existing --isolated CLI-version failures unrelated)"
+comments[2]{created_at,author,text}:
+  "2026-07-14T08:18:18.059Z",claude-opus,"Fixed via renderedCommandResult marker + toon/json renderer overrides (renderers capability). Verified: generate/export --format json emit valid JSON on stdout without --json; default md byte-identical; 139 tests pass (2 pre-existing --isolated CLI-version failures unrelated)."
+  "2026-07-14T08:18:31.054Z",claude-opus,Fixed via renderer overrides
+close_reason: Closed via pm update
+body: ""
