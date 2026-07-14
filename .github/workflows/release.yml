@@ -450,8 +450,21 @@ jobs:
         run: |
           set -euo pipefail
           pkg_name="$(node -p "require('./package.json').name")"
-          if ! npm view "${pkg_name}@${NPM_VERSION}" version --json > /dev/null 2>&1; then
-            echo "::error::Cannot create ${RELEASE_TAG}: npm does not contain ${pkg_name}@${NPM_VERSION}."
+          # The publish step already verified this version is live on npm, but the
+          # registry's read replicas can lag the write by a few seconds. Poll rather
+          # than trust a single read, otherwise a freshly published -N prerelease
+          # false-negatives here and the GitHub release for it never gets created.
+          npm_confirmed=false
+          for attempt in 1 2 3 4 5 6; do
+            if npm view "${pkg_name}@${NPM_VERSION}" version --json > /dev/null 2>&1; then
+              npm_confirmed=true
+              break
+            fi
+            echo "npm has not propagated ${pkg_name}@${NPM_VERSION} yet (attempt ${attempt}/6); sleeping 15s..."
+            sleep 15
+          done
+          if [[ "$npm_confirmed" != "true" ]]; then
+            echo "::error::Cannot create ${RELEASE_TAG}: npm does not contain ${pkg_name}@${NPM_VERSION} after 90s of polling."
             exit 1
           fi
           if gh release view "$RELEASE_TAG" --repo "$GITHUB_REPOSITORY" > /dev/null 2>&1; then
