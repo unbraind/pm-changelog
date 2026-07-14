@@ -1,5 +1,11 @@
 # Changelog
 
+## 2026.7.14-1 - 2026-07-14
+
+### Fixed
+
+- Retry transient package-install cleanup ([pmc-70yk](https://github.com/unbraind/pm-changelog/blob/main/.agents/pm/issues/pmc-70yk.toon))
+
 ## 2026.7.14 - 2026-07-14
 
 ### Fixed
