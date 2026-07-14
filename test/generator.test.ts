@@ -1555,7 +1555,14 @@ process.stdout.write(readFileSync(resolve(process.cwd(), "fixture.json"), "utf-8
 
 test("pm package install activates changelog command", (t) => {
   const dir = mkdtempSync(join(tmpdir(), "pm-changelog-install-"));
-  t.after(() => rmSync(dir, { recursive: true, force: true }));
+  t.after(() =>
+    rmSync(dir, {
+      recursive: true,
+      force: true,
+      maxRetries: 5,
+      retryDelay: 100,
+    })
+  );
   const pmBin = join(process.cwd(), "node_modules", ".bin", "pm");
   const appData = join(dir, "app-data");
   const globalPmPath = join(dir, "global-pm");
