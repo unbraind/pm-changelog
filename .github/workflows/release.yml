@@ -5,17 +5,16 @@ on:
     - cron: "17 3 * * *"
   workflow_dispatch:
 
-permissions:
-  contents: write
-  id-token: write
-  pull-requests: write
-
 concurrency:
   group: daily-release
   cancel-in-progress: false
 
 jobs:
   release:
+    permissions:
+      contents: write
+      id-token: write
+      pull-requests: write
     runs-on: ubuntu-latest
     env:
       RELEASE_TIMEZONE: Europe/Vienna
@@ -390,9 +389,11 @@ jobs:
       - name: Push release tag
         if: steps.decide.outputs.should_release == 'true'
         shell: bash
+        env:
+          RELEASE_TAG: ${{ steps.decide.outputs.tag }}
         run: |
           set -euo pipefail
-          release_tag="${{ steps.decide.outputs.tag }}"
+          release_tag="$RELEASE_TAG"
           if git rev-parse --verify --quiet "refs/tags/${release_tag}" > /dev/null; then
             existing_sha="$(git rev-list -n 1 "$release_tag")"
             current_sha="$(git rev-parse HEAD)"
@@ -457,7 +458,8 @@ jobs:
             echo "::notice::GitHub release ${RELEASE_TAG} already exists; nothing to recover."
             exit 0
           fi
-          tag_pattern="^## v?${RELEASE_TAG#v}( |$)"
+          escaped_tag="$(printf '%s\n' "${RELEASE_TAG#v}" | sed 's/[][\\.^$*+?(){}|]/\\&/g')"
+          tag_pattern="^## v?${escaped_tag}( |$)"
           node dist/cli.js \
             --pm-root .agents/pm \
             --stdout \
