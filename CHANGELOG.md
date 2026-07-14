@@ -1,5 +1,11 @@
 # Changelog
 
+## Unreleased
+
+### Fixed
+
+- changelog --format json emits TOON on stdout without global --json ([pmc-nagj](https://github.com/unbraind/pm-changelog/blob/main/.agents/pm/issues/pmc-nagj.toon))
+
 ## 2026.7.14-1 - 2026-07-14
 
 ### Fixed

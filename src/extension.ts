@@ -23,6 +23,26 @@ const listAllItemMetadata = (
   sdkExports.listAllItemMetadata ?? sdkExports[["listAll", "Front", "Matter"].join("")]
 ) as ItemMetadataReader;
 
+// Renderer-override plumbing (mirrors pm-brief/pm-context): a command handler
+// can return a marker carrying a pre-rendered string, and the registered toon/
+// json renderers print that string verbatim to stdout. This makes `--format
+// json` emit real JSON on stdout without requiring the global `--json` flag,
+// while any non-marker return still falls through to pm's default rendering.
+interface RenderedCommandResult {
+  pmChangelogRendered: true;
+  output: string;
+}
+function renderedCommandResult(value: unknown): RenderedCommandResult {
+  const output = `${JSON.stringify(value, null, 2)}\n`;
+  return { pmChangelogRendered: true, output };
+}
+function renderCommandResult(context: { result?: unknown } | undefined): string | null {
+  const result = context?.result as RenderedCommandResult | undefined;
+  return result?.pmChangelogRendered === true && typeof result.output === "string"
+    ? result.output
+    : null;
+}
+
 export default defineExtension({
   name: "pm-changelog",
   version: "2026.7.14-1",
@@ -186,12 +206,12 @@ export default defineExtension({
         if (summaryOption) {
           const entries = createChangelogSummary(generationOptions);
           if (wantsJsonFormat) {
-            return {
+            return renderedCommandResult({
               entries,
               format: "json",
               item_count: entries.length,
               ...(selectionReport ? { selection_report: selectionReport } : {}),
-            };
+            });
           }
           const lines = entries.map((entry) => formatSummaryLine(entry));
           return {
@@ -208,23 +228,23 @@ export default defineExtension({
         const suggestSemverOption = booleanOption(ctx.options, "suggest-semver", "suggestSemver");
         if (booleanOption(ctx.options, "changelog-json", "changelogJson") || (wantsJsonFormat && !suggestSemverOption)) {
           const document = buildChangelogDocument(generationOptions);
-          return {
+          return renderedCommandResult({
             document,
             format: "json",
             item_count: document.item_count,
             ...(selectionReport ? { selection_report: selectionReport } : {}),
-          };
+          });
         }
 
         // OPT-IN (`--suggest-semver`) standalone: emit only the semver analysis;
         // never writes a file and never alters default markdown.
         if (suggestSemverOption) {
           const suggestion = suggestSemver(generationOptions);
-          return {
+          return renderedCommandResult({
             suggested_semver: suggestion,
             format: "json",
             ...(selectionReport ? { selection_report: selectionReport } : {}),
-          };
+          });
         }
 
         const generated = createChangelog(generationOptions);
@@ -359,7 +379,7 @@ export default defineExtension({
           writeFileSync(resolve(outputPath), JSON.stringify(payload, null, 2) + "\n", "utf-8");
           return { file: outputPath, format: "json", item_count: generated.itemCount };
         }
-        return payload;
+        return renderedCommandResult(payload);
       }
 
       if (outputPath) {
@@ -370,6 +390,14 @@ export default defineExtension({
     }, changelogExportMetadata);
     if (api.registerExporter.length < 3 && typeof api.registerFlags === "function") {
       api.registerFlags("changelog export", changelogExportMetadata.flags);
+    }
+    // Register renderer overrides so json-mode results print verbatim JSON to
+    // stdout under both the default (toon) and global --json renderers. Guarded
+    // for older hosts without renderer support.
+    const registerRenderer = (api as { registerRenderer?: (format: string, fn: typeof renderCommandResult) => void }).registerRenderer;
+    if (typeof registerRenderer === "function") {
+      registerRenderer("toon", renderCommandResult);
+      registerRenderer("json", renderCommandResult);
     }
   },
 });
