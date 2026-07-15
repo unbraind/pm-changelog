@@ -334,9 +334,13 @@ export function readPmItems(options = {}) {
                 if (pmCliPath === undefined) {
                     throw new Error(`Package manifest ${pmPackagePath} does not declare the pm executable (bin=${JSON.stringify(pmPackage.bin)})`);
                 }
+                const pmCliAbsolutePath = resolve(dirname(pmPackagePath), pmCliPath);
+                if (!existsSync(pmCliAbsolutePath)) {
+                    throw new Error(`Package manifest ${pmPackagePath} declares pm bin ${pmCliPath}, but the resolved path does not exist: ${pmCliAbsolutePath}`);
+                }
                 resolvedPmCommand = {
                     bin: process.execPath,
-                    argsPrefix: [resolve(dirname(pmPackagePath), pmCliPath)],
+                    argsPrefix: [pmCliAbsolutePath],
                 };
             }
         }

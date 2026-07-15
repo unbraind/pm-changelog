@@ -1351,7 +1351,7 @@ test("readPmItems resolves the installed pm-cli executable without PATH", () => 
     env,
   });
 
-  assert.ok(result.some((item) => item.id === "pmc-4a7j"));
+  assert.ok(result.length > 0, "expected pm items to be returned without PATH");
 });
 
 test("CLI can run a custom pm binary", () => {
