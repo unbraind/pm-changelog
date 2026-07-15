@@ -1,6 +1,7 @@
 import { spawnSync } from "node:child_process";
 import { existsSync, readFileSync, writeFileSync } from "node:fs";
-import { resolve } from "node:path";
+import { createRequire } from "node:module";
+import { dirname, resolve } from "node:path";
 
 import type {
   ChangelogDocument,
@@ -404,8 +405,20 @@ export function buildPmListArgs(options: ReadPmItemsOptions = {}): string[] {
 }
 
 export function readPmItems(options: ReadPmItemsOptions = {}): PmItem[] {
-  const pmBin = options.pmBin ?? "pm";
-  const args = buildPmListArgs(options);
+  let pmBin = options.pmBin;
+  let args = buildPmListArgs(options);
+  if (pmBin === undefined) {
+    const pmPackagePath = createRequire(import.meta.url).resolve("@unbrained/pm-cli/package.json");
+    const pmPackage = JSON.parse(readFileSync(pmPackagePath, "utf-8")) as {
+      bin?: string | Record<string, string>;
+    };
+    const pmCliPath = typeof pmPackage.bin === "string" ? pmPackage.bin : pmPackage.bin?.pm;
+    if (pmCliPath === undefined) {
+      throw new Error("Installed @unbrained/pm-cli package does not declare the pm executable");
+    }
+    pmBin = process.execPath;
+    args = [resolve(dirname(pmPackagePath), pmCliPath), ...args];
+  }
 
   const result = spawnSync(pmBin, args, {
     cwd: options.cwd,

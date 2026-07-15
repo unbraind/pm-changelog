@@ -1343,6 +1343,15 @@ process.stdout.write(JSON.stringify({ items: [{ id: "pm-large", title: "Large tr
   assert.equal(result[0].id, "pm-large");
 });
 
+test("readPmItems resolves the installed pm-cli executable without PATH", () => {
+  const result = readPmItems({
+    pmRoot: join(process.cwd(), ".agents", "pm"),
+    env: { ...process.env, PATH: "" },
+  });
+
+  assert.ok(result.some((item) => item.id === "pmc-4a7j"));
+});
+
 test("CLI can run a custom pm binary", () => {
   const dir = mkdtempSync(join(tmpdir(), "pm-changelog-"));
   const wrapper = join(dir, "pm-wrapper.mjs");
