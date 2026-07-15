@@ -1467,6 +1467,19 @@ process.stdout.write(JSON.stringify({ items: [{ id: "pm-large", title: "Large tr
   assert.equal(result[0].id, "pm-large");
 });
 
+test("readPmItems resolves the installed pm-cli executable without PATH", () => {
+  const env = { ...process.env };
+  for (const key of Object.keys(env)) {
+    if (key.toLowerCase() === "path") delete env[key];
+  }
+  const result = readPmItems({
+    pmRoot: join(process.cwd(), ".agents", "pm"),
+    env,
+  });
+
+  assert.ok(result.length > 0, "expected pm items to be returned without PATH");
+});
+
 test("CLI can run a custom pm binary", () => {
   const dir = mkdtempSync(join(tmpdir(), "pm-changelog-"));
   const wrapper = join(dir, "pm-wrapper.mjs");
