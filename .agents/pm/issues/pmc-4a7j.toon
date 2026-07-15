@@ -6,19 +6,20 @@ status: closed
 priority: 0
 tags[4]: compatibility,metadata,pm-cli,sdk
 created_at: "2026-07-12T20:59:36.482Z"
-updated_at: "2026-07-15T11:59:00.437Z"
-closed_at: "2026-07-15T11:59:00.110Z"
+updated_at: "2026-07-15T12:14:53.683Z"
+closed_at: "2026-07-15T12:14:53.358Z"
 author: codex-frontmatter-vocabulary
 resolution: Fixed by migrating the extension runtime to listAllItemMetadata.
 expected_result: Published pm-changelog activates against the renamed pm-cli SDK and its commands remain available.
 actual_result: Source and dist artifacts use listAllItemMetadata; local pm-cli package activation and all 108 package tests pass.
-comments[6]{created_at,author,text}:
+comments[7]{created_at,author,text}:
   "2026-07-12T21:01:05.591Z",codex-frontmatter-vocabulary,"Evidence: pm-cli PR #531 Gates (static) failed because published pm-changelog imported removed listAllFrontMatter. Updated source and built extension artifacts to listAllItemMetadata and item metadata wording; installed the local pm-cli PR package without saving dependency changes; npm build passed and all 108 tests passed, including package install/activation coverage."
   "2026-07-12T21:17:29.681Z",codex-frontmatter-vocabulary,"Bridge correction: the first transition release used a named legacy SDK import, which new pm-cli correctly rejects before aliasing. Replaced it with namespace feature detection that prefers listAllItemMetadata and only constructs the published fallback name at runtime; this supports both rollout sides without restoring an obsolete pm-cli export."
   "2026-07-15T07:00:27.720Z",codex-root,"Continuation scope: Sentry PM-CLI-2B confirms the standalone generator can fail with spawnSync pm ENOENT when PATH lacks the pm shim. Extending this canonical SDK-reader lineage to use the installed @unbrained/pm-cli package executable contract while preserving explicit --pm-bin overrides."
   "2026-07-15T07:09:25.583Z",codex-root,"Evidence: default readPmItems now resolves @unbrained/pm-cli/package.json, validates its declared pm bin, and invokes the absolute CLI with process.execPath; explicit pmBin remains unchanged. Empty-PATH regression passed. npm run release:check passed: typecheck, 130 tests, zero production vulnerabilities, package dry-run, and current changelog."
   "2026-07-15T11:54:04.145Z",codex,"PR #76 review correction evidence: accepted Sourcery's absent-PATH regression and Gemini's contextual error handling suggestions. Default pm executable resolution is now cached, validates and reports the resolved manifest/bin payload, preserves the original cause, and the regression deletes PATH entirely without any. Hound ES6 import findings are false positives because this package is an ESM TypeScript project. npm run release:check passed typecheck, 130/130 tests, zero production vulnerabilities, package dry-run, and current changelog."
   "2026-07-15T11:58:59.713Z",codex,"Local Greptile correction evidence: accepted both P2 findings. The resolved pm-cli entrypoint is existence-checked before caching, producing a manifest- and path-specific failure for partial installs; the absent-PATH test now asserts nonempty results without coupling to a tracker ID. npm run release:check remains green with 130/130 tests, zero production vulnerabilities, package dry-run, and current changelog."
+  "2026-07-15T12:14:52.957Z",codex,"Final hosted review correction: accepted Gemini's Windows environment-key observation; the regression removes every case-insensitive PATH key. Rejected its strict-null report because the actual strict tsc --noEmit build passes, and rejected Hound's ES6 warning because compiled ESM is the declared runtime. Full release gate again passed 130/130 tests, audit, pack, and changelog."
 files[5]{path,scope,note}:
   dist/extension.js,project,Published extension build output
   dist/extension.js.map,project,Published extension source map
@@ -28,5 +29,5 @@ files[5]{path,scope,note}:
 tests[2]{command,scope,timeout_seconds,note}:
   "npm run release:check",project,600,Full package release gate
   npm test,project,300,Package build and 108-test suite against local pm-cli PR SDK
-close_reason: "Completed review convergence for PATH-independent pm-cli resolution, including contextual resolution/file validation and durable absent-PATH acceptance coverage."
+close_reason: Completed cross-platform review convergence for PATH-independent installed pm-cli resolution with all release gates green.
 body: ""

@@ -1345,7 +1345,9 @@ process.stdout.write(JSON.stringify({ items: [{ id: "pm-large", title: "Large tr
 
 test("readPmItems resolves the installed pm-cli executable without PATH", () => {
   const env = { ...process.env };
-  delete env.PATH;
+  for (const key of Object.keys(env)) {
+    if (key.toLowerCase() === "path") delete env[key];
+  }
   const result = readPmItems({
     pmRoot: join(process.cwd(), ".agents", "pm"),
     env,
