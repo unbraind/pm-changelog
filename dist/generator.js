@@ -5,6 +5,7 @@ import { dirname, resolve } from "node:path";
 const DEFAULT_TITLE = "Changelog";
 const DEFAULT_STATUSES = ["closed"];
 const DEFAULT_PM_JSON_MAX_BUFFER = 64 * 1024 * 1024;
+let resolvedPmCommand;
 const CATEGORY_ORDER = [
     "Added",
     "Changed",
@@ -325,14 +326,28 @@ export function readPmItems(options = {}) {
     let pmBin = options.pmBin;
     let args = buildPmListArgs(options);
     if (pmBin === undefined) {
-        const pmPackagePath = createRequire(import.meta.url).resolve("@unbrained/pm-cli/package.json");
-        const pmPackage = JSON.parse(readFileSync(pmPackagePath, "utf-8"));
-        const pmCliPath = typeof pmPackage.bin === "string" ? pmPackage.bin : pmPackage.bin?.pm;
-        if (pmCliPath === undefined) {
-            throw new Error("Installed @unbrained/pm-cli package does not declare the pm executable");
+        try {
+            if (resolvedPmCommand === undefined) {
+                const pmPackagePath = createRequire(import.meta.url).resolve("@unbrained/pm-cli/package.json");
+                const pmPackage = JSON.parse(readFileSync(pmPackagePath, "utf-8"));
+                const pmCliPath = typeof pmPackage.bin === "string" ? pmPackage.bin : pmPackage.bin?.pm;
+                if (pmCliPath === undefined) {
+                    throw new Error(`Package manifest ${pmPackagePath} does not declare the pm executable (bin=${JSON.stringify(pmPackage.bin)})`);
+                }
+                resolvedPmCommand = {
+                    bin: process.execPath,
+                    argsPrefix: [resolve(dirname(pmPackagePath), pmCliPath)],
+                };
+            }
         }
-        pmBin = process.execPath;
-        args = [resolve(dirname(pmPackagePath), pmCliPath), ...args];
+        catch (error) {
+            const message = error instanceof Error ? error.message : String(error);
+            throw new Error(`Failed to resolve the installed @unbrained/pm-cli executable: ${message}`, {
+                cause: error,
+            });
+        }
+        pmBin = resolvedPmCommand.bin;
+        args = [...resolvedPmCommand.argsPrefix, ...args];
     }
     const result = spawnSync(pmBin, args, {
         cwd: options.cwd,

@@ -1344,9 +1344,11 @@ process.stdout.write(JSON.stringify({ items: [{ id: "pm-large", title: "Large tr
 });
 
 test("readPmItems resolves the installed pm-cli executable without PATH", () => {
+  const env = { ...process.env };
+  delete env.PATH;
   const result = readPmItems({
     pmRoot: join(process.cwd(), ".agents", "pm"),
-    env: { ...process.env, PATH: "" },
+    env,
   });
 
   assert.ok(result.some((item) => item.id === "pmc-4a7j"));
