@@ -1,5 +1,11 @@
 # Changelog
 
+## 2026.7.15-1 - 2026-07-15
+
+### Fixed
+
+- Adopt ItemMetadata SDK reader after pm-cli terminology migration ([pmc-4a7j](https://github.com/unbraind/pm-changelog/blob/main/.agents/pm/issues/pmc-4a7j.toon))
+
 ## 2026.7.15 - 2026-07-15
 
 ### Fixed
