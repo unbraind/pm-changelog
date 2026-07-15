@@ -1,5 +1,11 @@
 # Changelog
 
+## 2026.7.15 - 2026-07-15
+
+### Fixed
+
+- Harden Create-GitHub-release npm guard against read-replica propagation lag ([pmc-4nkr](https://github.com/unbraind/pm-changelog/blob/main/.agents/pm/issues/pmc-4nkr.toon))
+
 ## 2026.7.14-2 - 2026-07-14
 
 ### Fixed
