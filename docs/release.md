@@ -39,7 +39,16 @@ git fetch --tags
 
 # Clone made with --no-tags (git config remote.origin.tagOpt = --no-tags):
 git config --unset remote.origin.tagOpt && git fetch --tags
+
+# Shallow clone that is ALSO --no-tags (unset the tag-excluding config first,
+# or the unshallowed clone still trips the --no-tags diagnostic on the next run):
+git config --unset remote.origin.tagOpt && git fetch --tags --unshallow
 ```
+
+The diagnostic always names the exact recovery for the checkout it detected, so
+following the commands in the emitted `E_MISSING_TAG_HISTORY` message is enough;
+the list above just enumerates every case. Each command in the message's
+`recoveryCommands` is independently executable and listed in run order.
 
 A sandbox that intentionally omits tags cannot reconstruct the previous-tag to
 release-tag window and is not a valid changelog release-gate environment.
