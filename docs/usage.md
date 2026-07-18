@@ -247,10 +247,10 @@ pm changelog generate --stdout --explain
 | `--release-version-from-package` | false | Read the version heading from the nearest `package.json` |
 | `--date <date>` | today | Release date |
 | `--since <date>` | - | Include items changed on or after date |
-| `--since-previous-tag` | false | Derive `--since` from the previous git tag. If the current release tag exists, the previous tag before it is used; otherwise the latest tag before `HEAD` is used. |
+| `--since-previous-tag` | false | Derive `--since` from the previous git tag. If the current release tag exists, the previous tag before it is used; otherwise the latest tag before `HEAD` is used. Fails with an `E_MISSING_TAG_HISTORY` diagnostic in shallow clones (run `git fetch --tags --unshallow` to recover). |
 | `--until <date>` | - | Include items changed on or before date |
-| `--until-release-tag` | false | Derive `--until` from the current release tag when it exists (`v<version>` or `<version>`). Useful after a release tag has been created so post-release tracker changes do not move the published section. |
-| `--all-release-tags` | false | Rebuild full changelog history from git release tag windows, including an `Unreleased` section for post-latest-tag closed items. |
+| `--until-release-tag` | false | Derive `--until` from the current release tag when it exists (`v<version>` or `<version>`). Useful after a release tag has been created so post-release tracker changes do not move the published section. Fails with an `E_MISSING_TAG_HISTORY` diagnostic in shallow clones (run `git fetch --tags --unshallow` to recover). |
+| `--all-release-tags` | false | Rebuild full changelog history from git release tag windows, including an `Unreleased` section for post-latest-tag closed items. Fails with an `E_MISSING_TAG_HISTORY` diagnostic in shallow clones (run `git fetch --tags --unshallow` to recover). |
 | `--release-tag-pattern <glob>` | `v*` | Git tag glob used by `--all-release-tags`. |
 | `--status <list>` | `closed` | Comma-separated statuses |
 | `--group-by <mode>` | `version` | `version`, `release`, or `milestone` (controls how release sections are bucketed) |
@@ -306,6 +306,8 @@ console.log({
 Use `version` when a runner is generating one release section from the current job context. Use `groupBy: "release"` or `--group-by release` when pm items already carry release metadata and a runner should rebuild multiple sections in one pass.
 
 Use `--all-release-tags` for a full project `CHANGELOG.md` that should reflect actual git/npm release history. Use the single-release `--release-version-from-package --since-previous-tag --until-release-tag` path for release note jobs that only publish the current tag section.
+
+All tag-derived flags require complete git tag history. In a shallow clone (for example a `--depth 1` CI or sandbox checkout) they stop with a structured `E_MISSING_TAG_HISTORY` error naming the missing tag history and the recovery commands — `git fetch --tags --unshallow` for shallow clones, `git fetch --tags` for full clones that merely lack tag refs — instead of silently falling back to an incomplete window and misreporting a correct `CHANGELOG.md` as stale. A full clone with no release tags yet is unaffected: the first-release fallbacks (unbounded `--since`, pending-version windows) still apply.
 
 For date-based release projects, prefer the package-owned release context flags instead of wrapper scripts:
 

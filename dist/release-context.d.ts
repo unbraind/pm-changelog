@@ -24,6 +24,39 @@ export interface ReleaseTagHistoryOptions {
     pendingVersion?: string;
     pendingTimestamp?: string;
 }
+export declare const MISSING_TAG_HISTORY_ERROR_CODE = "E_MISSING_TAG_HISTORY";
+/**
+ * Structured diagnostic raised when tag-derived release windows are requested
+ * from a checkout whose git tag history is incomplete. Carries a stable
+ * machine-readable `code` plus the recovery commands so agents and CI logs can
+ * distinguish "missing git context" from "stale generated content".
+ */
+export declare class MissingTagHistoryError extends Error {
+    readonly code = "E_MISSING_TAG_HISTORY";
+    readonly recoveryCommands: readonly string[];
+    constructor(message: string, recoveryCommands?: readonly string[]);
+}
+export interface AssertReleaseTagHistoryOptions {
+    cwd?: string;
+    /**
+     * Names of the tag-derived flags/features the caller requested (e.g.
+     * `--since-previous-tag`); used only to make the diagnostic name the exact
+     * options that cannot be honored.
+     */
+    requiredBy: string[];
+}
+/**
+ * Fail fast when tag-derived release windows are requested from a checkout
+ * with incomplete git tag history.
+ *
+ * Only a shallow checkout is rejected: it provably omits tag refs the window
+ * derivation depends on (even when some tags survive, the ones truncated away
+ * silently collapse the window), so continuing would misreport a correct
+ * CHANGELOG.md as stale. A full clone with zero tags is NOT rejected — that is
+ * the intentional first-release state, and the existing pending-version /
+ * unbounded-window fallbacks for it are preserved unchanged.
+ */
+export declare function assertReleaseTagHistory(options: AssertReleaseTagHistoryOptions): void;
 export interface ReleaseContext {
     version?: string;
     date?: string;

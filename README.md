@@ -26,6 +26,12 @@ Rebuild a full project changelog from git release tags:
 pm changelog generate --all-release-tags --mode replace --output CHANGELOG.md
 ```
 
+Tag-derived flags (`--all-release-tags`, `--since-previous-tag`,
+`--until-release-tag`) require complete git tag history: in a shallow clone
+they fail with an actionable `E_MISSING_TAG_HISTORY` diagnostic instead of
+deriving an incomplete window. Recover with `git fetch --tags --unshallow`
+(see [Release and CI](docs/release.md)).
+
 Standalone npm usage:
 
 ```bash

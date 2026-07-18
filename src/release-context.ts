@@ -36,6 +36,68 @@ interface ReleaseTag {
   timestamp: string;
 }
 
+export const MISSING_TAG_HISTORY_ERROR_CODE = "E_MISSING_TAG_HISTORY";
+
+const TAG_HISTORY_RECOVERY_COMMANDS = ["git fetch --tags --unshallow", "git fetch --tags"] as const;
+
+/**
+ * Structured diagnostic raised when tag-derived release windows are requested
+ * from a checkout whose git tag history is incomplete. Carries a stable
+ * machine-readable `code` plus the recovery commands so agents and CI logs can
+ * distinguish "missing git context" from "stale generated content".
+ */
+export class MissingTagHistoryError extends Error {
+  readonly code = MISSING_TAG_HISTORY_ERROR_CODE;
+  readonly recoveryCommands: readonly string[];
+
+  constructor(message: string, recoveryCommands: readonly string[] = TAG_HISTORY_RECOVERY_COMMANDS) {
+    super(message);
+    this.name = "MissingTagHistoryError";
+    this.recoveryCommands = recoveryCommands;
+  }
+}
+
+export interface AssertReleaseTagHistoryOptions {
+  cwd?: string;
+  /**
+   * Names of the tag-derived flags/features the caller requested (e.g.
+   * `--since-previous-tag`); used only to make the diagnostic name the exact
+   * options that cannot be honored.
+   */
+  requiredBy: string[];
+}
+
+/**
+ * Fail fast when tag-derived release windows are requested from a checkout
+ * with incomplete git tag history.
+ *
+ * Only a shallow checkout is rejected: it provably omits tag refs the window
+ * derivation depends on (even when some tags survive, the ones truncated away
+ * silently collapse the window), so continuing would misreport a correct
+ * CHANGELOG.md as stale. A full clone with zero tags is NOT rejected — that is
+ * the intentional first-release state, and the existing pending-version /
+ * unbounded-window fallbacks for it are preserved unchanged.
+ */
+export function assertReleaseTagHistory(options: AssertReleaseTagHistoryOptions): void {
+  const cwd = resolve(options.cwd ?? process.cwd());
+  if (!isShallowRepository(cwd)) return;
+  const requiredBy = options.requiredBy.filter(Boolean);
+  const subject = requiredBy.length > 0 ? requiredBy.join(" ") : "Tag-derived release windows";
+  const verb = requiredBy.length === 1 ? "requires" : "require";
+  throw new MissingTagHistoryError(
+    `Missing git tag history [${MISSING_TAG_HISTORY_ERROR_CODE}]: ${subject} ${verb} complete git release tag refs, ` +
+    `but ${cwd} is a shallow clone (git rev-parse --is-shallow-repository = true), so the tag history needed to derive the release window is unavailable. ` +
+    `Restore it with \`git fetch --tags --unshallow\` (or \`git fetch --tags\` when the clone is already full but lacks tag refs), then re-run the command.`,
+  );
+}
+
+function isShallowRepository(cwd: string): boolean {
+  // `--is-shallow-repository` resolves through worktree `.git` files, unlike a
+  // literal `.git/shallow` path probe. When git itself is unavailable (not a
+  // repository) the lookup fails open so existing non-git fallbacks are kept.
+  return runGit(cwd, ["rev-parse", "--is-shallow-repository"]) === "true";
+}
+
 export interface ReleaseContext {
   version?: string;
   date?: string;
@@ -47,6 +109,13 @@ export interface ReleaseContext {
 
 export function resolveReleaseContext(options: ReleaseContextOptions): ReleaseContext {
   const cwd = resolve(options.cwd ?? process.cwd());
+  const tagDerivedFlags = [
+    options.sincePreviousTag ? "--since-previous-tag" : undefined,
+    options.untilReleaseTag ? "--until-release-tag" : undefined,
+  ].filter((flag): flag is string => Boolean(flag));
+  if (tagDerivedFlags.length > 0) {
+    assertReleaseTagHistory({ cwd, requiredBy: tagDerivedFlags });
+  }
   const version = options.version ?? (options.versionFromPackage ? readPackageVersion(cwd) : undefined);
   const releaseTag = version ? findExistingTag(cwd, releaseTagCandidates(version)) : undefined;
   const previousTag = options.sincePreviousTag ? findPreviousTag(cwd, releaseTag) : undefined;
@@ -64,6 +133,7 @@ export function resolveReleaseContext(options: ReleaseContextOptions): ReleaseCo
 
 export function resolveReleaseTagWindows(options: ReleaseTagHistoryOptions = {}): ChangelogReleaseWindow[] {
   const cwd = resolve(options.cwd ?? process.cwd());
+  assertReleaseTagHistory({ cwd, requiredBy: ["--all-release-tags"] });
   const tags = listReleaseTags(cwd, options.tagPattern ?? "v*", options.includeOrphaned);
   const pending = resolvePendingReleaseTag(options, tags);
   const orderedTags = pending
