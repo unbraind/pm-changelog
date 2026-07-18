@@ -2,12 +2,18 @@ id: pmc-xioo
 title: "Daily Release publish step runs prepublishOnly post-tag: align npm publish with --ignore-scripts"
 description: "Fleet alignment after pm-ts-starter run 27448995157 failed at npm publish: without --ignore-scripts, prepublishOnly re-runs changelog:check AFTER the release tag exists, where the pending-version window suppression (issue #41 in this repo) renders the zero-padded tag heading and the check can never pass. Siblings already publish with --ignore-scripts; full validation still runs pre-tag."
 type: Task
-status: open
+status: closed
 priority: 1
 tags[2]: ci,release-automation
 created_at: "2026-06-12T23:38:03.493Z"
-updated_at: "2026-06-12T23:38:03.493Z"
-assignee: claude
+updated_at: "2026-07-18T09:56:04.804Z"
+closed_at: "2026-07-18T09:56:04.804Z"
 author: claude
 acceptance_criteria: "Daily Release with fresh closed pm items publishes to npm without the post-tag changelog:check failure"
+resolution: release.yml runs npm publish --access public --provenance --ignore-scripts
+expected_result: All fleet repos publish with --access public --provenance --ignore-scripts
+actual_result: Fleet alignment in place; Daily Releases pass (verified 2026-07-18)
+comments[1]{created_at,author,text}:
+  "2026-07-18T09:55:18.595Z",pi-agent,"Verified done 2026-07-18: .github/workflows/release.yml line ~360 already runs 'npm publish --access public --provenance --ignore-scripts' — the fleet alignment this task asked for is in place; Daily Releases pass."
+close_reason: release.yml already aligned (npm publish --provenance --ignore-scripts)
 body: ""
