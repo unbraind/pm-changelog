@@ -1,8 +1,109 @@
 import { execFileSync } from "node:child_process";
 import { existsSync, readFileSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
+export const MISSING_TAG_HISTORY_ERROR_CODE = "E_MISSING_TAG_HISTORY";
+const TAG_HISTORY_RECOVERY_COMMANDS = ["git fetch --tags --unshallow", "git fetch --tags"];
+/**
+ * Structured diagnostic raised when tag-derived release windows are requested
+ * from a checkout whose git tag history is incomplete. Carries a stable
+ * machine-readable `code` plus the recovery commands so agents and CI logs can
+ * distinguish "missing git context" from "stale generated content".
+ */
+export class MissingTagHistoryError extends Error {
+    code = MISSING_TAG_HISTORY_ERROR_CODE;
+    /**
+     * Machine-readable list of recovery commands. Each entry is a single
+     * independently-executable shell command; consumers run them in the listed
+     * order. Entries are deliberately NOT compound `&&` expressions so callers
+     * that execute each element discretely (CI bots, agents) still get a valid
+     * command. The human-readable `message` may embed the inline `&&` form for
+     * copy-paste convenience.
+     */
+    recoveryCommands;
+    constructor(message, recoveryCommands = TAG_HISTORY_RECOVERY_COMMANDS) {
+        super(message);
+        this.name = "MissingTagHistoryError";
+        this.recoveryCommands = recoveryCommands;
+    }
+}
+/**
+ * Fail fast when tag-derived release windows are requested from a checkout
+ * with incomplete git tag history.
+ *
+ * Two checkout states are rejected because they provably omit tag refs the
+ * window derivation depends on:
+ *   - a shallow clone (even when some tags survive, the ones truncated away
+ *     silently collapse the window);
+ *   - a full clone configured to exclude tags (`git clone --no-tags` records
+ *     `remote.<name>.tagOpt=--no-tags`), regardless of how many tags are
+ *     locally present — a tag-excluding checkout that picked up SOME tags
+ *     (single-tag fetch, later push) has a partial set that collapses the
+ *     previous-tag window just as silently as zero tags would.
+ * Continuing in either state would misreport a correct CHANGELOG.md as stale.
+ * A full clone with zero tags and NO tag-excluding config is NOT rejected —
+ * that is the intentional first-release state, and the existing
+ * pending-version / unbounded-window fallbacks for it are preserved unchanged.
+ */
+export function assertReleaseTagHistory(options) {
+    const cwd = resolve(options.cwd ?? process.cwd());
+    const requiredBy = options.requiredBy.filter(Boolean);
+    const subject = requiredBy.length > 0 ? requiredBy.join(" ") : "Tag-derived release windows";
+    const verb = requiredBy.length === 1 ? "requires" : "require";
+    const noTagsRemote = tagExcludingRemote(cwd);
+    if (isShallowRepository(cwd)) {
+        // A shallow clone that ALSO excludes tags by config needs the config
+        // unset too, or the recovered checkout would trip the --no-tags
+        // diagnostic below on the next run.
+        const recovery = noTagsRemote
+            ? `git config --unset ${noTagsRemote}.tagOpt && git fetch --tags --unshallow`
+            : "git fetch --tags --unshallow";
+        throw new MissingTagHistoryError(`Missing git tag history [${MISSING_TAG_HISTORY_ERROR_CODE}]: ${subject} ${verb} complete git release tag refs, ` +
+            `but ${cwd} is a shallow clone (git rev-parse --is-shallow-repository = true), so the tag history needed to derive the release window is unavailable. ` +
+            `Restore it with \`${recovery}\` (or \`git fetch --tags\` when the clone is already full but lacks tag refs), then re-run the command.`, noTagsRemote
+            ? [`git config --unset ${noTagsRemote}.tagOpt`, "git fetch --tags --unshallow"]
+            : undefined);
+    }
+    if (noTagsRemote) {
+        // Rejected regardless of how many tags are present locally: a checkout
+        // that excludes tags by config may have picked up SOME tags (an explicit
+        // single-tag fetch, a later push), and a partial tag set silently
+        // collapses the previous-tag window just like zero tags would.
+        throw new MissingTagHistoryError(`Missing git tag history [${MISSING_TAG_HISTORY_ERROR_CODE}]: ${subject} ${verb} complete git release tag refs, ` +
+            `but ${cwd} was cloned with --no-tags (git config ${noTagsRemote}.tagOpt = --no-tags), so its tag refs are deliberately excluded and any tags present may be incomplete. ` +
+            `Restore them with \`git config --unset ${noTagsRemote}.tagOpt && git fetch --tags\`, then re-run the command.`, [`git config --unset ${noTagsRemote}.tagOpt`, "git fetch --tags"]);
+    }
+}
+// `git clone --no-tags` durably records remote.<name>.tagOpt=--no-tags. A
+// checkout carrying that config is a tag-excluding clone whose tag set cannot
+// be trusted to be complete — not a first-release repo. Returns the remote
+// config prefix (e.g. "remote.origin") so the diagnostic can name the exact
+// recovery command, or undefined when no remote excludes tags.
+function tagExcludingRemote(cwd) {
+    const config = runGit(cwd, ["config", "--get-regexp", String.raw `^remote\..*\.tagopt$`]);
+    if (!config)
+        return undefined;
+    for (const line of config.split("\n")) {
+        const [key, value] = line.trim().split(/\s+/, 2);
+        if (value === "--no-tags" && key)
+            return key.replace(/\.tagopt$/i, "");
+    }
+    return undefined;
+}
+function isShallowRepository(cwd) {
+    // `--is-shallow-repository` resolves through worktree `.git` files, unlike a
+    // literal `.git/shallow` path probe. When git itself is unavailable (not a
+    // repository) the lookup fails open so existing non-git fallbacks are kept.
+    return runGit(cwd, ["rev-parse", "--is-shallow-repository"]) === "true";
+}
 export function resolveReleaseContext(options) {
     const cwd = resolve(options.cwd ?? process.cwd());
+    const tagDerivedFlags = [
+        options.sincePreviousTag ? "--since-previous-tag" : undefined,
+        options.untilReleaseTag ? "--until-release-tag" : undefined,
+    ].filter((flag) => Boolean(flag));
+    if (tagDerivedFlags.length > 0) {
+        assertReleaseTagHistory({ cwd, requiredBy: tagDerivedFlags });
+    }
     const version = options.version ?? (options.versionFromPackage ? readPackageVersion(cwd) : undefined);
     const releaseTag = version ? findExistingTag(cwd, releaseTagCandidates(version)) : undefined;
     const previousTag = options.sincePreviousTag ? findPreviousTag(cwd, releaseTag) : undefined;
@@ -18,6 +119,7 @@ export function resolveReleaseContext(options) {
 }
 export function resolveReleaseTagWindows(options = {}) {
     const cwd = resolve(options.cwd ?? process.cwd());
+    assertReleaseTagHistory({ cwd, requiredBy: ["--all-release-tags"] });
     const tags = listReleaseTags(cwd, options.tagPattern ?? "v*", options.includeOrphaned);
     const pending = resolvePendingReleaseTag(options, tags);
     const orderedTags = pending

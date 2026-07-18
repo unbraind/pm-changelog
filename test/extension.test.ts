@@ -1,5 +1,10 @@
 import assert from "node:assert/strict";
+import { execFileSync } from "node:child_process";
+import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import test from "node:test";
+import { pathToFileURL } from "node:url";
 
 import extension from "../dist/extension.js";
 
@@ -107,6 +112,47 @@ test("changelog exporter registers flags on legacy two-argument pm-cli runtimes"
   assert.ok(
     registeredFlags?.some((flag) => flag.long === "--format"),
     "legacy pm-cli runtimes should still surface changelog export flags"
+  );
+});
+
+test("changelog generate surfaces missing git tag history as a non-zero pm-cli error", async (t) => {
+  // Depth-1/no-tags clone fixture: tag-derived flags must fail fast with the
+  // structured E_MISSING_TAG_HISTORY diagnostic (pmc-yzho), carried by a
+  // PmCliError whose exitCode is non-zero, instead of silently deriving an
+  // incomplete release window.
+  const sourceDir = mkdtempSync(join(tmpdir(), "pm-changelog-ext-shallow-src-"));
+  const cloneParent = mkdtempSync(join(tmpdir(), "pm-changelog-ext-shallow-dst-"));
+  t.after(() => {
+    rmSync(sourceDir, { recursive: true, force: true });
+    rmSync(cloneParent, { recursive: true, force: true });
+  });
+  execFileSync("git", ["init"], { cwd: sourceDir, encoding: "utf-8" });
+  execFileSync("git", ["config", "user.email", "test@example.com"], { cwd: sourceDir, encoding: "utf-8" });
+  execFileSync("git", ["config", "user.name", "Test"], { cwd: sourceDir, encoding: "utf-8" });
+  writeFileSync(join(sourceDir, "file.txt"), "one\n", "utf-8");
+  execFileSync("git", ["add", "."], { cwd: sourceDir, encoding: "utf-8" });
+  execFileSync("git", ["commit", "-m", "one"], { cwd: sourceDir, encoding: "utf-8" });
+  execFileSync("git", ["tag", "v1.0.0"], { cwd: sourceDir, encoding: "utf-8" });
+  const cloneDir = join(cloneParent, "clone");
+  execFileSync("git", ["clone", "--depth", "1", "--no-tags", pathToFileURL(sourceDir).toString(), cloneDir], { encoding: "utf-8" });
+
+  let command: { run?: (ctx: { options: Record<string, unknown>; pm_root: string }) => Promise<unknown> } | undefined;
+  extension.activate({
+    registerCommand(registered: typeof command) {
+      command = registered;
+    },
+    registerExporter() {},
+  } as unknown as Parameters<typeof extension.activate>[0]);
+
+  assert.ok(command?.run, "extension should register changelog generate");
+  await assert.rejects(
+    () => command!.run!({ options: { "since-previous-tag": true }, pm_root: cloneDir }),
+    (error: unknown) => {
+      assert.match((error as Error).message, /E_MISSING_TAG_HISTORY/);
+      assert.match((error as Error).message, /git fetch --tags --unshallow/);
+      assert.equal((error as { exitCode?: number }).exitCode, 1);
+      return true;
+    },
   );
 });
 

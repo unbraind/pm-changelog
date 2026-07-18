@@ -12,7 +12,14 @@ export {
   suggestSemver,
   writeChangelog,
 } from "./generator.js";
-export { resolveReleaseContext, resolveReleaseTagWindows } from "./release-context.js";
+export {
+  assertReleaseTagHistory,
+  MISSING_TAG_HISTORY_ERROR_CODE,
+  MissingTagHistoryError,
+  resolveReleaseContext,
+  resolveReleaseTagWindows,
+} from "./release-context.js";
+export type { AssertReleaseTagHistoryOptions } from "./release-context.js";
 export type {
   ChangelogDocument,
   ChangelogDocumentItem,

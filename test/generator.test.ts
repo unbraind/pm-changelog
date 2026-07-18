@@ -1,15 +1,19 @@
 import assert from "node:assert/strict";
-import { execFileSync } from "node:child_process";
+import { execFileSync, spawnSync } from "node:child_process";
 import { chmodSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import test from "node:test";
+import { pathToFileURL } from "node:url";
 
 import {
   buildPmListArgs,
   createChangelog,
   mergeChangelog,
+  MISSING_TAG_HISTORY_ERROR_CODE,
+  MissingTagHistoryError,
   readPmItems,
+  resolveReleaseContext,
   resolveReleaseTagWindows,
   writeChangelog,
 } from "../dist/index.js";
@@ -1298,6 +1302,264 @@ test("CLI derives release heading date from existing package tag without limitin
   assert.match(stdout, /## 1\.3\.0 - 2026-05-11/);
   assert.match(stdout, /Current package item/);
   assert.match(stdout, /Post tag tracker closure/);
+});
+
+// --- Missing git tag history diagnostics (pmc-yzho) ---------------------------
+// Tag-derived flags (`--since-previous-tag`, `--until-release-tag`,
+// `--all-release-tags`) must fail fast with a structured E_MISSING_TAG_HISTORY
+// diagnostic in shallow clones instead of silently deriving an incomplete
+// window and misreporting a correct CHANGELOG.md as stale. Full clones keep
+// byte-identical behavior, including the intentional zero-tag first-release
+// fallbacks.
+
+function createTagHistorySourceRepo(dir: string): void {
+  execFileSync("git", ["init"], { cwd: dir, encoding: "utf-8" });
+  execFileSync("git", ["config", "user.email", "test@example.com"], { cwd: dir, encoding: "utf-8" });
+  execFileSync("git", ["config", "user.name", "Test"], { cwd: dir, encoding: "utf-8" });
+  writeFileSync(join(dir, "package.json"), JSON.stringify({ version: "1.2.0" }), "utf-8");
+  writeFileSync(join(dir, "file.txt"), "one\n", "utf-8");
+  execFileSync("git", ["add", "."], { cwd: dir, encoding: "utf-8" });
+  execFileSync("git", ["commit", "-m", "one"], {
+    cwd: dir,
+    env: { ...process.env, GIT_AUTHOR_DATE: "2026-05-01T00:00:00Z", GIT_COMMITTER_DATE: "2026-05-01T00:00:00Z" },
+    encoding: "utf-8",
+  });
+  execFileSync("git", ["tag", "v1.1.0"], { cwd: dir, encoding: "utf-8" });
+  writeFileSync(join(dir, "file.txt"), "two\n", "utf-8");
+  execFileSync("git", ["commit", "-am", "two"], {
+    cwd: dir,
+    env: { ...process.env, GIT_AUTHOR_DATE: "2026-05-10T00:00:00Z", GIT_COMMITTER_DATE: "2026-05-10T00:00:00Z" },
+    encoding: "utf-8",
+  });
+  execFileSync("git", ["tag", "v1.2.0"], { cwd: dir, encoding: "utf-8" });
+}
+
+function gitOutput(cwd: string, args: string[]): string {
+  return execFileSync("git", args, { cwd, encoding: "utf-8" }).trim();
+}
+
+function createShallowClone(t: test.TestContext, cloneArgs: string[]): { sourceDir: string; cloneDir: string } {
+  const sourceDir = mkdtempSync(join(tmpdir(), "pm-changelog-shallow-src-"));
+  const cloneParent = mkdtempSync(join(tmpdir(), "pm-changelog-shallow-dst-"));
+  t.after(() => {
+    rmSync(sourceDir, { recursive: true, force: true });
+    rmSync(cloneParent, { recursive: true, force: true });
+  });
+  createTagHistorySourceRepo(sourceDir);
+  const cloneDir = join(cloneParent, "clone");
+  // A file:// URL forces the transport path so --depth/--no-tags are honored
+  // (plain local paths are hardlinked and ignore shallow flags).
+  execFileSync("git", ["clone", "--depth", "1", ...cloneArgs, pathToFileURL(sourceDir).toString(), cloneDir], { encoding: "utf-8" });
+  return { sourceDir, cloneDir };
+}
+
+test("resolveReleaseContext rejects tag-derived flags in a shallow tagless clone", (t) => {
+  const { cloneDir } = createShallowClone(t, ["--no-tags"]);
+
+  assert.equal(gitOutput(cloneDir, ["rev-parse", "--is-shallow-repository"]), "true");
+  assert.equal(gitOutput(cloneDir, ["tag", "--list"]), "");
+
+  assert.throws(
+    () => resolveReleaseContext({ cwd: cloneDir, version: "1.2.0", sincePreviousTag: true, untilReleaseTag: true }),
+    (error: unknown) => {
+      assert.ok(error instanceof MissingTagHistoryError);
+      assert.equal(error.code, MISSING_TAG_HISTORY_ERROR_CODE);
+      assert.match(error.message, /E_MISSING_TAG_HISTORY/);
+      assert.match(error.message, /--since-previous-tag/);
+      assert.match(error.message, /--until-release-tag/);
+      assert.match(error.message, /shallow clone/);
+      assert.match(error.message, /git fetch --tags --unshallow/);
+      assert.match(error.message, /git fetch --tags/);
+      // This clone was made with --no-tags, so the recovery must also unset
+      // the tag-excluding config or the next run trips the tagOpt diagnostic.
+      assert.deepEqual(
+        [...error.recoveryCommands],
+        ["git config --unset remote.origin.tagOpt", "git fetch --tags --unshallow"],
+      );
+      return true;
+    }
+  );
+});
+
+test("resolveReleaseContext rejects tag-derived flags in a shallow clone that kept a tip tag", (t) => {
+  const { cloneDir } = createShallowClone(t, []);
+
+  // The depth-1 clone keeps the tag pointing at its tip commit, but the older
+  // tag history the previous-tag window needs is truncated away, so resolving
+  // a window must still fail fast instead of silently degrading.
+  assert.equal(gitOutput(cloneDir, ["rev-parse", "--is-shallow-repository"]), "true");
+  assert.equal(gitOutput(cloneDir, ["tag", "--list"]), "v1.2.0");
+
+  assert.throws(
+    () => resolveReleaseContext({ cwd: cloneDir, version: "1.2.0", sincePreviousTag: true }),
+    (error: unknown) => {
+      assert.ok(error instanceof MissingTagHistoryError);
+      assert.match(error.message, /E_MISSING_TAG_HISTORY/);
+      assert.match(error.message, /--since-previous-tag/);
+      return true;
+    }
+  );
+});
+
+test("resolveReleaseContext rejects tag-derived flags in a FULL clone made with --no-tags", (t) => {
+  const sourceDir = mkdtempSync(join(tmpdir(), "pm-changelog-notags-src-"));
+  const cloneParent = mkdtempSync(join(tmpdir(), "pm-changelog-notags-dst-"));
+  t.after(() => {
+    rmSync(sourceDir, { recursive: true, force: true });
+    rmSync(cloneParent, { recursive: true, force: true });
+  });
+  createTagHistorySourceRepo(sourceDir);
+  const cloneDir = join(cloneParent, "clone");
+  // Full-depth clone that deliberately excludes tags: not shallow, zero tags,
+  // but remote.origin.tagOpt records the exclusion.
+  execFileSync("git", ["clone", "--no-tags", pathToFileURL(sourceDir).toString(), cloneDir], { encoding: "utf-8" });
+  assert.equal(gitOutput(cloneDir, ["rev-parse", "--is-shallow-repository"]), "false");
+  assert.equal(gitOutput(cloneDir, ["tag", "--list"]), "");
+
+  assert.throws(
+    () => resolveReleaseContext({ cwd: cloneDir, version: "1.2.0", sincePreviousTag: true }),
+    (error: unknown) => {
+      assert.ok(error instanceof MissingTagHistoryError);
+      assert.equal(error.code, MISSING_TAG_HISTORY_ERROR_CODE);
+      assert.match(error.message, /--no-tags/);
+      assert.match(error.message, /git config --unset remote\.origin\.tagOpt && git fetch --tags/);
+      assert.deepEqual([...error.recoveryCommands], ["git config --unset remote.origin.tagOpt", "git fetch --tags"]);
+      return true;
+    }
+  );
+
+  // A single explicitly fetched tag does NOT unblock the guard: the tag set
+  // of a --no-tags clone is still untrustworthy (findPreviousTag would see no
+  // prior tag and silently derive an unbounded window).
+  execFileSync("git", ["fetch", "origin", "tag", "v1.2.0"], { cwd: cloneDir, encoding: "utf-8" });
+  assert.equal(gitOutput(cloneDir, ["tag", "--list"]), "v1.2.0");
+  assert.throws(
+    () => resolveReleaseContext({ cwd: cloneDir, version: "1.2.0", sincePreviousTag: true }),
+    (error: unknown) => {
+      assert.ok(error instanceof MissingTagHistoryError);
+      assert.match(error.message, /--no-tags/);
+      return true;
+    }
+  );
+
+  // The named recovery command actually converges: after it runs, the same
+  // call succeeds with the full window.
+  execFileSync("git", ["config", "--unset", "remote.origin.tagOpt"], { cwd: cloneDir, encoding: "utf-8" });
+  execFileSync("git", ["fetch", "--tags"], { cwd: cloneDir, encoding: "utf-8" });
+  const recovered = resolveReleaseContext({ cwd: cloneDir, version: "1.2.0", sincePreviousTag: true });
+  assert.equal(recovered.previousTag, "v1.1.0");
+});
+
+test("resolveReleaseContext keeps full-clone and zero-tag first-release behavior", (t) => {
+  const { sourceDir } = createShallowClone(t, ["--no-tags"]);
+
+  // Full clone with tags: the guard is a no-op and windows resolve as before.
+  assert.equal(gitOutput(sourceDir, ["rev-parse", "--is-shallow-repository"]), "false");
+  const context = resolveReleaseContext({ cwd: sourceDir, version: "1.2.0", sincePreviousTag: true, untilReleaseTag: true });
+  assert.equal(context.releaseTag, "v1.2.0");
+  assert.equal(context.previousTag, "v1.1.0");
+  // Compare instants, not textual offsets: %cI offset formatting varies by git version.
+  assert.equal(Date.parse(context.since!), Date.parse("2026-05-01T00:00:00Z"));
+  assert.equal(Date.parse(context.until!), Date.parse("2026-05-10T00:00:00Z"));
+
+  // Full clone genuinely without any release tags yet (first-release flow):
+  // the intentional silent fallback to an unbounded window is preserved.
+  const firstDir = mkdtempSync(join(tmpdir(), "pm-changelog-first-release-"));
+  t.after(() => rmSync(firstDir, { recursive: true, force: true }));
+  execFileSync("git", ["init"], { cwd: firstDir, encoding: "utf-8" });
+  execFileSync("git", ["config", "user.email", "test@example.com"], { cwd: firstDir, encoding: "utf-8" });
+  execFileSync("git", ["config", "user.name", "Test"], { cwd: firstDir, encoding: "utf-8" });
+  writeFileSync(join(firstDir, "file.txt"), "one\n", "utf-8");
+  execFileSync("git", ["add", "."], { cwd: firstDir, encoding: "utf-8" });
+  execFileSync("git", ["commit", "-m", "one"], { cwd: firstDir, encoding: "utf-8" });
+
+  const first = resolveReleaseContext({ cwd: firstDir, version: "1.0.0", sincePreviousTag: true, untilReleaseTag: true });
+  assert.equal(first.releaseTag, undefined);
+  assert.equal(first.previousTag, undefined);
+  assert.equal(first.since, undefined);
+  assert.equal(first.until, undefined);
+});
+
+test("resolveReleaseTagWindows rejects shallow clones but preserves zero-tag pending windows", (t) => {
+  const { cloneDir } = createShallowClone(t, []);
+
+  assert.throws(
+    () => resolveReleaseTagWindows({ cwd: cloneDir, includeOrphaned: true }),
+    (error: unknown) => {
+      assert.ok(error instanceof MissingTagHistoryError);
+      assert.match(error.message, /E_MISSING_TAG_HISTORY/);
+      assert.match(error.message, /--all-release-tags/);
+      assert.match(error.message, /git fetch --tags --unshallow/);
+      return true;
+    }
+  );
+
+  // A full clone with zero tags keeps the pending-version first-release
+  // windows (Unreleased + pending) that the release pipeline relies on.
+  const firstDir = mkdtempSync(join(tmpdir(), "pm-changelog-pending-first-"));
+  t.after(() => rmSync(firstDir, { recursive: true, force: true }));
+  execFileSync("git", ["init"], { cwd: firstDir, encoding: "utf-8" });
+  execFileSync("git", ["config", "user.email", "test@example.com"], { cwd: firstDir, encoding: "utf-8" });
+  execFileSync("git", ["config", "user.name", "Test"], { cwd: firstDir, encoding: "utf-8" });
+  writeFileSync(join(firstDir, "file.txt"), "one\n", "utf-8");
+  execFileSync("git", ["add", "."], { cwd: firstDir, encoding: "utf-8" });
+  execFileSync("git", ["commit", "-m", "one"], { cwd: firstDir, encoding: "utf-8" });
+
+  const windows = resolveReleaseTagWindows({
+    cwd: firstDir,
+    includeOrphaned: true,
+    pendingVersion: "1.0.0",
+    pendingTimestamp: "2026-05-01T00:00:00Z",
+  });
+  assert.equal(windows.length, 2);
+  assert.equal(windows[0].heading, "Unreleased");
+  assert.equal(windows[1].heading, "1.0.0 - 2026-05-01");
+});
+
+test("CLI reports missing tag history instead of a stale changelog in a shallow tagless clone", (t) => {
+  const { cloneDir } = createShallowClone(t, ["--no-tags"]);
+  const cli = join(process.cwd(), "dist", "cli.js");
+  const input = join(cloneDir, "items.json");
+  writeFileSync(
+    input,
+    JSON.stringify([
+      { id: "pm-current", title: "Current release item", status: "closed", type: "feature", closed_at: "2026-05-05T00:00:00Z" },
+    ]),
+    "utf-8"
+  );
+  const args = [
+    cli,
+    "--input", input,
+    "--check",
+    "--output", "CHANGELOG.md",
+    "--release-version-from-package",
+    "--since-previous-tag",
+    "--until-release-tag",
+  ];
+
+  // The pmc-yzho repro: a depth-1/no-tags checkout must fail with the
+  // structured missing-tag-history diagnostic, not with a stale-changelog
+  // report for a CHANGELOG.md that is actually correct.
+  const shallow = spawnSync(process.execPath, args, { cwd: cloneDir, encoding: "utf-8" });
+  assert.equal(shallow.status, 1);
+  assert.match(shallow.stderr, /E_MISSING_TAG_HISTORY/);
+  assert.match(shallow.stderr, /--since-previous-tag/);
+  assert.match(shallow.stderr, /git fetch --tags --unshallow/);
+  assert.doesNotMatch(shallow.stderr, /out of date/);
+
+  // The documented recovery restores full tag history and the gate derives the
+  // real window again (this clone used --no-tags, so it also unsets tagOpt).
+  execFileSync("git", ["config", "--unset", "remote.origin.tagOpt"], { cwd: cloneDir, encoding: "utf-8" });
+  execFileSync("git", ["fetch", "--tags", "--unshallow"], { cwd: cloneDir, encoding: "utf-8" });
+  assert.equal(gitOutput(cloneDir, ["rev-parse", "--is-shallow-repository"]), "false");
+  const recovered = spawnSync(
+    process.execPath,
+    [cli, "--input", input, "--stdout", "--release-version-from-package", "--since-previous-tag", "--until-release-tag"],
+    { cwd: cloneDir, encoding: "utf-8" }
+  );
+  assert.equal(recovered.status, 0);
+  assert.match(recovered.stdout, /## 1\.2\.0 - 2026-05-10/);
+  assert.match(recovered.stdout, /Current release item/);
 });
 
 test("CLI derives release heading date from explicit version tag", () => {

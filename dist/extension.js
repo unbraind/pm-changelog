@@ -3,7 +3,7 @@ import { resolve } from "node:path";
 import * as pmSdk from "@unbrained/pm-cli/sdk";
 import { defineExtension, locateItem, readLocatedItem, readSettings, resolveItemTypeRegistry, EXIT_CODE, PmCliError, } from "@unbrained/pm-cli/sdk";
 import { buildChangelogDocument, createChangelog, createChangelogSummary, explainChangelogSelection, formatSummaryLine, mergeChangelog, suggestSemver, writeChangelog } from "./generator.js";
-import { resolveReleaseContext, resolveReleaseTagWindows } from "./release-context.js";
+import { MissingTagHistoryError, resolveReleaseContext, resolveReleaseTagWindows } from "./release-context.js";
 const sdkExports = pmSdk;
 const listAllItemMetadata = (sdkExports.listAllItemMetadata ?? sdkExports[["listAll", "Front", "Matter"].join("")]);
 function renderedCommandResult(value) {
@@ -110,26 +110,28 @@ export default defineExtension({
                 const dateOption = stringOption(ctx.options, "date", "date");
                 const sinceOption = stringOption(ctx.options, "since", "since");
                 const untilOption = stringOption(ctx.options, "until", "until");
-                const releaseContext = allReleaseTags
-                    ? { version: undefined, date: undefined, since: undefined, until: undefined }
-                    : resolveReleaseContext({
-                        cwd: ctx.pm_root,
-                        version: releaseVersion,
-                        versionFromPackage: booleanOption(ctx.options, "release-version-from-package", "releaseVersionFromPackage"),
-                        since: sinceOption,
-                        sincePreviousTag: booleanOption(ctx.options, "since-previous-tag", "sincePreviousTag"),
-                        until: untilOption,
-                        untilReleaseTag: booleanOption(ctx.options, "until-release-tag", "untilReleaseTag"),
-                    });
-                const releaseWindows = allReleaseTags
-                    ? resolveReleaseTagWindows({
-                        cwd: ctx.pm_root,
-                        tagPattern: stringOption(ctx.options, "release-tag-pattern", "releaseTagPattern"),
-                        includeOrphaned: true,
-                        pendingVersion: releaseVersion,
-                        pendingTimestamp: untilOption ?? dateOption,
-                    })
-                    : undefined;
+                const { releaseContext, releaseWindows } = withTagHistoryDiagnostics(() => ({
+                    releaseContext: allReleaseTags
+                        ? { version: undefined, date: undefined, since: undefined, until: undefined }
+                        : resolveReleaseContext({
+                            cwd: ctx.pm_root,
+                            version: releaseVersion,
+                            versionFromPackage: booleanOption(ctx.options, "release-version-from-package", "releaseVersionFromPackage"),
+                            since: sinceOption,
+                            sincePreviousTag: booleanOption(ctx.options, "since-previous-tag", "sincePreviousTag"),
+                            until: untilOption,
+                            untilReleaseTag: booleanOption(ctx.options, "until-release-tag", "untilReleaseTag"),
+                        }),
+                    releaseWindows: allReleaseTags
+                        ? resolveReleaseTagWindows({
+                            cwd: ctx.pm_root,
+                            tagPattern: stringOption(ctx.options, "release-tag-pattern", "releaseTagPattern"),
+                            includeOrphaned: true,
+                            pendingVersion: releaseVersion,
+                            pendingTimestamp: untilOption ?? dateOption,
+                        })
+                        : undefined,
+                }));
                 const items = (await listAllItemMetadata(ctx.pm_root));
                 const bodyPreview = parseBodyPreviewOption(ctx.options);
                 // listAllItemMetadata omits item bodies, so --body-preview would silently
@@ -295,7 +297,7 @@ export default defineExtension({
             const untilOption = stringOption(ctx.options, "until", "until");
             const statuses = ctx.options["status"]
                 ?.split(",").map((s) => s.trim()).filter(Boolean);
-            const releaseContext = resolveReleaseContext({
+            const releaseContext = withTagHistoryDiagnostics(() => resolveReleaseContext({
                 cwd: ctx.pm_root,
                 version: releaseVersion,
                 versionFromPackage: booleanOption(ctx.options, "release-version-from-package", "releaseVersionFromPackage"),
@@ -303,7 +305,7 @@ export default defineExtension({
                 sincePreviousTag: booleanOption(ctx.options, "since-previous-tag", "sincePreviousTag"),
                 until: untilOption,
                 untilReleaseTag: booleanOption(ctx.options, "until-release-tag", "untilReleaseTag"),
-            });
+            }));
             const items = await listAllItemMetadata(ctx.pm_root);
             const generated = createChangelog({
                 items,
@@ -395,6 +397,23 @@ async function enrichItemBodies(pmRoot, items) {
     const CONCURRENCY_LIMIT = 16;
     for (let i = 0; i < items.length; i += CONCURRENCY_LIMIT) {
         await Promise.all(items.slice(i, i + CONCURRENCY_LIMIT).map(loadBody));
+    }
+}
+/**
+ * Missing git tag history is an environment prerequisite failure, not a usage
+ * error: rethrow the structured diagnostic as a PmCliError with a non-zero
+ * exit so release gates stop instead of misreporting a correct CHANGELOG.md as
+ * stale (the CLI path surfaces the same message via its main() error handler).
+ */
+function withTagHistoryDiagnostics(resolve) {
+    try {
+        return resolve();
+    }
+    catch (error) {
+        if (error instanceof MissingTagHistoryError) {
+            throw new PmCliError(error.message, EXIT_CODE.GENERIC_FAILURE);
+        }
+        throw error;
     }
 }
 function stringOption(options, kebabKey, camelKey) {
