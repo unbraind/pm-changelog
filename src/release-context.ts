@@ -48,6 +48,14 @@ const TAG_HISTORY_RECOVERY_COMMANDS = ["git fetch --tags --unshallow", "git fetc
  */
 export class MissingTagHistoryError extends Error {
   readonly code = MISSING_TAG_HISTORY_ERROR_CODE;
+  /**
+   * Machine-readable list of recovery commands. Each entry is a single
+   * independently-executable shell command; consumers run them in the listed
+   * order. Entries are deliberately NOT compound `&&` expressions so callers
+   * that execute each element discretely (CI bots, agents) still get a valid
+   * command. The human-readable `message` may embed the inline `&&` form for
+   * copy-paste convenience.
+   */
   readonly recoveryCommands: readonly string[];
 
   constructor(message: string, recoveryCommands: readonly string[] = TAG_HISTORY_RECOVERY_COMMANDS) {
@@ -102,7 +110,9 @@ export function assertReleaseTagHistory(options: AssertReleaseTagHistoryOptions)
       `Missing git tag history [${MISSING_TAG_HISTORY_ERROR_CODE}]: ${subject} ${verb} complete git release tag refs, ` +
       `but ${cwd} is a shallow clone (git rev-parse --is-shallow-repository = true), so the tag history needed to derive the release window is unavailable. ` +
       `Restore it with \`${recovery}\` (or \`git fetch --tags\` when the clone is already full but lacks tag refs), then re-run the command.`,
-      noTagsRemote ? [recovery] : undefined,
+      noTagsRemote
+        ? [`git config --unset ${noTagsRemote}.tagOpt`, "git fetch --tags --unshallow"]
+        : undefined,
     );
   }
   if (noTagsRemote) {
@@ -114,7 +124,7 @@ export function assertReleaseTagHistory(options: AssertReleaseTagHistoryOptions)
       `Missing git tag history [${MISSING_TAG_HISTORY_ERROR_CODE}]: ${subject} ${verb} complete git release tag refs, ` +
       `but ${cwd} was cloned with --no-tags (git config ${noTagsRemote}.tagOpt = --no-tags), so its tag refs are deliberately excluded and any tags present may be incomplete. ` +
       `Restore them with \`git config --unset ${noTagsRemote}.tagOpt && git fetch --tags\`, then re-run the command.`,
-      [`git config --unset ${noTagsRemote}.tagOpt && git fetch --tags`],
+      [`git config --unset ${noTagsRemote}.tagOpt`, "git fetch --tags"],
     );
   }
 }

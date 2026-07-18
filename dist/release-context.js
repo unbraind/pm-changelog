@@ -11,6 +11,14 @@ const TAG_HISTORY_RECOVERY_COMMANDS = ["git fetch --tags --unshallow", "git fetc
  */
 export class MissingTagHistoryError extends Error {
     code = MISSING_TAG_HISTORY_ERROR_CODE;
+    /**
+     * Machine-readable list of recovery commands. Each entry is a single
+     * independently-executable shell command; consumers run them in the listed
+     * order. Entries are deliberately NOT compound `&&` expressions so callers
+     * that execute each element discretely (CI bots, agents) still get a valid
+     * command. The human-readable `message` may embed the inline `&&` form for
+     * copy-paste convenience.
+     */
     recoveryCommands;
     constructor(message, recoveryCommands = TAG_HISTORY_RECOVERY_COMMANDS) {
         super(message);
@@ -51,7 +59,9 @@ export function assertReleaseTagHistory(options) {
             : "git fetch --tags --unshallow";
         throw new MissingTagHistoryError(`Missing git tag history [${MISSING_TAG_HISTORY_ERROR_CODE}]: ${subject} ${verb} complete git release tag refs, ` +
             `but ${cwd} is a shallow clone (git rev-parse --is-shallow-repository = true), so the tag history needed to derive the release window is unavailable. ` +
-            `Restore it with \`${recovery}\` (or \`git fetch --tags\` when the clone is already full but lacks tag refs), then re-run the command.`, noTagsRemote ? [recovery] : undefined);
+            `Restore it with \`${recovery}\` (or \`git fetch --tags\` when the clone is already full but lacks tag refs), then re-run the command.`, noTagsRemote
+            ? [`git config --unset ${noTagsRemote}.tagOpt`, "git fetch --tags --unshallow"]
+            : undefined);
     }
     if (noTagsRemote) {
         // Rejected regardless of how many tags are present locally: a checkout
@@ -60,7 +70,7 @@ export function assertReleaseTagHistory(options) {
         // collapses the previous-tag window just like zero tags would.
         throw new MissingTagHistoryError(`Missing git tag history [${MISSING_TAG_HISTORY_ERROR_CODE}]: ${subject} ${verb} complete git release tag refs, ` +
             `but ${cwd} was cloned with --no-tags (git config ${noTagsRemote}.tagOpt = --no-tags), so its tag refs are deliberately excluded and any tags present may be incomplete. ` +
-            `Restore them with \`git config --unset ${noTagsRemote}.tagOpt && git fetch --tags\`, then re-run the command.`, [`git config --unset ${noTagsRemote}.tagOpt && git fetch --tags`]);
+            `Restore them with \`git config --unset ${noTagsRemote}.tagOpt && git fetch --tags\`, then re-run the command.`, [`git config --unset ${noTagsRemote}.tagOpt`, "git fetch --tags"]);
     }
 }
 // `git clone --no-tags` durably records remote.<name>.tagOpt=--no-tags. A

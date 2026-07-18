@@ -1374,7 +1374,7 @@ test("resolveReleaseContext rejects tag-derived flags in a shallow tagless clone
       // the tag-excluding config or the next run trips the tagOpt diagnostic.
       assert.deepEqual(
         [...error.recoveryCommands],
-        ["git config --unset remote.origin.tagOpt && git fetch --tags --unshallow"],
+        ["git config --unset remote.origin.tagOpt", "git fetch --tags --unshallow"],
       );
       return true;
     }
@@ -1423,7 +1423,7 @@ test("resolveReleaseContext rejects tag-derived flags in a FULL clone made with 
       assert.equal(error.code, MISSING_TAG_HISTORY_ERROR_CODE);
       assert.match(error.message, /--no-tags/);
       assert.match(error.message, /git config --unset remote\.origin\.tagOpt && git fetch --tags/);
-      assert.deepEqual([...error.recoveryCommands], ["git config --unset remote.origin.tagOpt && git fetch --tags"]);
+      assert.deepEqual([...error.recoveryCommands], ["git config --unset remote.origin.tagOpt", "git fetch --tags"]);
       return true;
     }
   );

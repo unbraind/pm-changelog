@@ -33,6 +33,14 @@ export declare const MISSING_TAG_HISTORY_ERROR_CODE = "E_MISSING_TAG_HISTORY";
  */
 export declare class MissingTagHistoryError extends Error {
     readonly code = "E_MISSING_TAG_HISTORY";
+    /**
+     * Machine-readable list of recovery commands. Each entry is a single
+     * independently-executable shell command; consumers run them in the listed
+     * order. Entries are deliberately NOT compound `&&` expressions so callers
+     * that execute each element discretely (CI bots, agents) still get a valid
+     * command. The human-readable `message` may embed the inline `&&` form for
+     * copy-paste convenience.
+     */
     readonly recoveryCommands: readonly string[];
     constructor(message: string, recoveryCommands?: readonly string[]);
 }

@@ -6,7 +6,7 @@ status: closed
 priority: 1
 tags[5]: changelog,git-tags,release-gate,shallow-clone,ux
 created_at: "2026-07-13T23:08:49.280Z"
-updated_at: "2026-07-18T10:21:32.786Z"
+updated_at: "2026-07-18T11:43:35.974Z"
 closed_at: "2026-07-18T10:21:24.702Z"
 author: codex-root
 estimated_minutes: 90
@@ -27,8 +27,9 @@ affected_version: 2026.7.13
 component: src/release-context.ts
 regression: false
 customer_impact: Prevents agents and review sandboxes from wasting time regenerating a correct changelog or committing incorrect release content.
-comments[1]{created_at,author,text}:
+comments[2]{created_at,author,text}:
   "2026-07-13T23:08:49.280Z",codex-root,Discovered from Greptile PR 67 P1 and reproduced independently in a clean depth-1 no-tags clone.
+  "2026-07-18T11:43:35.972Z",pi-agent,"Greptile CLI P2 (recoveryCommands compound-entry): split the two --no-tags recovery arrays into discrete independently-executable entries; message text unchanged; JSDoc clarified; tests updated (generator.test.ts 1377/1426), message-match assertion preserved. Build+tests green, CHANGELOG regenerated."
 notes[2]{created_at,author,text}:
   "2026-07-18T10:19:25.295Z",pi-agent,"Root cause: resolveReleaseContext/resolveReleaseTagWindows silently fell back to an unbounded/incomplete window when shallow checkouts omitted tag refs. Fix: assertReleaseTagHistory guard in src/release-context.ts fails fast with structured E_MISSING_TAG_HISTORY diagnostic (MissingTagHistoryError, code + recoveryCommands git fetch --tags --unshallow / git fetch --tags) before any tag-derived window resolution. Only shallow checkouts (git rev-parse --is-shallow-repository=true) error; zero-tag full clones keep intentional first-release fallbacks (unbounded --since, pending-version windows)."
   "2026-07-18T10:19:25.898Z",pi-agent,"Wired through all entry points: CLI (main error handler, exit 1), pm extension changelog generate + changelog export (wrapped as PmCliError EXIT_CODE.GENERIC_FAILURE=1). Byte-identical proof with full tags: changelog:full output and --since-previous-tag/--until-release-tag stdout path both unchanged vs HEAD dist. Tests: 6 new (shallow tagless, shallow with tip tag, full clone, zero-tag first-release, CLI end-to-end incl. recovery via git fetch --tags --unshallow, extension PmCliError) — 148 total pass."
