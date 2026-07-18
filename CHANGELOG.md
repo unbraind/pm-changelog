@@ -1,10 +1,16 @@
 # Changelog
 
-## Unreleased
+## 2026.7.18 - 2026-07-18
 
 ### Fixed
 
 - Detect missing git tag history before release-window changelog checks ([pmc-yzho](https://github.com/unbraind/pm-changelog/blob/main/.agents/pm/issues/pmc-yzho.toon))
+- pm install npm:pm-changelog fails due to missing SDK dependency (upstream pm-cli\#53) ([pmc-dcji](https://github.com/unbraind/pm-changelog/blob/main/.agents/pm/issues/pmc-dcji.toon))
+
+### Other
+
+- Daily Release publish step runs prepublishOnly post-tag: align npm publish with --ignore-scripts ([pmc-xioo](https://github.com/unbraind/pm-changelog/blob/main/.agents/pm/tasks/pmc-xioo.toon))
+- Harden release bun-verify so registry-mirror lag cannot block the GitHub release ([pmc-pr0j](https://github.com/unbraind/pm-changelog/blob/main/.agents/pm/chores/pmc-pr0j.toon))
 
 ## 2026.7.15-1 - 2026-07-15
 
