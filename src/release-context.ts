@@ -71,24 +71,58 @@ export interface AssertReleaseTagHistoryOptions {
  * Fail fast when tag-derived release windows are requested from a checkout
  * with incomplete git tag history.
  *
- * Only a shallow checkout is rejected: it provably omits tag refs the window
- * derivation depends on (even when some tags survive, the ones truncated away
- * silently collapse the window), so continuing would misreport a correct
- * CHANGELOG.md as stale. A full clone with zero tags is NOT rejected — that is
- * the intentional first-release state, and the existing pending-version /
- * unbounded-window fallbacks for it are preserved unchanged.
+ * Two checkout states are rejected because they provably omit tag refs the
+ * window derivation depends on:
+ *   - a shallow clone (even when some tags survive, the ones truncated away
+ *     silently collapse the window);
+ *   - a full clone configured to exclude tags (`git clone --no-tags` records
+ *     `remote.<name>.tagOpt=--no-tags`) that currently has zero tags.
+ * Continuing in either state would misreport a correct CHANGELOG.md as stale.
+ * A full clone with zero tags and NO tag-excluding config is NOT rejected —
+ * that is the intentional first-release state, and the existing
+ * pending-version / unbounded-window fallbacks for it are preserved unchanged.
  */
 export function assertReleaseTagHistory(options: AssertReleaseTagHistoryOptions): void {
   const cwd = resolve(options.cwd ?? process.cwd());
-  if (!isShallowRepository(cwd)) return;
   const requiredBy = options.requiredBy.filter(Boolean);
   const subject = requiredBy.length > 0 ? requiredBy.join(" ") : "Tag-derived release windows";
   const verb = requiredBy.length === 1 ? "requires" : "require";
-  throw new MissingTagHistoryError(
-    `Missing git tag history [${MISSING_TAG_HISTORY_ERROR_CODE}]: ${subject} ${verb} complete git release tag refs, ` +
-    `but ${cwd} is a shallow clone (git rev-parse --is-shallow-repository = true), so the tag history needed to derive the release window is unavailable. ` +
-    `Restore it with \`git fetch --tags --unshallow\` (or \`git fetch --tags\` when the clone is already full but lacks tag refs), then re-run the command.`,
-  );
+  if (isShallowRepository(cwd)) {
+    throw new MissingTagHistoryError(
+      `Missing git tag history [${MISSING_TAG_HISTORY_ERROR_CODE}]: ${subject} ${verb} complete git release tag refs, ` +
+      `but ${cwd} is a shallow clone (git rev-parse --is-shallow-repository = true), so the tag history needed to derive the release window is unavailable. ` +
+      `Restore it with \`git fetch --tags --unshallow\` (or \`git fetch --tags\` when the clone is already full but lacks tag refs), then re-run the command.`,
+    );
+  }
+  if (hasAnyTag(cwd)) return;
+  const noTagsRemote = tagExcludingRemote(cwd);
+  if (noTagsRemote) {
+    throw new MissingTagHistoryError(
+      `Missing git tag history [${MISSING_TAG_HISTORY_ERROR_CODE}]: ${subject} ${verb} complete git release tag refs, ` +
+      `but ${cwd} has zero tags and was cloned with --no-tags (git config ${noTagsRemote}.tagOpt = --no-tags), so tag refs are deliberately excluded from this checkout. ` +
+      `Restore them with \`git config --unset ${noTagsRemote}.tagOpt && git fetch --tags\`, then re-run the command.`,
+      [`git config --unset ${noTagsRemote}.tagOpt && git fetch --tags`],
+    );
+  }
+}
+
+function hasAnyTag(cwd: string): boolean {
+  return runGit(cwd, ["tag", "-l"]) !== undefined;
+}
+
+// `git clone --no-tags` durably records remote.<name>.tagOpt=--no-tags. A
+// zero-tag checkout carrying that config is a tag-excluding clone of a repo
+// whose tags were skipped — not a first-release repo. Returns the remote
+// config prefix (e.g. "remote.origin") so the diagnostic can name the exact
+// recovery command, or undefined when no remote excludes tags.
+function tagExcludingRemote(cwd: string): string | undefined {
+  const config = runGit(cwd, ["config", "--get-regexp", String.raw`^remote\..*\.tagopt$`]);
+  if (!config) return undefined;
+  for (const line of config.split("\n")) {
+    const [key, value] = line.trim().split(/\s+/, 2);
+    if (value === "--no-tags" && key) return key.replace(/\.tagopt$/i, "");
+  }
+  return undefined;
 }
 
 function isShallowRepository(cwd: string): boolean {

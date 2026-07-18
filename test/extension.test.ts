@@ -4,6 +4,7 @@ import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import test from "node:test";
+import { pathToFileURL } from "node:url";
 
 import extension from "../dist/extension.js";
 
@@ -133,7 +134,7 @@ test("changelog generate surfaces missing git tag history as a non-zero pm-cli e
   execFileSync("git", ["commit", "-m", "one"], { cwd: sourceDir, encoding: "utf-8" });
   execFileSync("git", ["tag", "v1.0.0"], { cwd: sourceDir, encoding: "utf-8" });
   const cloneDir = join(cloneParent, "clone");
-  execFileSync("git", ["clone", "--depth", "1", "--no-tags", `file://${sourceDir}`, cloneDir], { encoding: "utf-8" });
+  execFileSync("git", ["clone", "--depth", "1", "--no-tags", pathToFileURL(sourceDir).toString(), cloneDir], { encoding: "utf-8" });
 
   let command: { run?: (ctx: { options: Record<string, unknown>; pm_root: string }) => Promise<unknown> } | undefined;
   extension.activate({

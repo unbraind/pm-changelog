@@ -49,12 +49,16 @@ export interface AssertReleaseTagHistoryOptions {
  * Fail fast when tag-derived release windows are requested from a checkout
  * with incomplete git tag history.
  *
- * Only a shallow checkout is rejected: it provably omits tag refs the window
- * derivation depends on (even when some tags survive, the ones truncated away
- * silently collapse the window), so continuing would misreport a correct
- * CHANGELOG.md as stale. A full clone with zero tags is NOT rejected — that is
- * the intentional first-release state, and the existing pending-version /
- * unbounded-window fallbacks for it are preserved unchanged.
+ * Two checkout states are rejected because they provably omit tag refs the
+ * window derivation depends on:
+ *   - a shallow clone (even when some tags survive, the ones truncated away
+ *     silently collapse the window);
+ *   - a full clone configured to exclude tags (`git clone --no-tags` records
+ *     `remote.<name>.tagOpt=--no-tags`) that currently has zero tags.
+ * Continuing in either state would misreport a correct CHANGELOG.md as stale.
+ * A full clone with zero tags and NO tag-excluding config is NOT rejected —
+ * that is the intentional first-release state, and the existing
+ * pending-version / unbounded-window fallbacks for it are preserved unchanged.
  */
 export declare function assertReleaseTagHistory(options: AssertReleaseTagHistoryOptions): void;
 export interface ReleaseContext {

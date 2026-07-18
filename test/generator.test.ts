@@ -4,6 +4,7 @@ import { chmodSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync 
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import test from "node:test";
+import { pathToFileURL } from "node:url";
 
 import {
   buildPmListArgs,
@@ -1348,7 +1349,7 @@ function createShallowClone(t: test.TestContext, cloneArgs: string[]): { sourceD
   const cloneDir = join(cloneParent, "clone");
   // A file:// URL forces the transport path so --depth/--no-tags are honored
   // (plain local paths are hardlinked and ignore shallow flags).
-  execFileSync("git", ["clone", "--depth", "1", ...cloneArgs, `file://${sourceDir}`, cloneDir], { encoding: "utf-8" });
+  execFileSync("git", ["clone", "--depth", "1", ...cloneArgs, pathToFileURL(sourceDir).toString(), cloneDir], { encoding: "utf-8" });
   return { sourceDir, cloneDir };
 }
 
@@ -1393,6 +1394,41 @@ test("resolveReleaseContext rejects tag-derived flags in a shallow clone that ke
       return true;
     }
   );
+});
+
+test("resolveReleaseContext rejects tag-derived flags in a FULL clone made with --no-tags", (t) => {
+  const sourceDir = mkdtempSync(join(tmpdir(), "pm-changelog-notags-src-"));
+  const cloneParent = mkdtempSync(join(tmpdir(), "pm-changelog-notags-dst-"));
+  t.after(() => {
+    rmSync(sourceDir, { recursive: true, force: true });
+    rmSync(cloneParent, { recursive: true, force: true });
+  });
+  createTagHistorySourceRepo(sourceDir);
+  const cloneDir = join(cloneParent, "clone");
+  // Full-depth clone that deliberately excludes tags: not shallow, zero tags,
+  // but remote.origin.tagOpt records the exclusion.
+  execFileSync("git", ["clone", "--no-tags", pathToFileURL(sourceDir).toString(), cloneDir], { encoding: "utf-8" });
+  assert.equal(gitOutput(cloneDir, ["rev-parse", "--is-shallow-repository"]), "false");
+  assert.equal(gitOutput(cloneDir, ["tag", "--list"]), "");
+
+  assert.throws(
+    () => resolveReleaseContext({ cwd: cloneDir, version: "1.2.0", sincePreviousTag: true }),
+    (error: unknown) => {
+      assert.ok(error instanceof MissingTagHistoryError);
+      assert.equal(error.code, MISSING_TAG_HISTORY_ERROR_CODE);
+      assert.match(error.message, /--no-tags/);
+      assert.match(error.message, /git config --unset remote\.origin\.tagOpt && git fetch --tags/);
+      assert.deepEqual([...error.recoveryCommands], ["git config --unset remote.origin.tagOpt && git fetch --tags"]);
+      return true;
+    }
+  );
+
+  // The named recovery command actually converges: after it runs, the same
+  // call succeeds with the full window.
+  execFileSync("git", ["config", "--unset", "remote.origin.tagOpt"], { cwd: cloneDir, encoding: "utf-8" });
+  execFileSync("git", ["fetch", "--tags"], { cwd: cloneDir, encoding: "utf-8" });
+  const recovered = resolveReleaseContext({ cwd: cloneDir, version: "1.2.0", sincePreviousTag: true });
+  assert.equal(recovered.previousTag, "v1.1.0");
 });
 
 test("resolveReleaseContext keeps full-clone and zero-tag first-release behavior", (t) => {

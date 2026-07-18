@@ -21,12 +21,13 @@ validation requires a checkout with full tag history. Both repository
 workflows use `actions/checkout` with `fetch-depth: 0`.
 
 When `--since-previous-tag`, `--until-release-tag`, or `--all-release-tags`
-run in a shallow clone, the CLI fails fast with a structured
-`E_MISSING_TAG_HISTORY` diagnostic (naming the flags, the shallow checkout,
-and the recovery commands) instead of silently deriving an incomplete window
-and misreporting a correct `CHANGELOG.md` as stale. A full clone that
-genuinely has no release tags yet keeps the intentional first-release
-fallbacks. Restore the tag refs and re-run the gate:
+run in a shallow clone — or in a zero-tag full clone made with
+`git clone --no-tags` (detected via `remote.<name>.tagOpt`) — the CLI fails
+fast with a structured `E_MISSING_TAG_HISTORY` diagnostic (naming the flags,
+the offending checkout state, and the recovery commands) instead of silently
+deriving an incomplete window and misreporting a correct `CHANGELOG.md` as
+stale. A full clone that genuinely has no release tags yet keeps the
+intentional first-release fallbacks. Restore the tag refs and re-run the gate:
 
 ```bash
 # Shallow clone (git rev-parse --is-shallow-repository prints true):
@@ -34,6 +35,9 @@ git fetch --tags --unshallow
 
 # Full clone that is only missing tag refs:
 git fetch --tags
+
+# Clone made with --no-tags (git config remote.origin.tagOpt = --no-tags):
+git config --unset remote.origin.tagOpt && git fetch --tags
 ```
 
 A sandbox that intentionally omits tags cannot reconstruct the previous-tag to
