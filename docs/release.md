@@ -21,8 +21,9 @@ validation requires a checkout with full tag history. Both repository
 workflows use `actions/checkout` with `fetch-depth: 0`.
 
 When `--since-previous-tag`, `--until-release-tag`, or `--all-release-tags`
-run in a shallow clone — or in a zero-tag full clone made with
-`git clone --no-tags` (detected via `remote.<name>.tagOpt`) — the CLI fails
+run in a shallow clone — or in a full clone made with `git clone --no-tags`
+(detected via `remote.<name>.tagOpt`, regardless of how many tags were later
+fetched individually) — the CLI fails
 fast with a structured `E_MISSING_TAG_HISTORY` diagnostic (naming the flags,
 the offending checkout state, and the recovery commands) instead of silently
 deriving an incomplete window and misreporting a correct `CHANGELOG.md` as

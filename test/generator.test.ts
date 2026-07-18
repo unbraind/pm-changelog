@@ -1370,7 +1370,12 @@ test("resolveReleaseContext rejects tag-derived flags in a shallow tagless clone
       assert.match(error.message, /shallow clone/);
       assert.match(error.message, /git fetch --tags --unshallow/);
       assert.match(error.message, /git fetch --tags/);
-      assert.deepEqual([...error.recoveryCommands], ["git fetch --tags --unshallow", "git fetch --tags"]);
+      // This clone was made with --no-tags, so the recovery must also unset
+      // the tag-excluding config or the next run trips the tagOpt diagnostic.
+      assert.deepEqual(
+        [...error.recoveryCommands],
+        ["git config --unset remote.origin.tagOpt && git fetch --tags --unshallow"],
+      );
       return true;
     }
   );
@@ -1419,6 +1424,20 @@ test("resolveReleaseContext rejects tag-derived flags in a FULL clone made with 
       assert.match(error.message, /--no-tags/);
       assert.match(error.message, /git config --unset remote\.origin\.tagOpt && git fetch --tags/);
       assert.deepEqual([...error.recoveryCommands], ["git config --unset remote.origin.tagOpt && git fetch --tags"]);
+      return true;
+    }
+  );
+
+  // A single explicitly fetched tag does NOT unblock the guard: the tag set
+  // of a --no-tags clone is still untrustworthy (findPreviousTag would see no
+  // prior tag and silently derive an unbounded window).
+  execFileSync("git", ["fetch", "origin", "tag", "v1.2.0"], { cwd: cloneDir, encoding: "utf-8" });
+  assert.equal(gitOutput(cloneDir, ["tag", "--list"]), "v1.2.0");
+  assert.throws(
+    () => resolveReleaseContext({ cwd: cloneDir, version: "1.2.0", sincePreviousTag: true }),
+    (error: unknown) => {
+      assert.ok(error instanceof MissingTagHistoryError);
+      assert.match(error.message, /--no-tags/);
       return true;
     }
   );
@@ -1529,7 +1548,8 @@ test("CLI reports missing tag history instead of a stale changelog in a shallow 
   assert.doesNotMatch(shallow.stderr, /out of date/);
 
   // The documented recovery restores full tag history and the gate derives the
-  // real window again.
+  // real window again (this clone used --no-tags, so it also unsets tagOpt).
+  execFileSync("git", ["config", "--unset", "remote.origin.tagOpt"], { cwd: cloneDir, encoding: "utf-8" });
   execFileSync("git", ["fetch", "--tags", "--unshallow"], { cwd: cloneDir, encoding: "utf-8" });
   assert.equal(gitOutput(cloneDir, ["rev-parse", "--is-shallow-repository"]), "false");
   const recovered = spawnSync(

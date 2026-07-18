@@ -76,7 +76,10 @@ export interface AssertReleaseTagHistoryOptions {
  *   - a shallow clone (even when some tags survive, the ones truncated away
  *     silently collapse the window);
  *   - a full clone configured to exclude tags (`git clone --no-tags` records
- *     `remote.<name>.tagOpt=--no-tags`) that currently has zero tags.
+ *     `remote.<name>.tagOpt=--no-tags`), regardless of how many tags are
+ *     locally present — a tag-excluding checkout that picked up SOME tags
+ *     (single-tag fetch, later push) has a partial set that collapses the
+ *     previous-tag window just as silently as zero tags would.
  * Continuing in either state would misreport a correct CHANGELOG.md as stale.
  * A full clone with zero tags and NO tag-excluding config is NOT rejected —
  * that is the intentional first-release state, and the existing
@@ -87,32 +90,38 @@ export function assertReleaseTagHistory(options: AssertReleaseTagHistoryOptions)
   const requiredBy = options.requiredBy.filter(Boolean);
   const subject = requiredBy.length > 0 ? requiredBy.join(" ") : "Tag-derived release windows";
   const verb = requiredBy.length === 1 ? "requires" : "require";
+  const noTagsRemote = tagExcludingRemote(cwd);
   if (isShallowRepository(cwd)) {
+    // A shallow clone that ALSO excludes tags by config needs the config
+    // unset too, or the recovered checkout would trip the --no-tags
+    // diagnostic below on the next run.
+    const recovery = noTagsRemote
+      ? `git config --unset ${noTagsRemote}.tagOpt && git fetch --tags --unshallow`
+      : "git fetch --tags --unshallow";
     throw new MissingTagHistoryError(
       `Missing git tag history [${MISSING_TAG_HISTORY_ERROR_CODE}]: ${subject} ${verb} complete git release tag refs, ` +
       `but ${cwd} is a shallow clone (git rev-parse --is-shallow-repository = true), so the tag history needed to derive the release window is unavailable. ` +
-      `Restore it with \`git fetch --tags --unshallow\` (or \`git fetch --tags\` when the clone is already full but lacks tag refs), then re-run the command.`,
+      `Restore it with \`${recovery}\` (or \`git fetch --tags\` when the clone is already full but lacks tag refs), then re-run the command.`,
+      noTagsRemote ? [recovery] : undefined,
     );
   }
-  if (hasAnyTag(cwd)) return;
-  const noTagsRemote = tagExcludingRemote(cwd);
   if (noTagsRemote) {
+    // Rejected regardless of how many tags are present locally: a checkout
+    // that excludes tags by config may have picked up SOME tags (an explicit
+    // single-tag fetch, a later push), and a partial tag set silently
+    // collapses the previous-tag window just like zero tags would.
     throw new MissingTagHistoryError(
       `Missing git tag history [${MISSING_TAG_HISTORY_ERROR_CODE}]: ${subject} ${verb} complete git release tag refs, ` +
-      `but ${cwd} has zero tags and was cloned with --no-tags (git config ${noTagsRemote}.tagOpt = --no-tags), so tag refs are deliberately excluded from this checkout. ` +
+      `but ${cwd} was cloned with --no-tags (git config ${noTagsRemote}.tagOpt = --no-tags), so its tag refs are deliberately excluded and any tags present may be incomplete. ` +
       `Restore them with \`git config --unset ${noTagsRemote}.tagOpt && git fetch --tags\`, then re-run the command.`,
       [`git config --unset ${noTagsRemote}.tagOpt && git fetch --tags`],
     );
   }
 }
 
-function hasAnyTag(cwd: string): boolean {
-  return runGit(cwd, ["tag", "-l"]) !== undefined;
-}
-
 // `git clone --no-tags` durably records remote.<name>.tagOpt=--no-tags. A
-// zero-tag checkout carrying that config is a tag-excluding clone of a repo
-// whose tags were skipped — not a first-release repo. Returns the remote
+// checkout carrying that config is a tag-excluding clone whose tag set cannot
+// be trusted to be complete — not a first-release repo. Returns the remote
 // config prefix (e.g. "remote.origin") so the diagnostic can name the exact
 // recovery command, or undefined when no remote excludes tags.
 function tagExcludingRemote(cwd: string): string | undefined {

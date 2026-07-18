@@ -54,7 +54,10 @@ export interface AssertReleaseTagHistoryOptions {
  *   - a shallow clone (even when some tags survive, the ones truncated away
  *     silently collapse the window);
  *   - a full clone configured to exclude tags (`git clone --no-tags` records
- *     `remote.<name>.tagOpt=--no-tags`) that currently has zero tags.
+ *     `remote.<name>.tagOpt=--no-tags`), regardless of how many tags are
+ *     locally present — a tag-excluding checkout that picked up SOME tags
+ *     (single-tag fetch, later push) has a partial set that collapses the
+ *     previous-tag window just as silently as zero tags would.
  * Continuing in either state would misreport a correct CHANGELOG.md as stale.
  * A full clone with zero tags and NO tag-excluding config is NOT rejected —
  * that is the intentional first-release state, and the existing
