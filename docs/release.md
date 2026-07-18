@@ -17,13 +17,38 @@ The gate:
 - Checks that `CHANGELOG.md` is current.
 
 The changelog check derives its release window from git tags, so release
-validation requires a checkout with tag history. Both repository workflows use
-`actions/checkout` with `fetch-depth: 0`. Before running the gate in a shallow
-or tagless clone, restore the tag refs:
+validation requires a checkout with full tag history. Both repository
+workflows use `actions/checkout` with `fetch-depth: 0`.
+
+When `--since-previous-tag`, `--until-release-tag`, or `--all-release-tags`
+run in a shallow clone — or in a full clone made with `git clone --no-tags`
+(detected via `remote.<name>.tagOpt`, regardless of how many tags were later
+fetched individually) — the CLI fails
+fast with a structured `E_MISSING_TAG_HISTORY` diagnostic (naming the flags,
+the offending checkout state, and the recovery commands) instead of silently
+deriving an incomplete window and misreporting a correct `CHANGELOG.md` as
+stale. A full clone that genuinely has no release tags yet keeps the
+intentional first-release fallbacks. Restore the tag refs and re-run the gate:
 
 ```bash
-git fetch --tags --force
+# Shallow clone (git rev-parse --is-shallow-repository prints true):
+git fetch --tags --unshallow
+
+# Full clone that is only missing tag refs:
+git fetch --tags
+
+# Clone made with --no-tags (git config remote.origin.tagOpt = --no-tags):
+git config --unset remote.origin.tagOpt && git fetch --tags
+
+# Shallow clone that is ALSO --no-tags (unset the tag-excluding config first,
+# or the unshallowed clone still trips the --no-tags diagnostic on the next run):
+git config --unset remote.origin.tagOpt && git fetch --tags --unshallow
 ```
+
+The diagnostic always names the exact recovery for the checkout it detected, so
+following the commands in the emitted `E_MISSING_TAG_HISTORY` message is enough;
+the list above just enumerates every case. Each command in the message's
+`recoveryCommands` is independently executable and listed in run order.
 
 A sandbox that intentionally omits tags cannot reconstruct the previous-tag to
 release-tag window and is not a valid changelog release-gate environment.

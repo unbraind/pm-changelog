@@ -1,5 +1,11 @@
 # Changelog
 
+## Unreleased
+
+### Fixed
+
+- Detect missing git tag history before release-window changelog checks ([pmc-yzho](https://github.com/unbraind/pm-changelog/blob/main/.agents/pm/issues/pmc-yzho.toon))
+
 ## 2026.7.15-1 - 2026-07-15
 
 ### Fixed
