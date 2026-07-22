@@ -2,16 +2,19 @@ id: pmc-r9i0
 title: Recommend pm merge reconcile (2026.7.22) over raw history-repair in Multi-agent merge safety docs
 description: "pm-cli 2026.7.22 shipped GH-623 pm merge reconcile, a purpose-built audited post-merge reconciliation (preview via dry-run, apply with a message, then confirm with pm history --verify plus pm validate). Update the Multi-agent merge safety README section to recommend it over the blunt history-repair all-items primitive; link upstream MERGE_SAFETY guide. Fleet fan-out from canary pm-beads#42."
 type: Issue
-status: open
+status: closed
 priority: 3
 tags[3]: agent-ux,docs,multi-agent
 created_at: "2026-07-22T19:43:42.363Z"
-updated_at: "2026-07-22T19:43:42.363Z"
+updated_at: "2026-07-22T19:44:31.252Z"
 deadline: "2026-08-31T00:00:00.000Z"
-assignee: claude-opus-20260722
+closed_at: "2026-07-22T19:44:31.252Z"
 author: claude-opus-20260722
 estimated_minutes: 15
 acceptance_criteria: "README recommends pm merge reconcile with dry-run preview, apply, and pm history --verify plus pm validate confirmation; links upstream MERGE_SAFETY.md; CI green; PR bot-reviewed."
+resolution: "Migrated the Multi-agent merge safety README recommendation to the audited pm merge reconcile workflow (dry-run preview, apply, verify) and linked upstream MERGE_SAFETY.md."
+expected_result: "Agents merging concurrent branches are directed to pm merge reconcile, which re-greens pm history --verify + pm validate in one audited command with no data loss."
+actual_result: README updated and CHANGELOG regenerated; reconcile workflow verified end-to-end under pm-cli 2026.7.22 on the canary.
 dependencies[1]{id,kind,created_at,author,source_kind}:
   pmc-api6,related,"2026-07-22T19:43:42.363Z",null,null
 comments[1]{created_at,author,text}:
@@ -26,4 +29,5 @@ tests[1]{command,scope}:
   "npm run changelog:check",project
 docs[1]{path,scope,note}:
   "https://github.com/unbraind/pm-cli/blob/main/docs/MERGE_SAFETY.md",project,null
+close_reason: Docs updated to recommend the 2026.7.22 pm merge reconcile workflow (fan-out from pm-beads#42).
 body: "Migrates the closing recommendation of the Multi-agent merge safety README section to the dry-run then apply then verify pm merge reconcile workflow introduced in pm-cli 2026.7.22 (GH-623), keeping history-repair as a lower-level primitive."
