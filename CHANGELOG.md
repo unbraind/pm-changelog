@@ -1,5 +1,11 @@
 # Changelog
 
+## 2026.7.22 - 2026-07-22
+
+### Other
+
+- Adopt pm field-aware merge driver for multi-agent branch-merge safety ([pmc-api6](https://github.com/unbraind/pm-changelog/blob/main/.agents/pm/chores/pmc-api6.toon))
+
 ## 2026.7.18 - 2026-07-18
 
 ### Fixed
