@@ -6,15 +6,20 @@ import { buildChangelogDocument, createChangelog, createChangelogSummary, explai
 import { MissingTagHistoryError, resolveReleaseContext, resolveReleaseTagWindows } from "./release-context.js";
 const sdkExports = pmSdk;
 const listAllItemMetadata = (sdkExports.listAllItemMetadata ?? sdkExports[["listAll", "Front", "Matter"].join("")]);
+function isRenderedCommandResult(value) {
+    return (typeof value === "object" &&
+        value !== null &&
+        "pmChangelogRendered" in value &&
+        value.pmChangelogRendered === true &&
+        "output" in value &&
+        typeof value.output === "string");
+}
 function renderedCommandResult(value) {
     const output = `${JSON.stringify(value, null, 2)}\n`;
     return { pmChangelogRendered: true, output };
 }
 function renderCommandResult(context) {
-    const result = context?.result;
-    return result?.pmChangelogRendered === true && typeof result.output === "string"
-        ? result.output
-        : null;
+    return isRenderedCommandResult(context?.result) ? context.result.output : null;
 }
 export default defineExtension({
     name: "pm-changelog",
@@ -345,12 +350,16 @@ export default defineExtension({
             api.registerFlags("changelog export", changelogExportMetadata.flags);
         }
         // Register renderer overrides so json-mode results print verbatim JSON to
-        // stdout under both the default (toon) and global --json renderers. Guarded
-        // for older hosts without renderer support.
-        const registerRenderer = api.registerRenderer;
-        if (typeof registerRenderer === "function") {
-            registerRenderer("toon", renderCommandResult);
-            registerRenderer("json", renderCommandResult);
+        // stdout under both the default (toon) and global --json renderers. The host
+        // enforces command and result ownership before invoking either callback.
+        if (typeof api.registerRenderer === "function") {
+            const registerScopedRenderer = api.registerRenderer;
+            const rendererOwnership = {
+                commands: ["changelog generate", "changelog export"],
+                resultDiscriminator: isRenderedCommandResult,
+            };
+            registerScopedRenderer("toon", renderCommandResult, rendererOwnership);
+            registerScopedRenderer("json", renderCommandResult, rendererOwnership);
         }
     },
 });

@@ -96,11 +96,11 @@
     ]
   },
   "peerDependencies": {
-    "@unbrained/pm-cli": ">=2026.7.11"
+    "@unbrained/pm-cli": ">=2026.7.24"
   },
   "devDependencies": {
     "@types/node": "^26.1.1",
-    "@unbrained/pm-cli": "^2026.7.22",
+    "@unbrained/pm-cli": "^2026.7.23",
     "typescript": "^7.0.2"
   },
   "keywords": [
