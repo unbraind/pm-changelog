@@ -6,6 +6,7 @@ import { buildChangelogDocument, createChangelog, createChangelogSummary, explai
 import { MissingTagHistoryError, resolveReleaseContext, resolveReleaseTagWindows } from "./release-context.js";
 const sdkExports = pmSdk;
 const listAllItemMetadata = (sdkExports.listAllItemMetadata ?? sdkExports[["listAll", "Front", "Matter"].join("")]);
+/** Determine whether an unknown command result carries valid pre-rendered changelog output. */
 function isRenderedCommandResult(value) {
     return (typeof value === "object" &&
         value !== null &&
@@ -14,10 +15,12 @@ function isRenderedCommandResult(value) {
         "output" in value &&
         typeof value.output === "string");
 }
+/** Serialize a structured changelog value into the marker consumed by scoped renderers. */
 function renderedCommandResult(value) {
     const output = `${JSON.stringify(value, null, 2)}\n`;
     return { pmChangelogRendered: true, output };
 }
+/** Return owned pre-rendered output or defer unrelated results to the host renderer. */
 function renderCommandResult(context) {
     return isRenderedCommandResult(context?.result) ? context.result.output : null;
 }

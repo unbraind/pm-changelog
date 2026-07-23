@@ -23,19 +23,29 @@ const listAllItemMetadata = (
   sdkExports.listAllItemMetadata ?? sdkExports[["listAll", "Front", "Matter"].join("")]
 ) as ItemMetadataReader;
 
-// Renderer-override plumbing (mirrors pm-brief/pm-context): a command handler
-// can return a marker carrying a pre-rendered string, and the registered toon/
-// json renderers print that string verbatim to stdout. This makes `--format
-// json` emit real JSON on stdout without requiring the global `--json` flag,
-// while any non-marker return still falls through to pm's default rendering.
+/**
+ * Marks a command result as JSON text that pm-changelog has already rendered.
+ *
+ * Scoped host ownership ensures only changelog commands can route this marker
+ * to the extension's toon and JSON renderer callbacks.
+ */
 interface RenderedCommandResult {
   pmChangelogRendered: true;
   output: string;
 }
+
+/**
+ * Mirrors the scoped renderer ownership contract introduced by pm-cli 2026.7.24.
+ *
+ * Keeping this local compatibility shape lets the package compile against the
+ * immediately preceding SDK while its manifest prevents activation there.
+ */
 interface RendererOverrideOwnership {
   commands?: string[];
   resultDiscriminator?: (result: unknown) => boolean;
 }
+
+/** Determine whether an unknown command result carries valid pre-rendered changelog output. */
 function isRenderedCommandResult(value: unknown): value is RenderedCommandResult {
   return (
     typeof value === "object" &&
@@ -46,10 +56,14 @@ function isRenderedCommandResult(value: unknown): value is RenderedCommandResult
     typeof value.output === "string"
   );
 }
+
+/** Serialize a structured changelog value into the marker consumed by scoped renderers. */
 function renderedCommandResult(value: unknown): RenderedCommandResult {
   const output = `${JSON.stringify(value, null, 2)}\n`;
   return { pmChangelogRendered: true, output };
 }
+
+/** Return owned pre-rendered output or defer unrelated results to the host renderer. */
 function renderCommandResult(context: { result?: unknown } | undefined): string | null {
   return isRenderedCommandResult(context?.result) ? context.result.output : null;
 }
