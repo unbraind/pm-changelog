@@ -2,22 +2,22 @@ id: pmc-dkmm
 title: Adopt scoped renderer ownership for changelog JSON output
 description: Migrate pm-changelog's toon/json overrides to the pm SDK scoped renderer ownership contract so isolated package doctor can prove the callbacks only own changelog command results.
 type: Task
-status: in_progress
+status: blocked
 priority: 2
 tags: []
 created_at: "2026-07-23T15:06:24.649Z"
-updated_at: "2026-07-23T16:52:42.653Z"
-assignee: claude-code-agent
+updated_at: "2026-07-23T16:56:46.788Z"
 author: claude-code-agent
 acceptance_criteria: Both renderer registrations declare changelog command ownership and a RenderedCommandResult discriminator; unrelated results bypass the callback; package tests and isolated doctor pass against the scoped-renderer SDK.
 dependencies[1]{id,kind,created_at,author,source_kind}:
   pmc-nagj,related,"2026-07-23T15:06:24.649Z",null,null
-comments[5]{created_at,author,text}:
+comments[6]{created_at,author,text}:
   "2026-07-23T15:06:24.649Z",claude-code-agent,"Duplicate check 2026-07-23: all-status search for renderer ownership and doctor found only closed pmc-nagj, which introduced the unscoped JSON renderer behavior; this task is its non-duplicative SDK migration."
   "2026-07-23T15:07:50.380Z",claude-code-agent,"Implementation checkpoint: toon/json registrations now share host-enforced ownership for changelog generate/export plus a RenderedCommandResult discriminator. Local pm-cli SDK typecheck/build and the focused extension suite pass; full package and isolated installed-doctor acceptance waits for the pm-cli scoped-renderer release."
   "2026-07-23T16:41:41.998Z",claude-code-agent,"Dependency boundary: npm pm-cli 2026.7.23 predates scoped renderer ownership, while merged main 9b079a56 contains the reviewed contract. The package now declares pm >=2026.7.24 and pins its development SDK to that exact merged commit so CI validates the real contract without falsely claiming the current registry version supports it."
   "2026-07-23T16:45:03.965Z",claude-code-agent,"Correction to dependency checkpoint: a Git source dependency was rejected because npm does not run pm-cli's prepublish build and therefore exposes no dist SDK. The committed lock remains on published 2026.7.23 for backward type compilation via an exact local compatibility signature copied from merged SDK types; peer/manifest require 2026.7.24, and full installed-doctor acceptance remains deliberately blocked until that daily release exists. Focused build, 6 extension contract tests, zero-vulnerability production audit, and 37-file pack dry-run pass."
   "2026-07-23T16:52:42.653Z",claude-code-agent,"Review checkpoint: CodeRabbit's only actionable finding confirms the declared blocker—dev SDK and lock must align to 2026.7.24 before merge. The finding was upvoted and acknowledged inline, remains unresolved intentionally, and renderer marker/ownership/type-guard/render functions now carry explicit contract docstrings."
+  "2026-07-23T16:56:46.220Z",claude-code-agent,"Pause state: dependent draft PR #90 is at exact head 09e69d0 with all bot feedback reacted and acknowledged. CI proves 147/149 tests pass; only the two installed-package tests fail because current npm pm-cli 2026.7.23 correctly cannot satisfy manifest floor 2026.7.24. Resume after the next pm-cli daily release: align dev dependency/lock, run full tests and doctor, resolve CodeRabbit, mark ready, merge, and release. Five older cross-owner in-progress items were fully verified against merged/released repository state, but pm correctly refused their closeout without an ownership override; no force was used."
 files[8]{path,scope,note}:
   dist/extension.js,project,published runtime build
   dist/extension.js.map,project,published runtime source map
