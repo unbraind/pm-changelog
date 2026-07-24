@@ -6,15 +6,30 @@ import { buildChangelogDocument, createChangelog, createChangelogSummary, explai
 import { MissingTagHistoryError, resolveReleaseContext, resolveReleaseTagWindows } from "./release-context.js";
 const sdkExports = pmSdk;
 const listAllItemMetadata = (sdkExports.listAllItemMetadata ?? sdkExports[["listAll", "Front", "Matter"].join("")]);
+/** Determine whether an unknown command result carries valid pre-rendered changelog output. */
+function isRenderedCommandResult(value) {
+    return (typeof value === "object" &&
+        value !== null &&
+        "pmChangelogRendered" in value &&
+        value.pmChangelogRendered === true &&
+        "output" in value &&
+        typeof value.output === "string");
+}
+/** Serialize a structured changelog value into the marker consumed by scoped renderers. */
 function renderedCommandResult(value) {
-    const output = `${JSON.stringify(value, null, 2)}\n`;
+    // `value` is `unknown`, so `undefined`/functions/symbols are reachable inputs;
+    // `JSON.stringify` returns `undefined` for those, which would print the literal
+    // string "undefined" instead of JSON. Reject rather than emit invalid output.
+    const serialized = JSON.stringify(value, null, 2);
+    if (serialized === undefined) {
+        throw new TypeError("Rendered changelog value is not JSON-serializable");
+    }
+    const output = `${serialized}\n`;
     return { pmChangelogRendered: true, output };
 }
+/** Return owned pre-rendered output or defer unrelated results to the host renderer. */
 function renderCommandResult(context) {
-    const result = context?.result;
-    return result?.pmChangelogRendered === true && typeof result.output === "string"
-        ? result.output
-        : null;
+    return isRenderedCommandResult(context?.result) ? context.result.output : null;
 }
 export default defineExtension({
     name: "pm-changelog",
@@ -345,12 +360,20 @@ export default defineExtension({
             api.registerFlags("changelog export", changelogExportMetadata.flags);
         }
         // Register renderer overrides so json-mode results print verbatim JSON to
-        // stdout under both the default (toon) and global --json renderers. Guarded
-        // for older hosts without renderer support.
-        const registerRenderer = api.registerRenderer;
-        if (typeof registerRenderer === "function") {
-            registerRenderer("toon", renderCommandResult);
-            registerRenderer("json", renderCommandResult);
+        // stdout under both the default (toon) and global --json renderers. The host
+        // enforces command and result ownership before invoking either callback.
+        if (typeof api.registerRenderer === "function") {
+            // Pass the ownership object straight to registerRenderer — no cast — so
+            // TypeScript validates it against pm-cli 2026.7.24's registerRenderer
+            // signature (the ownership param type is not re-exported from /sdk, but the
+            // call site is still fully checked). The host enforces `commands` +
+            // `resultDiscriminator` before invoking either callback.
+            const rendererOwnership = {
+                commands: ["changelog generate", "changelog export"],
+                resultDiscriminator: isRenderedCommandResult,
+            };
+            api.registerRenderer("toon", renderCommandResult, rendererOwnership);
+            api.registerRenderer("json", renderCommandResult, rendererOwnership);
         }
     },
 });
