@@ -547,7 +547,11 @@ function normalizeExcludeTags(excludeTags: string[] | undefined): Set<string> {
 
 function hasExcludedTag(item: PmItem, excludeTags: Set<string>): boolean {
   if (excludeTags.size === 0) return false;
-  return (item.tags ?? []).some((tag) => excludeTags.has(String(tag).trim().toLowerCase()));
+  // Real pm workspaces carry malformed `tags` values (a bare string instead of an
+  // array), which `--section-by label` already tolerates. Treat anything that is
+  // not an array as untagged rather than throwing mid-generation.
+  const tags = Array.isArray(item.tags) ? item.tags : [];
+  return tags.some((tag) => excludeTags.has(String(tag).trim().toLowerCase()));
 }
 
 /**

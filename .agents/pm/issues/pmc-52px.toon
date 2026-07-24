@@ -6,7 +6,7 @@ status: open
 priority: 1
 tags[4]: changelog,correctness,multi-agent,release-attribution
 created_at: "2026-07-24T19:26:27.775Z"
-updated_at: "2026-07-24T19:26:27.775Z"
+updated_at: "2026-07-24T20:08:32.738Z"
 deadline: "2026-07-25T00:00:00.000Z"
 assignee: claude-opus-5
 author: claude-opus-5
@@ -27,5 +27,5 @@ files[1]{path,scope,note}:
 tests[1]{command,scope}:
   "npm test && npm run changelog:check",project
 docs[1]{path,scope,note}:
-  README.md#release-attribution,project,null
+  README.md#release-attribution-work-that-shipped-before-its-tracker-was-closed,project,null
 body: "## Repro (real data)\n\n1. pm create + pm update --release 2026.6.1 + pm close (closed_at = today)\n2. Multi-window: pm-changelog --all-release-tags -> item under '## 2026.6.1' (correct, honors release)\n3. Single-window: pm-changelog --release-version 2026.7.24 --since <today> -> item under '## 2026.7.24' (wrong, ignores release)\n\n## Fix direction\n\nHonor the release field in the single-window path behind an opt-in flag so default output stays byte-identical for the 18 fleet consumers whose CI runs changelog:check."

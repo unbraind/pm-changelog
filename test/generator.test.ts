@@ -2706,3 +2706,24 @@ test("excludeTags applies to the release-window history path as well", () => {
   assert.match(markdown, /Real change/);
   assert.doesNotMatch(markdown, /Upstream tracker/);
 });
+
+test("excludeTags tolerates malformed non-array tags instead of throwing", () => {
+  // Real workspaces carry `tags` as a bare string; `--section-by label` already
+  // tolerates it, so the exclude filter must not be the one path that crashes.
+  const malformed = {
+    id: "pm-bad",
+    title: "Malformed tags",
+    status: "closed",
+    type: "Issue",
+    closed_at: "2026-07-24T10:00:00Z",
+    tags: "changelog:ignore" as unknown as string[],
+  };
+  const { markdown } = createChangelog({
+    items: [malformed],
+    version: "2026.7.24",
+    date: "2026-07-24",
+    excludeTags: ["changelog:ignore"],
+  });
+  // Not silently excluded either: a non-array value carries no matchable tag.
+  assert.match(markdown, /Malformed tags/);
+});
