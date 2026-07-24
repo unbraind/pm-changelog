@@ -511,24 +511,85 @@ function filterItems(options: GenerateChangelogOptions): PmItem[] {
   const items = filterItemsByStatus(options);
   if (options.releaseWindows && options.releaseWindows.length > 0) return items;
 
-  return filterItemsByTime(items, {
+  const withinWindow = filterItemsByTime(items, {
     since: options.since,
     until: options.until,
   });
+  return applyItemReleaseAttribution(items, withinWindow, options);
 }
 
 function filterItemsByStatus(options: GenerateChangelogOptions): PmItem[] {
   const statuses = new Set(
     (options.includeStatuses ?? DEFAULT_STATUSES).map((status) => status.toLowerCase())
   );
+  const excludeTags = normalizeExcludeTags(options.excludeTags);
 
   return options.items
     .filter((item) => item.title)
+    .filter((item) => !hasExcludedTag(item, excludeTags))
     .filter((item) => {
       if (statuses.size === 0) return true;
       return statuses.has(String(item.status ?? "").toLowerCase());
     })
     .sort(compareItems);
+}
+
+/** Normalized lookup set for the opt-in `--exclude-tag` filter. Empty when the
+ * option is absent, which keeps `hasExcludedTag` a no-op. */
+function normalizeExcludeTags(excludeTags: string[] | undefined): Set<string> {
+  const normalized = new Set<string>();
+  for (const tag of excludeTags ?? []) {
+    const key = tag.trim().toLowerCase();
+    if (key) normalized.add(key);
+  }
+  return normalized;
+}
+
+function hasExcludedTag(item: PmItem, excludeTags: Set<string>): boolean {
+  if (excludeTags.size === 0) return false;
+  // Real pm workspaces carry malformed `tags` values (a bare string instead of an
+  // array), which `--section-by label` already tolerates. Treat anything that is
+  // not an array as untagged rather than throwing mid-generation.
+  const tags = Array.isArray(item.tags) ? item.tags : [];
+  return tags.some((tag) => excludeTags.has(String(tag).trim().toLowerCase()));
+}
+
+/**
+ * OPT-IN (`--respect-item-release`): apply an item's declared `release` as the
+ * authority for which single version window it belongs to, mirroring what
+ * `assignItemsToReleaseWindows` already does for `--all-release-tags`.
+ *
+ * A declared release pins the item: matching `options.version` keeps it even
+ * when its timestamps fall outside the window (the tracker may have been closed
+ * in a later release), and any other value drops it (the work shipped
+ * elsewhere). Items without a declared release keep the plain time-window
+ * result, so output is unchanged for workspaces that never set the field.
+ */
+function applyItemReleaseAttribution(
+  statusFiltered: PmItem[],
+  withinWindow: PmItem[],
+  options: GenerateChangelogOptions
+): PmItem[] {
+  if (!options.respectItemRelease || !usesSingleVersionSection(options)) return withinWindow;
+
+  const windowKey = options.version ? normalizeReleaseKey(options.version) : "";
+  const withinWindowRefs = new Set(withinWindow);
+  return statusFiltered.filter((item) => {
+    const declared = getStringField(item, "release");
+    if (!declared) return withinWindowRefs.has(item);
+    const declaredKey = normalizeReleaseKey(declared);
+    return Boolean(declaredKey) && declaredKey === windowKey;
+  });
+}
+
+/** Whether `buildSections` will emit a single `## version - date` section, as
+ * opposed to `releaseWindows` history or `groupBy` release/milestone grouping.
+ * Release attribution only applies to that single-window shape; the grouped
+ * modes key their headings off the same field and must not have items removed. */
+function usesSingleVersionSection(options: GenerateChangelogOptions): boolean {
+  if (options.releaseWindows && options.releaseWindows.length > 0) return false;
+  if (options.version) return true;
+  return options.groupBy !== "release" && options.groupBy !== "milestone";
 }
 
 function buildSections(items: PmItem[], options: GenerateChangelogOptions): ChangelogSection[] {
@@ -976,18 +1037,26 @@ function buildSelectionHints(input: {
   hasReleaseWindows: boolean;
   excludedCounts: {
     missing_title: number;
+    excluded_tag: number;
     status: number;
     time_window: number;
+    item_release: number;
     release_window: number;
     hidden_by_visibility: number;
   };
 }): string[] {
   const hints: string[] = [];
+  if (input.excludedCounts.excluded_tag > 0) {
+    hints.push("Some items were dropped by --exclude-tag; drop the flag or retag those items to include them.");
+  }
   if (input.excludedCounts.status > 0) {
     hints.push("Some items were excluded by status; expand --status (for example: --status open,closed).");
   }
   if (input.excludedCounts.time_window > 0) {
     hints.push("Time filtering excluded items; widen --since/--until if those items should be included.");
+  }
+  if (input.excludedCounts.item_release > 0) {
+    hints.push("Items declaring a different release were excluded by --respect-item-release; run with --all-release-tags to see them under the release they shipped in.");
   }
   if (input.hasReleaseWindows && input.excludedCounts.release_window > 0) {
     hints.push("Some items fell outside release tag windows; verify tag boundaries or item release metadata.");
@@ -1179,9 +1248,17 @@ export function explainChangelogSelection(options: GenerateChangelogOptions): Ch
     else missingTitle.push(item);
   }
 
+  const excludeTags = normalizeExcludeTags(options.excludeTags);
+  const afterExcludedTags: PmItem[] = [];
+  const excludedByTag: PmItem[] = [];
+  for (const item of withTitle) {
+    if (hasExcludedTag(item, excludeTags)) excludedByTag.push(item);
+    else afterExcludedTags.push(item);
+  }
+
   const afterStatus: PmItem[] = [];
   const excludedByStatus: PmItem[] = [];
-  for (const item of withTitle) {
+  for (const item of afterExcludedTags) {
     if (statuses.size === 0 || statuses.has(String(item.status ?? "").toLowerCase())) {
       afterStatus.push(item);
     } else {
@@ -1200,12 +1277,33 @@ export function explainChangelogSelection(options: GenerateChangelogOptions): Ch
     ? []
     : afterStatus.filter((item) => !afterTimeRefs.has(item));
 
-  const sections = buildSections(afterTime, options);
+  // OPT-IN (`--respect-item-release`): a declared release overrides the time
+  // window, so report the net effect as its own stage. Items the attribution
+  // pass re-admits (pinned to this version but closed outside the window) are
+  // removed from the time-window exclusions to keep the counts honest.
+  const attributionApplies = Boolean(options.respectItemRelease) && usesSingleVersionSection(options);
+  const afterItemRelease = attributionApplies
+    ? applyItemReleaseAttribution(afterStatus, afterTime, options)
+    : afterTime;
+  const afterItemReleaseRefs = new Set(afterItemRelease);
+  const excludedByItemRelease = attributionApplies
+    ? afterStatus.filter(
+        (item) => !afterItemReleaseRefs.has(item) && Boolean(getStringField(item, "release"))
+      )
+    : [];
+  const excludedByItemReleaseRefs = new Set(excludedByItemRelease);
+  const excludedByTimeNet = attributionApplies
+    ? excludedByTime.filter(
+        (item) => !afterItemReleaseRefs.has(item) && !excludedByItemReleaseRefs.has(item)
+      )
+    : excludedByTime;
+
+  const sections = buildSections(afterItemRelease, options);
   const assignedToReleaseWindows = new Set(
     hasReleaseWindows ? sections.flatMap((section) => section.items) : []
   );
   const excludedByReleaseWindow = hasReleaseWindows
-    ? afterTime.filter((item) => !assignedToReleaseWindows.has(item))
+    ? afterItemRelease.filter((item) => !assignedToReleaseWindows.has(item))
     : [];
 
   const candidateSections = options.includeEmpty
@@ -1221,8 +1319,10 @@ export function explainChangelogSelection(options: GenerateChangelogOptions): Ch
 
   const excludedCounts = {
     missing_title: missingTitle.length,
+    excluded_tag: excludedByTag.length,
     status: excludedByStatus.length,
-    time_window: excludedByTime.length,
+    time_window: excludedByTimeNet.length,
+    item_release: excludedByItemRelease.length,
     release_window: excludedByReleaseWindow.length,
     hidden_by_visibility: hiddenByVisibility.length,
   };
@@ -1237,13 +1337,17 @@ export function explainChangelogSelection(options: GenerateChangelogOptions): Ch
       include_empty: Boolean(options.includeEmpty),
       limit: options.limit,
       since_version: options.sinceVersion,
+      exclude_tags: excludeTags.size > 0 ? Array.from(excludeTags) : undefined,
+      respect_item_release: options.respectItemRelease ? true : undefined,
     },
     stage_counts: {
       input: options.items.length,
       after_title: withTitle.length,
+      after_excluded_tags: afterExcludedTags.length,
       after_status: afterStatus.length,
       after_time: afterTime.length,
-      after_release_windows: hasReleaseWindows ? afterTime.length - excludedByReleaseWindow.length : undefined,
+      after_item_release: attributionApplies ? afterItemRelease.length : undefined,
+      after_release_windows: hasReleaseWindows ? afterItemRelease.length - excludedByReleaseWindow.length : undefined,
       candidate_sections: candidateSections.length,
       visible_sections: visibleSections.length,
       candidate_items: candidateItems.length,
@@ -1252,8 +1356,10 @@ export function explainChangelogSelection(options: GenerateChangelogOptions): Ch
     excluded_counts: excludedCounts,
     sample_items: {
       missing_title: sampleItems(missingTitle),
+      excluded_tag: sampleItems(excludedByTag),
       status: sampleItems(excludedByStatus),
-      time_window: sampleItems(excludedByTime),
+      time_window: sampleItems(excludedByTimeNet),
+      item_release: sampleItems(excludedByItemRelease),
       release_window: sampleItems(excludedByReleaseWindow),
       hidden_by_visibility: sampleItems(hiddenByVisibility),
     },

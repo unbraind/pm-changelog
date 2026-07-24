@@ -299,3 +299,79 @@ test("CLI rejects unsupported --format values", () => {
   assert.notEqual(result.status, 0);
   assert.match(result.stderr, /--format must be 'md' or 'json'/);
 });
+
+// --- Release attribution + tag exclusion CLI surface --------------------------
+
+const ATTRIBUTION_FIXTURE = {
+  items: [
+    { id: "pm-here", title: "Ship attribution", status: "closed", type: "Feature", release: "1.2.0", closed_at: "2026-05-28T09:00:00Z" },
+    { id: "pm-elsewhere", title: "Shipped in an older release", status: "closed", type: "Issue", release: "1.1.0", closed_at: "2026-05-28T09:00:00Z" },
+    { id: "pm-tracker", title: "Upstream tracker mirror", status: "closed", type: "Issue", tags: ["changelog:ignore"], closed_at: "2026-05-28T09:00:00Z" },
+    { id: "pm-plain", title: "Undeclared change", status: "closed", type: "Task", closed_at: "2026-05-28T09:00:00Z" },
+  ],
+};
+
+function writeAttributionFixture(): string {
+  const dir = mkdtempSync(join(tmpdir(), "pm-changelog-attribution-"));
+  const path = join(dir, "items.json");
+  writeFileSync(path, JSON.stringify(ATTRIBUTION_FIXTURE), "utf-8");
+  return path;
+}
+
+test("CLI default output ignores the release field and the ignore tag", () => {
+  const fixture = writeAttributionFixture();
+  const output = runCli(["--input", fixture, "--release-version", "1.2.0", "--date", "2026-05-28", "--stdout"]);
+  assert.match(output, /Ship attribution/);
+  assert.match(output, /Shipped in an older release/);
+  assert.match(output, /Upstream tracker mirror/);
+  assert.match(output, /Undeclared change/);
+});
+
+test("CLI --respect-item-release drops items pinned to another release", () => {
+  const fixture = writeAttributionFixture();
+  const output = runCli([
+    "--input", fixture, "--release-version", "1.2.0", "--date", "2026-05-28", "--stdout",
+    "--respect-item-release",
+  ]);
+  assert.match(output, /Ship attribution/);
+  assert.doesNotMatch(output, /Shipped in an older release/);
+  assert.match(output, /Undeclared change/);
+});
+
+test("CLI --exclude-tag accepts repeated, comma-separated and --flag=value forms", () => {
+  const fixture = writeAttributionFixture();
+  const expectExcluded = (args: string[]) => {
+    const output = runCli(["--input", fixture, "--release-version", "1.2.0", "--date", "2026-05-28", "--stdout", ...args]);
+    assert.doesNotMatch(output, /Upstream tracker mirror/);
+    assert.match(output, /Undeclared change/);
+  };
+  expectExcluded(["--exclude-tag", "changelog:ignore"]);
+  expectExcluded(["--exclude-tag=changelog:ignore"]);
+  expectExcluded(["--exclude-tag", "unused,changelog:ignore"]);
+  expectExcluded(["--exclude-tag", "unused", "--exclude-tag", "changelog:ignore"]);
+  expectExcluded(["--exclude-tags", "changelog:ignore"]);
+});
+
+test("CLI --explain reports the new exclusion stages", () => {
+  const fixture = writeAttributionFixture();
+  const result = runCliDetailed([
+    "--input", fixture, "--release-version", "1.2.0", "--date", "2026-05-28", "--stdout",
+    "--respect-item-release", "--exclude-tag", "changelog:ignore", "--explain",
+  ]);
+  assert.equal(result.status, 0);
+  assert.match(result.stderr, /tag=1/);
+  assert.match(result.stderr, /item_release=1/);
+});
+
+test("CLI suggests the closest flag for a misspelled --item-ref-style", () => {
+  const fixture = writeAttributionFixture();
+  const result = runCliDetailed(["--input", fixture, "--stdout", "--item-ref-styl", "label"]);
+  assert.equal(result.status, 1);
+  assert.match(result.stderr, /Did you mean '--item-ref-style'\?/);
+});
+
+test("CLI help documents the release-attribution and exclude-tag flags", () => {
+  const output = runCli(["--help"]);
+  assert.match(output, /--respect-item-release/);
+  assert.match(output, /--exclude-tag <list>/);
+});

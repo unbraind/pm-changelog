@@ -75,10 +75,19 @@ test("extension command exposes item-url-base for clickable item IDs", () => {
     registeredCommand.flags?.some((flag) => flag.long === "--release-tag-pattern"),
     "changelog generate should expose full-history tag glob configuration through pm contracts"
   );
-  for (const flag of ["--section-by", "--conventional", "--contributors", "--limit", "--since-version", "--include-metadata", "--changelog-json", "--explain", "--summary", "--format"]) {
+  for (const flag of ["--section-by", "--conventional", "--contributors", "--limit", "--since-version", "--include-metadata", "--changelog-json", "--explain", "--summary", "--format", "--item-ref-style", "--exclude-tag", "--respect-item-release"]) {
     assert.ok(
       registeredCommand.flags?.some((f) => f.long === flag),
       `changelog generate should expose ${flag} through pm contracts`
+    );
+  }
+  // Both subcommands must carry the release-attribution surface: release notes
+  // are generated through the exporter, so an exporter missing the flags would
+  // silently misattribute closed-late trackers.
+  for (const flag of ["--item-ref-style", "--exclude-tag", "--respect-item-release"]) {
+    assert.ok(
+      registeredExporter.flags?.some((f) => f.long === flag),
+      `changelog export should expose ${flag} through pm contracts`
     );
   }
   assert.deepEqual(

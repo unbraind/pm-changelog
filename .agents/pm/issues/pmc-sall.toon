@@ -2,12 +2,17 @@ id: pmc-sall
 title: Stabilize calendar release headings across the zero-padded tag boundary
 description: "GitHub issue #41: release headings flip from unpadded package version to zero-padded tag form once the padded git tag is pushed, breaking post-tag changelog:check fleet-wide."
 type: Issue
-status: in_progress
+status: closed
 priority: 1
 tags[4]: changelog,ecosystem-pass-2026-06-13,issue-41,release-stability
 created_at: "2026-06-13T04:30:40.091Z"
-updated_at: "2026-06-13T04:31:00.501Z"
-assignee: opus-changelog-41
+updated_at: "2026-07-24T19:36:43.873Z"
+closed_at: "2026-07-24T19:36:43.872Z"
 author: opus-changelog-41
 acceptance_criteria: "formatTagVersion renders padded calendar tags as unpadded headings; filterItemsByTime compares boundaries at second granularity; new regression tests cover both; pm-changelog and pm-beads changelog:check pass with the fixed build."
+release: 2026.6.13
+resolution: "Calendar release headings stay unpadded (YYYY.M.D) across the zero-padded tag boundary — shipped in commit fa33b33, first contained in tag v2026.6.13. Verified live in src/release-context.ts and by the padded-tag regression tests."
+expected_result: "Release headings no longer flip to the zero-padded tag form once a padded git tag is pushed, keeping post-tag changelog:check green fleet-wide."
+actual_result: "Confirmed at HEAD: release-context normalizes padded tags back to the unpadded calendar form; the 2026.6.13 heading in CHANGELOG.md is unpadded and changelog:check is green. Closure is safe now because --release 2026.6.13 + --respect-item-release pin the entry to its actual release instead of today's window."
+close_reason: Verified fixed and shipped in v2026.6.13; attributed via --release so the changelog dates it correctly
 body: "## Root cause\ncanonicalPendingTagName preserves the unpadded `v2026.6.13` for the pre-tag pending window, but once the padded tag `v2026.06.13` exists the window heading is built from formatTagVersion(tag.name), which only stripped the leading `v` -> padded `2026.06.13`. The committed (pre-tag, unpadded) CHANGELOG then mismatches every later regeneration and changelog:check fails on every released repo at HEAD.\n\n## Fix\n1. formatTagVersion: normalize calendar (YYYY.M.D[-N]) tags to unpadded form, matching the pending heading and the pm-cli release pipeline. Non-calendar (semver) tags untouched.\n2. filterItemsByTime: compare since/until at second granularity (git tag committer dates are second-precision; pm items carry ms) so an item closed at HH:MM:SS.789 stays in the release tagged at HH:MM:SS instead of resurfacing under Unreleased.\n\n## Verification\n- 100 unit tests pass (+3 new regression tests).\n- pm-changelog changelog:check up to date after regen (21 historical headings normalized padded->unpadded).\n- pm-beads (padded tags v2026.06.12) changelog:check fails on published version, regenerates clean with fixed build (12 headings, zero non-heading diffs)."

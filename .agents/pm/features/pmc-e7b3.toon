@@ -1,0 +1,31 @@
+id: pmc-e7b3
+title: Add --exclude-tag so tagged items can be omitted from generated changelogs
+description: "Duplicate check: searched all statuses for exclude ignore skip omit tag filter changelog; only --status/--statuses (status filter) and --limit/--since-version (section pruning) exist, and no item covers per-item exclusion. pm-changelog has no ignore convention: every closed item with a title lands in the changelog. Repos that track upstream/third-party issues, internal chores, duplicates or superseded work as pm items cannot keep those out of the user-facing changelog without deleting the item (losing the project-management context that is the whole point of tracking it). Add --exclude-tag <tags> (repeatable, CSV accepted) so a repo can standardize on e.g. changelog:ignore and keep tracker items in pm while excluding them from published release notes."
+type: Feature
+status: open
+priority: 2
+tags[4]: agent-ux,changelog,filtering,release-notes
+created_at: "2026-07-24T19:26:44.792Z"
+updated_at: "2026-07-24T19:26:44.792Z"
+deadline: "2026-07-25T00:00:00.000Z"
+assignee: claude-opus-5
+author: claude-opus-5
+estimated_minutes: 120
+acceptance_criteria: "--exclude-tag <tags> omits items carrying any listed tag from all generation paths; Tag matching is case-insensitive and trims whitespace; Repeatable and comma-separated forms both accumulate; Exposed on the pm changelog extension subcommands and typed in the SDK options; --explain reports the excluded-by-tag count and sample ids"
+why_now: "Fleet repos carry many upstream-tracking items (pm-cli issue mirrors) whose closure pollutes package release notes; the only workaround today is to never close them, which destroys tracking accuracy."
+component: cli
+dependencies[1]{id,kind,created_at,author,source_kind}:
+  pmc-52px,related,"2026-07-24T19:26:44.792Z",null,null
+comments[1]{created_at,author,text}:
+  "2026-07-24T19:26:44.792Z",claude-opus-5,"Companion fleet use case: upstream pm-cli tracker mirrors (e.g. #663/#665/#672 trackers) are legitimate pm items but are not changes to the package itself."
+notes[1]{created_at,author,text}:
+  "2026-07-24T19:26:44.792Z",claude-opus-5,"Complements the release-attribution fix in pmc-52px: attribution moves an item to the right release, exclusion keeps non-user-facing items out entirely."
+learnings[1]{created_at,author,text}:
+  "2026-07-24T19:26:44.792Z",claude-opus-5,"project management = context management: the fix must never require deleting or leaving-open a pm item to get correct release notes."
+files[1]{path,scope,note}:
+  src/cli.ts,project,null
+tests[1]{command,scope}:
+  "npm test && npm run changelog:check",project
+docs[1]{path,scope,note}:
+  README.md#excluding-items,project,null
+body: "## Shape\n\n    pm-changelog --exclude-tag changelog:ignore\n    pm-changelog --exclude-tag changelog:ignore,upstream-tracker\n    pm changelog generate --exclude-tag changelog:ignore\n\nDefault (flag absent) leaves output byte-identical."
