@@ -1158,9 +1158,10 @@ export function suggestSemverForItems(items) {
     return { bump, reason, counts: { breaking, feature, fix, other } };
 }
 // A pm-github provenance tag: `gh:owner/repo#number` (see pm-github `provenanceTag`).
-// owner/repo forbid whitespace and (for the split) `/` and `#`; number is a
-// positive integer. Anchored so partial/garbled tags never match.
-const GITHUB_PROVENANCE_TAG = /^gh:([^/\s#]+)\/([^\s#]+)#(\d+)$/;
+// Both owner and repo forbid whitespace, `/`, and `#`, so an extra path segment
+// (`gh:owner/repo/extra#5`) never matches; number is a positive integer. Anchored
+// so partial/garbled tags fall through to the label fallback.
+const GITHUB_PROVENANCE_TAG = /^gh:([^/\s#]+)\/([^/\s#]+)#(\d+)$/;
 /** Parse the first well-formed `gh:owner/repo#number` provenance tag on an item.
  * Returns `undefined` when no tag matches (unsynced items, or malformed tags). */
 function parseGithubProvenance(tags) {

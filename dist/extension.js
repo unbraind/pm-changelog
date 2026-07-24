@@ -458,7 +458,7 @@ function itemRefStyleOption(options) {
     if (normalized === "auto" || normalized === "label" || normalized === "toon" || normalized === "github") {
         return normalized;
     }
-    throw new Error("--item-ref-style must be 'auto', 'label', 'toon', or 'github'");
+    throw new PmCliError("--item-ref-style must be 'auto', 'label', 'toon', or 'github'", EXIT_CODE.USAGE);
 }
 function parseLimitOption(options) {
     const raw = options["limit"];

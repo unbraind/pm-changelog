@@ -841,7 +841,7 @@ test("itemRefStyle 'github' falls back to a neutral label without a valid proven
   assert.doesNotMatch(noTag.markdown, /\]\(http/);
 
   // Malformed provenance tags must not produce a link either.
-  for (const badTag of ["gh:onlyrepo#5", "gh:owner/repo#notanumber", "gh:owner/repo#0", "gh:owner/repo#-3"]) {
+  for (const badTag of ["gh:onlyrepo#5", "gh:owner/repo#notanumber", "gh:owner/repo#0", "gh:owner/repo#-3", "gh:owner/repo/extra#5"]) {
     const bad = createChangelog({
       items: [{ ...REF_STYLE_ITEM, tags: [badTag] }],
       version: "1.2.0",
