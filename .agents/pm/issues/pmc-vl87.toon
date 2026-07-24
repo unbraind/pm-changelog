@@ -2,14 +2,21 @@ id: pmc-vl87
 title: Support public changelog labels or issue links for generated pm item references
 description: "Duplicate check: searched all statuses for public issue link neutral tracker label item-url-base generated changelog and internal tracker paths public changelog. Existing closed lineage pmc-w906/pmc-f4yg/pmc-ew5n added --item-url-base and exposed it through the pm changelog extension, but no item covers a generated public-doc mode that can render GitHub issue links or neutral tracker labels instead of .agents/pm blob URLs.\\n\\nContext: pm-cli PR #479 CodeRabbit flagged generated CHANGELOG.md entries linking to https://github.com/unbraind/pm-cli/blob/main/.agents/pm/... as public-doc leakage. Hand-editing pm-cli CHANGELOG.md to #467 broke its mandatory pnpm changelog:pm:check gate because pm-changelog currently regenerates links from --item-url-base. Add an upstream option/format policy so consumers can keep package-owned generated changelogs while choosing public issue/PR references or neutral labels for pm item IDs."
 type: Issue
-status: open
+status: closed
 priority: 2
 tags[4]: changelog,item-url-base,pm-cli-review,public-docs
 created_at: "2026-07-07T13:07:21.798Z"
-updated_at: "2026-07-07T13:07:30.759Z"
+updated_at: "2026-07-24T13:02:35.607Z"
+closed_at: "2026-07-24T13:02:35.606Z"
 author: codex-agent
+resolution: "Added ChangelogItemRefStyle option + CLI flag --item-ref-style, wired through cli.ts and both extension subcommands, rewrote formatItemId as a style switch with a gh:owner/repo#N provenance-tag parser, 5 generator tests, and README docs."
+expected_result: "Consumers can render pm item references as neutral labels or public GitHub issue/PR links instead of internal .agents/pm .toon blob URLs, without changing default (auto) output."
+actual_result: "github mode emits ([#467](https://github.com/unbraind/pm-changelog/issues/467)); label mode emits (id) with zero .agents/pm leakage; auto default is byte-for-byte identical (changelog:check green); 154/154 tests pass."
 dependencies[3]{id,kind,created_at,author,source_kind}:
   pmc-ew5n,related,"2026-07-07T13:07:30.740Z",null,null
   pmc-f4yg,related,"2026-07-07T13:07:30.740Z",null,null
   pmc-w906,related,"2026-07-07T13:07:30.740Z",null,null
+comments[1]{created_at,author,text}:
+  "2026-07-24T13:02:19.746Z",claude-opus,"Implemented --item-ref-style {auto|label|toon|github} (branch feat/item-ref-style-public-refs). formatItemId now switches on the style: 'label' = neutral (id) never a link (public-doc safe); 'toon' = force .toon blob link (falls back to label without --item-url-base); 'github' = public GitHub issue/PR link derived from the item's gh:owner/repo#N provenance tag (as written by pm-github), falling back to a label when absent/malformed; 'auto' (default) reproduces prior behavior byte-for-byte. CLI + both extension subcommands validate the value with a structured error. 5 generator tests + README docs added; 154/154 tests + changelog:check green."
+close_reason: Shipped --item-ref-style (auto|label|toon|github) for public-doc-safe item references.
 body: ""

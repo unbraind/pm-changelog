@@ -764,6 +764,124 @@ test("createChangelog makes item IDs clickable links when itemUrlBase is set", (
   assert.doesNotMatch(taskResult.markdown, /pm\/\/tasks/);
 });
 
+const REF_STYLE_ITEM = {
+  id: "pmc-abc",
+  title: "Fix something important",
+  status: "closed",
+  type: "Issue",
+  updated_at: "2026-05-17T10:00:00Z",
+} as const;
+const REF_STYLE_BASE = "https://github.com/example/repo/blob/main/.agents/pm";
+
+test("itemRefStyle 'label' renders a neutral label even when itemUrlBase is set (public-doc safe)", () => {
+  const result = createChangelog({
+    items: [{ ...REF_STYLE_ITEM }],
+    version: "1.2.0",
+    date: "2026-05-17",
+    itemUrlBase: REF_STYLE_BASE,
+    itemRefStyle: "label",
+  });
+  assert.match(result.markdown, /- Fix something important \(pmc-abc\)/);
+  assert.doesNotMatch(result.markdown, /\.agents\/pm/);
+  assert.doesNotMatch(result.markdown, /\]\(http/);
+});
+
+test("itemRefStyle 'toon' forces the blob link, and falls back to a label when itemUrlBase is unset", () => {
+  const linked = createChangelog({
+    items: [{ ...REF_STYLE_ITEM }],
+    version: "1.2.0",
+    date: "2026-05-17",
+    itemUrlBase: REF_STYLE_BASE,
+    itemRefStyle: "toon",
+  });
+  assert.match(
+    linked.markdown,
+    /\(\[pmc-abc\]\(https:\/\/github\.com\/example\/repo\/blob\/main\/\.agents\/pm\/issues\/pmc-abc\.toon\)\)/
+  );
+
+  const unset = createChangelog({
+    items: [{ ...REF_STYLE_ITEM }],
+    version: "1.2.0",
+    date: "2026-05-17",
+    itemRefStyle: "toon",
+  });
+  assert.match(unset.markdown, /\(pmc-abc\)/);
+  assert.doesNotMatch(unset.markdown, /\]\(http/);
+});
+
+test("itemRefStyle 'github' renders a public issue link from the gh: provenance tag", () => {
+  const result = createChangelog({
+    items: [
+      {
+        ...REF_STYLE_ITEM,
+        tags: ["area:search", "gh:unbraind/pm-changelog#467"],
+      },
+    ],
+    version: "1.2.0",
+    date: "2026-05-17",
+    // itemUrlBase is deliberately set to prove github mode ignores the blob base.
+    itemUrlBase: REF_STYLE_BASE,
+    itemRefStyle: "github",
+  });
+  assert.match(
+    result.markdown,
+    /- Fix something important \(\[#467\]\(https:\/\/github\.com\/unbraind\/pm-changelog\/issues\/467\)\)/
+  );
+  assert.doesNotMatch(result.markdown, /\.agents\/pm/);
+});
+
+test("itemRefStyle 'github' falls back to a neutral label without a valid provenance tag", () => {
+  const noTag = createChangelog({
+    items: [{ ...REF_STYLE_ITEM, tags: ["area:search"] }],
+    version: "1.2.0",
+    date: "2026-05-17",
+    itemRefStyle: "github",
+  });
+  assert.match(noTag.markdown, /- Fix something important \(pmc-abc\)/);
+  assert.doesNotMatch(noTag.markdown, /\]\(http/);
+
+  // Malformed provenance tags must not produce a link either.
+  for (const badTag of ["gh:onlyrepo#5", "gh:owner/repo#notanumber", "gh:owner/repo#0", "gh:owner/repo#-3"]) {
+    const bad = createChangelog({
+      items: [{ ...REF_STYLE_ITEM, tags: [badTag] }],
+      version: "1.2.0",
+      date: "2026-05-17",
+      itemRefStyle: "github",
+    });
+    assert.match(bad.markdown, /\(pmc-abc\)/, `expected label fallback for tag ${badTag}`);
+    assert.doesNotMatch(bad.markdown, /\]\(http/, `expected no link for tag ${badTag}`);
+  }
+});
+
+test("itemRefStyle 'auto' (default) reproduces historical behavior", () => {
+  // With itemUrlBase → blob link (same as omitting itemRefStyle entirely).
+  const withBase = createChangelog({
+    items: [{ ...REF_STYLE_ITEM }],
+    version: "1.2.0",
+    date: "2026-05-17",
+    itemUrlBase: REF_STYLE_BASE,
+    itemRefStyle: "auto",
+  });
+  const defaulted = createChangelog({
+    items: [{ ...REF_STYLE_ITEM }],
+    version: "1.2.0",
+    date: "2026-05-17",
+    itemUrlBase: REF_STYLE_BASE,
+  });
+  assert.equal(withBase.markdown, defaulted.markdown);
+  assert.match(withBase.markdown, /\[pmc-abc\]\(https:\/\/github\.com\/example\/repo\/blob\/main\/\.agents\/pm\/issues\/pmc-abc\.toon\)/);
+
+  // Without itemUrlBase → neutral label.
+  const noBase = createChangelog({
+    items: [{ ...REF_STYLE_ITEM }],
+    version: "1.2.0",
+    date: "2026-05-17",
+    itemRefStyle: "auto",
+  });
+  assert.match(noBase.markdown, /\(pmc-abc\)/);
+  assert.doesNotMatch(noBase.markdown, /\]\(http/);
+});
+
 test("mergeChangelog creates a missing changelog", () => {
   const generated = createChangelog({
     items,

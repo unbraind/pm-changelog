@@ -82,6 +82,7 @@ export default defineExtension({
                 { long: "--include-empty", description: "Emit an empty release section when no items match" },
                 { long: "--include-links", description: "Include item URLs in generated entries (default: false)" },
                 { long: "--item-url-base", value_name: "url", description: "Make item IDs clickable links to .toon files under the base URL" },
+                { long: "--item-ref-style", value_name: "style", description: "How item IDs render: auto (default), label (neutral/public-safe), toon (force blob link), github (public issue/PR link from gh:owner/repo#N provenance tag)" },
                 { long: "--check", description: "Do not write; report whether the changelog would change" },
             ],
             async run(ctx) {
@@ -177,6 +178,7 @@ export default defineExtension({
                     includeEmpty: booleanOption(ctx.options, "include-empty", "includeEmpty"),
                     includeLinks: booleanOption(ctx.options, "include-links", "includeLinks"),
                     itemUrlBase: stringOption(ctx.options, "item-url-base", "itemUrlBase"),
+                    itemRefStyle: itemRefStyleOption(ctx.options),
                 };
                 const selectionReport = booleanOption(ctx.options, "explain", "explain")
                     ? explainChangelogSelection(generationOptions)
@@ -294,6 +296,7 @@ export default defineExtension({
                 { long: "--include-links", description: "Include item URLs in generated entries (default: false)" },
                 { long: "--include-metadata", description: "Append compact item metadata (type/status/priority/release/milestone) to each entry" },
                 { long: "--item-url-base", value_name: "url", description: "Make item IDs clickable links to .toon files under the base URL" },
+                { long: "--item-ref-style", value_name: "style", description: "How item IDs render: auto (default), label (neutral/public-safe), toon (force blob link), github (public issue/PR link from gh:owner/repo#N provenance tag)" },
             ],
         };
         const registerExporterWithMetadata = api.registerExporter;
@@ -335,6 +338,7 @@ export default defineExtension({
                 includeLinks: booleanOption(ctx.options, "include-links", "includeLinks"),
                 includeMetadata: booleanOption(ctx.options, "include-metadata", "includeMetadata"),
                 itemUrlBase: stringOption(ctx.options, "item-url-base", "itemUrlBase"),
+                itemRefStyle: itemRefStyleOption(ctx.options),
             });
             const outputPath = stringOption(ctx.options, "output", "output");
             if (format === "json") {
@@ -445,6 +449,16 @@ function stringOption(options, kebabKey, camelKey) {
 }
 function booleanOption(options, kebabKey, camelKey) {
     return Boolean(options[kebabKey] ?? options[camelKey]);
+}
+function itemRefStyleOption(options) {
+    const value = stringOption(options, "item-ref-style", "itemRefStyle");
+    if (value === undefined)
+        return undefined;
+    const normalized = value.trim().toLowerCase();
+    if (normalized === "auto" || normalized === "label" || normalized === "toon" || normalized === "github") {
+        return normalized;
+    }
+    throw new Error("--item-ref-style must be 'auto', 'label', 'toon', or 'github'");
 }
 function parseLimitOption(options) {
     const raw = options["limit"];
