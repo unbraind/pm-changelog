@@ -685,3 +685,109 @@ test("explainChangelogSelection omits the new filter fields when the options are
   assert.equal(report.excluded_counts.excluded_tag, 0);
   assert.equal(report.excluded_counts.item_release, 0);
 });
+
+// ---------------------------------------------------------------------------
+// Release-key canonicalization: zero-padded tags vs unpadded versions
+// ---------------------------------------------------------------------------
+// Calendar release tags are commonly zero-padded (`v2026.06.07`) while the same
+// release is spelled unpadded in package.json, in --release-version, and in the
+// rendered `## 2026.6.7 - 2026-06-07` heading. An item that declares the version
+// as it appears everywhere readable must attribute to that release rather than
+// silently falling through to Unreleased.
+
+const paddedTagWindows = [
+  { heading: "Unreleased" },
+  { heading: "2026.6.7 - 2026-06-07", releaseTag: "v2026.06.07", until: "2026-06-07T12:00:00Z" },
+  { heading: "2026.6.2-1 - 2026-06-02", releaseTag: "v2026.06.02-1", until: "2026-06-02T12:00:00Z" },
+  { heading: "2026.6.2 - 2026-06-02", releaseTag: "v2026.06.02", until: "2026-06-02T11:00:00Z" },
+];
+
+function sectionFor(markdown: string, id: string): string | undefined {
+  const idx = markdown.indexOf(id);
+  if (idx < 0) return undefined;
+  const headings = [...markdown.matchAll(/^## (.*)$/gm)].filter((m) => (m.index ?? 0) < idx);
+  return headings.at(-1)?.[1];
+}
+
+test("release attribution matches an unpadded item release against a zero-padded release tag", () => {
+  // closed_at is months after the release it shipped in — only the declared
+  // `release` field can put it in the right window.
+  const md = createChangelog({
+    items: [
+      { id: "pm-late", title: "Shipped in 2026.6.7, closed late", status: "closed", type: "Issue", release: "2026.6.7", closed_at: "2026-07-24T21:00:00Z" },
+    ],
+    releaseWindows: paddedTagWindows,
+  }).markdown;
+
+  assert.equal(sectionFor(md, "pm-late"), "2026.6.7 - 2026-06-07");
+});
+
+test("release attribution matches a zero-padded item release against an unpadded release tag", () => {
+  const md = createChangelog({
+    items: [
+      { id: "pm-padded", title: "Declared with the padded tag spelling", status: "closed", type: "Issue", release: "2026.06.07", closed_at: "2026-07-24T21:00:00Z" },
+    ],
+    releaseWindows: [
+      { heading: "Unreleased" },
+      { heading: "2026.6.7 - 2026-06-07", releaseTag: "2026.6.7", until: "2026-06-07T12:00:00Z" },
+    ],
+  }).markdown;
+
+  assert.equal(sectionFor(md, "pm-padded"), "2026.6.7 - 2026-06-07");
+});
+
+test("release-key canonicalization preserves calendar -N disambiguators", () => {
+  const md = createChangelog({
+    items: [
+      { id: "pm-suffixed", title: "Shipped in the -1 respin", status: "closed", type: "Issue", release: "2026.6.2-1", closed_at: "2026-07-24T21:00:00Z" },
+      { id: "pm-base", title: "Shipped in the base release", status: "closed", type: "Issue", release: "2026.6.2", closed_at: "2026-07-24T21:00:00Z" },
+    ],
+    releaseWindows: paddedTagWindows,
+  }).markdown;
+
+  // The suffixed release and its base must not collapse into one another.
+  assert.equal(sectionFor(md, "pm-suffixed"), "2026.6.2-1 - 2026-06-02");
+  assert.equal(sectionFor(md, "pm-base"), "2026.6.2 - 2026-06-02");
+});
+
+test("single-window --respect-item-release accepts a padded/unpadded spelling mismatch", () => {
+  // Window version unpadded, item declares padded: still pinned to the window.
+  const kept = createChangelog({
+    items: [
+      { id: "pm-pinned", title: "Closed late, shipped here", status: "closed", type: "Issue", release: "2026.06.07", closed_at: "2026-09-01T00:00:00Z" },
+    ],
+    version: "2026.6.7",
+    date: "2026-06-07",
+    since: "2026-06-01T00:00:00Z",
+    until: "2026-06-08T00:00:00Z",
+    respectItemRelease: true,
+  }).markdown;
+  assert.match(kept, /pm-pinned/);
+
+  // A genuinely different release is still dropped.
+  const dropped = createChangelog({
+    items: [
+      { id: "pm-elsewhere", title: "Shipped in another release", status: "closed", type: "Issue", release: "2026.06.08", closed_at: "2026-06-07T10:00:00Z" },
+    ],
+    version: "2026.6.7",
+    date: "2026-06-07",
+    since: "2026-06-01T00:00:00Z",
+    until: "2026-06-08T00:00:00Z",
+    respectItemRelease: true,
+  }).markdown;
+  assert.doesNotMatch(dropped, /pm-elsewhere/);
+});
+
+test("explainChangelogSelection reports a padded/unpadded attribution match as kept", () => {
+  const report = explainChangelogSelection({
+    items: [
+      { id: "pm-pinned", title: "Closed late, shipped here", status: "closed", type: "Issue", release: "2026.06.07", closed_at: "2026-09-01T00:00:00Z" },
+    ],
+    version: "2026.6.7",
+    since: "2026-06-01T00:00:00Z",
+    until: "2026-06-08T00:00:00Z",
+    respectItemRelease: true,
+  });
+  assert.equal(report.excluded_counts.item_release, 0);
+  assert.equal(report.stage_counts.after_item_release, 1);
+});
