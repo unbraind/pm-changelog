@@ -2,8 +2,13 @@
 
 ## Unreleased
 
+### Added
+
+- Add --exclude-tag so tagged items can be omitted from generated changelogs ([pmc-e7b3](https://github.com/unbraind/pm-changelog/blob/main/.agents/pm/features/pmc-e7b3.toon))
+
 ### Fixed
 
+- Single-window generation ignores an item release field, retro-dating already-shipped work ([pmc-52px](https://github.com/unbraind/pm-changelog/blob/main/.agents/pm/issues/pmc-52px.toon))
 - Support public changelog labels or issue links for generated pm item references ([pmc-vl87](https://github.com/unbraind/pm-changelog/blob/main/.agents/pm/issues/pmc-vl87.toon))
 
 ### Other
