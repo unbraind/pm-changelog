@@ -1929,18 +1929,9 @@ test("pm package install activates changelog command", (t) => {
     env: pmEnv,
     encoding: "utf-8",
   }));
-  // The only expected doctor warnings are the advisory notices that pm-changelog
-  // intentionally overrides the global `toon`/`json` output renderers so that
-  // `--format json` emits real JSON on stdout (see extension.ts renderers). The
-  // overrides return null for non-marker results, so other extensions' output is
-  // unaffected; the advisories are informational, not errors.
-  assert.deepEqual(
-    [...doctor.warnings].sort(),
-    [
-      "extension_output_renderer_override_global:json:project:pm-changelog",
-      "extension_output_renderer_override_global:toon:project:pm-changelog",
-    ]
-  );
+  // Scoped renderer ownership proves that only changelog command marker results
+  // can reach the toon/json callbacks, so isolated doctor remains warning-free.
+  assert.deepEqual(doctor.warnings, []);
   assert.equal(doctor.details?.isolation?.isolated, true);
   const installedExtensions = doctor.details?.deep?.installed_extensions;
   assert.ok(Array.isArray(installedExtensions), "installed_extensions should be an array");

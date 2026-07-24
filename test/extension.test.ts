@@ -11,12 +11,29 @@ import extension from "../dist/extension.js";
 test("extension command exposes item-url-base for clickable item IDs", () => {
   let registeredCommand: { flags?: Array<{ long?: string }> } | undefined;
   let registeredExporter: { flags?: Array<{ long?: string }>; examples?: string[] } | undefined;
+  const rendererOwnership: Array<{
+    format: string;
+    ownership?: {
+      commands?: string[];
+      resultDiscriminator?: (result: unknown) => boolean;
+    };
+  }> = [];
   extension.activate({
     registerCommand(command: { flags?: Array<{ long?: string }> }) {
       registeredCommand = command;
     },
     registerExporter(_name: string, _handler: unknown, options?: { flags?: Array<{ long?: string }>; examples?: string[] }) {
       registeredExporter = options;
+    },
+    registerRenderer(
+      format: string,
+      _renderer: unknown,
+      ownership?: {
+        commands?: string[];
+        resultDiscriminator?: (result: unknown) => boolean;
+      },
+    ) {
+      rendererOwnership.push({ format, ownership });
     },
   } as unknown as Parameters<typeof extension.activate>[0]);
   assert.ok(registeredExporter, "extension should register the changelog exporter");
@@ -62,6 +79,35 @@ test("extension command exposes item-url-base for clickable item IDs", () => {
     assert.ok(
       registeredCommand.flags?.some((f) => f.long === flag),
       `changelog generate should expose ${flag} through pm contracts`
+    );
+  }
+  assert.deepEqual(
+    rendererOwnership.map(({ format, ownership }) => ({
+      format,
+      commands: ownership?.commands,
+    })),
+    [
+      {
+        format: "toon",
+        commands: ["changelog generate", "changelog export"],
+      },
+      {
+        format: "json",
+        commands: ["changelog generate", "changelog export"],
+      },
+    ],
+  );
+  for (const registration of rendererOwnership) {
+    assert.equal(
+      registration.ownership?.resultDiscriminator?.({
+        pmChangelogRendered: true,
+        output: "{}\n",
+      }),
+      true,
+    );
+    assert.equal(
+      registration.ownership?.resultDiscriminator?.({ output: "{}\n" }),
+      false,
     );
   }
 });
