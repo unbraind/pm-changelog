@@ -2541,3 +2541,168 @@ test("resolveReleaseTagWindows uses locale-independent tag-name tie-breaks", (t)
   assert.match(headings[1], /^Alpha /);
   assert.match(headings[2], /^Zeta /);
 });
+
+// --- Release attribution (`respectItemRelease`) --------------------------------
+// A tracker whose fix shipped in release X but whose item is closed during a
+// later release must not be re-dated into the current window. `--all-release-tags`
+// already pins by the release field; these tests cover the single-window path.
+
+type AttributionItem = Parameters<typeof createChangelog>[0]["items"][number];
+
+const shippedElsewhere: AttributionItem = {
+  id: "pm-shipped",
+  title: "Fix trailing newline",
+  status: "closed",
+  type: "Issue",
+  release: "2026.6.1",
+  closed_at: "2026-07-24T10:00:00Z",
+};
+const shippedHere: AttributionItem = {
+  id: "pm-current",
+  title: "Add release attribution",
+  status: "closed",
+  type: "Feature",
+  release: "2026.7.24",
+  closed_at: "2026-07-24T11:00:00Z",
+};
+const undeclared: AttributionItem = {
+  id: "pm-plain",
+  title: "Tidy docs",
+  status: "closed",
+  type: "Task",
+  closed_at: "2026-07-24T12:00:00Z",
+};
+
+test("default single-window generation keeps ignoring the release field (byte-identical)", () => {
+  const { markdown } = createChangelog({
+    items: [shippedElsewhere, shippedHere, undeclared],
+    version: "2026.7.24",
+    date: "2026-07-24",
+    since: "2026-07-24T00:00:00Z",
+  });
+  assert.match(markdown, /Fix trailing newline/);
+  assert.match(markdown, /Add release attribution/);
+  assert.match(markdown, /Tidy docs/);
+});
+
+test("respectItemRelease drops items pinned to another release from the version window", () => {
+  const { markdown } = createChangelog({
+    items: [shippedElsewhere, shippedHere, undeclared],
+    version: "2026.7.24",
+    date: "2026-07-24",
+    since: "2026-07-24T00:00:00Z",
+    respectItemRelease: true,
+  });
+  assert.doesNotMatch(markdown, /Fix trailing newline/);
+  assert.match(markdown, /Add release attribution/);
+  assert.match(markdown, /Tidy docs/);
+});
+
+test("respectItemRelease keeps a matching item whose timestamps fall outside the window", () => {
+  const closedLate: AttributionItem = { ...shippedHere, closed_at: "2026-09-01T00:00:00Z" };
+  const { markdown } = createChangelog({
+    items: [closedLate],
+    version: "2026.7.24",
+    date: "2026-07-24",
+    since: "2026-07-01T00:00:00Z",
+    until: "2026-07-31T00:00:00Z",
+    respectItemRelease: true,
+  });
+  assert.match(markdown, /Add release attribution/);
+});
+
+test("respectItemRelease normalizes a leading v on either side of the comparison", () => {
+  const { markdown } = createChangelog({
+    items: [{ ...shippedHere, release: "v2026.7.24" }],
+    version: "2026.7.24",
+    date: "2026-07-24",
+    respectItemRelease: true,
+  });
+  assert.match(markdown, /Add release attribution/);
+});
+
+test("respectItemRelease reads the release from item metadata as a fallback", () => {
+  const metadataOnly: AttributionItem = {
+    id: "pm-meta",
+    title: "Metadata release only",
+    status: "closed",
+    type: "Issue",
+    closed_at: "2026-07-24T10:00:00Z",
+    metadata: { release: "2026.6.1" },
+  };
+  const { markdown } = createChangelog({
+    items: [metadataOnly],
+    version: "2026.7.24",
+    date: "2026-07-24",
+    respectItemRelease: true,
+  });
+  assert.doesNotMatch(markdown, /Metadata release only/);
+});
+
+test("respectItemRelease excludes declared releases from an unversioned (Unreleased) window", () => {
+  const { markdown } = createChangelog({
+    items: [shippedElsewhere, undeclared],
+    date: "2026-07-24",
+    respectItemRelease: true,
+  });
+  assert.doesNotMatch(markdown, /Fix trailing newline/);
+  assert.match(markdown, /Tidy docs/);
+});
+
+test("respectItemRelease never strips items from groupBy release/milestone grouping", () => {
+  const { markdown: grouped } = createChangelog({
+    items: [shippedElsewhere, shippedHere],
+    groupBy: "release",
+    respectItemRelease: true,
+  });
+  assert.match(grouped, /## 2026\.6\.1/);
+  assert.match(grouped, /## 2026\.7\.24/);
+  assert.match(grouped, /Fix trailing newline/);
+});
+
+test("respectItemRelease leaves the --all-release-tags path untouched", () => {
+  const windows = [
+    { heading: "2026.7.24 - 2026-07-24", releaseTag: "v2026.7.24", since: "2026-07-01T00:00:00Z", until: "2026-07-31T00:00:00Z" },
+    { heading: "2026.6.1 - 2026-06-01", releaseTag: "v2026.6.1", since: "2026-06-01T00:00:00Z", until: "2026-06-30T00:00:00Z" },
+  ];
+  const { markdown: withFlag } = createChangelog({ items: [shippedElsewhere, shippedHere], releaseWindows: windows, respectItemRelease: true });
+  const { markdown: withoutFlag } = createChangelog({ items: [shippedElsewhere, shippedHere], releaseWindows: windows });
+  assert.equal(withFlag, withoutFlag);
+  assert.match(withFlag, /## 2026\.6\.1 - 2026-06-01\n\n### Fixed\n\n- Fix trailing newline/);
+});
+
+// --- Tag exclusion (`excludeTags`) -------------------------------------------
+
+test("excludeTags omits items carrying any listed tag, case- and space-insensitively", () => {
+  const items: AttributionItem[] = [
+    { id: "pm-a", title: "Real change", status: "closed", type: "Feature", closed_at: "2026-07-24T10:00:00Z", tags: ["feature"] },
+    { id: "pm-b", title: "Upstream tracker", status: "closed", type: "Issue", closed_at: "2026-07-24T10:00:00Z", tags: [" Changelog:Ignore "] },
+  ];
+  const { markdown } = createChangelog({ items, version: "2026.7.24", date: "2026-07-24", excludeTags: ["changelog:ignore"] });
+  assert.match(markdown, /Real change/);
+  assert.doesNotMatch(markdown, /Upstream tracker/);
+});
+
+test("excludeTags is inert when empty or when items carry no tags", () => {
+  const items: AttributionItem[] = [
+    { id: "pm-a", title: "Real change", status: "closed", type: "Feature", closed_at: "2026-07-24T10:00:00Z" },
+  ];
+  const baseline = createChangelog({ items, version: "2026.7.24", date: "2026-07-24" }).markdown;
+  assert.equal(createChangelog({ items, version: "2026.7.24", date: "2026-07-24", excludeTags: [] }).markdown, baseline);
+  assert.equal(createChangelog({ items, version: "2026.7.24", date: "2026-07-24", excludeTags: ["  ", ""] }).markdown, baseline);
+  assert.equal(createChangelog({ items, version: "2026.7.24", date: "2026-07-24", excludeTags: ["other"] }).markdown, baseline);
+});
+
+test("excludeTags applies to the release-window history path as well", () => {
+  const items: AttributionItem[] = [
+    { id: "pm-a", title: "Real change", status: "closed", type: "Feature", closed_at: "2026-06-15T10:00:00Z" },
+    { id: "pm-b", title: "Upstream tracker", status: "closed", type: "Issue", closed_at: "2026-06-15T10:00:00Z", tags: ["changelog:ignore"] },
+  ];
+  const { markdown } = createChangelog({
+    items,
+    releaseWindows: [{ heading: "2026.6.1 - 2026-06-30", releaseTag: "v2026.6.1", since: "2026-06-01T00:00:00Z", until: "2026-06-30T00:00:00Z" }],
+    excludeTags: ["changelog:ignore"],
+  });
+  assert.match(markdown, /Real change/);
+  assert.doesNotMatch(markdown, /Upstream tracker/);
+});

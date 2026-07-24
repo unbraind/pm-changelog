@@ -640,3 +640,48 @@ test("createChangelog --since filters items by date", () => {
   assert.match(md, /Recent fix/);
   assert.doesNotMatch(md, /Old fix/);
 });
+
+test("explainChangelogSelection reports exclude-tag and release-attribution stages", () => {
+  const report = explainChangelogSelection({
+    items: [
+      { id: "pm-kept", title: "Ship feature", status: "closed", type: "Feature", closed_at: "2026-07-24T10:00:00Z" },
+      { id: "pm-ignored", title: "Upstream tracker", status: "closed", type: "Issue", closed_at: "2026-07-24T10:00:00Z", tags: ["changelog:ignore"] },
+      { id: "pm-elsewhere", title: "Shipped earlier", status: "closed", type: "Issue", closed_at: "2026-07-24T10:00:00Z", release: "2026.6.1" },
+      { id: "pm-pinned", title: "Closed late but shipped here", status: "closed", type: "Issue", closed_at: "2026-09-01T00:00:00Z", release: "2026.7.24" },
+    ],
+    version: "2026.7.24",
+    since: "2026-07-01T00:00:00Z",
+    until: "2026-07-31T00:00:00Z",
+    excludeTags: ["changelog:ignore"],
+    respectItemRelease: true,
+  });
+
+  assert.equal(report.stage_counts.input, 4);
+  assert.equal(report.stage_counts.after_excluded_tags, 3);
+  assert.equal(report.excluded_counts.excluded_tag, 1);
+  assert.deepEqual(report.sample_items.excluded_tag, ["pm-ignored: Upstream tracker"]);
+  // pm-elsewhere is dropped by attribution (not by time), pm-pinned is re-admitted
+  // despite closing outside the window.
+  assert.equal(report.excluded_counts.item_release, 1);
+  assert.deepEqual(report.sample_items.item_release, ["pm-elsewhere: Shipped earlier"]);
+  assert.equal(report.excluded_counts.time_window, 0);
+  assert.equal(report.stage_counts.after_item_release, 2);
+  assert.equal(report.stage_counts.visible_items, 2);
+  assert.deepEqual(report.filters.exclude_tags, ["changelog:ignore"]);
+  assert.equal(report.filters.respect_item_release, true);
+  assert.match(report.hints.join(" "), /--exclude-tag/);
+  assert.match(report.hints.join(" "), /--respect-item-release/);
+});
+
+test("explainChangelogSelection omits the new filter fields when the options are absent", () => {
+  const report = explainChangelogSelection({
+    items: [{ id: "pm-kept", title: "Ship feature", status: "closed", type: "Feature", closed_at: "2026-07-24T10:00:00Z" }],
+  });
+
+  assert.equal(report.filters.exclude_tags, undefined);
+  assert.equal(report.filters.respect_item_release, undefined);
+  assert.equal(report.stage_counts.after_item_release, undefined);
+  assert.equal(report.stage_counts.after_excluded_tags, 1);
+  assert.equal(report.excluded_counts.excluded_tag, 0);
+  assert.equal(report.excluded_counts.item_release, 0);
+});

@@ -1,0 +1,31 @@
+id: pmc-52px
+title: "Single-window generation ignores an item release field, retro-dating already-shipped work"
+description: "Duplicate check: searched all statuses for release field attribution shipped-in retro-date closed_at window pin single-window; existing pmc-vl87/pmc-ew5n cover item REFERENCE rendering only, and no item covers release attribution in the single-window path. pm-changelog places an item from itemTimestamp() = closed_at ?? updated_at ?? created_at. The multi-window path (--all-release-tags / assignItemsToReleaseWindows) additionally PINS an item into the window whose tag matches the item release field regardless of timestamps, but the single-window path used by every fleet repo changelog / changelog:check / release:notes script ignores the release field entirely. Consequence: a tracker whose fix shipped in release X but whose item is closed later lands in the CURRENT release window, so the changelog claims months-old work as new, and the two generation paths disagree about the same item."
+type: Issue
+status: open
+priority: 1
+tags[4]: changelog,correctness,multi-agent,release-attribution
+created_at: "2026-07-24T19:26:27.775Z"
+updated_at: "2026-07-24T19:26:27.775Z"
+deadline: "2026-07-25T00:00:00.000Z"
+assignee: claude-opus-5
+author: claude-opus-5
+estimated_minutes: 180
+acceptance_criteria: Single-window generation honors an item release field (top-level or metadata) under an opt-in flag; An item pinned to a release other than the window version is excluded from that window; An item pinned to the window version is included regardless of its timestamp; Default output stays byte-identical when the flag is absent; --explain reports items excluded by release attribution
+why_now: Multi-agent workflows routinely ship a PR in one release and close the tracker in a later one; without release attribution the changelog is wrong and agents are forced to leave trackers open forever (3 such items across the fleet today).
+component: generator
+dependencies[1]{id,kind,created_at,author,source_kind}:
+  pmc-vl87,related,"2026-07-24T19:26:27.775Z",null,null
+comments[1]{created_at,author,text}:
+  "2026-07-24T19:26:27.775Z",claude-opus-5,"Root cause of the fleet-wide shipped-but-unclosed tracker backlog (pmc-sall, pm-csv-69ln, pm-slack-gx2h): closing them today would inject their entries into the current release window."
+notes[1]{created_at,author,text}:
+  "2026-07-24T19:26:27.775Z",claude-opus-5,"Reproduced with real data in a throwaway pm workspace: item with release=2026.6.1 closed 2026-07-24 renders under 2026.6.1 via --all-release-tags but under 2026.7.24 via --release-version 2026.7.24 --since 2026-07-24T00:00:00Z."
+learnings[1]{created_at,author,text}:
+  "2026-07-24T19:26:27.775Z",claude-opus-5,Any time-window report keyed on closed_at silently misattributes work when the tracker is closed after the release that shipped it; an explicit release field is the only durable attribution signal.
+files[1]{path,scope,note}:
+  src/generator.ts,project,null
+tests[1]{command,scope}:
+  "npm test && npm run changelog:check",project
+docs[1]{path,scope,note}:
+  README.md#release-attribution,project,null
+body: "## Repro (real data)\n\n1. pm create + pm update --release 2026.6.1 + pm close (closed_at = today)\n2. Multi-window: pm-changelog --all-release-tags -> item under '## 2026.6.1' (correct, honors release)\n3. Single-window: pm-changelog --release-version 2026.7.24 --since <today> -> item under '## 2026.7.24' (wrong, ignores release)\n\n## Fix direction\n\nHonor the release field in the single-window path behind an opt-in flag so default output stays byte-identical for the 18 fleet consumers whose CI runs changelog:check."
