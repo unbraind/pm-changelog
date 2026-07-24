@@ -18,6 +18,7 @@ import {
 import { resolveReleaseContext, resolveReleaseTagWindows } from "./release-context.js";
 import type {
   ChangelogGroupBy,
+  ChangelogItemRefStyle,
   ChangelogReleaseWindow,
   ChangelogSelectionReport,
   ChangelogSectionBy,
@@ -63,6 +64,7 @@ interface CliOptions {
   includeEmpty: boolean;
   includeLinks: boolean;
   itemUrlBase?: string;
+  itemRefStyle?: ChangelogItemRefStyle;
   mode: "replace" | "prepend";
   check: boolean;
   explain: boolean;
@@ -84,6 +86,7 @@ const VALUE_OPTIONS = new Set<string>([
   "--format",
   "--group-by",
   "--input",
+  "--item-ref-style",
   "--item-url-base",
   "--limit",
   "--mode",
@@ -457,6 +460,9 @@ function parseArgs(args: string[]): CliOptions {
       case "--item-url-base":
         options.itemUrlBase = requireValue(normalizedArgs, ++i, rawArg);
         break;
+      case "--item-ref-style":
+        options.itemRefStyle = parseItemRefStyle(requireValue(normalizedArgs, ++i, rawArg));
+        break;
       default:
         throw unknownOptionError(rawArg);
     }
@@ -616,6 +622,14 @@ function parseSectionBy(value: string): ChangelogSectionBy {
   throw new Error("--section-by must be 'category', 'type', 'status', or 'label'");
 }
 
+function parseItemRefStyle(value: string): ChangelogItemRefStyle {
+  const normalized = value.trim().toLowerCase();
+  if (normalized === "auto" || normalized === "label" || normalized === "toon" || normalized === "github") {
+    return normalized;
+  }
+  throw new Error("--item-ref-style must be 'auto', 'label', 'toon', or 'github'");
+}
+
 function parseLimit(value: string): number {
   const parsed = Number.parseInt(value, 10);
   if (!Number.isInteger(parsed) || parsed < 1) {
@@ -668,6 +682,7 @@ function buildGenerationOptions(options: CliOptions, items: PmItem[]) {
     includeEmpty: options.includeEmpty,
     includeLinks: options.includeLinks,
     itemUrlBase: options.itemUrlBase,
+    itemRefStyle: options.itemRefStyle,
   };
 }
 
@@ -808,6 +823,9 @@ Options:
       --include-empty       Emit an empty release section when no items match
       --include-links       Include item URLs in generated entries (default: false)
       --item-url-base <url> Make item IDs clickable links: [pmc-abc]({url}/pmc-abc.toon)
+      --item-ref-style <s>  How item IDs render: auto (default), label (neutral, public-safe),
+                            toon (force blob link), github (public issue/PR link from the
+                            gh:owner/repo#N provenance tag; falls back to a label)
 
 Value flags accept both "--flag value" and "--flag=value" forms.
 `);

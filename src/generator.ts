@@ -1304,16 +1304,67 @@ export function suggestSemverForItems(items: PmItem[]): SemverSuggestion {
   return { bump, reason, counts: { breaking, feature, fix, other } };
 }
 
+// A pm-github provenance tag: `gh:owner/repo#number` (see pm-github `provenanceTag`).
+// Both owner and repo forbid whitespace, `/`, and `#`, so an extra path segment
+// (`gh:owner/repo/extra#5`) never matches; number is a positive integer. Anchored
+// so partial/garbled tags fall through to the label fallback.
+const GITHUB_PROVENANCE_TAG = /^gh:([^/\s#]+)\/([^/\s#]+)#(\d+)$/;
+
+/** Parse the first well-formed `gh:owner/repo#number` provenance tag on an item.
+ * Returns `undefined` when no tag matches (unsynced items, or malformed tags). */
+function parseGithubProvenance(
+  tags: string[] | undefined,
+): { owner: string; repo: string; number: number } | undefined {
+  if (!tags) return undefined;
+  for (const raw of tags) {
+    const match = GITHUB_PROVENANCE_TAG.exec(raw.trim());
+    if (!match) continue;
+    const number = Number(match[3]);
+    if (Number.isInteger(number) && number > 0) {
+      return { owner: match[1], repo: match[2], number };
+    }
+  }
+  return undefined;
+}
+
+/** Neutral `(id)` label — never a link. */
+function labelItemRef(id: string): string {
+  return ` (${escapeMarkdown(id)})`;
+}
+
+/** Internal `.toon` blob link under `itemUrlBase`. */
+function toonItemRef(item: PmItem, id: string, itemUrlBase: string): string {
+  const base = itemUrlBase.replace(/\/$/, "");
+  const typeDir = itemTypeToDir(item.type);
+  const url = `${base}/${typeDir}/${id}.toon`;
+  return ` ([${escapeMarkdown(id)}](${url}))`;
+}
+
+/** Public GitHub issue/PR link from the item's provenance tag, or `undefined`.
+ * `/issues/N` resolves to the PR view too, so one form covers issues and PRs. */
+function githubItemRef(item: PmItem): string | undefined {
+  const provenance = parseGithubProvenance(item.tags);
+  if (!provenance) return undefined;
+  const { owner, repo, number } = provenance;
+  return ` ([#${number}](https://github.com/${owner}/${repo}/issues/${number}))`;
+}
+
 function formatItemId(item: PmItem, options: GenerateChangelogOptions): string {
   if (!item.id) return "";
-  const escapedId = escapeMarkdown(item.id);
-  if (options.itemUrlBase) {
-    const base = options.itemUrlBase.replace(/\/$/, "");
-    const typeDir = itemTypeToDir(item.type);
-    const url = `${base}/${typeDir}/${item.id}.toon`;
-    return ` ([${escapedId}](${url}))`;
+  const id = item.id;
+  const style = options.itemRefStyle ?? "auto";
+  switch (style) {
+    case "label":
+      return labelItemRef(id);
+    case "toon":
+      return options.itemUrlBase ? toonItemRef(item, id, options.itemUrlBase) : labelItemRef(id);
+    case "github":
+      return githubItemRef(item) ?? labelItemRef(id);
+    case "auto":
+    default:
+      // Historical behavior: blob link when itemUrlBase is set, else a label.
+      return options.itemUrlBase ? toonItemRef(item, id, options.itemUrlBase) : labelItemRef(id);
   }
-  return ` (${escapedId})`;
 }
 
 function itemTypeToDir(type: string | undefined): string {

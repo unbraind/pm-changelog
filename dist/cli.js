@@ -17,6 +17,7 @@ const VALUE_OPTIONS = new Set([
     "--format",
     "--group-by",
     "--input",
+    "--item-ref-style",
     "--item-url-base",
     "--limit",
     "--mode",
@@ -386,6 +387,9 @@ function parseArgs(args) {
             case "--item-url-base":
                 options.itemUrlBase = requireValue(normalizedArgs, ++i, rawArg);
                 break;
+            case "--item-ref-style":
+                options.itemRefStyle = parseItemRefStyle(requireValue(normalizedArgs, ++i, rawArg));
+                break;
             default:
                 throw unknownOptionError(rawArg);
         }
@@ -533,6 +537,13 @@ function parseSectionBy(value) {
         return value;
     throw new Error("--section-by must be 'category', 'type', 'status', or 'label'");
 }
+function parseItemRefStyle(value) {
+    const normalized = value.trim().toLowerCase();
+    if (normalized === "auto" || normalized === "label" || normalized === "toon" || normalized === "github") {
+        return normalized;
+    }
+    throw new Error("--item-ref-style must be 'auto', 'label', 'toon', or 'github'");
+}
 function parseLimit(value) {
     const parsed = Number.parseInt(value, 10);
     if (!Number.isInteger(parsed) || parsed < 1) {
@@ -584,6 +595,7 @@ function buildGenerationOptions(options, items) {
         includeEmpty: options.includeEmpty,
         includeLinks: options.includeLinks,
         itemUrlBase: options.itemUrlBase,
+        itemRefStyle: options.itemRefStyle,
     };
 }
 function buildSummary(options, result, output = result.output, selectionReport) {
@@ -702,6 +714,9 @@ Options:
       --include-empty       Emit an empty release section when no items match
       --include-links       Include item URLs in generated entries (default: false)
       --item-url-base <url> Make item IDs clickable links: [pmc-abc]({url}/pmc-abc.toon)
+      --item-ref-style <s>  How item IDs render: auto (default), label (neutral, public-safe),
+                            toon (force blob link), github (public issue/PR link from the
+                            gh:owner/repo#N provenance tag; falls back to a label)
 
 Value flags accept both "--flag value" and "--flag=value" forms.
 `);
