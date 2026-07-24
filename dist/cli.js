@@ -14,6 +14,8 @@ const VALUE_OPTIONS = new Set([
     "-o",
     "--body-preview",
     "--date",
+    "--exclude-tag",
+    "--exclude-tags",
     "--format",
     "--group-by",
     "--input",
@@ -50,6 +52,8 @@ const KNOWN_OPTIONS = [
     "--contributors",
     "--date",
     "--emoji-prefix",
+    "--exclude-tag",
+    "--exclude-tags",
     "--explain",
     "--format",
     "--github-output",
@@ -60,6 +64,7 @@ const KNOWN_OPTIONS = [
     "--include-links",
     "--include-metadata",
     "--input",
+    "--item-ref-style",
     "--item-url-base",
     "--json",
     "--limit",
@@ -73,6 +78,7 @@ const KNOWN_OPTIONS = [
     "--release-tag-pattern",
     "--release-version",
     "--release-version-from-package",
+    "--respect-item-release",
     "--section-by",
     "--set-output",
     "--since",
@@ -242,6 +248,8 @@ function parseArgs(args) {
         untilReleaseTag: false,
         allReleaseTags: false,
         releaseTagPattern: "v*",
+        respectItemRelease: false,
+        excludeTags: [],
     };
     for (let i = 0; i < normalizedArgs.length; i++) {
         const rawArg = normalizedArgs[i];
@@ -389,6 +397,18 @@ function parseArgs(args) {
                 break;
             case "--item-ref-style":
                 options.itemRefStyle = parseItemRefStyle(requireValue(normalizedArgs, ++i, rawArg));
+                break;
+            case "--respect-item-release":
+                options.respectItemRelease = true;
+                break;
+            // Repeatable and comma-separated forms both accumulate, mirroring
+            // --status/--statuses, so agents can pass either shape.
+            case "--exclude-tag":
+            case "--exclude-tags":
+                options.excludeTags.push(...requireValue(normalizedArgs, ++i, rawArg)
+                    .split(",")
+                    .map((tag) => tag.trim())
+                    .filter(Boolean));
                 break;
             default:
                 throw unknownOptionError(rawArg);
@@ -596,6 +616,8 @@ function buildGenerationOptions(options, items) {
         includeLinks: options.includeLinks,
         itemUrlBase: options.itemUrlBase,
         itemRefStyle: options.itemRefStyle,
+        respectItemRelease: options.respectItemRelease,
+        excludeTags: options.excludeTags.length > 0 ? options.excludeTags : undefined,
     };
 }
 function buildSummary(options, result, output = result.output, selectionReport) {
@@ -618,7 +640,7 @@ function writeSelectionReport(report) {
     console.error("Selection report:"
         + ` input=${report.stage_counts.input}`
         + ` visible=${report.stage_counts.visible_items}`
-        + ` excluded(title=${excluded.missing_title},status=${excluded.status},time=${excluded.time_window},release_window=${excluded.release_window},visibility=${excluded.hidden_by_visibility})`);
+        + ` excluded(title=${excluded.missing_title},tag=${excluded.excluded_tag},status=${excluded.status},time=${excluded.time_window},item_release=${excluded.item_release},release_window=${excluded.release_window},visibility=${excluded.hidden_by_visibility})`);
     for (const hint of report.hints) {
         console.error(`Hint: ${hint}`);
     }
@@ -697,6 +719,12 @@ Options:
       --release-tag-pattern <glob>
                             Git tag glob for --all-release-tags (default: v*)
       --status <list>       Comma-separated statuses (default: closed)
+      --exclude-tag <list>  Omit items carrying any of these tags (repeatable, comma-separated)
+      --respect-item-release
+                            Treat an item's release field as the authority for which single
+                            version window it belongs to: keep it when it matches --version
+                            regardless of timestamps, drop it otherwise (already shipped
+                            elsewhere). --all-release-tags always honors the field.
       --group-by <mode>     version, release, or milestone (default: version)
       --section-by <mode>   Within-release grouping: category, type, status, or label (default: category)
       --conventional        Use Conventional-Commits headings (Features/Bug Fixes/...) for category grouping

@@ -1,5 +1,15 @@
 # Changelog
 
+## Unreleased
+
+### Fixed
+
+- Support public changelog labels or issue links for generated pm item references ([pmc-vl87](https://github.com/unbraind/pm-changelog/blob/main/.agents/pm/issues/pmc-vl87.toon))
+
+### Other
+
+- Adopt scoped renderer ownership for changelog JSON output ([pmc-dkmm](https://github.com/unbraind/pm-changelog/blob/main/.agents/pm/tasks/pmc-dkmm.toon))
+
 ## 2026.7.23 - 2026-07-23
 
 ### Fixed
@@ -93,6 +103,12 @@
 ### Fixed
 
 - Prepend merge promotes a stale Unreleased section into the released version instead of duplicating it (GH \#47) ([pmc-8ssd](https://github.com/unbraind/pm-changelog/blob/main/.agents/pm/issues/pmc-8ssd.toon))
+
+## 2026.6.13 - 2026-06-13
+
+### Fixed
+
+- Stabilize calendar release headings across the zero-padded tag boundary ([pmc-sall](https://github.com/unbraind/pm-changelog/blob/main/.agents/pm/issues/pmc-sall.toon))
 
 ## 2026.6.8 - 2026-06-08
 

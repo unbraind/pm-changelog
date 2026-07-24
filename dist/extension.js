@@ -83,6 +83,8 @@ export default defineExtension({
                 { long: "--include-links", description: "Include item URLs in generated entries (default: false)" },
                 { long: "--item-url-base", value_name: "url", description: "Make item IDs clickable links to .toon files under the base URL" },
                 { long: "--item-ref-style", value_name: "style", description: "How item IDs render: auto (default), label (neutral/public-safe), toon (force blob link), github (public issue/PR link from gh:owner/repo#N provenance tag)" },
+                { long: "--exclude-tag", value_name: "list", description: "Omit items carrying any of these comma-separated tags (ignore convention, e.g. changelog:ignore)" },
+                { long: "--respect-item-release", description: "Treat an item release field as the authority for its single version window: keep it when it matches the release version regardless of timestamps, drop it otherwise (--all-release-tags always honors the field)" },
                 { long: "--check", description: "Do not write; report whether the changelog would change" },
             ],
             async run(ctx) {
@@ -179,6 +181,8 @@ export default defineExtension({
                     includeLinks: booleanOption(ctx.options, "include-links", "includeLinks"),
                     itemUrlBase: stringOption(ctx.options, "item-url-base", "itemUrlBase"),
                     itemRefStyle: itemRefStyleOption(ctx.options),
+                    respectItemRelease: booleanOption(ctx.options, "respect-item-release", "respectItemRelease"),
+                    excludeTags: excludeTagsOption(ctx.options),
                 };
                 const selectionReport = booleanOption(ctx.options, "explain", "explain")
                     ? explainChangelogSelection(generationOptions)
@@ -297,6 +301,8 @@ export default defineExtension({
                 { long: "--include-metadata", description: "Append compact item metadata (type/status/priority/release/milestone) to each entry" },
                 { long: "--item-url-base", value_name: "url", description: "Make item IDs clickable links to .toon files under the base URL" },
                 { long: "--item-ref-style", value_name: "style", description: "How item IDs render: auto (default), label (neutral/public-safe), toon (force blob link), github (public issue/PR link from gh:owner/repo#N provenance tag)" },
+                { long: "--exclude-tag", value_name: "list", description: "Omit items carrying any of these comma-separated tags (ignore convention, e.g. changelog:ignore)" },
+                { long: "--respect-item-release", description: "Treat an item release field as the authority for its single version window: keep it when it matches the release version regardless of timestamps, drop it otherwise (--all-release-tags always honors the field)" },
             ],
         };
         const registerExporterWithMetadata = api.registerExporter;
@@ -339,6 +345,8 @@ export default defineExtension({
                 includeMetadata: booleanOption(ctx.options, "include-metadata", "includeMetadata"),
                 itemUrlBase: stringOption(ctx.options, "item-url-base", "itemUrlBase"),
                 itemRefStyle: itemRefStyleOption(ctx.options),
+                respectItemRelease: booleanOption(ctx.options, "respect-item-release", "respectItemRelease"),
+                excludeTags: excludeTagsOption(ctx.options),
             });
             const outputPath = stringOption(ctx.options, "output", "output");
             if (format === "json") {
@@ -459,6 +467,19 @@ function itemRefStyleOption(options) {
         return normalized;
     }
     throw new PmCliError("--item-ref-style must be 'auto', 'label', 'toon', or 'github'", EXIT_CODE.USAGE);
+}
+/** OPT-IN (`--exclude-tag`): comma-separated tag list, or an array when the host
+ * passes a repeated flag. Absent/blank → `undefined`, which leaves generation
+ * unfiltered. */
+function excludeTagsOption(options) {
+    const raw = options["exclude-tag"] ?? options["excludeTag"] ?? options["exclude-tags"] ?? options["excludeTags"];
+    if (raw === undefined || raw === null)
+        return undefined;
+    const values = (Array.isArray(raw) ? raw : [raw])
+        .flatMap((entry) => String(entry).split(","))
+        .map((tag) => tag.trim())
+        .filter(Boolean);
+    return values.length > 0 ? values : undefined;
 }
 function parseLimitOption(options) {
     const raw = options["limit"];
