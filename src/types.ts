@@ -63,6 +63,20 @@ export type ChangelogGroupBy = "version" | "release" | "milestone";
  * keep-a-changelog grouping (Added/Changed/Fixed/...) byte-for-byte. */
 export type ChangelogSectionBy = "category" | "type" | "status" | "label";
 
+/** How pm item IDs are rendered as references in generated changelog entries,
+ * controlled by the opt-in `--item-ref-style` flag.
+ * - `"auto"` (default): an internal `.toon` blob link when `itemUrlBase` is set,
+ *   otherwise a neutral `(id)` label. Reproduces the historical behavior exactly.
+ * - `"label"`: always a neutral `(id)` label — never a link. Safe for changelogs
+ *   published to a public registry, where internal `.agents/pm/...` blob URLs leak
+ *   tracker structure and may 404.
+ * - `"toon"`: force the internal `.toon` blob link (requires `itemUrlBase`; falls
+ *   back to a label when `itemUrlBase` is unset).
+ * - `"github"`: render a public GitHub issue/PR link derived from the item's
+ *   `gh:owner/repo#number` provenance tag (as written by pm-github); items lacking
+ *   a valid provenance tag fall back to a neutral label. */
+export type ChangelogItemRefStyle = "auto" | "label" | "toon" | "github";
+
 export interface ChangelogReleaseWindow {
   heading: string;
   /** Git tag name (e.g. "v1.2.0") for this window. When set, items whose
@@ -91,6 +105,10 @@ export interface GenerateChangelogOptions {
    * When set, each item ID in the changelog becomes a hyperlink:
    * `[pmc-abc]({itemUrlBase}/pmc-abc.toon)` */
   itemUrlBase?: string;
+  /** OPT-IN: how pm item IDs are rendered as references. Absent → `"auto"`, which
+   * reproduces the historical behavior (blob link when `itemUrlBase` is set, else a
+   * neutral label). See {@link ChangelogItemRefStyle}. */
+  itemRefStyle?: ChangelogItemRefStyle;
   /** OPT-IN: within-release grouping. Absent or `"category"` reproduces the
    * historical keep-a-changelog grouping byte-for-byte. */
   sectionBy?: ChangelogSectionBy;

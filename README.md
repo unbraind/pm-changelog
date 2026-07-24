@@ -63,7 +63,16 @@ npx pm-changelog --stdout --body-preview 80       # append first 80 chars of eac
 npx pm-changelog --stdout --emoji-prefix          # prefix headings with emoji (Added 🎉, Fixed 🐛, ...)
 npx pm-changelog --stdout --include-metadata      # append type/status/priority/release/milestone per item
 npx pm-changelog --stdout --json --explain        # emit selection diagnostics (counts + exclusion hints) for agents
+npx pm-changelog --stdout --item-ref-style github  # link item IDs to public GitHub issues/PRs, not .agents/pm blobs
+npx pm-changelog --stdout --item-ref-style label   # neutral (id) labels — safe for a published/public changelog
 ```
+
+`--item-ref-style` controls how pm item IDs render as references:
+
+- `auto` (default) — an internal `.toon` blob link when `--item-url-base` is set, otherwise a neutral `(id)` label. Byte-for-byte identical to prior behavior.
+- `label` — always a neutral `(id)` label, never a link. Use for changelogs published to a public registry, where `.agents/pm/...` blob URLs leak tracker structure and may 404.
+- `toon` — force the internal `.toon` blob link (requires `--item-url-base`; falls back to a label when it is unset).
+- `github` — render a public GitHub issue/PR link derived from the item's `gh:owner/repo#number` provenance tag (written by [pm-github](https://github.com/unbraind/pm-github)); items without a valid provenance tag fall back to a neutral label.
 
 See [Usage](docs/usage.md#opt-in-enhancements) for details.
 
