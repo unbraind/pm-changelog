@@ -1,158 +1,171 @@
 import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
-import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { dirname, join } from "node:path";
 import test from "node:test";
-import { pathToFileURL } from "node:url";
+import { fileURLToPath, pathToFileURL } from "node:url";
+
+import { activateExtensionForTest, runRegisteredCommandForTest } from "@unbrained/pm-cli/sdk/testing";
+import type { ExtensionActivationResult, ExtensionCapability, FlagDefinition } from "@unbrained/pm-cli/sdk/authoring";
 
 import extension from "../dist/extension.js";
 
-test("extension command exposes item-url-base for clickable item IDs", () => {
-  let registeredCommand: { flags?: Array<{ long?: string }> } | undefined;
-  let registeredExporter: { flags?: Array<{ long?: string }>; examples?: string[] } | undefined;
-  const rendererOwnership: Array<{
-    format: string;
-    ownership?: {
-      commands?: string[];
-      resultDiscriminator?: (result: unknown) => boolean;
-    };
-  }> = [];
-  extension.activate({
-    registerCommand(command: { flags?: Array<{ long?: string }> }) {
-      registeredCommand = command;
-    },
-    registerExporter(_name: string, _handler: unknown, options?: { flags?: Array<{ long?: string }>; examples?: string[] }) {
-      registeredExporter = options;
-    },
-    registerRenderer(
-      format: string,
-      _renderer: unknown,
-      ownership?: {
-        commands?: string[];
-        resultDiscriminator?: (result: unknown) => boolean;
-      },
-    ) {
-      rendererOwnership.push({ format, ownership });
-    },
-  } as unknown as Parameters<typeof extension.activate>[0]);
-  assert.ok(registeredExporter, "extension should register the changelog exporter");
+/**
+ * Capabilities the on-disk `manifest.json` declares.
+ *
+ * Read from the manifest so activation runs under the exact grant the published
+ * package ships with: a surface registered without a matching declared
+ * capability fails here the same way it fails in the CLI, rather than passing
+ * against a permissive stub.
+ */
+const MANIFEST_CAPABILITIES: readonly ExtensionCapability[] = (
+  JSON.parse(
+    readFileSync(join(dirname(fileURLToPath(import.meta.url)), "..", "manifest.json"), "utf-8"),
+  ) as { capabilities: ExtensionCapability[] }
+).capabilities;
+
+let cachedActivation: Promise<ExtensionActivationResult> | undefined;
+
+/**
+ * Activate pm-changelog through pm's real extension loader, once per test process.
+ *
+ * Activation is deterministic and side-effect free, so the result is memoized
+ * and shared. Asserting `failed` here means a broken activation surfaces as a
+ * clear failure rather than as empty registration lists downstream.
+ */
+function activateChangelog(): Promise<ExtensionActivationResult> {
+  cachedActivation ??= (async () => {
+    const activation = await activateExtensionForTest(extension, {
+      name: "pm-changelog",
+      capabilities: MANIFEST_CAPABILITIES,
+    });
+    assert.deepEqual(activation.failed, [], "extension activation must not fail");
+    return activation;
+  })();
+  return cachedActivation;
+}
+
+/** Long-form flag names registered against one command path. */
+async function registeredFlagLongs(command: string): Promise<(string | undefined)[]> {
+  const entry = (await activateChangelog()).registrations.flags.find(
+    (candidate) => candidate.target_command === command,
+  );
+  assert.ok(entry, `flags should be registered for "${command}"`);
+  return entry.flags.map((flag: FlagDefinition) => flag.long);
+}
+
+test("extension command exposes item-url-base for clickable item IDs", async () => {
+  const activation = await activateChangelog();
+
+  // `registerExporter` registers its handler under the "<name> export" command
+  // path, so the exporter's flags and examples surface through the same command
+  // registries the host dispatches on — which is what the CLI actually reads.
+  const exporterCommand = activation.registrations.commands.find(
+    (entry) => entry.command === "changelog export",
+  );
+  assert.ok(exporterCommand, "extension should register the changelog exporter");
+  const exportFlags = await registeredFlagLongs("changelog export");
+  assert.ok(exportFlags.includes("--format"), "changelog export should expose --format through pm contracts");
   assert.ok(
-    registeredExporter.flags?.some((flag) => flag.long === "--format"),
-    "changelog export should expose --format through pm contracts"
+    exportFlags.includes("--release-notes"),
+    "changelog export should expose release-notes mode through pm contracts",
   );
   assert.ok(
-    registeredExporter.flags?.some((flag) => flag.long === "--release-notes"),
-    "changelog export should expose release-notes mode through pm contracts"
-  );
-  assert.ok(
-    registeredExporter.examples?.some((example) => example.includes("changelog export --format json")),
-    "changelog export should document json export usage"
+    exporterCommand.examples?.some((example) => example.includes("changelog export --format json")),
+    "changelog export should document json export usage",
   );
 
-  assert.ok(registeredCommand, "extension should register the changelog command");
   assert.ok(
-    registeredCommand.flags?.some((flag) => flag.long === "--item-url-base"),
-    "changelog generate should expose --item-url-base through pm contracts"
+    activation.registrations.commands.some((entry) => entry.command === "changelog generate"),
+    "extension should register the changelog command",
   );
-  assert.ok(
-    registeredCommand.flags?.some((flag) => flag.long === "--release-version-from-package"),
-    "changelog generate should expose package-version release mode through pm contracts"
-  );
-  assert.ok(
-    registeredCommand.flags?.some((flag) => flag.long === "--since-previous-tag"),
-    "changelog generate should expose previous-tag release range through pm contracts"
-  );
-  assert.ok(
-    registeredCommand.flags?.some((flag) => flag.long === "--until-release-tag"),
-    "changelog generate should expose release-tag cap through pm contracts"
-  );
-  assert.ok(
-    registeredCommand.flags?.some((flag) => flag.long === "--all-release-tags"),
-    "changelog generate should expose full git-tag history mode through pm contracts"
-  );
-  assert.ok(
-    registeredCommand.flags?.some((flag) => flag.long === "--release-tag-pattern"),
-    "changelog generate should expose full-history tag glob configuration through pm contracts"
-  );
-  for (const flag of ["--section-by", "--conventional", "--contributors", "--limit", "--since-version", "--include-metadata", "--changelog-json", "--explain", "--summary", "--format", "--item-ref-style", "--exclude-tag", "--respect-item-release"]) {
+  const generateFlags = await registeredFlagLongs("changelog generate");
+  for (const flag of [
+    "--item-url-base",
+    "--release-version-from-package",
+    "--since-previous-tag",
+    "--until-release-tag",
+    "--all-release-tags",
+    "--release-tag-pattern",
+    "--section-by",
+    "--conventional",
+    "--contributors",
+    "--limit",
+    "--since-version",
+    "--include-metadata",
+    "--changelog-json",
+    "--explain",
+    "--summary",
+    "--format",
+    "--item-ref-style",
+    "--exclude-tag",
+    "--respect-item-release",
+  ]) {
     assert.ok(
-      registeredCommand.flags?.some((f) => f.long === flag),
-      `changelog generate should expose ${flag} through pm contracts`
+      generateFlags.includes(flag),
+      `changelog generate should expose ${flag} through pm contracts`,
     );
   }
+
   // Both subcommands must carry the release-attribution surface: release notes
   // are generated through the exporter, so an exporter missing the flags would
   // silently misattribute closed-late trackers.
   for (const flag of ["--item-ref-style", "--exclude-tag", "--respect-item-release"]) {
     assert.ok(
-      registeredExporter.flags?.some((f) => f.long === flag),
-      `changelog export should expose ${flag} through pm contracts`
+      exportFlags.includes(flag),
+      `changelog export should expose ${flag} through pm contracts`,
     );
   }
+
+  const rendererOwnership = activation.renderers.overrides;
   assert.deepEqual(
-    rendererOwnership.map(({ format, ownership }) => ({
-      format,
-      commands: ownership?.commands,
-    })),
+    rendererOwnership.map((override) => ({ format: override.format, commands: override.commands })),
     [
-      {
-        format: "toon",
-        commands: ["changelog generate", "changelog export"],
-      },
-      {
-        format: "json",
-        commands: ["changelog generate", "changelog export"],
-      },
+      { format: "toon", commands: ["changelog generate", "changelog export"] },
+      { format: "json", commands: ["changelog generate", "changelog export"] },
     ],
   );
-  for (const registration of rendererOwnership) {
+  for (const override of rendererOwnership) {
     assert.equal(
-      registration.ownership?.resultDiscriminator?.({
-        pmChangelogRendered: true,
-        output: "{}\n",
-      }),
+      override.resultDiscriminator?.({ pmChangelogRendered: true, output: "{}\n" }),
       true,
     );
-    assert.equal(
-      registration.ownership?.resultDiscriminator?.({ output: "{}\n" }),
-      false,
-    );
+    assert.equal(override.resultDiscriminator?.({ output: "{}\n" }), false);
   }
 });
 
 test("changelog exporter rejects unsupported formats", async () => {
-  let exporter: ((ctx: { options: Record<string, unknown>; pm_root: string }) => Promise<unknown>) | undefined;
-  extension.activate({
-    registerCommand() {},
-    registerExporter(_name: string, handler: typeof exporter) {
-      exporter = handler;
-    },
-  } as unknown as Parameters<typeof extension.activate>[0]);
-
-  assert.ok(exporter, "extension should register the changelog exporter");
+  const { commands } = await activateChangelog();
   await assert.rejects(
-    () => exporter!({ options: { format: "js" }, pm_root: process.cwd() }),
+    () => runRegisteredCommandForTest(commands, {
+      command: "changelog export",
+      options: { format: "js" },
+      pmRoot: process.cwd(),
+    }),
     /--format must be 'md' or 'json'/,
   );
 });
 
 test("changelog generate rejects unsupported formats before workspace reads", async () => {
-  let command: { run?: (ctx: { options: Record<string, unknown>; pm_root: string }) => Promise<unknown> } | undefined;
-  extension.activate({
-    registerCommand(registered: typeof command) {
-      command = registered;
-    },
-    registerExporter() {},
-  } as unknown as Parameters<typeof extension.activate>[0]);
-
-  assert.ok(command?.run, "extension should register changelog generate");
+  const { commands } = await activateChangelog();
   await assert.rejects(
-    () => command!.run!({ options: { format: "jsn" }, pm_root: "/path/that/does/not/exist" }),
+    () => runRegisteredCommandForTest(commands, {
+      command: "changelog generate",
+      options: { format: "jsn" },
+      pmRoot: "/path/that/does/not/exist",
+    }),
     /--format must be 'md' or 'json'/,
   );
 });
 
+// This is the one test that must keep a hand-built `api` double rather than use
+// `activateExtensionForTest`. Its subject is the compatibility branch taken when
+// the *host* is an older pm-cli whose `registerExporter` accepts only
+// (name, handler) and therefore cannot carry flags — the extension then falls
+// back to `registerFlags`. The harness always activates against the current
+// host, so it cannot express "pretend registerExporter has arity 2"; a stub is
+// the only way to simulate a different runtime version.
 test("changelog exporter registers flags on legacy two-argument pm-cli runtimes", () => {
   let registeredFlags: Array<{ long?: string }> | undefined;
   const registerExporter = function (_name: string, _handler: unknown) {};
@@ -191,17 +204,13 @@ test("changelog generate surfaces missing git tag history as a non-zero pm-cli e
   const cloneDir = join(cloneParent, "clone");
   execFileSync("git", ["clone", "--depth", "1", "--no-tags", pathToFileURL(sourceDir).toString(), cloneDir], { encoding: "utf-8" });
 
-  let command: { run?: (ctx: { options: Record<string, unknown>; pm_root: string }) => Promise<unknown> } | undefined;
-  extension.activate({
-    registerCommand(registered: typeof command) {
-      command = registered;
-    },
-    registerExporter() {},
-  } as unknown as Parameters<typeof extension.activate>[0]);
-
-  assert.ok(command?.run, "extension should register changelog generate");
+  const { commands } = await activateChangelog();
   await assert.rejects(
-    () => command!.run!({ options: { "since-previous-tag": true }, pm_root: cloneDir }),
+    () => runRegisteredCommandForTest(commands, {
+      command: "changelog generate",
+      options: { "since-previous-tag": true },
+      pmRoot: cloneDir,
+    }),
     (error: unknown) => {
       assert.match((error as Error).message, /E_MISSING_TAG_HISTORY/);
       assert.match((error as Error).message, /git fetch --tags --unshallow/);
@@ -212,17 +221,13 @@ test("changelog generate surfaces missing git tag history as a non-zero pm-cli e
 });
 
 test("changelog generate rejects unsupported --format values", async () => {
-  let handler: ((ctx: { options: Record<string, unknown>; pm_root: string }) => Promise<unknown>) | undefined;
-  extension.activate({
-    registerCommand(command: { run?: typeof handler }) {
-      handler = command.run;
-    },
-    registerExporter() {},
-  } as unknown as Parameters<typeof extension.activate>[0]);
-
-  assert.ok(handler, "extension should register the changelog generate command");
+  const { commands } = await activateChangelog();
   await assert.rejects(
-    () => handler!({ options: { format: "js" }, pm_root: process.cwd() }),
+    () => runRegisteredCommandForTest(commands, {
+      command: "changelog generate",
+      options: { format: "js" },
+      pmRoot: process.cwd(),
+    }),
     /--format must be 'md' or 'json'/,
   );
 });

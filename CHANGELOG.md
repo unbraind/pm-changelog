@@ -1,5 +1,11 @@
 # Changelog
 
+## Unreleased
+
+### Other
+
+- Replace hand-built api doubles in extension tests with the SDK activation harness ([pmc-x0u4](https://github.com/unbraind/pm-changelog/blob/main/.agents/pm/tasks/pmc-x0u4.toon))
+
 ## 2026.7.26 - 2026-07-26
 
 ### Other
