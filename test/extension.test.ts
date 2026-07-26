@@ -19,11 +19,19 @@ import extension from "../dist/extension.js";
  * capability fails here the same way it fails in the CLI, rather than passing
  * against a permissive stub.
  */
-const MANIFEST_CAPABILITIES: readonly ExtensionCapability[] = (
-  JSON.parse(
-    readFileSync(join(dirname(fileURLToPath(import.meta.url)), "..", "manifest.json"), "utf-8"),
-  ) as { capabilities: ExtensionCapability[] }
-).capabilities;
+const parsedManifest: unknown = JSON.parse(
+  readFileSync(join(dirname(fileURLToPath(import.meta.url)), "..", "manifest.json"), "utf-8"),
+);
+assert.ok(
+  parsedManifest !== null && typeof parsedManifest === "object",
+  "manifest.json must parse to an object",
+);
+const declaredCapabilities = (parsedManifest as { capabilities?: unknown }).capabilities;
+assert.ok(
+  Array.isArray(declaredCapabilities) && declaredCapabilities.every((entry) => typeof entry === "string"),
+  "manifest.json must declare capabilities as an array of strings",
+);
+const MANIFEST_CAPABILITIES = declaredCapabilities as readonly ExtensionCapability[];
 
 let cachedActivation: Promise<ExtensionActivationResult> | undefined;
 
