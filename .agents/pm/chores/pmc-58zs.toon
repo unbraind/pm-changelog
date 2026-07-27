@@ -1,0 +1,23 @@
+id: pmc-58zs
+title: Adopt pm-cli 2026.7.27 dependency ranges
+description: Bump @unbrained/pm-cli peer and dev dependency ranges from 2026.7.26 to 2026.7.27
+type: Chore
+status: closed
+priority: 2
+tags[3]: 2026.7.27,bump,pm-cli
+created_at: "2026-07-27T13:39:55.931Z"
+updated_at: "2026-07-27T13:40:37.917Z"
+closed_at: "2026-07-27T13:40:37.916Z"
+claim_principal: pi-agent
+author: pi-agent
+estimated_minutes: 30
+acceptance_criteria: All gates pass; activation proof on 2026.7.27 CLI shows extension active; no host-owned flag collisions
+resolution: Bumped @unbrained/pm-cli peer and dev ranges to 2026.7.27. All gates pass. Activation proof confirms extension active on 2026.7.27 CLI with no host-owned flag collisions.
+expected_result: All gates pass; extension activates on 2026.7.27 CLI; no host-owned flag collisions.
+actual_result: "All gates pass: build, typecheck, check, 179 tests, changelog:full, changelog:check. Activation proof: pm changelog --help exit 0, extension active, pm changelog export and pm changelog generate --stdout both exit 0. Flag audit clean."
+notes[3]{created_at,author,text}:
+  "2026-07-27T13:40:25.551Z",pi-agent,Bumped peerDependencies @unbrained/pm-cli from >=2026.7.26 to >=2026.7.27 and devDependencies from ^2026.7.26 to ^2026.7.27. Package version was already 2026.7.27 from the release bot commit. Ran npm install; confirmed installed CLI version is 2026.7.27 via node -e require check.
+  "2026-07-27T13:40:25.987Z",pi-agent,"Flag-collision grep: grep -nE -- '--(json|quiet|path|lean|id-only|author|no-changed-fields|full-changed-fields|pm-path)\\b' src/*.ts. All hits are CLI argument parsing, programmatic pm invocations (passing --json to pm list-all), comments, or git arguments (--quiet for git rev-parse). No host-owned global flags declared in any flags: array. Extension flags arrays contain only pm-changelog-specific options like --output, --stdout, --format, etc."
+  "2026-07-27T13:40:26.372Z",pi-agent,"Gates: npm run build OK, npm run typecheck OK, npm run check OK, npm test 179/179 pass. npm run changelog:full OK, npm run changelog:check OK. Activation proof in temp workspace: pm changelog --help exits 0 (no unknown_command). pm extension list --json shows extension active. Exercised pm changelog export (exit 0, markdown output) and pm changelog generate --stdout (exit 0, replaced changelog)."
+close_reason: Adoption verified and complete
+body: ""
