@@ -1,5 +1,15 @@
 # Changelog
 
+## Unreleased
+
+### Added
+
+- Report the actual changelog drift as a diff when check fails ([pmc-r0nj](https://github.com/unbraind/pm-changelog/blob/main/.agents/pm/features/pmc-r0nj.toon))
+
+### Other
+
+- Adopt pm-cli 2026.7.27 dependency ranges ([pmc-58zs](https://github.com/unbraind/pm-changelog/blob/main/.agents/pm/chores/pmc-58zs.toon))
+
 ## 2026.7.27 - 2026-07-27
 
 ### Other

@@ -1,0 +1,34 @@
+id: pmc-r0nj
+title: Report the actual changelog drift as a diff when check fails
+description: "Check mode failed with a single line naming the file and no indication of which entries, section, or direction differed. Two fleet repos went red on CI with that message while the local check passed on the same commit, because the PR branch was behind main and CI built the merge ref which saw a release commit the branch lacked; diagnosing it required cloning the repo and diffing generator output by hand. When check detects drift it now prints a unified diff between the committed changelog and the freshly generated one to stderr after the existing out-of-date line, keeping the existing line and exit code exactly as they are. Check is a mandatory CI gate across all fleet repos so its failure message is read far more often than any other output this tool produces, usually by an agent that cannot rerun the generator interactively."
+type: Feature
+status: closed
+priority: 1
+tags[4]: agent-ux,changelog,ci,diagnostics
+created_at: "2026-07-27T22:17:12.983Z"
+updated_at: "2026-07-27T22:19:00.736Z"
+deadline: "2026-07-29T22:17:12.983Z"
+closed_at: "2026-07-27T22:19:00.735Z"
+author: pi-agent
+estimated_minutes: 120
+acceptance_criteria: "check drift prints a unified diff to stderr with clearly labeled sides (committed vs generated) after the existing out-of-date line; exit code and existing line unchanged; up-to-date run prints no diff and still exits 0; diff capped at about 200 lines with an explicit truncation notice stating the omitted-line count and how to see the full output; a no-check-diff flag suppresses the diff while preserving the exit code; diff goes to stderr so stdout capture is unaffected; no new runtime dependency; tests cover drift diff content, clean run, truncation, suppression flag, and stderr routing; build, test, typecheck, and changelog check gates all green"
+resolution: "Added src/diff.ts (LCS-based unified diff renderer, zero new runtime dependencies) and wired it into the check-mode failure path in src/cli.ts. On drift, prints a unified diff (--- committed vs +++ generated) to stderr after the existing out-of-date line, capped at 200 hunk lines with an explicit truncation notice naming the omitted-line count and the local regeneration path. Added --no-check-diff to suppress while preserving the exit code. New test/check-diff.test.ts covers drift diff content, clean run, truncation, suppression flag, stderr routing, and unit-level diff renderer behavior."
+expected_result: "check drift prints a labeled unified diff to stderr naming the differing lines; up-to-date run prints no diff and exits 0; diff capped at about 200 lines with a truncation notice; --no-check-diff suppresses the diff while preserving the exit code; stdout capture unaffected; no new runtime dependency; build, test, typecheck, and changelog:check all green."
+actual_result: "All gates green: npm run build OK, npx tsc --noEmit OK, npm test 188/188 pass (was 178, +10 new), npm run changelog:check prints 'Changelog is up to date'. Dogfood against a corrupted scratch CHANGELOG.md (deleted the ## 2026.7.27 section) shows the missing release section in the diff immediately."
+dependencies[1]{id,kind,created_at,author,source_kind}:
+  pmc-7dm6,related,"2026-07-27T22:17:12.983Z",pi-agent,null
+comments[1]{created_at,author,text}:
+  "2026-07-27T22:17:12.983Z",pi-agent,Both CI failures today traced to the branch being behind main; a diff in the failure output would have shown a missing release section immediately and made the cause obvious in seconds.
+notes[2]{created_at,author,text}:
+  "2026-07-27T22:17:12.983Z",pi-agent,Implement the diff in TypeScript (small LCS routine) since the package has zero runtime dependencies and none may be added; cap output so a first-run or fully regenerated changelog cannot flood a CI log.
+  "2026-07-27T22:18:12.068Z",pi-agent,"Motivation: two fleet repos went red on CI with \"Changelog is out of date\" while the local check passed on the same commit. Cause both times: the PR branch was behind main, so CI (which builds the PR merge ref refs/pull/N/merge, not the branch head) saw a release commit the branch lacked and generated a different changelog. A diff in the failure output shows the missing release section immediately.\n\nDogfood (corrupted a scratch copy of the real CHANGELOG.md by deleting the ## 2026.7.27 release section, then ran the check-mode command against it):\n\nBEFORE (--check --no-check-diff, the old behavior):\n  Changelog is out of date: /tmp/dogfood/CHANGELOG.md\n  (exit code: 1)\n\nAFTER (--check, the new default):\n  Changelog is out of date: /tmp/dogfood/CHANGELOG.md\n  --- committed CHANGELOG.md\n  +++ generated\n  @@ -1,10 +1,11 @@\n   # Changelog\n  \n  -## Unreleased\n  +## 2026.7.27 - 2026-07-27\n  \n    ### Other\n  \n  -- Adopt pm-cli 2026.7.27 dependency ranges ([pmc-58zs](...))\n  +- Exclude generated dist output from DeepScan static analysis ([pmc-mi7s](...))\n  +- Replace hand-built api doubles in extension tests with the SDK activation harness ([pmc-x0u4](...))\n  \n    ## 2026.7.26 - 2026-07-26\n  \n  (exit code: 1)\n\nThe missing ## 2026.7.27 release section is now visible in the failure output in seconds, with no need to clone and diff by hand."
+learnings[1]{created_at,author,text}:
+  "2026-07-27T22:17:12.983Z",pi-agent,A gate that only says pass or fail forces every reader to reproduce the failure locally; gates read by agents in CI logs must ship their own diagnosis.
+files[1]{path,scope,note}:
+  src/cli.ts,project,check-mode failure path that gains the drift diff
+tests[1]{command,scope,timeout_seconds}:
+  "npm test && npm run changelog:check",project,240
+docs[1]{path,scope,note}:
+  docs/usage.md,project,flag reference for check mode and the new suppression flag
+close_reason: Delivered the check drift diff so the CI gate failure self-diagnoses instead of forcing a manual clone-and-diff
+body: ""
