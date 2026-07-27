@@ -185,7 +185,12 @@ async function main() {
         if (options.check && result.changed) {
             if (options.checkDiff)
                 writeCheckDiff(options, outputPath, result.markdown);
-            process.exit(1);
+            // Set the status and return rather than `process.exit(1)`: Node may still
+            // have the diff queued when stderr is a pipe (exactly the CI case this
+            // diff exists for), and `process.exit` abandons pending stdio writes. The
+            // failure message would then be truncated precisely where it is needed.
+            process.exitCode = 1;
+            return;
         }
         return;
     }
