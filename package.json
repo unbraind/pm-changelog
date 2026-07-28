@@ -1,6 +1,6 @@
 {
   "name": "pm-changelog",
-  "version": "2026.7.27",
+  "version": "2026.7.28",
   "description": "Generate CHANGELOG.md files from pm-cli items for local and CI usage",
   "repository": {
     "type": "git",
@@ -48,7 +48,7 @@
     "changelog": "node dist/cli.js --pm-root .agents/pm --mode prepend --output CHANGELOG.md --release-version-from-package --since-previous-tag --until-release-tag --item-url-base https://github.com/unbraind/pm-changelog/blob/main/.agents/pm --respect-item-release",
     "changelog:full": "node dist/cli.js --pm-root .agents/pm --mode replace --output CHANGELOG.md --all-release-tags --release-version-from-package --item-url-base https://github.com/unbraind/pm-changelog/blob/main/.agents/pm --respect-item-release",
     "changelog:check": "npm run changelog -- --check",
-    "audit:prod": "npm audit --omit=dev --ignore-scripts",
+    "audit:prod": "node --input-type=module -e \"import { spawnSync } from 'node:child_process'; import { devNull } from 'node:os'; const env = { ...process.env, npm_config_userconfig: devNull, NPM_CONFIG_USERCONFIG: devNull }; for (const key of Object.keys(env)) if (key.toLowerCase() === 'npm_config_allow_scripts') delete env[key]; const win = process.platform === 'win32'; const r = spawnSync(win ? 'npm.cmd' : 'npm', ['audit', '--omit=dev', '--ignore-scripts'], { stdio: 'inherit', env, shell: win }); process.exit(r.status ?? 1);\"",
     "pack:dry-run": "npm pack --dry-run",
     "prepack": "npm run build",
     "release:check": "npm run check && npm test && npm run audit:prod && npm run pack:dry-run && npm run changelog:check",
@@ -96,11 +96,11 @@
     ]
   },
   "peerDependencies": {
-    "@unbrained/pm-cli": ">=2026.7.27"
+    "@unbrained/pm-cli": ">=2026.7.28"
   },
   "devDependencies": {
     "@types/node": "^26.1.1",
-    "@unbrained/pm-cli": "^2026.7.27",
+    "@unbrained/pm-cli": "^2026.7.28",
     "typescript": "^7.0.2"
   },
   "keywords": [
