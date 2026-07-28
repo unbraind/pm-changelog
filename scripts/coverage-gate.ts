@@ -138,7 +138,16 @@ const result = spawnSync(
     `--test-reporter-destination=${lcovPath}`,
     ...config.tests,
   ],
-  { cwd: repoRoot, stdio: "inherit" },
+  {
+    cwd: repoRoot,
+    stdio: "inherit",
+    // Pin the timezone so the measurement is reproducible on any machine.
+    // Code that branches on a timestamp's UTC offset takes different paths under
+    // a local offset than under UTC, which moves the reported percentage between
+    // a contributor's machine and CI. A threshold pinned to one machine's number
+    // then fails on the other for reasons unrelated to the change under review.
+    env: { ...process.env, TZ: "UTC" },
+  },
 );
 
 if (result.error) {

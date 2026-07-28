@@ -6,7 +6,7 @@ status: closed
 priority: 1
 tags[3]: code-quality,coverage,testing
 created_at: "2026-07-28T23:14:26.924Z"
-updated_at: "2026-07-28T23:14:51.371Z"
+updated_at: "2026-07-28T23:24:44.300Z"
 deadline: "2026-08-05T00:00:00.000Z"
 closed_at: "2026-07-28T23:14:51.370Z"
 author: claude-code
@@ -19,8 +19,9 @@ dependencies[1]{id,kind,created_at,author,source_kind,author_source}:
   pmc-3j77,related,"2026-07-28T23:14:26.924Z",claude-code,"cli:create:dep",asserted
 comments[1]{created_at,author,text}:
   "2026-07-28T23:14:26.924Z",claude-code,"Negative control run: adding an untested src file made the gate exit 1 and name the file,so the presence check is not vacuous."
-notes[1]{created_at,author,text}:
+notes[2]{created_at,author,text}:
   "2026-07-28T23:14:26.924Z",claude-code,Do not rewrite the node_modules pm-cli dist path when converting test spawn targets; only the package's own dist references become source paths.
+  "2026-07-28T23:24:44.297Z",claude-code,"CI measured 78.96 branch coverage where this host measured 79.24. Cause: src/release-context.ts extractOffset branches on whether a timestamp carries a UTC offset, so a host in a non-UTC zone takes a path CI does not. The gate now pins TZ=UTC when it spawns the runner, which makes the measurement identical on any machine, and the thresholds are set from that reproducible number: 89 line, 78 branch, 90 function. First concrete target for the follow-up to 100 is release-context.ts line 447."
 learnings[1]{created_at,author,text}:
   "2026-07-28T23:14:26.924Z",claude-code,"Node omits never-loaded files from its coverage report rather than reporting them at zero,so a threshold flag alone is satisfiable by narrowing what the suite imports. Any coverage gate must reconcile the report against the source tree."
 files[4]{path,scope,note}:
