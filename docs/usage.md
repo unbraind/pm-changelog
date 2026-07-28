@@ -297,7 +297,8 @@ and its history untouched in the tracker. Both flags are reported by `--explain`
 | `--include-metadata` | false | Append compact item metadata (`type`, `status`, `priority`, `release`, `milestone`) to each entry |
 | `--mode <mode>` | `replace` | `replace` or `prepend` existing changelog |
 | `--json` | false | Print JSON summary for automation |
-| `--check` | false | Do not write; exit 1 if the output file would change |
+| `--check` | false | Do not write; exit 1 if the output file would change. On drift, also prints a unified diff (`--- committed` vs `+++ generated`) to **stderr** so the cause is visible without rerunning the generator — the common case (a PR branch behind `main`, so the CI merge ref sees a release the branch lacks) shows up as a missing release section in seconds. Capped at ~200 diff lines with an explicit truncation notice |
+| `--no-check-diff` | false | With `--check`, suppress the drift diff; the exit code is unchanged. For callers that only want the pass/fail signal |
 | `--github-output` | false | Write summary fields to `$GITHUB_OUTPUT` |
 | `--github-step-summary` | false | Append generated markdown to `$GITHUB_STEP_SUMMARY` |
 | `--include-empty` | false | Emit an empty section when no items match. When using `--all-release-tags`, empty release windows are omitted by default; pass this flag to keep them as `No changes.` sections. |
