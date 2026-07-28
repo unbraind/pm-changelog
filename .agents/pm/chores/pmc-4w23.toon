@@ -1,0 +1,33 @@
+id: pmc-4w23
+title: Adopt pm-cli 2026.7.28 and harmonize the production audit script
+description: "pm-changelog was the last fleet package still declaring pm-cli 2026.7.27. Bump all version sites and harmonize audit:prod onto the cross-platform fleet form."
+type: Chore
+status: closed
+priority: 2
+tags[2]: deps,release
+created_at: "2026-07-28T05:28:01.951Z"
+updated_at: "2026-07-28T05:29:22.747Z"
+deadline: "2026-07-29T00:00:00.000Z"
+closed_at: "2026-07-28T05:29:22.746Z"
+author: maintainer
+estimated_minutes: 30
+acceptance_criteria: "All version sites report 2026.7.28, the installed CLI resolves to 2026.7.28, audit:prod matches the fleet cross-platform form, and release:check passes end to end."
+resolution: fixed
+expected_result: pm-changelog declares and resolves pm-cli 2026.7.28 and its audit gate is robust to ambient npm config on both POSIX and Windows.
+actual_result: "All four version sites report 2026.7.28, the installed CLI resolves to 2026.7.28, audit:prod matches the fleet cross-platform form, and release:check passes end to end."
+dependencies[1]{id,kind,created_at,author,source_kind}:
+  pmc-r0nj,related,"2026-07-28T05:28:01.951Z",maintainer,null
+comments[1]{created_at,author,text}:
+  "2026-07-28T05:28:01.951Z",maintainer,Last package in the 2026.7.28 adoption wave
+notes[1]{created_at,author,text}:
+  "2026-07-28T05:28:01.951Z",maintainer,"audit:prod must spawn npm through a shell on win32 because Node refuses to exec .cmd via spawn"
+learnings[1]{created_at,author,text}:
+  "2026-07-28T05:28:01.951Z",maintainer,"A bare npm audit --omit=dev aborts with EALLOWSCRIPTS when npm_config_allow_scripts is set,so the audit gate can fail for reasons unrelated to vulnerabilities"
+files[1]{path,scope,note}:
+  package.json,project,version and audit script
+tests[1]{command,scope,timeout_seconds}:
+  "npm run release:check",project,600
+docs[1]{path,scope,note}:
+  CHANGELOG.md,project,regenerated after close
+close_reason: "Bumped to pm-cli 2026.7.28 across all four version sites and harmonized audit:prod onto the cross-platform fleet form verified on Windows CI; release:check passes end to end."
+body: "Bumps package.json version, peerDependencies to >=2026.7.28, devDependencies to ^2026.7.28, manifest.json, and the extension module version constant in src/extension.ts. Replaces the bare npm audit invocation with the fleet Node helper."
