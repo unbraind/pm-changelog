@@ -7,3 +7,4 @@ dist-test/
 .agents/pm/runtime/
 .agents/pm/search/
 .claude/
+coverage/

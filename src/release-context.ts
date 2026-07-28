@@ -2,7 +2,7 @@ import { execFileSync } from "node:child_process";
 import { existsSync, readFileSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 
-import type { ChangelogReleaseWindow } from "./types.js";
+import type { ChangelogReleaseWindow } from "./types.ts";
 
 export interface ReleaseContextOptions {
   cwd?: string;
