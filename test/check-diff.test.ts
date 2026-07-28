@@ -208,6 +208,38 @@ test("createUnifiedDiff honors a small maxLines cap and reports the omitted coun
   assert.ok(body.length <= 5, `emitted body (${body.length}) must respect the 5-line cap`);
 });
 
+test("a truncated wholesale replacement still shows both deletions and insertions", () => {
+  // Regression: a flat prefix cut of the diff body emitted every "-" line
+  // before any "+" line, so capping a fully regenerated changelog — the most
+  // common drift shape — showed only what was removed and nothing the
+  // generator produced, which is exactly what --check is asked to report.
+  const oldText = Array.from({ length: 300 }, (_, i) => `OLD line ${i}`).join("\n") + "\n";
+  const newText = Array.from({ length: 300 }, (_, i) => `NEW line ${i}`).join("\n") + "\n";
+  const result = createUnifiedDiff(oldText, newText, { maxLines: 200, oldLabel: "old", newLabel: "new" });
+
+  assert.equal(result.truncated, true);
+  const body = result.text.split("\n").filter(Boolean).slice(2); // drop --- / +++
+  const deletions = body.filter((line) => line.startsWith("-"));
+  const insertions = body.filter((line) => line.startsWith("+"));
+
+  assert.ok(deletions.length > 0, "truncated diff must still show deletions");
+  assert.ok(insertions.length > 0, "truncated diff must still show insertions");
+  assert.ok(body.length <= 200, `emitted body (${body.length}) must respect the 200-line cap`);
+});
+
+test("truncation does not starve a side that is legitimately empty", () => {
+  // A pure insertion has no deletions to show; balancing must not fabricate
+  // one or waste budget reserving room for it.
+  const oldText = "keep\n";
+  const newText = "keep\n" + Array.from({ length: 400 }, (_, i) => `added ${i}`).join("\n") + "\n";
+  const result = createUnifiedDiff(oldText, newText, { maxLines: 200, oldLabel: "old", newLabel: "new" });
+
+  const body = result.text.split("\n").filter(Boolean).slice(2);
+  assert.equal(result.truncated, true);
+  assert.equal(body.filter((line) => line.startsWith("-")).length, 0);
+  assert.ok(body.filter((line) => line.startsWith("+")).length > 150, "insertions must fill the budget");
+});
+
 test("help documents --no-check-diff and the --check diff behavior", () => {
   const out = execFileSync(process.execPath, [CLI, "--help"], { encoding: "utf-8" });
   assert.match(out, /--no-check-diff/);

@@ -43,13 +43,72 @@ export function createUnifiedDiff(oldText, newText, options = {}) {
         }
     }
     const truncated = body.length > maxLines;
-    const emitted = truncated ? body.slice(0, maxLines) : body;
+    const emitted = truncated ? capHunkLines(hunks, maxLines) : body;
     const header = [`--- ${options.oldLabel ?? "old"}`, `+++ ${options.newLabel ?? "new"}`];
     return {
         text: [...header, ...emitted].join("\n") + "\n",
         truncated,
         omittedLines: body.length - emitted.length,
     };
+}
+/**
+ * Render `hunks` within a `maxLines` budget while keeping deletions *and*
+ * insertions visible.
+ *
+ * A flat prefix cut cannot do this. Unified diff emits a change block as every
+ * `-` line followed by every `+` line, so slicing the first N lines of a
+ * wholesale replacement — the shape a fully regenerated changelog always takes
+ * — yields N deletions and zero insertions. The reader then sees only what was
+ * removed and nothing the generator actually produced, which is precisely the
+ * question `--check` is being asked.
+ *
+ * Each hunk therefore gets a share of the budget proportional to its size, and
+ * within a hunk the share is split across the delete run and the insert run in
+ * proportion to their lengths, so neither side can be starved. Elided spans are
+ * marked inline rather than dropped silently.
+ */
+function capHunkLines(hunks, maxLines) {
+    const totalLines = hunks.reduce((sum, hunk) => sum + hunk.lines.length + 1, 0);
+    const out = [];
+    for (const hunk of hunks) {
+        if (out.length >= maxLines) {
+            break;
+        }
+        out.push(`@@ -${formatRange(hunk.oldStart, hunk.oldCount)} +${formatRange(hunk.newStart, hunk.newCount)} @@`);
+        // Proportional share of the remaining budget, less the header just emitted.
+        const share = Math.max(2, Math.floor(((hunk.lines.length + 1) / totalLines) * maxLines) - 1);
+        const budget = Math.min(share, maxLines - out.length);
+        for (const run of splitRuns(hunk.lines)) {
+            out.push(...capRun(run, Math.max(1, Math.round((run.length / hunk.lines.length) * budget))));
+        }
+    }
+    return out.slice(0, maxLines);
+}
+/** Split a hunk's lines into consecutive same-op runs, so each run can be
+ * budgeted independently and a long delete run cannot consume an insert run's
+ * share. */
+function splitRuns(lines) {
+    const runs = [];
+    for (const entry of lines) {
+        const current = runs[runs.length - 1];
+        if (current && current[0].op === entry.op) {
+            current.push(entry);
+        }
+        else {
+            runs.push([entry]);
+        }
+    }
+    return runs;
+}
+/** Render one same-op run, truncated to `budget` lines with an explicit marker
+ * naming how many lines were elided. */
+function capRun(run, budget) {
+    const prefix = run[0].op === "delete" ? "-" : run[0].op === "insert" ? "+" : " ";
+    if (run.length <= budget) {
+        return run.map((entry) => prefix + entry.line);
+    }
+    const kept = run.slice(0, budget).map((entry) => prefix + entry.line);
+    return [...kept, `${prefix}... ${run.length - budget} more ${run[0].op} line(s) omitted`];
 }
 function splitLines(text) {
     // Drop one trailing newline: drift detection already normalizes the final
