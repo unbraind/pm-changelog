@@ -6,7 +6,7 @@ status: closed
 priority: 2
 tags[2]: deps,release
 created_at: "2026-07-28T05:28:01.951Z"
-updated_at: "2026-07-28T05:29:22.747Z"
+updated_at: "2026-07-28T05:35:12.975Z"
 deadline: "2026-07-29T00:00:00.000Z"
 closed_at: "2026-07-28T05:29:22.746Z"
 author: maintainer
@@ -19,8 +19,9 @@ dependencies[1]{id,kind,created_at,author,source_kind}:
   pmc-r0nj,related,"2026-07-28T05:28:01.951Z",maintainer,null
 comments[1]{created_at,author,text}:
   "2026-07-28T05:28:01.951Z",maintainer,Last package in the 2026.7.28 adoption wave
-notes[1]{created_at,author,text}:
+notes[2]{created_at,author,text}:
   "2026-07-28T05:28:01.951Z",maintainer,"audit:prod must spawn npm through a shell on win32 because Node refuses to exec .cmd via spawn"
+  "2026-07-28T05:35:12.974Z",maintainer,"Correction: the description and close reason both say 'all four version sites', but there are FIVE declarations changed in this package:\n\n1. package.json top-level version\n2. package.json peerDependencies '@unbrained/pm-cli' >=2026.7.28\n3. package.json devDependencies '@unbrained/pm-cli' ^2026.7.28\n4. manifest.json version\n5. the extension module version constant in src/extension.ts\n\nThe 'four' figure was carried over from packages where the peer and dev ranges are not both present. Flagged by CodeRabbit on PR #104.\n\nRecording this as a note rather than editing the close reason, consistent with how the other corrections in this wave were handled: item history is append-only and audited, so the record should show the correction rather than hide it."
 learnings[1]{created_at,author,text}:
   "2026-07-28T05:28:01.951Z",maintainer,"A bare npm audit --omit=dev aborts with EALLOWSCRIPTS when npm_config_allow_scripts is set,so the audit gate can fail for reasons unrelated to vulnerabilities"
 files[1]{path,scope,note}:
