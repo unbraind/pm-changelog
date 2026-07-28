@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 2026.7.28 - 2026-07-28
 
 ### Added
 
@@ -8,6 +8,7 @@
 
 ### Other
 
+- Adopt pm-cli 2026.7.28 and harmonize the production audit script ([pmc-4w23](https://github.com/unbraind/pm-changelog/blob/main/.agents/pm/chores/pmc-4w23.toon))
 - Adopt pm-cli 2026.7.27 dependency ranges ([pmc-58zs](https://github.com/unbraind/pm-changelog/blob/main/.agents/pm/chores/pmc-58zs.toon))
 
 ## 2026.7.27 - 2026-07-27
