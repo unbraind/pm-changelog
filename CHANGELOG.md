@@ -1,5 +1,21 @@
 # Changelog
 
+## Unreleased
+
+### Added
+
+- Full pm ecosystem production pass for pm-changelog ([pmc-3j77](https://github.com/unbraind/pm-changelog/blob/main/.agents/pm/features/pmc-3j77.toon))
+- Add --summary mode and unified --format json output for agents ([pmc-ygs2](https://github.com/unbraind/pm-changelog/blob/main/.agents/pm/features/pmc-ygs2.toon))
+
+### Fixed
+
+- Release attribution silently fails when the release tag is zero-padded but the version is not ([pmc-2sfc](https://github.com/unbraind/pm-changelog/blob/main/.agents/pm/issues/pmc-2sfc.toon))
+
+### Other
+
+- Full-cycle hardening wave: pm-changelog ([pmc-4279](https://github.com/unbraind/pm-changelog/blob/main/.agents/pm/tasks/pmc-4279.toon))
+- SDK 2026.7.10 alignment and production readiness pass ([pmc-yy8d](https://github.com/unbraind/pm-changelog/blob/main/.agents/pm/tasks/pmc-yy8d.toon))
+
 ## 2026.7.28 - 2026-07-28
 
 ### Added
