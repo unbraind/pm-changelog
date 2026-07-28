@@ -234,6 +234,14 @@ test("createChangelog prefers actual completion time and preserves the legacy cl
         status: "closed",
         type: "bug",
         closed_at: "2026-05-18T12:00:00Z",
+        updated_at: "2026-05-16T12:00:00Z",
+      },
+      {
+        id: "pm-completed-only",
+        title: "Completed item without tracker close time",
+        status: "closed",
+        type: "task",
+        completed_at: "2026-05-17T11:00:00Z",
       },
     ],
     releaseWindows: [
@@ -256,6 +264,7 @@ test("createChangelog prefers actual completion time and preserves the legacy cl
   const unreleased =
     result.markdown.match(/## Unreleased[\s\S]*?(?=\n## |$)/)?.[0] ?? "";
   assert.match(released, /Completed before delayed tracker closeout/);
+  assert.match(released, /Completed item without tracker close time/);
   assert.doesNotMatch(released, /Legacy item without actual completion/);
   assert.match(unreleased, /Legacy item without actual completion/);
 });

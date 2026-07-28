@@ -136,7 +136,7 @@ npx pm-changelog --all-release-tags --mode replace --output CHANGELOG.md \
   --item-url-base https://github.com/owner/repo/blob/main/.agents/pm
 ```
 
-`--all-release-tags` creates a newest-first `Unreleased` section for closed items after the latest tag, then one section per matching git tag. Release section dates come from the tag commit timestamp. Items with a `release` field whose value matches a known tag (`v2026.05.24-7`, `2026.05.24-7`, etc.) are bucketed into that tag's section regardless of timestamps; items without a matching `release` field fall back to each item's `closed_at`, `updated_at`, then `created_at` timestamp. Empty release windows are omitted unless `--include-empty` is passed.
+`--all-release-tags` creates a newest-first `Unreleased` section for closed items after the latest tag, then one section per matching git tag. Release section dates come from the tag commit timestamp. Items with a `release` field whose value matches a known tag (`v2026.05.24-7`, `2026.05.24-7`, etc.) are bucketed into that tag's section regardless of timestamps; items without a matching `release` field use each item's actual `completed_at`, then fall back to `closed_at`, `updated_at`, and `created_at` for legacy records. Empty release windows are omitted unless `--include-empty` is passed.
 
 Pair `--all-release-tags` with `--release-version-from-package` (or `--version v<x>`) to insert a section for the pending release before the tag is created — for example during CI when bumping `package.json` ahead of `git tag`.
 
@@ -238,8 +238,8 @@ npx pm-changelog --stdout --release-version 2026.7.24 --respect-item-release
 ```
 
 In multi-agent workflows a fix often ships in one release while its tracker is closed during a later
-one. Because item placement otherwise derives from `closed_at` (then `updated_at`, then
-`created_at`), closing such a tracker injects months-old work into the current release — the reason
+one. Because item placement otherwise derives from `completed_at` (then `closed_at`, `updated_at`,
+and `created_at` for legacy records), closing such a tracker can inject months-old work into the current release — the reason
 shipped-but-unclosed items accumulate. `--respect-item-release` pins any item that declares a
 `release`: it is kept when the release matches the generated version (no matter what its timestamps
 say) and dropped otherwise, including from an unversioned `Unreleased` window. `--all-release-tags`
