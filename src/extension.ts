@@ -1,9 +1,9 @@
 import { writeFileSync } from "node:fs";
 import { resolve } from "node:path";
 
-import * as pmSdk from "@unbrained/pm-cli/sdk";
 import {
   defineExtension,
+  listAllItemMetadata,
   locateItem,
   readLocatedItem,
   readSettings,
@@ -11,17 +11,11 @@ import {
   EXIT_CODE,
   PmCliError,
 } from "@unbrained/pm-cli/sdk";
+import type { ImportExportRegistrationOptions } from "@unbrained/pm-cli/sdk/authoring";
 
 import { buildChangelogDocument, createChangelog, createChangelogSummary, explainChangelogSelection, formatSummaryLine, mergeChangelog, suggestSemver, writeChangelog } from "./generator.js";
 import { MissingTagHistoryError, resolveReleaseContext, resolveReleaseTagWindows } from "./release-context.js";
 import type { ChangelogGroupBy, ChangelogItemRefStyle, ChangelogSectionBy, PmItem } from "./types.js";
-
-type ItemMetadataReader = (pmRoot: string) => Promise<PmItem[]>;
-
-const sdkExports = pmSdk as unknown as Record<string, unknown>;
-const listAllItemMetadata = (
-  sdkExports.listAllItemMetadata ?? sdkExports[["listAll", "Front", "Matter"].join("")]
-) as ItemMetadataReader;
 
 /**
  * Marks a command result as JSON text that pm-changelog has already rendered.
@@ -188,7 +182,7 @@ export default defineExtension({
             : undefined,
         }));
 
-        const items = (await listAllItemMetadata(ctx.pm_root)) as PmItem[];
+        const items = await listAllItemMetadata(ctx.pm_root);
         const bodyPreview = parseBodyPreviewOption(ctx.options);
         // listAllItemMetadata omits item bodies, so --body-preview would silently
         // render nothing (GH #27). Load bodies on demand only when previewing.
@@ -319,7 +313,7 @@ export default defineExtension({
     // --release-notes concise mode. Does NOT write CHANGELOG.md unless --output
     // is given, so it is side-effect free by default.
     // -----------------------------------------------------------------------
-    const changelogExportMetadata = {
+    const changelogExportMetadata: ImportExportRegistrationOptions = {
       description: "Export changelog or release notes through the pm import/export pipeline.",
       intent: "export changelog release notes as markdown or json",
       examples: [
@@ -351,13 +345,8 @@ export default defineExtension({
         { long: "--respect-item-release", description: "Treat an item release field as the authority for its single version window: keep it when it matches the release version regardless of timestamps, drop it otherwise (--all-release-tags always honors the field)" },
       ],
     };
-    const registerExporterWithMetadata = api.registerExporter as unknown as (
-      name: string,
-      exporter: Parameters<typeof api.registerExporter>[1],
-      options: typeof changelogExportMetadata,
-    ) => void;
 
-    registerExporterWithMetadata("changelog", async (ctx) => {
+    api.registerExporter("changelog", async (ctx) => {
       const format = (stringOption(ctx.options, "format", "format") ?? "md").toLowerCase();
       if (format !== "md" && format !== "markdown" && format !== "json") {
         throw new PmCliError("--format must be 'md' or 'json'", EXIT_CODE.USAGE);
@@ -423,9 +412,7 @@ export default defineExtension({
       }
       return { changelog: generated.markdown, format: "markdown", item_count: generated.itemCount };
     }, changelogExportMetadata);
-    if (api.registerExporter.length < 3 && typeof api.registerFlags === "function") {
-      api.registerFlags("changelog export", changelogExportMetadata.flags);
-    }
+
     // Register renderer overrides so json-mode results print verbatim JSON to
     // stdout under both the default (toon) and global --json renderers. The host
     // enforces command and result ownership before invoking either callback.
