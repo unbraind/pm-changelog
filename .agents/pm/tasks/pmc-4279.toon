@@ -6,9 +6,10 @@ status: closed
 priority: 1
 tags[4]: deps-2026-6-7,full-cycle-hardening,hardening-pass,wave-full-cycle-2026-06-07
 created_at: "2026-06-07T07:41:30.447Z"
-updated_at: "2026-07-28T11:15:52.060Z"
+updated_at: "2026-07-28T11:22:36.483Z"
 closed_at: "2026-07-28T11:15:52.059Z"
 author: codex-5.3-full-cycle
+release: 2026.6.8
 resolution: Superseded by subsequent full-cycle hardening waves.
 expected_result: pm-changelog passes its full release gate on the current pm CLI.
 actual_result: "Verified 2026-07-28: pm-changelog ships 2026.7.28 with a green release gate and has shipped many releases since this wave."

@@ -6,10 +6,11 @@ status: closed
 priority: 2
 tags[2]: agent-ux,enhancement
 created_at: "2026-07-10T04:41:15.255Z"
-updated_at: "2026-07-28T11:15:50.789Z"
+updated_at: "2026-07-28T11:22:35.672Z"
 closed_at: "2026-07-28T11:15:50.789Z"
 author: claude
 acceptance_criteria: "--summary prints bracketed one-line entries using the same filtering/grouping as markdown; --summary --format json returns ChangelogSummaryEntry[]; --format json without --summary emits the structured document; invalid --format values exit non-zero in both CLI and pm extension; --suggest-semver --format json keeps the semver-analysis shape; default markdown stays byte-identical"
+release: 2026.7.10
 resolution: Shipped as the --summary and --format flags on the pm-changelog CLI.
 expected_result: "--summary prints bracketed one-line entries, --format json returns machine-readable output, and invalid --format values exit non-zero."
 actual_result: "Verified 2026-07-28: pm-changelog --help lists --summary, --format <md|json>, and --suggest-semver."

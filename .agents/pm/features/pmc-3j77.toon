@@ -6,9 +6,10 @@ status: closed
 priority: 1
 tags[3]: ecosystem,ecosystem-pass-2026-06-10,production
 created_at: "2026-06-09T22:38:38.083Z"
-updated_at: "2026-07-28T11:15:51.631Z"
+updated_at: "2026-07-28T11:22:35.269Z"
 closed_at: "2026-07-28T11:15:51.630Z"
 author: codex-5-3-sweep
+release: 2026.6.10
 resolution: Superseded by subsequent production and hardening passes.
 expected_result: pm-changelog is production ready on the current pm CLI.
 actual_result: "Verified 2026-07-28: pm-changelog ships 2026.7.28 with a green release gate and has shipped many releases since this pass."

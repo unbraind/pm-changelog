@@ -6,11 +6,12 @@ status: closed
 priority: 1
 tags[4]: 2026.7.10,ecosystem,production-readiness,sdk-alignment
 created_at: "2026-07-10T19:03:57.089Z"
-updated_at: "2026-07-28T11:15:51.189Z"
+updated_at: "2026-07-28T11:22:37.059Z"
 closed_at: "2026-07-28T11:15:51.189Z"
 author: platform-web-specialist
 estimated_minutes: 60
 acceptance_criteria: "typecheck passes; build passes; all 125 tests pass; audit 0 vulnerabilities; pack:dry-run succeeds; changelog:check passes; SDK peerDep >=2026.7.10"
+release: 2026.7.11
 resolution: Superseded by subsequent SDK adoption waves.
 expected_result: pm-changelog tracks the current pm CLI and SDK release.
 actual_result: "Verified 2026-07-28: pm-changelog ships 2026.7.28 against pm-cli 2026.7.28, well past the 2026.7.10 alignment this tracked."

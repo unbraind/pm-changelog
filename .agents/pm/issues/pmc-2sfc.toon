@@ -6,12 +6,13 @@ status: closed
 priority: 1
 tags[3]: agent-ux,bug,release-attribution
 created_at: "2026-07-24T21:32:39.264Z"
-updated_at: "2026-07-28T11:15:50.356Z"
+updated_at: "2026-07-28T11:22:36.047Z"
 deadline: "2026-07-25T00:00:00.000Z"
 closed_at: "2026-07-28T11:15:50.354Z"
 author: claude
 estimated_minutes: 90
 acceptance_criteria: an item declaring the unpadded version attributes to a window built from the padded tag and vice versa; calendar -N disambiguators and semver prereleases still compare exactly so 2026.6.2 does not match 2026.6.2-1; both the single-window and all-release-tags paths honour the canonicalized key; output unchanged for workspaces that never set the field
+release: 2026.7.25
 resolution: Fixed in src/release-context.ts via canonicalPendingTagName.
 expected_result: "An item declaring an unpadded version attributes to a window built from the padded tag and vice versa, while calendar -N disambiguators and semver prereleases still compare exactly."
 actual_result: "Verified 2026-07-28: canonicalPendingTagName reconciles padded and unpadded tag names and both the single-window and all-release-tags paths consume the canonicalized key."
