@@ -1,5 +1,11 @@
 # Changelog
 
+## Unreleased
+
+### Other
+
+- Drop the dead SDK export shim and exporter cast, and gate host-owned flags on sdk/contracts ([pmc-0wyq](https://github.com/unbraind/pm-changelog/blob/main/.agents/pm/chores/pmc-0wyq.toon))
+
 ## 2026.7.28 - 2026-07-28
 
 ### Added

@@ -167,27 +167,42 @@ test("changelog generate rejects unsupported formats before workspace reads", as
   );
 });
 
-// This is the one test that must keep a hand-built `api` double rather than use
-// `activateExtensionForTest`. Its subject is the compatibility branch taken when
-// the *host* is an older pm-cli whose `registerExporter` accepts only
-// (name, handler) and therefore cannot carry flags — the extension then falls
-// back to `registerFlags`. The harness always activates against the current
-// host, so it cannot express "pretend registerExporter has arity 2"; a stub is
-// the only way to simulate a different runtime version.
-test("changelog exporter registers flags on legacy two-argument pm-cli runtimes", () => {
-  let registeredFlags: Array<{ long?: string }> | undefined;
-  const registerExporter = function (_name: string, _handler: unknown) {};
-  extension.activate({
-    registerCommand() {},
-    registerExporter,
-    registerFlags(_command: string, flags: Array<{ long?: string }>) {
-      registeredFlags = flags;
-    },
-  } as unknown as Parameters<typeof extension.activate>[0]);
+// The extension used to keep a `registerFlags("changelog export", …)` fallback
+// for hosts whose `registerExporter` accepted only (name, handler). Measured
+// against the declared peer floor (pm-cli 2026.7.28), `api.registerExporter.length`
+// is 3, so the 3rd argument carries the flags through the registration options
+// and the legacy `registerFlags` branch was dead code. That branch (and the
+// hand-built `api` double that simulated a 2-argument host) was removed; this
+// test now pins that the exporter flags arrive via the options object on the
+// real loader instead of a separate `registerFlags` call.
+test("changelog exporter flags arrive via registerExporter options on the real host", async () => {
+  const activation = await activateChangelog();
 
+  // `registerExporter(name, handler, options)` surfaces its `options.flags` on
+  // the auto-created "<name> export" command path exactly like `registerCommand`.
+  const exportFlagEntry = activation.registrations.flags.find(
+    (entry) => entry.target_command === "changelog export",
+  );
+  assert.ok(exportFlagEntry, "changelog export flags should be registered via exporter options");
+  const exportLongs = exportFlagEntry.flags.map((flag) => flag.long);
   assert.ok(
-    registeredFlags?.some((flag) => flag.long === "--format"),
-    "legacy pm-cli runtimes should still surface changelog export flags"
+    exportLongs.includes("--format"),
+    "exporter options should surface --format on changelog export",
+  );
+  assert.ok(
+    exportLongs.includes("--release-notes"),
+    "exporter options should surface --release-notes on changelog export",
+  );
+
+  // The exporter registers exactly one command path; no separate `registerFlags`
+  // entry should exist for a second registration of the same flags. Every
+  // registered flag target is a distinct command path.
+  const flagTargets = activation.registrations.flags.map((entry) => entry.target_command);
+  const exportTargetCount = flagTargets.filter((target) => target === "changelog export").length;
+  assert.equal(
+    exportTargetCount,
+    1,
+    "changelog export flags should be registered exactly once (via exporter options), not duplicated through registerFlags",
   );
 });
 
