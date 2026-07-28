@@ -217,6 +217,49 @@ test("createChangelog can build full history from git tag windows", () => {
   );
 });
 
+test("createChangelog prefers actual completion time and preserves the legacy close-time fallback", () => {
+  const result = createChangelog({
+    items: [
+      {
+        id: "pm-actual",
+        title: "Completed before delayed tracker closeout",
+        status: "closed",
+        type: "feature",
+        completed_at: "2026-05-17T12:00:00Z",
+        closed_at: "2026-05-18T12:00:00Z",
+      },
+      {
+        id: "pm-legacy",
+        title: "Legacy item without actual completion",
+        status: "closed",
+        type: "bug",
+        closed_at: "2026-05-18T12:00:00Z",
+      },
+    ],
+    releaseWindows: [
+      {
+        heading: "Unreleased",
+        since: "2026-05-17T13:00:00Z",
+        sinceExclusive: true,
+      },
+      {
+        heading: "1.2.0 - 2026-05-17",
+        until: "2026-05-17T13:00:00Z",
+      },
+    ],
+  });
+
+  const released =
+    result.markdown.match(
+      /## 1\.2\.0 - 2026-05-17[\s\S]*?(?=\n## |$)/,
+    )?.[0] ?? "";
+  const unreleased =
+    result.markdown.match(/## Unreleased[\s\S]*?(?=\n## |$)/)?.[0] ?? "";
+  assert.match(released, /Completed before delayed tracker closeout/);
+  assert.doesNotMatch(released, /Legacy item without actual completion/);
+  assert.match(unreleased, /Legacy item without actual completion/);
+});
+
 test("createChangelog keeps a sub-second item inside the release second it closed in", () => {
   // Regression for issue #41: git release-tag boundaries are second-precision
   // while pm items carry millisecond `closed_at`. An item closed at

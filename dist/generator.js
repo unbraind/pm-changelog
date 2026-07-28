@@ -1377,7 +1377,7 @@ function compareItems(a, b) {
     return a.title.localeCompare(b.title);
 }
 function itemTimestamp(item) {
-    return item.closed_at ?? item.updated_at ?? item.created_at;
+    return item.completed_at ?? item.closed_at ?? item.updated_at ?? item.created_at;
 }
 function escapeMarkdown(value) {
     return value.replace(/([\\`*_[\]()#|>])/g, "\\$1");
