@@ -2,12 +2,19 @@ id: pmc-ygs2
 title: Add --summary mode and unified --format json output for agents
 description: "PR #59: adds --summary (one-line-per-change, bracketed text or JSON array), --format md|json as a unified machine-readable alias of --changelog-json, createChangelogSummary()/formatSummaryLine()/ChangelogSummaryEntry exports, and pm extension parity for changelog generate."
 type: Feature
-status: in_progress
+status: closed
 priority: 2
 tags[2]: agent-ux,enhancement
 created_at: "2026-07-10T04:41:15.255Z"
-updated_at: "2026-07-10T04:41:15.255Z"
-assignee: claude
+updated_at: "2026-07-28T11:40:12.839Z"
+closed_at: "2026-07-28T11:15:50.789Z"
 author: claude
 acceptance_criteria: "--summary prints bracketed one-line entries using the same filtering/grouping as markdown; --summary --format json returns ChangelogSummaryEntry[]; --format json without --summary emits the structured document; invalid --format values exit non-zero in both CLI and pm extension; --suggest-semver --format json keeps the semver-analysis shape; default markdown stays byte-identical"
+release: 2026.7.10
+resolution: Shipped as the --summary and --format flags on the pm-changelog CLI.
+expected_result: "--summary prints bracketed one-line entries, --format json returns machine-readable output, and invalid --format values exit non-zero."
+actual_result: "Verified 2026-07-28: pm-changelog --help lists --summary, --format <md|json>, and --suggest-semver."
+notes[1]{created_at,author,text}:
+  "2026-07-28T11:40:12.839Z",claude-code,"Behavior-level verification recorded at CodeRabbit's request on pm-changelog#105; the previous actual_result proved only option registration via --help. Ran the built CLI against this repo's own tracker on 2026-07-28. --summary emits bracketed one-line entries, for example a line reading Unreleased then Added: then the item title and id in parentheses. --summary --format json returns an entries array whose objects carry heading, category, id, title, type and status. An invalid --format value exits 1 rather than falling back to a default. --suggest-semver prints JSON with bump, reason and a counts object, returning bump major with 2 breaking, 23 feature, 41 fix and 43 other for this repo. All four acceptance criteria are behaviour-confirmed, not just registration-confirmed."
+close_reason: Shipped and verified 2026-07-28. Closing the tracker; forced past a stale assignment to a retired agent identity.
 body: ""
