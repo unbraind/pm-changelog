@@ -6,12 +6,15 @@ status: closed
 priority: 1
 tags[4]: changelog,completed-at,release-attribution,sdk
 created_at: "2026-07-28T23:14:03.182Z"
-updated_at: "2026-07-28T23:51:07.422Z"
+updated_at: "2026-07-28T23:51:17.301Z"
 closed_at: "2026-07-28T23:51:07.063Z"
 completed_at: "2026-07-28T23:51:07.063Z"
 author: codex
 estimated_minutes: 120
 acceptance_criteria: Item contracts accept completed_at; single- and multi-window bucketing prefer completed_at over closed_at; legacy items without completed_at retain closed_at fallback; tests prove precedence and fallback; package release gate passes
+resolution: "pm-changelog now prefers Item.completed_at for release-window selection and sort order, retains closed_at/updated_at/created_at compatibility fallbacks, and documents the contract."
+expected_result: Actual work completion determines release bucketing without breaking legacy tracker records.
+actual_result: "Source, compiled package artifacts, usage docs, and regression tests implement the completed_at-first chain; npm run release:check and exact-head bot review passed."
 dependencies[1]{id,kind,created_at,author,source_kind,author_source}:
   pmc-52px,related_to,"2026-07-28T23:14:03.182Z",codex,"cli:create:dep",detected
 comments[3]{created_at,author,text}:
