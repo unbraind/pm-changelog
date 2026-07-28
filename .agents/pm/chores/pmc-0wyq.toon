@@ -1,0 +1,18 @@
+id: pmc-0wyq
+title: "Drop the dead SDK export shim and exporter cast, and gate host-owned flags on sdk/contracts"
+description: "Remove the obfuscated sdk export shim (Record<string,unknown> laundering + computed-string listAllFrontMatter fallback) and import listAllItemMetadata directly. Drop the unnecessary cast around registerExporter and type changelogExportMetadata as ImportExportRegistrationOptions. Measure api.registerExporter.length on the real 2026.7.28 host: it is 3, so the legacy registerFlags fallback branch is dead code under the declared peer floor and is deleted along with its hand-built api double test. Add a contracts gate test that imports GLOBAL_FLAG_CONTRACTS/SUBCOMMAND_GLOBAL_FLAG_CONTRACTS from sdk/contracts and asserts the extension declares no host-owned flags, with a negative case."
+type: Chore
+status: closed
+priority: 2
+tags: []
+created_at: "2026-07-28T15:37:36.874Z"
+updated_at: "2026-07-28T15:38:04.776Z"
+closed_at: "2026-07-28T15:38:04.775Z"
+author: pi-agent
+resolution: "Removed the dead SDK export shim (direct import of listAllItemMetadata), dropped the registerExporter as-unknown-as cast (typed changelogExportMetadata as ImportExportRegistrationOptions, no mismatch), deleted the dead registerFlags fallback (measured registerExporter.length=3) and its legacy api-double test, and added the sdk/contracts host-flag gate test."
+expected_result: "typecheck, build, 192 tests, audit:prod, and changelog:check all pass; no as-unknown-as/:any in src/; flags arrive via exporter options."
+actual_result: "All gates green: typecheck pass, build pass, 192 tests pass, audit:prod 0 vulnerabilities, changelog:check up to date."
+notes[1]{created_at,author,text}:
+  "2026-07-28T15:37:44.568Z",pi-agent,"measured api.registerExporter.length = 3 on the real 2026.7.28 host via activateExtensionForTest; the legacy registerFlags fallback branch (api.registerExporter.length < 3) is DEAD code under the declared peer floor (>=2026.7.28). Deleted the branch and its hand-built api-double test; added a test pinning that export flags arrive via the exporter options object. Removed the sdkExports Record<string,unknown> shim + computed-string listAllFrontMatter fallback; imported listAllItemMetadata directly (SDK ItemMetadata[] flows to PmItem[] without a cast). Removed the as-unknown-as registerExporter cast; typed changelogExportMetadata as ImportExportRegistrationOptions (no mismatch found). Added test/host-flag-contracts.test.ts importing GLOBAL_FLAG_CONTRACTS/SUBCOMMAND_GLOBAL_FLAG_CONTRACTS from @unbrained/pm-cli/sdk/contracts."
+close_reason: "Removed the dead SDK export shim (direct import of listAllItemMetadata), dropped the registerExporter as-unknown-as cast (typed changelogExportMetadata as ImportExportRegistrationOptions, no mismatch), deleted the dead registerFlags fallback (measured registerExporter.length=3) and its legacy api-double test, and added the sdk/contracts host-flag gate test."
+body: ""
