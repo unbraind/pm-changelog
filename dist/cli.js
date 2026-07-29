@@ -682,7 +682,8 @@ function writeSelectionReport(report) {
     const provenance = report.attribution_provenance;
     if (provenance) {
         const sources = Object.keys(provenance.inferred_sources).sort().join(",") || "fallback";
-        console.error(`Attribution provenance: authoritative=${provenance.authoritative} inferred=${provenance.inferred} (inferred sources: ${sources})`);
+        console.error(`Attribution provenance: authoritative=${provenance.authoritative} inferred=${provenance.inferred}`
+            + ` release_pinned=${provenance.release_pinned} (inferred sources: ${sources})`);
         if (provenance.inferred_sample.length > 0) {
             console.error(`Inferred-attribution sample: ${provenance.inferred_sample.join(", ")}`);
         }

@@ -1056,31 +1056,54 @@ function sampleItems(items: PmItem[]): string[] {
  * sample names the items a maintainer should inspect for a shipped-but-late-
  * closed tracker that dated into the wrong release. Returns `undefined` when no
  * items survived to a visible section so the field stays absent, not empty.
+ *
+ * `releaseAttributionApplies` mirrors the generator's own `attributionApplies`
+ * decision (`--respect-item-release` on a single-version section). When it
+ * holds, an item carrying a `release` field was placed by that declaration and
+ * no timestamp was consulted, so it is counted under `release_pinned` instead
+ * of being offered as a late-close candidate.
+ *
+ * The sample is ordered by resolved timestamp, most recent first, matching the
+ * documented contract: a maintainer hunting a mis-dated tracker wants the
+ * freshest candidate, not whichever section happened to be emitted first.
  */
-function buildAttributionProvenance(items: PmItem[]): ChangelogAttributionProvenance | undefined {
+function buildAttributionProvenance(
+  items: PmItem[],
+  releaseAttributionApplies: boolean
+): ChangelogAttributionProvenance | undefined {
   if (items.length === 0) return undefined;
   let authoritative = 0;
-  let inferred = 0;
+  let releasePinned = 0;
   const inferredSources: Record<string, number> = {};
-  const inferredSample: string[] = [];
-  const seen = new Set<string>();
+  const inferredCandidates: Array<{ label: string; timestamp: string | undefined }> = [];
   for (const item of items) {
+    if (releaseAttributionApplies && typeof item.release === "string" && item.release.trim() !== "") {
+      releasePinned++;
+      continue;
+    }
     const resolved = resolveItemCompletion(item);
     if (!resolved.fallback) {
       authoritative++;
       continue;
     }
-    inferred++;
     inferredSources[resolved.source] = (inferredSources[resolved.source] ?? 0) + 1;
-    const label = sampleItemLabel(item);
-    if (!seen.has(label) && inferredSample.length < SELECTION_SAMPLE_LIMIT) {
-      seen.add(label);
-      inferredSample.push(label);
-    }
+    inferredCandidates.push({ label: sampleItemLabel(item), timestamp: resolved.timestamp });
+  }
+  // Undated items sort last: they carry no evidence of when the work landed, so
+  // they are the weakest late-close leads.
+  inferredCandidates.sort((left, right) => (right.timestamp ?? "").localeCompare(left.timestamp ?? ""));
+  const inferredSample: string[] = [];
+  const seen = new Set<string>();
+  for (const candidate of inferredCandidates) {
+    if (inferredSample.length >= SELECTION_SAMPLE_LIMIT) break;
+    if (seen.has(candidate.label)) continue;
+    seen.add(candidate.label);
+    inferredSample.push(candidate.label);
   }
   return {
     authoritative,
-    inferred,
+    inferred: inferredCandidates.length,
+    release_pinned: releasePinned,
     inferred_sources: inferredSources,
     inferred_sample: inferredSample,
   };
@@ -1385,7 +1408,7 @@ export function explainChangelogSelection(options: GenerateChangelogOptions): Ch
     .flatMap((section) => section.items);
   const candidateItems = candidateSections.flatMap((section) => section.items);
   const visibleItems = visibleSections.flatMap((section) => section.items);
-  const attributionProvenance = buildAttributionProvenance(visibleItems);
+  const attributionProvenance = buildAttributionProvenance(visibleItems, attributionApplies);
 
   const excludedCounts = {
     missing_title: missingTitle.length,

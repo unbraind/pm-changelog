@@ -311,7 +311,9 @@ export interface ChangelogSelectionReport {
 /** Per-release-window completion-timestamp provenance for the visible items.
  * Counts items whose placement used the authoritative `completed_at` versus an
  * inferred fallback, and names the inferred ones so a maintainer can spot a
-   * tracker that was closed long after its fix shipped. */
+ * tracker that was closed long after its fix shipped. Items placed by an
+ * explicit `release` declaration are reported separately, because no timestamp
+ * decided where they landed. */
 export interface ChangelogAttributionProvenance {
     /** Items whose release placement used the authoritative `completed_at`
      * (`fallback: false`). */
@@ -319,12 +321,19 @@ export interface ChangelogAttributionProvenance {
     /** Items whose release placement used an inferred fallback timestamp
      * (`closed_at`, `updated_at`, or `created_at`; `fallback: true`). */
     inferred: number;
+    /** Items placed by their own declared `release` field under
+     * `--respect-item-release`, where the declaration - not any timestamp - chose
+     * the release. Counted apart from `authoritative`/`inferred` so a late-close
+     * hunt is not seeded with items whose placement was never in question. */
+    release_pinned: number;
     /** The metadata field that supplied each inferred item's timestamp, keyed by
      * field name (`closed_at` / `updated_at` / `created_at`) to its count. */
     inferred_sources: Record<string, number>;
     /** Bounded, newest-first sample ids of items attributed from an inferred
      * timestamp - the candidates for a shipped-but-late-closed item that dated
-     * into the wrong release. Empty when every visible item was authoritative. */
+     * into the wrong release. Ordered by resolved timestamp, most recent first,
+     * so the freshest late-close candidate leads. Empty when no visible item was
+     * attributed from an inferred timestamp. */
     inferred_sample: string[];
 }
 //# sourceMappingURL=types.d.ts.map
