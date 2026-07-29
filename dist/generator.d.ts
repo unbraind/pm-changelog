@@ -35,6 +35,32 @@ export declare function readPmItems(options?: ReadPmItemsOptions): PmItem[];
 export declare function writeChangelog(options: WriteChangelogOptions): WriteChangelogResult;
 export declare function parsePmItemsJson(raw: string): PmItem[];
 /**
+ * Summarize how the visible items' release-window placement was timestamped:
+ * authoritative (`completed_at`, `fallback: false`) versus an inferred fallback
+ * (`closed_at`/`updated_at`/`created_at`, `fallback: true`). The inferred
+ * sample names the items a maintainer should inspect for a shipped-but-late-
+ * closed tracker that dated into the wrong release. Returns `undefined` when no
+ * items survived to a visible section so the field stays absent, not empty.
+ *
+ * `releaseAttributionApplies` mirrors the generator's own `attributionApplies`
+ * decision (`--respect-item-release` on a single-version section). When it
+ * holds, an item carrying a `release` field was placed by that declaration and
+ * no timestamp was consulted, so it is counted under `release_pinned` instead
+ * of being offered as a late-close candidate.
+ *
+ * The sample is ordered by resolved timestamp, most recent first, matching the
+ * documented contract: a maintainer hunting a mis-dated tracker wants the
+ * freshest candidate, not whichever section happened to be emitted first.
+ */
+/**
+ * Render the inferred-source counts as a stable, comma-separated field list for
+ * human-facing output. Sorted so the string is deterministic across runs, and
+ * `"fallback"` stands in for the empty map so a caller never prints an empty
+ * parenthesis. Shared by the generator's hint text and the CLI's selection
+ * report so the two can never drift apart.
+ */
+export declare function formatInferredSources(sources: Record<string, number>): string;
+/**
  * OPT-IN (`--suggest-semver`): classify the in-scope items into breaking /
  * feature / fix / other and recommend a semver bump. Emitted as JSON or a
  * footer note; never alters default markdown.

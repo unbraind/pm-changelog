@@ -9,6 +9,7 @@ import {
   createChangelog,
   createChangelogSummary,
   explainChangelogSelection,
+  formatInferredSources,
   formatSummaryLine,
   mergeChangelog,
   parsePmItemsJson,
@@ -791,7 +792,7 @@ function writeSelectionReport(report: ChangelogSelectionReport): void {
   );
   const provenance = report.attribution_provenance;
   if (provenance) {
-    const sources = Object.keys(provenance.inferred_sources).sort().join(",") || "fallback";
+    const sources = formatInferredSources(provenance.inferred_sources);
     console.error(
       `Attribution provenance: authoritative=${provenance.authoritative} inferred=${provenance.inferred}`
       + ` release_pinned=${provenance.release_pinned} (inferred sources: ${sources})`

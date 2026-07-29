@@ -1067,6 +1067,17 @@ function sampleItems(items: PmItem[]): string[] {
  * documented contract: a maintainer hunting a mis-dated tracker wants the
  * freshest candidate, not whichever section happened to be emitted first.
  */
+/**
+ * Render the inferred-source counts as a stable, comma-separated field list for
+ * human-facing output. Sorted so the string is deterministic across runs, and
+ * `"fallback"` stands in for the empty map so a caller never prints an empty
+ * parenthesis. Shared by the generator's hint text and the CLI's selection
+ * report so the two can never drift apart.
+ */
+export function formatInferredSources(sources: Record<string, number>): string {
+  return Object.keys(sources).sort().join(",") || "fallback";
+}
+
 function buildAttributionProvenance(
   items: PmItem[],
   releaseAttributionApplies: boolean
@@ -1153,7 +1164,7 @@ function buildSelectionHints(input: {
     hints.push("Visibility narrowing hid sections; relax --limit or --since-version to include older releases.");
   }
   if (input.attributionProvenance && input.attributionProvenance.inferred > 0) {
-    const sources = Object.keys(input.attributionProvenance.inferred_sources).sort().join(",") || "fallback";
+    const sources = formatInferredSources(input.attributionProvenance.inferred_sources);
     hints.push(`${input.attributionProvenance.inferred} visible item(s) were attributed to their release window from an inferred timestamp (${sources}) rather than the authoritative completed_at; inspect them for a tracker closed long after its fix shipped.`);
   }
   if (input.visibleItemCount === 0 && hints.length === 0) {
@@ -1607,12 +1618,14 @@ function compareItems(a: PmItem, b: PmItem): number {
 }
 
 /** Provenance of the timestamp used to place an item in a release window.
- * Extends the SDK's {@link CompletionTimestampSource} with `"created_at"`, the
- * final local fallback pm-changelog keeps for legacy records that predate
- * `completed_at`/`closed_at`/`updated_at`: the SDK chain
- * (`completed_at -> closed_at -> updated_at`) returns no timestamp when all
- * three are absent, so `created_at` keeps every item placeable. */
-type CompletionProvenanceSource = CompletionTimestampSource | "created_at";
+ * Extends the SDK's {@link CompletionTimestampSource} with two local outcomes
+ * the SDK chain (`completed_at -> closed_at -> updated_at`) cannot express:
+ * `"created_at"`, the final fallback pm-changelog keeps so legacy records that
+ * predate the lifecycle fields stay placeable; and `"none"`, for an item that
+ * carries no timestamp whatsoever. `"none"` is reported rather than folded into
+ * `"created_at"` so the provenance counts never credit a field that supplied no
+ * value. */
+type CompletionProvenanceSource = CompletionTimestampSource | "created_at" | "none";
 
 interface ResolvedItemCompletion {
   /** ISO timestamp selected for release-window placement. `undefined` only when
@@ -1666,7 +1679,16 @@ function resolveItemCompletion(item: PmItem): ResolvedItemCompletion {
   if (resolved.timestamp !== undefined) {
     return { timestamp: resolved.timestamp, source: resolved.source, fallback: resolved.fallback };
   }
-  return { timestamp: item.created_at, source: "created_at", fallback: true };
+  if (item.created_at !== undefined) {
+    return { timestamp: item.created_at, source: "created_at", fallback: true };
+  }
+  // No completion signal exists at all. Reporting this as a `created_at`
+  // fallback would credit a field that supplied nothing, inflating
+  // `inferred_sources.created_at` with items that carry zero evidence of when
+  // the work landed - precisely the accuracy the provenance report exists to
+  // provide. Such items reach here only when no time window is applied, since
+  // `filterItemsByTime` otherwise excludes them.
+  return { timestamp: undefined, source: "none", fallback: true };
 }
 
 function itemTimestamp(item: PmItem): string | undefined {

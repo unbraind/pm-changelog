@@ -3090,4 +3090,38 @@ test("explainChangelogSelection sorts undated inferred items last in the sample"
   assert.ok(provenance);
   assert.equal(provenance.inferred, 2);
   assert.deepEqual(provenance.inferred_sample, ["pm-dated: Dated", "pm-undated: Undated"]);
+  // The undated item must not be credited to created_at, which supplied nothing.
+  assert.equal(provenance.inferred_sources.none, 1);
+  assert.equal(provenance.inferred_sources.created_at, undefined);
+});
+
+test("explainChangelogSelection reports a no-signal item as source none, not created_at", () => {
+  // CodeRabbit caught resolveItemCompletion returning source "created_at" even
+  // when created_at itself was absent, which credited a field that supplied no
+  // value and inflated the created_at bucket with items carrying zero evidence
+  // of when the work landed. An item with created_at present must still be
+  // reported as created_at, so both branches are asserted here.
+  const report = explainChangelogSelection({
+    items: [
+      { id: "pm-no-signal", title: "No timestamp at all", status: "closed", type: "feature" },
+      { id: "pm-created-only", title: "Created only", status: "closed", type: "feature", created_at: "2026-07-24T09:00:00Z" },
+    ],
+    version: "2026.7.24",
+    date: "2026-07-24",
+  });
+  const provenance = report.attribution_provenance;
+  assert.ok(provenance);
+  assert.equal(provenance.inferred, 2);
+  assert.equal(provenance.inferred_sources.none, 1);
+  assert.equal(provenance.inferred_sources.created_at, 1);
+  // The dated created_at item leads; the no-signal item is the weakest lead.
+  assert.deepEqual(provenance.inferred_sample, [
+    "pm-created-only: Created only",
+    "pm-no-signal: No timestamp at all",
+  ]);
+  // The hint names both fallback sources so the report stays actionable.
+  assert.ok(
+    report.hints.some((hint) => /inferred timestamp \(created_at,none\)/.test(hint)),
+    `expected a hint naming both sources, got: ${JSON.stringify(report.hints)}`,
+  );
 });

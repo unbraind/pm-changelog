@@ -931,6 +931,16 @@ function sampleItems(items) {
  * documented contract: a maintainer hunting a mis-dated tracker wants the
  * freshest candidate, not whichever section happened to be emitted first.
  */
+/**
+ * Render the inferred-source counts as a stable, comma-separated field list for
+ * human-facing output. Sorted so the string is deterministic across runs, and
+ * `"fallback"` stands in for the empty map so a caller never prints an empty
+ * parenthesis. Shared by the generator's hint text and the CLI's selection
+ * report so the two can never drift apart.
+ */
+export function formatInferredSources(sources) {
+    return Object.keys(sources).sort().join(",") || "fallback";
+}
 function buildAttributionProvenance(items, releaseAttributionApplies) {
     if (items.length === 0)
         return undefined;
@@ -1002,7 +1012,7 @@ function buildSelectionHints(input) {
         hints.push("Visibility narrowing hid sections; relax --limit or --since-version to include older releases.");
     }
     if (input.attributionProvenance && input.attributionProvenance.inferred > 0) {
-        const sources = Object.keys(input.attributionProvenance.inferred_sources).sort().join(",") || "fallback";
+        const sources = formatInferredSources(input.attributionProvenance.inferred_sources);
         hints.push(`${input.attributionProvenance.inferred} visible item(s) were attributed to their release window from an inferred timestamp (${sources}) rather than the authoritative completed_at; inspect them for a tracker closed long after its fix shipped.`);
     }
     if (input.visibleItemCount === 0 && hints.length === 0) {
@@ -1466,7 +1476,16 @@ function resolveItemCompletion(item) {
     if (resolved.timestamp !== undefined) {
         return { timestamp: resolved.timestamp, source: resolved.source, fallback: resolved.fallback };
     }
-    return { timestamp: item.created_at, source: "created_at", fallback: true };
+    if (item.created_at !== undefined) {
+        return { timestamp: item.created_at, source: "created_at", fallback: true };
+    }
+    // No completion signal exists at all. Reporting this as a `created_at`
+    // fallback would credit a field that supplied nothing, inflating
+    // `inferred_sources.created_at` with items that carry zero evidence of when
+    // the work landed - precisely the accuracy the provenance report exists to
+    // provide. Such items reach here only when no time window is applied, since
+    // `filterItemsByTime` otherwise excludes them.
+    return { timestamp: undefined, source: "none", fallback: true };
 }
 function itemTimestamp(item) {
     return resolveItemCompletion(item).timestamp;

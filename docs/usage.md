@@ -249,7 +249,7 @@ one. Because item placement otherwise derives from the authoritative `completed_
 shipped-but-unclosed items accumulate. `--respect-item-release` pins any item that declares a
 `release`: it is kept when the release matches the generated version (no matter what its timestamps
 say) and dropped otherwise, including from an unversioned `Unreleased` window. `--all-release-tags`
-already pinned by this field, so the flag is what makes `changelog:check` and release notes agree
+already honors this field, so the flag is what makes `changelog:check` and release notes agree
 with the rebuilt history. Items without a declared release keep the plain time-window behavior.
 
 `completed_at` is the **authoritative** completion time (recorded by pm-cli ≥ 2026.7.29 separately
