@@ -299,6 +299,32 @@ export interface ChangelogSelectionReport {
         release_window: string[];
         hidden_by_visibility: string[];
     };
+    /** How the visible items' release-window placement was timestamped. Lets a
+     * maintainer distinguish items attributed from the authoritative
+     * `completed_at` from those attributed from an inferred fallback
+     * (`closed_at`/`updated_at`/`created_at`) - the latter are the candidates for
+     * a shipped-but-late-closed item that landed in the wrong release. Absent
+     * when no items survived to a visible section. */
+    attribution_provenance?: ChangelogAttributionProvenance;
     hints: string[];
+}
+/** Per-release-window completion-timestamp provenance for the visible items.
+ * Counts items whose placement used the authoritative `completed_at` versus an
+ * inferred fallback, and names the inferred ones so a maintainer can spot a
+   * tracker that was closed long after its fix shipped. */
+export interface ChangelogAttributionProvenance {
+    /** Items whose release placement used the authoritative `completed_at`
+     * (`fallback: false`). */
+    authoritative: number;
+    /** Items whose release placement used an inferred fallback timestamp
+     * (`closed_at`, `updated_at`, or `created_at`; `fallback: true`). */
+    inferred: number;
+    /** The metadata field that supplied each inferred item's timestamp, keyed by
+     * field name (`closed_at` / `updated_at` / `created_at`) to its count. */
+    inferred_sources: Record<string, number>;
+    /** Bounded, newest-first sample ids of items attributed from an inferred
+     * timestamp - the candidates for a shipped-but-late-closed item that dated
+     * into the wrong release. Empty when every visible item was authoritative. */
+    inferred_sample: string[];
 }
 //# sourceMappingURL=types.d.ts.map

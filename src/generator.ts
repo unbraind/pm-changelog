@@ -3,7 +3,11 @@ import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import { createRequire } from "node:module";
 import { dirname, resolve } from "node:path";
 
+import { resolveCompletionTimestamp } from "@unbrained/pm-cli/sdk";
+import type { CompletionTimestampSource } from "@unbrained/pm-cli/sdk";
+
 import type {
+  ChangelogAttributionProvenance,
   ChangelogDocument,
   ChangelogDocumentItem,
   ChangelogDocumentRelease,
@@ -1045,6 +1049,43 @@ function sampleItems(items: PmItem[]): string[] {
   return labels;
 }
 
+/**
+ * Summarize how the visible items' release-window placement was timestamped:
+ * authoritative (`completed_at`, `fallback: false`) versus an inferred fallback
+ * (`closed_at`/`updated_at`/`created_at`, `fallback: true`). The inferred
+ * sample names the items a maintainer should inspect for a shipped-but-late-
+ * closed tracker that dated into the wrong release. Returns `undefined` when no
+ * items survived to a visible section so the field stays absent, not empty.
+ */
+function buildAttributionProvenance(items: PmItem[]): ChangelogAttributionProvenance | undefined {
+  if (items.length === 0) return undefined;
+  let authoritative = 0;
+  let inferred = 0;
+  const inferredSources: Record<string, number> = {};
+  const inferredSample: string[] = [];
+  const seen = new Set<string>();
+  for (const item of items) {
+    const resolved = resolveItemCompletion(item);
+    if (!resolved.fallback) {
+      authoritative++;
+      continue;
+    }
+    inferred++;
+    inferredSources[resolved.source] = (inferredSources[resolved.source] ?? 0) + 1;
+    const label = sampleItemLabel(item);
+    if (!seen.has(label) && inferredSample.length < SELECTION_SAMPLE_LIMIT) {
+      seen.add(label);
+      inferredSample.push(label);
+    }
+  }
+  return {
+    authoritative,
+    inferred,
+    inferred_sources: inferredSources,
+    inferred_sample: inferredSample,
+  };
+}
+
 function sampleItemLabel(item: PmItem): string {
   const id = typeof item.id === "string" && item.id.trim() !== ""
     ? item.id.trim()
@@ -1067,6 +1108,7 @@ function buildSelectionHints(input: {
     release_window: number;
     hidden_by_visibility: number;
   };
+  attributionProvenance?: ChangelogAttributionProvenance;
 }): string[] {
   const hints: string[] = [];
   if (input.excludedCounts.excluded_tag > 0) {
@@ -1086,6 +1128,10 @@ function buildSelectionHints(input: {
   }
   if (input.excludedCounts.hidden_by_visibility > 0) {
     hints.push("Visibility narrowing hid sections; relax --limit or --since-version to include older releases.");
+  }
+  if (input.attributionProvenance && input.attributionProvenance.inferred > 0) {
+    const sources = Object.keys(input.attributionProvenance.inferred_sources).sort().join(",") || "fallback";
+    hints.push(`${input.attributionProvenance.inferred} visible item(s) were attributed to their release window from an inferred timestamp (${sources}) rather than the authoritative completed_at; inspect them for a tracker closed long after its fix shipped.`);
   }
   if (input.visibleItemCount === 0 && hints.length === 0) {
     hints.push("No items matched the current filters.");
@@ -1339,6 +1385,7 @@ export function explainChangelogSelection(options: GenerateChangelogOptions): Ch
     .flatMap((section) => section.items);
   const candidateItems = candidateSections.flatMap((section) => section.items);
   const visibleItems = visibleSections.flatMap((section) => section.items);
+  const attributionProvenance = buildAttributionProvenance(visibleItems);
 
   const excludedCounts = {
     missing_title: missingTitle.length,
@@ -1386,10 +1433,12 @@ export function explainChangelogSelection(options: GenerateChangelogOptions): Ch
       release_window: sampleItems(excludedByReleaseWindow),
       hidden_by_visibility: sampleItems(hiddenByVisibility),
     },
+    attribution_provenance: attributionProvenance,
     hints: buildSelectionHints({
       visibleItemCount,
       hasReleaseWindows,
       excludedCounts,
+      attributionProvenance,
     }),
   };
 }
@@ -1534,8 +1583,71 @@ function compareItems(a: PmItem, b: PmItem): number {
   return a.title.localeCompare(b.title);
 }
 
+/** Provenance of the timestamp used to place an item in a release window.
+ * Extends the SDK's {@link CompletionTimestampSource} with `"created_at"`, the
+ * final local fallback pm-changelog keeps for legacy records that predate
+ * `completed_at`/`closed_at`/`updated_at`: the SDK chain
+ * (`completed_at -> closed_at -> updated_at`) returns no timestamp when all
+ * three are absent, so `created_at` keeps every item placeable. */
+type CompletionProvenanceSource = CompletionTimestampSource | "created_at";
+
+interface ResolvedItemCompletion {
+  /** ISO timestamp selected for release-window placement. `undefined` only when
+   * no timestamp field is present at all (the item is then unplaceable by time). */
+  timestamp: string | undefined;
+  /** Metadata field that supplied the timestamp. */
+  source: CompletionProvenanceSource;
+  /** `true` when the timestamp is an inferred fallback (`closed_at`,
+   * `updated_at`, or `created_at`); `false` only for the authoritative
+   * `completed_at`. */
+  fallback: boolean;
+}
+
+// The SDK's runtime contract returns no `timestamp` when `completed_at`,
+// `closed_at`, and `updated_at` are all absent (verified on
+// @unbrained/pm-cli@2026.7.29), even though its declared return type marks
+// `timestamp: string`. pm-changelog's `PmItem` also types all three as
+// optional, while the SDK's input type requires `updated_at: string`. This
+// narrowing lets us call the SDK with pm items that may predate every
+// fallback field, and read a possibly-absent timestamp back, without
+// resorting to `any`.
+interface SdkCompletionResolution {
+  timestamp?: string;
+  source: CompletionTimestampSource;
+  fallback: boolean;
+}
+type SdkCompletionInput = { completed_at?: string; closed_at?: string; updated_at?: string };
+const resolveSdkCompletion = resolveCompletionTimestamp as unknown as (
+  item: SdkCompletionInput
+) => SdkCompletionResolution;
+
+/**
+ * Resolve the timestamp used to place an item in a release window, together
+ * with its provenance.
+ *
+ * Delegates the `completed_at -> closed_at -> updated_at` chain to the pm-cli
+ * SDK's {@link resolveCompletionTimestamp} (GH-675) so pm-changelog and the
+ * tracker agree on what counts as the authoritative completion time. The SDK
+ * chain does NOT consider `created_at`; when all three SDK fields are absent
+ * it returns no timestamp, so pm-changelog's existing `created_at` final
+ * fallback is preserved here to avoid regressing legacy records that predate
+ * the lifecycle fields. Such an item is reported as inferred (`fallback: true`,
+ * `source: "created_at"`).
+ */
+function resolveItemCompletion(item: PmItem): ResolvedItemCompletion {
+  const resolved = resolveSdkCompletion({
+    completed_at: item.completed_at,
+    closed_at: item.closed_at,
+    updated_at: item.updated_at,
+  });
+  if (resolved.timestamp !== undefined) {
+    return { timestamp: resolved.timestamp, source: resolved.source, fallback: resolved.fallback };
+  }
+  return { timestamp: item.created_at, source: "created_at", fallback: true };
+}
+
 function itemTimestamp(item: PmItem): string | undefined {
-  return item.completed_at ?? item.closed_at ?? item.updated_at ?? item.created_at;
+  return resolveItemCompletion(item).timestamp;
 }
 
 function escapeMarkdown(value: string): string {

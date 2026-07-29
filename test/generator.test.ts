@@ -9,6 +9,7 @@ import { pathToFileURL } from "node:url";
 import {
   buildPmListArgs,
   createChangelog,
+  explainChangelogSelection,
   mergeChangelog,
   MISSING_TAG_HISTORY_ERROR_CODE,
   MissingTagHistoryError,
@@ -2721,6 +2722,228 @@ test("respectItemRelease leaves the --all-release-tags path untouched", () => {
   const { markdown: withoutFlag } = createChangelog({ items: [shippedElsewhere, shippedHere], releaseWindows: windows });
   assert.equal(withFlag, withoutFlag);
   assert.match(withFlag, /## 2026\.6\.1 - 2026-06-01\n\n### Fixed\n\n- Fix trailing newline/);
+});
+
+// --- Authoritative completion-timestamp provenance (SDK resolveCompletionTimestamp) ---
+// The hand-rolled completed_at ?? closed_at ?? updated_at ?? created_at chain was
+// replaced by the pm-cli SDK resolver. These tests pin the contract: every
+// `source` value, the all-absent `created_at` final fallback, and the
+// inferred-vs-authoritative report that lets a maintainer catch a
+// shipped-but-late-closed item.
+
+test("itemTimestamp resolves completed_at as the authoritative source (fallback false)", () => {
+  // A fix that shipped on the 18th but whose tracker was closed on the 20th must
+  // land in the release window containing the 18th, not the 20th.
+  const { markdown } = createChangelog({
+    items: [
+      {
+        id: "pm-authoritative",
+        title: "Shipped before delayed closeout",
+        status: "closed",
+        type: "feature",
+        completed_at: "2026-05-17T12:00:00Z",
+        closed_at: "2026-05-20T12:00:00Z",
+      },
+    ],
+    releaseWindows: [
+      { heading: "Unreleased", since: "2026-05-18T00:00:00Z", sinceExclusive: true },
+      { heading: "1.2.0 - 2026-05-17", until: "2026-05-18T00:00:00Z" },
+    ],
+  });
+  assert.match(markdown, /## 1\.2\.0 - 2026-05-17[\s\S]*Shipped before delayed closeout/);
+  assert.doesNotMatch(markdown, /## Unreleased[\s\S]*Shipped before delayed closeout/);
+});
+
+test("itemTimestamp resolves closed_at as an inferred fallback (fallback true)", () => {
+  // No completed_at: closed_at is used but is an inferred attribution.
+  const { markdown } = createChangelog({
+    items: [
+      {
+        id: "pm-closed-fallback",
+        title: "Legacy close-time item",
+        status: "closed",
+        type: "bug",
+        closed_at: "2026-05-18T12:00:00Z",
+        updated_at: "2026-05-16T12:00:00Z",
+      },
+    ],
+    releaseWindows: [
+      { heading: "Unreleased", since: "2026-05-19T00:00:00Z", sinceExclusive: true },
+      { heading: "1.2.0 - 2026-05-18", until: "2026-05-19T00:00:00Z" },
+    ],
+  });
+  assert.match(markdown, /## 1\.2\.0 - 2026-05-18[\s\S]*Legacy close-time item/);
+});
+
+test("itemTimestamp resolves updated_at as an inferred fallback when closed_at is absent", () => {
+  // Only updated_at present: the SDK chain falls through to updated_at.
+  const { markdown } = createChangelog({
+    items: [
+      {
+        id: "pm-updated-fallback",
+        title: "Updated-only item",
+        status: "closed",
+        type: "task",
+        updated_at: "2026-05-18T12:00:00Z",
+      },
+    ],
+    releaseWindows: [
+      { heading: "Unreleased", since: "2026-05-19T00:00:00Z", sinceExclusive: true },
+      { heading: "1.2.0 - 2026-05-18", until: "2026-05-19T00:00:00Z" },
+    ],
+  });
+  assert.match(markdown, /## 1\.2\.0 - 2026-05-18[\s\S]*Updated-only item/);
+});
+
+test("itemTimestamp falls back to created_at when completed_at, closed_at, and updated_at are all absent", () => {
+  // The SDK chain returns no timestamp when all three lifecycle fields are
+  // absent; pm-changelog keeps created_at as the final local fallback so the
+  // item is still placeable. This must not regress.
+  const { markdown } = createChangelog({
+    items: [
+      {
+        id: "pm-created-fallback",
+        title: "Ancient record predating lifecycle fields",
+        status: "closed",
+        type: "task",
+        created_at: "2026-05-18T12:00:00Z",
+      },
+    ],
+    releaseWindows: [
+      { heading: "Unreleased", since: "2026-05-19T00:00:00Z", sinceExclusive: true },
+      { heading: "1.2.0 - 2026-05-18", until: "2026-05-19T00:00:00Z" },
+    ],
+  });
+  assert.match(markdown, /## 1\.2\.0 - 2026-05-18[\s\S]*Ancient record predating lifecycle fields/);
+});
+
+test("itemTimestamp returns undefined (unplaceable) when no timestamp field is present at all", () => {
+  // No timestamp of any kind: the item cannot be placed by time and is excluded
+  // from a bounded window rather than silently dropped into the wrong release.
+  const { markdown } = createChangelog({
+    items: [
+      { id: "pm-no-time", title: "Timestampless item", status: "closed", type: "task" },
+    ],
+    releaseWindows: [
+      { heading: "Unreleased", since: "2026-05-19T00:00:00Z", sinceExclusive: true },
+      { heading: "1.2.0 - 2026-05-18", until: "2026-05-19T00:00:00Z" },
+    ],
+  });
+  assert.doesNotMatch(markdown, /Timestampless item/);
+});
+
+test("explainChangelogSelection reports authoritative vs inferred attribution provenance", () => {
+  const report = explainChangelogSelection({
+    items: [
+      {
+        id: "pm-authoritative",
+        title: "Authoritative completed item",
+        status: "closed",
+        type: "feature",
+        completed_at: "2026-07-24T10:00:00Z",
+        closed_at: "2026-07-26T10:00:00Z",
+      },
+      {
+        id: "pm-closed-inferred",
+        title: "Closed-only inferred item",
+        status: "closed",
+        type: "bug",
+        closed_at: "2026-07-24T11:00:00Z",
+      },
+      {
+        id: "pm-updated-inferred",
+        title: "Updated-only inferred item",
+        status: "closed",
+        type: "task",
+        updated_at: "2026-07-24T12:00:00Z",
+      },
+      {
+        id: "pm-created-inferred",
+        title: "Created-only inferred item",
+        status: "closed",
+        type: "task",
+        created_at: "2026-07-24T13:00:00Z",
+      },
+    ],
+    version: "2026.7.24",
+    date: "2026-07-24",
+    since: "2026-07-24T00:00:00Z",
+  });
+  const provenance = report.attribution_provenance;
+  assert.ok(provenance, "attribution_provenance must be present when items are visible");
+  assert.equal(provenance.authoritative, 1);
+  assert.equal(provenance.inferred, 3);
+  assert.equal(provenance.inferred_sources.closed_at, 1);
+  assert.equal(provenance.inferred_sources.updated_at, 1);
+  assert.equal(provenance.inferred_sources.created_at, 1);
+  // The inferred sample names the items a maintainer should inspect.
+  assert.equal(provenance.inferred_sample.length, 3);
+  assert.ok(provenance.inferred_sample.some((label) => label.startsWith("pm-closed-inferred")));
+  assert.ok(provenance.inferred_sample.some((label) => label.startsWith("pm-updated-inferred")));
+  assert.ok(provenance.inferred_sample.some((label) => label.startsWith("pm-created-inferred")));
+  // A hint surfaces the inferred attribution so it is actionable in --explain output.
+  assert.ok(
+    report.hints.some((hint) => /3 visible item\(s\) were attributed.*inferred timestamp.*closed_at,created_at,updated_at/.test(hint)),
+    `expected an inferred-attribution hint, got: ${JSON.stringify(report.hints)}`,
+  );
+});
+
+test("explainChangelogSelection reports all-authoritative provenance with no inferred sample", () => {
+  const report = explainChangelogSelection({
+    items: [
+      { id: "pm-a", title: "Authoritative one", status: "closed", type: "feature", completed_at: "2026-07-24T10:00:00Z" },
+      { id: "pm-b", title: "Authoritative two", status: "closed", type: "feature", completed_at: "2026-07-24T11:00:00Z" },
+    ],
+    version: "2026.7.24",
+    date: "2026-07-24",
+    since: "2026-07-24T00:00:00Z",
+  });
+  const provenance = report.attribution_provenance;
+  assert.ok(provenance);
+  assert.equal(provenance.authoritative, 2);
+  assert.equal(provenance.inferred, 0);
+  assert.equal(provenance.inferred_sample.length, 0);
+  assert.equal(Object.keys(provenance.inferred_sources).length, 0);
+  // No inferred-attribution hint when everything is authoritative.
+  assert.ok(!report.hints.some((hint) => /inferred timestamp/.test(hint)));
+});
+
+test("explainChangelogSelection omits attribution_provenance when no items are visible", () => {
+  const report = explainChangelogSelection({
+    items: [],
+    version: "2026.7.24",
+    date: "2026-07-24",
+  });
+  assert.equal(report.attribution_provenance, undefined);
+});
+
+test("attribution provenance distinguishes a shipped-but-late-closed item in the report", () => {
+  // The canonical failure: work shipped in release N (completed_at) but the
+  // tracker was closed in release N+1 (closed_at). Without the authoritative
+  // completed_at the item would be dated into N+1. The provenance must flag it
+  // as authoritative (not inferred) so the maintainer knows the placement is
+  // correct, and would flag the inverse (closed_at-only) as inferred.
+  const shippedLateClosed = {
+    id: "pm-shipped-late",
+    title: "Fix shipped in N, closed in N+1",
+    status: "closed",
+    type: "feature",
+    completed_at: "2026-06-15T10:00:00Z",
+    closed_at: "2026-07-24T10:00:00Z",
+  };
+  const report = explainChangelogSelection({
+    items: [shippedLateClosed],
+    version: "2026.6.15",
+    date: "2026-06-15",
+    since: "2026-06-01T00:00:00Z",
+    until: "2026-06-30T00:00:00Z",
+  });
+  const provenance = report.attribution_provenance;
+  assert.ok(provenance);
+  assert.equal(provenance.authoritative, 1);
+  assert.equal(provenance.inferred, 0);
+  // The item lands in the June window (completed_at), not July (closed_at).
+  assert.equal(report.stage_counts.visible_items, 1);
 });
 
 // --- Tag exclusion (`excludeTags`) -------------------------------------------

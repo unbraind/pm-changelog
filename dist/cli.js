@@ -679,6 +679,14 @@ function writeSelectionReport(report) {
         + ` input=${report.stage_counts.input}`
         + ` visible=${report.stage_counts.visible_items}`
         + ` excluded(title=${excluded.missing_title},tag=${excluded.excluded_tag},status=${excluded.status},time=${excluded.time_window},item_release=${excluded.item_release},release_window=${excluded.release_window},visibility=${excluded.hidden_by_visibility})`);
+    const provenance = report.attribution_provenance;
+    if (provenance) {
+        const sources = Object.keys(provenance.inferred_sources).sort().join(",") || "fallback";
+        console.error(`Attribution provenance: authoritative=${provenance.authoritative} inferred=${provenance.inferred} (inferred sources: ${sources})`);
+        if (provenance.inferred_sample.length > 0) {
+            console.error(`Inferred-attribution sample: ${provenance.inferred_sample.join(", ")}`);
+        }
+    }
     for (const hint of report.hints) {
         console.error(`Hint: ${hint}`);
     }
