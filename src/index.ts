@@ -21,6 +21,7 @@ export {
 } from "./release-context.ts";
 export type { AssertReleaseTagHistoryOptions } from "./release-context.ts";
 export type {
+  ChangelogAttributionProvenance,
   ChangelogDocument,
   ChangelogDocumentItem,
   ChangelogDocumentRelease,
