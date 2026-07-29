@@ -1088,7 +1088,12 @@ function buildAttributionProvenance(
   const inferredSources: Record<string, number> = {};
   const inferredCandidates: Array<{ label: string; timestamp: string | undefined }> = [];
   for (const item of items) {
-    if (releaseAttributionApplies && typeof item.release === "string" && item.release.trim() !== "") {
+    // Read the declaration through the same accessor placement uses
+    // (`getStringField` honours `metadata.release` as well as the top-level
+    // field). Checking only `item.release` here would leave a metadata-pinned
+    // item counted as timestamp-attributed - the exact skew this bucket exists
+    // to remove.
+    if (releaseAttributionApplies && getStringField(item, "release") !== undefined) {
       releasePinned++;
       continue;
     }

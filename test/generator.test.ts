@@ -3029,6 +3029,29 @@ test("explainChangelogSelection counts release-pinned items apart from timestamp
   assert.equal(provenance.inferred_sources.closed_at, 1);
 });
 
+test("explainChangelogSelection counts a metadata-declared release as release-pinned", () => {
+  // Greptile caught this: placement reads the declaration through
+  // getStringField, which honours metadata.release as well as the top-level
+  // field, so checking only item.release left a metadata-pinned item counted as
+  // timestamp-attributed - the very skew the bucket removes.
+  const report = explainChangelogSelection({
+    items: [
+      { id: "pm-meta-pinned", title: "Pinned via metadata", status: "closed", type: "feature", metadata: { release: "2026.7.24" }, closed_at: "2026-07-24T10:00:00Z" },
+      { id: "pm-top-pinned", title: "Pinned via top level", status: "closed", type: "feature", release: "2026.7.24", closed_at: "2026-07-24T11:00:00Z" },
+      { id: "pm-unpinned", title: "No declaration", status: "closed", type: "feature", closed_at: "2026-07-24T12:00:00Z" },
+    ],
+    version: "2026.7.24",
+    date: "2026-07-24",
+    since: "2026-07-24T00:00:00Z",
+    respectItemRelease: true,
+  });
+  const provenance = report.attribution_provenance;
+  assert.ok(provenance);
+  assert.equal(provenance.release_pinned, 2);
+  assert.equal(provenance.inferred, 1);
+  assert.deepEqual(provenance.inferred_sample, ["pm-unpinned: No declaration"]);
+});
+
 test("explainChangelogSelection leaves release-pinned items in timestamp attribution when respectItemRelease is off", () => {
   // Without --respect-item-release the declaration is inert, so the same item is
   // genuinely placed by its timestamp and belongs in the inferred bucket.
