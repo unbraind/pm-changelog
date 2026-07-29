@@ -42,11 +42,11 @@ export declare function parsePmItemsJson(raw: string): PmItem[];
  * closed tracker that dated into the wrong release. Returns `undefined` when no
  * items survived to a visible section so the field stays absent, not empty.
  *
- * `releaseAttributionApplies` mirrors the generator's own `attributionApplies`
- * decision (`--respect-item-release` on a single-version section). When it
- * holds, an item carrying a `release` field was placed by that declaration and
- * no timestamp was consulted, so it is counted under `release_pinned` instead
- * of being offered as a late-close candidate.
+ * Items whose placement came from their own declared `release` are counted
+ * under `release_pinned` instead of being offered as late-close candidates,
+ * since no timestamp decided where they landed. See
+ * {@link isPlacedByReleaseDeclaration} - both the multi-window and
+ * single-version placement paths honour a declaration.
  *
  * The sample is ordered by resolved timestamp, most recent first, matching the
  * documented contract: a maintainer hunting a mis-dated tracker wants the

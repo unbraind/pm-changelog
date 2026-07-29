@@ -3170,3 +3170,48 @@ test("explainChangelogSelection resolves items lacking updated_at without an SDK
   assert.equal(provenance.inferred_sources.closed_at, 1);
   assert.deepEqual(provenance.inferred_sample, ["pm-closed-no-updated: Closed without updated"]);
 });
+
+test("explainChangelogSelection counts multi-window release pins as release-pinned", () => {
+  // Greptile caught this: assignItemsToReleaseWindows (the --all-release-tags
+  // path) buckets an item by a declaration matching a release-tag window and
+  // consults no timestamp, but release_pinned was gated on attributionApplies,
+  // which is false on that path. Declaration-placed items therefore still
+  // counted as timestamp-attributed and could crowd the bounded sample — on the
+  // path our own release workflows actually use.
+  const report = explainChangelogSelection({
+    items: [
+      { id: "pm-pinned-tag", title: "Pinned to the tag window", status: "closed", type: "feature", release: "1.2.0", closed_at: "2026-05-01T12:00:00Z" },
+      { id: "pm-pinned-meta", title: "Pinned via metadata", status: "closed", type: "feature", metadata: { release: "1.2.0" }, closed_at: "2026-05-02T12:00:00Z" },
+      { id: "pm-by-time", title: "Placed by time only", status: "closed", type: "feature", closed_at: "2026-05-14T12:00:00Z" },
+    ],
+    releaseWindows: [
+      { heading: "1.2.0 - 2026-05-17", releaseTag: "v1.2.0", since: "2026-05-10T13:00:00Z", sinceExclusive: true, until: "2026-05-17T13:00:00Z" },
+      { heading: "1.1.0 - 2026-05-10", releaseTag: "v1.1.0", until: "2026-05-10T13:00:00Z" },
+    ],
+  });
+  const provenance = report.attribution_provenance;
+  assert.ok(provenance);
+  // Both declaration forms are pins; only the timestamp-placed item is inferred.
+  assert.equal(provenance.release_pinned, 2);
+  assert.equal(provenance.inferred, 1);
+  assert.deepEqual(provenance.inferred_sample, ["pm-by-time: Placed by time only"]);
+});
+
+test("explainChangelogSelection treats a release declaration matching no window as a timestamp attribution", () => {
+  // A declaration that matches no release-tag window is not a pin: the item
+  // falls through to time filtering, so counting it as release_pinned would
+  // hide a genuine late-close candidate.
+  const report = explainChangelogSelection({
+    items: [
+      { id: "pm-unmatched", title: "Declares an unknown release", status: "closed", type: "feature", release: "9.9.9", closed_at: "2026-05-14T12:00:00Z" },
+    ],
+    releaseWindows: [
+      { heading: "1.2.0 - 2026-05-17", releaseTag: "v1.2.0", since: "2026-05-10T13:00:00Z", sinceExclusive: true, until: "2026-05-17T13:00:00Z" },
+    ],
+  });
+  const provenance = report.attribution_provenance;
+  assert.ok(provenance);
+  assert.equal(provenance.release_pinned, 0);
+  assert.equal(provenance.inferred, 1);
+  assert.deepEqual(provenance.inferred_sample, ["pm-unmatched: Declares an unknown release"]);
+});

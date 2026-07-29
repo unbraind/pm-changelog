@@ -921,11 +921,11 @@ function sampleItems(items) {
  * closed tracker that dated into the wrong release. Returns `undefined` when no
  * items survived to a visible section so the field stays absent, not empty.
  *
- * `releaseAttributionApplies` mirrors the generator's own `attributionApplies`
- * decision (`--respect-item-release` on a single-version section). When it
- * holds, an item carrying a `release` field was placed by that declaration and
- * no timestamp was consulted, so it is counted under `release_pinned` instead
- * of being offered as a late-close candidate.
+ * Items whose placement came from their own declared `release` are counted
+ * under `release_pinned` instead of being offered as late-close candidates,
+ * since no timestamp decided where they landed. See
+ * {@link isPlacedByReleaseDeclaration} - both the multi-window and
+ * single-version placement paths honour a declaration.
  *
  * The sample is ordered by resolved timestamp, most recent first, matching the
  * documented contract: a maintainer hunting a mis-dated tracker wants the
@@ -941,7 +941,38 @@ function sampleItems(items) {
 export function formatInferredSources(sources) {
     return Object.keys(sources).sort().join(",") || "fallback";
 }
-function buildAttributionProvenance(items, releaseAttributionApplies) {
+/**
+ * Whether this item's release placement came from its own declared `release`
+ * rather than from any timestamp.
+ *
+ * Both placement paths honour a declaration, so both must be recognised here or
+ * the `release_pinned` bucket leaks items back into the timestamp counts:
+ *
+ * - Multi-window (`--all-release-tags`): {@link assignItemsToReleaseWindows}
+ *   buckets an item by a declaration whose normalized key matches a release-tag
+ *   window, consulting no timestamp. A declaration matching NO window is not a
+ *   pin - that item falls through to time filtering, so it stays a timestamp
+ *   attribution.
+ * - Single-version (`--respect-item-release`): {@link
+ *   applyItemReleaseAttribution} keeps a declared item when it matches
+ *   `options.version` and drops it otherwise, so any surviving declared item
+ *   was pinned.
+ *
+ * Reads the declaration through `getStringField` and compares through
+ * `normalizeReleaseKey` - the same primitives both placement sites use - so the
+ * classification cannot drift from the placement it describes.
+ */
+function isPlacedByReleaseDeclaration(item, options) {
+    const declaredKey = normalizeReleaseKey(getStringField(item, "release") ?? "");
+    if (!declaredKey)
+        return false;
+    const windows = options.releaseWindows;
+    if (windows && windows.length > 0) {
+        return windows.some((window) => window.releaseTag && normalizeReleaseKey(window.releaseTag) === declaredKey);
+    }
+    return Boolean(options.respectItemRelease) && usesSingleVersionSection(options);
+}
+function buildAttributionProvenance(items, options) {
     if (items.length === 0)
         return undefined;
     let authoritative = 0;
@@ -949,12 +980,7 @@ function buildAttributionProvenance(items, releaseAttributionApplies) {
     const inferredSources = {};
     const inferredCandidates = [];
     for (const item of items) {
-        // Read the declaration through the same accessor placement uses
-        // (`getStringField` honours `metadata.release` as well as the top-level
-        // field). Checking only `item.release` here would leave a metadata-pinned
-        // item counted as timestamp-attributed - the exact skew this bucket exists
-        // to remove.
-        if (releaseAttributionApplies && getStringField(item, "release") !== undefined) {
+        if (isPlacedByReleaseDeclaration(item, options)) {
             releasePinned++;
             continue;
         }
@@ -1262,7 +1288,7 @@ export function explainChangelogSelection(options) {
         .flatMap((section) => section.items);
     const candidateItems = candidateSections.flatMap((section) => section.items);
     const visibleItems = visibleSections.flatMap((section) => section.items);
-    const attributionProvenance = buildAttributionProvenance(visibleItems, attributionApplies);
+    const attributionProvenance = buildAttributionProvenance(visibleItems, options);
     const excludedCounts = {
         missing_title: missingTitle.length,
         excluded_tag: excludedByTag.length,
