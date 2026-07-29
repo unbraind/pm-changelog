@@ -29,6 +29,8 @@ export interface PmItem {
     created_at?: string;
     updated_at?: string;
     closed_at?: string;
+    /** Actual work completion time. Preferred over tracker close time for release windows. */
+    completed_at?: string;
     due_date?: string;
 }
 /** OPT-IN (`--summary`): a compact one-line-per-change entry for quick agent

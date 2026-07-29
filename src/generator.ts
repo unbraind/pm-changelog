@@ -1535,7 +1535,7 @@ function compareItems(a: PmItem, b: PmItem): number {
 }
 
 function itemTimestamp(item: PmItem): string | undefined {
-  return item.closed_at ?? item.updated_at ?? item.created_at;
+  return item.completed_at ?? item.closed_at ?? item.updated_at ?? item.created_at;
 }
 
 function escapeMarkdown(value: string): string {

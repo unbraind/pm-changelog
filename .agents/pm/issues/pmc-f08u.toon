@@ -1,0 +1,36 @@
+id: pmc-f08u
+title: Prefer actual completion time for changelog release windows
+description: "Consume the pm-cli completed_at lifecycle primitive so changelog bucketing uses actual work completion before tracker close time, with an explicit fallback to closed_at for legacy items."
+type: Issue
+status: closed
+priority: 1
+tags[4]: changelog,completed-at,release-attribution,sdk
+created_at: "2026-07-28T23:14:03.182Z"
+updated_at: "2026-07-28T23:51:17.301Z"
+closed_at: "2026-07-28T23:51:07.063Z"
+completed_at: "2026-07-28T23:51:07.063Z"
+author: codex
+estimated_minutes: 120
+acceptance_criteria: Item contracts accept completed_at; single- and multi-window bucketing prefer completed_at over closed_at; legacy items without completed_at retain closed_at fallback; tests prove precedence and fallback; package release gate passes
+resolution: "pm-changelog now prefers Item.completed_at for release-window selection and sort order, retains closed_at/updated_at/created_at compatibility fallbacks, and documents the contract."
+expected_result: Actual work completion determines release bucketing without breaking legacy tracker records.
+actual_result: "Source, compiled package artifacts, usage docs, and regression tests implement the completed_at-first chain; npm run release:check and exact-head bot review passed."
+dependencies[1]{id,kind,created_at,author,source_kind,author_source}:
+  pmc-52px,related_to,"2026-07-28T23:14:03.182Z",codex,"cli:create:dep",detected
+comments[3]{created_at,author,text}:
+  "2026-07-28T23:14:03.182Z",codex,"Duplicate check: searched every status for completed_at, actual completion, closed_at, and release-window bucketing. pmc-52px owns explicit release pinning but not the new SDK lifecycle timestamp; no canonical item covers this distinct compatibility change. Upstream contract: pm-cli item pm-bwnclq."
+  "2026-07-28T23:15:46.196Z",codex,"Evidence: added typed completed_at support and made the canonical timestamp selector prefer completed_at, then closed_at, updated_at, created_at. The regression proves actual-completion precedence and legacy closed_at fallback across release windows. npm run release:check passed with 193/193 tests and zero production vulnerabilities."
+  "2026-07-28T23:46:00.104Z",codex,"Review evidence: addressed Greptile documentation drift plus Sourcery and CodeRabbit test findings. npm run release:check passed with 193 tests, typecheck, zero production vulnerabilities, packed-artifact validation, and changelog consistency."
+files[5]{path,scope,note}:
+  dist/generator.js,project,Published generated runtime
+  dist/types.d.ts,project,Published generated types
+  src/generator.ts,project,Actual-completion release-window precedence
+  src/types.ts,project,Typed completed_at item contract
+  test/generator.test.ts,project,Review-driven completion-only and fallback precedence cases
+tests[2]{command,scope,timeout_seconds,note}:
+  "npm run release:check",project,600,Typecheck tests audit pack and changelog gate
+  npm test,project,300,193-test generator and extension suite
+docs[1]{path,scope,note}:
+  docs/usage.md,project,Documents completed_at precedence and legacy fallback order
+close_reason: "Delivered completed_at-first changelog bucketing with documented legacy fallbacks, completion-only and precedence regression coverage, 193 passing tests, zero production vulnerabilities, exact-head bot review closure, and green CI on PR #107."
+body: ""
