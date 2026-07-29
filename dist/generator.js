@@ -1453,7 +1453,6 @@ function compareItems(a, b) {
     }
     return a.title.localeCompare(b.title);
 }
-const resolveSdkCompletion = resolveCompletionTimestamp;
 /**
  * Resolve the timestamp used to place an item in a release window, together
  * with its provenance.
@@ -1466,15 +1465,31 @@ const resolveSdkCompletion = resolveCompletionTimestamp;
  * fallback is preserved here to avoid regressing legacy records that predate
  * the lifecycle fields. Such an item is reported as inferred (`fallback: true`,
  * `source: "created_at"`).
+ *
+ * The SDK's parameter type requires `updated_at: string` even though the
+ * function's purpose is tolerating absent fallback fields (upstream
+ * [pm-cli#808](https://github.com/unbraind/pm-cli/issues/808)). Rather than
+ * assert the argument past that declaration, the SDK is called only when
+ * `updated_at` is present and the two-field precedence is applied locally when
+ * it is not - the narrower duplication is worth keeping the call site free of
+ * type assertions, and it disappears once the upstream signature widens.
  */
 function resolveItemCompletion(item) {
-    const resolved = resolveSdkCompletion({
-        completed_at: item.completed_at,
-        closed_at: item.closed_at,
-        updated_at: item.updated_at,
-    });
-    if (resolved.timestamp !== undefined) {
-        return { timestamp: resolved.timestamp, source: resolved.source, fallback: resolved.fallback };
+    if (item.updated_at !== undefined) {
+        const resolved = resolveCompletionTimestamp({
+            completed_at: item.completed_at,
+            closed_at: item.closed_at,
+            updated_at: item.updated_at,
+        });
+        if (resolved.timestamp !== undefined) {
+            return { timestamp: resolved.timestamp, source: resolved.source, fallback: resolved.fallback };
+        }
+    }
+    else if (item.completed_at !== undefined) {
+        return { timestamp: item.completed_at, source: "completed_at", fallback: false };
+    }
+    else if (item.closed_at !== undefined) {
+        return { timestamp: item.closed_at, source: "closed_at", fallback: true };
     }
     if (item.created_at !== undefined) {
         return { timestamp: item.created_at, source: "created_at", fallback: true };

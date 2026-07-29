@@ -4,7 +4,7 @@ import { createRequire } from "node:module";
 import { dirname, resolve } from "node:path";
 
 import { resolveCompletionTimestamp } from "@unbrained/pm-cli/sdk";
-import type { CompletionTimestampSource } from "@unbrained/pm-cli/sdk";
+import type { CompletionTimestampSource, ResolvedCompletionTimestamp } from "@unbrained/pm-cli/sdk";
 
 import type {
   ChangelogAttributionProvenance,
@@ -1639,23 +1639,17 @@ interface ResolvedItemCompletion {
   fallback: boolean;
 }
 
-// The SDK's runtime contract returns no `timestamp` when `completed_at`,
-// `closed_at`, and `updated_at` are all absent (verified on
-// @unbrained/pm-cli@2026.7.29), even though its declared return type marks
-// `timestamp: string`. pm-changelog's `PmItem` also types all three as
-// optional, while the SDK's input type requires `updated_at: string`. This
-// narrowing lets us call the SDK with pm items that may predate every
-// fallback field, and read a possibly-absent timestamp back, without
-// resorting to `any`.
-interface SdkCompletionResolution {
-  timestamp?: string;
-  source: CompletionTimestampSource;
-  fallback: boolean;
-}
-type SdkCompletionInput = { completed_at?: string; closed_at?: string; updated_at?: string };
-const resolveSdkCompletion = resolveCompletionTimestamp as unknown as (
-  item: SdkCompletionInput
-) => SdkCompletionResolution;
+/** Reality-checked view of the SDK's resolution result.
+ *
+ * `ResolvedCompletionTimestamp` declares `timestamp: string`, but the 2026.7.29
+ * runtime omits the property entirely when `completed_at`, `closed_at` and
+ * `updated_at` are all absent (upstream
+ * [pm-cli#808](https://github.com/unbraind/pm-cli/issues/808)). Reading it back
+ * as possibly-absent is a *widening* of the declared type, so assigning the SDK
+ * result to this view needs no type assertion - the compiler still checks every
+ * other field against the SDK's own declaration, which a cast of the function
+ * signature would have silenced. */
+type ObservedSdkCompletion = Omit<ResolvedCompletionTimestamp, "timestamp"> & { timestamp?: string };
 
 /**
  * Resolve the timestamp used to place an item in a release window, together
@@ -1669,15 +1663,29 @@ const resolveSdkCompletion = resolveCompletionTimestamp as unknown as (
  * fallback is preserved here to avoid regressing legacy records that predate
  * the lifecycle fields. Such an item is reported as inferred (`fallback: true`,
  * `source: "created_at"`).
+ *
+ * The SDK's parameter type requires `updated_at: string` even though the
+ * function's purpose is tolerating absent fallback fields (upstream
+ * [pm-cli#808](https://github.com/unbraind/pm-cli/issues/808)). Rather than
+ * assert the argument past that declaration, the SDK is called only when
+ * `updated_at` is present and the two-field precedence is applied locally when
+ * it is not - the narrower duplication is worth keeping the call site free of
+ * type assertions, and it disappears once the upstream signature widens.
  */
 function resolveItemCompletion(item: PmItem): ResolvedItemCompletion {
-  const resolved = resolveSdkCompletion({
-    completed_at: item.completed_at,
-    closed_at: item.closed_at,
-    updated_at: item.updated_at,
-  });
-  if (resolved.timestamp !== undefined) {
-    return { timestamp: resolved.timestamp, source: resolved.source, fallback: resolved.fallback };
+  if (item.updated_at !== undefined) {
+    const resolved: ObservedSdkCompletion = resolveCompletionTimestamp({
+      completed_at: item.completed_at,
+      closed_at: item.closed_at,
+      updated_at: item.updated_at,
+    });
+    if (resolved.timestamp !== undefined) {
+      return { timestamp: resolved.timestamp, source: resolved.source, fallback: resolved.fallback };
+    }
+  } else if (item.completed_at !== undefined) {
+    return { timestamp: item.completed_at, source: "completed_at", fallback: false };
+  } else if (item.closed_at !== undefined) {
+    return { timestamp: item.closed_at, source: "closed_at", fallback: true };
   }
   if (item.created_at !== undefined) {
     return { timestamp: item.created_at, source: "created_at", fallback: true };

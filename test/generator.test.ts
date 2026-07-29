@@ -3125,3 +3125,25 @@ test("explainChangelogSelection reports a no-signal item as source none, not cre
     `expected a hint naming both sources, got: ${JSON.stringify(report.hints)}`,
   );
 });
+
+test("explainChangelogSelection resolves items lacking updated_at without an SDK type assertion", () => {
+  // The SDK's parameter type requires updated_at: string (upstream pm-cli#808),
+  // so items without it are resolved by local precedence instead of a cast.
+  // Both local branches must agree with the SDK's own ordering: completed_at is
+  // authoritative, closed_at is an inferred fallback.
+  const report = explainChangelogSelection({
+    items: [
+      { id: "pm-completed-no-updated", title: "Completed without updated", status: "closed", type: "feature", completed_at: "2026-07-24T10:00:00Z", closed_at: "2026-07-25T10:00:00Z" },
+      { id: "pm-closed-no-updated", title: "Closed without updated", status: "closed", type: "feature", closed_at: "2026-07-23T10:00:00Z" },
+    ],
+    version: "2026.7.24",
+    date: "2026-07-24",
+  });
+  const provenance = report.attribution_provenance;
+  assert.ok(provenance);
+  // completed_at wins over closed_at even on the local path, and stays authoritative.
+  assert.equal(provenance.authoritative, 1);
+  assert.equal(provenance.inferred, 1);
+  assert.equal(provenance.inferred_sources.closed_at, 1);
+  assert.deepEqual(provenance.inferred_sample, ["pm-closed-no-updated: Closed without updated"]);
+});
