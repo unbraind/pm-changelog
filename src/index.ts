@@ -11,15 +11,15 @@ export {
   readPmItems,
   suggestSemver,
   writeChangelog,
-} from "./generator.js";
+} from "./generator.ts";
 export {
   assertReleaseTagHistory,
   MISSING_TAG_HISTORY_ERROR_CODE,
   MissingTagHistoryError,
   resolveReleaseContext,
   resolveReleaseTagWindows,
-} from "./release-context.js";
-export type { AssertReleaseTagHistoryOptions } from "./release-context.js";
+} from "./release-context.ts";
+export type { AssertReleaseTagHistoryOptions } from "./release-context.ts";
 export type {
   ChangelogDocument,
   ChangelogDocumentItem,
@@ -44,4 +44,4 @@ export type {
   SemverSuggestion,
   WriteChangelogOptions,
   WriteChangelogResult,
-} from "./types.js";
+} from "./types.ts";

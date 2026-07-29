@@ -13,9 +13,9 @@ import {
 } from "@unbrained/pm-cli/sdk";
 import type { ImportExportRegistrationOptions } from "@unbrained/pm-cli/sdk/authoring";
 
-import { buildChangelogDocument, createChangelog, createChangelogSummary, explainChangelogSelection, formatSummaryLine, mergeChangelog, suggestSemver, writeChangelog } from "./generator.js";
-import { MissingTagHistoryError, resolveReleaseContext, resolveReleaseTagWindows } from "./release-context.js";
-import type { ChangelogGroupBy, ChangelogItemRefStyle, ChangelogSectionBy, PmItem } from "./types.js";
+import { buildChangelogDocument, createChangelog, createChangelogSummary, explainChangelogSelection, formatSummaryLine, mergeChangelog, suggestSemver, writeChangelog } from "./generator.ts";
+import { MissingTagHistoryError, resolveReleaseContext, resolveReleaseTagWindows } from "./release-context.ts";
+import type { ChangelogGroupBy, ChangelogItemRefStyle, ChangelogSectionBy, PmItem } from "./types.ts";
 
 /**
  * Marks a command result as JSON text that pm-changelog has already rendered.

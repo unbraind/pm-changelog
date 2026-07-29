@@ -10,7 +10,7 @@ import test from "node:test";
 // markdown is byte-identical to a recorded baseline when no opt-in flag is set.
 // This is the same render path the release-workflow invocation drives.
 
-const CLI = join(process.cwd(), "dist", "cli.js");
+const CLI = join(process.cwd(), "src", "cli.ts");
 
 const FIXTURE = {
   items: [

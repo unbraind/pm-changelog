@@ -4,8 +4,8 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import test from "node:test";
 
-import { buildChangelogDocument, createChangelog, createChangelogSummary, explainChangelogSelection, formatSummaryLine, readPmItems, suggestSemver } from "../dist/index.js";
-import type { PmItem } from "../dist/index.js";
+import { buildChangelogDocument, createChangelog, createChangelogSummary, explainChangelogSelection, formatSummaryLine, readPmItems, suggestSemver } from "../src/index.ts";
+import type { PmItem } from "../src/index.ts";
 
 const items: PmItem[] = [
   {
