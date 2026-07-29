@@ -3,7 +3,11 @@ import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import { createRequire } from "node:module";
 import { dirname, resolve } from "node:path";
 
+import { resolveCompletionTimestamp } from "@unbrained/pm-cli/sdk";
+import type { CompletionTimestampSource, ResolvedCompletionTimestamp } from "@unbrained/pm-cli/sdk";
+
 import type {
+  ChangelogAttributionProvenance,
   ChangelogDocument,
   ChangelogDocumentItem,
   ChangelogDocumentRelease,
@@ -1045,6 +1049,110 @@ function sampleItems(items: PmItem[]): string[] {
   return labels;
 }
 
+/**
+ * Summarize how the visible items' release-window placement was timestamped:
+ * authoritative (`completed_at`, `fallback: false`) versus an inferred fallback
+ * (`closed_at`/`updated_at`/`created_at`, `fallback: true`). The inferred
+ * sample names the items a maintainer should inspect for a shipped-but-late-
+ * closed tracker that dated into the wrong release. Returns `undefined` when no
+ * items survived to a visible section so the field stays absent, not empty.
+ *
+ * Items whose placement came from their own declared `release` are counted
+ * under `release_pinned` instead of being offered as late-close candidates,
+ * since no timestamp decided where they landed. See
+ * {@link isPlacedByReleaseDeclaration} - both the multi-window and
+ * single-version placement paths honour a declaration.
+ *
+ * The sample is ordered by resolved timestamp, most recent first, matching the
+ * documented contract: a maintainer hunting a mis-dated tracker wants the
+ * freshest candidate, not whichever section happened to be emitted first.
+ */
+/**
+ * Render the inferred-source counts as a stable, comma-separated field list for
+ * human-facing output. Sorted so the string is deterministic across runs, and
+ * `"fallback"` stands in for the empty map so a caller never prints an empty
+ * parenthesis. Shared by the generator's hint text and the CLI's selection
+ * report so the two can never drift apart.
+ */
+export function formatInferredSources(sources: Record<string, number>): string {
+  return Object.keys(sources).sort().join(",") || "fallback";
+}
+
+/**
+ * Whether this item's release placement came from its own declared `release`
+ * rather than from any timestamp.
+ *
+ * Both placement paths honour a declaration, so both must be recognised here or
+ * the `release_pinned` bucket leaks items back into the timestamp counts:
+ *
+ * - Multi-window (`--all-release-tags`): {@link assignItemsToReleaseWindows}
+ *   buckets an item by a declaration whose normalized key matches a release-tag
+ *   window, consulting no timestamp. A declaration matching NO window is not a
+ *   pin - that item falls through to time filtering, so it stays a timestamp
+ *   attribution.
+ * - Single-version (`--respect-item-release`): {@link
+ *   applyItemReleaseAttribution} keeps a declared item when it matches
+ *   `options.version` and drops it otherwise, so any surviving declared item
+ *   was pinned.
+ *
+ * Reads the declaration through `getStringField` and compares through
+ * `normalizeReleaseKey` - the same primitives both placement sites use - so the
+ * classification cannot drift from the placement it describes.
+ */
+function isPlacedByReleaseDeclaration(item: PmItem, options: GenerateChangelogOptions): boolean {
+  const declaredKey = normalizeReleaseKey(getStringField(item, "release") ?? "");
+  if (!declaredKey) return false;
+  const windows = options.releaseWindows;
+  if (windows && windows.length > 0) {
+    return windows.some(
+      (window) => window.releaseTag && normalizeReleaseKey(window.releaseTag) === declaredKey
+    );
+  }
+  return Boolean(options.respectItemRelease) && usesSingleVersionSection(options);
+}
+
+function buildAttributionProvenance(
+  items: PmItem[],
+  options: GenerateChangelogOptions
+): ChangelogAttributionProvenance | undefined {
+  if (items.length === 0) return undefined;
+  let authoritative = 0;
+  let releasePinned = 0;
+  const inferredSources: Record<string, number> = {};
+  const inferredCandidates: Array<{ label: string; timestamp: string | undefined }> = [];
+  for (const item of items) {
+    if (isPlacedByReleaseDeclaration(item, options)) {
+      releasePinned++;
+      continue;
+    }
+    const resolved = resolveItemCompletion(item);
+    if (!resolved.fallback) {
+      authoritative++;
+      continue;
+    }
+    inferredSources[resolved.source] = (inferredSources[resolved.source] ?? 0) + 1;
+    inferredCandidates.push({ label: sampleItemLabel(item), timestamp: resolved.timestamp });
+  }
+  // Undated items sort last: they carry no evidence of when the work landed, so
+  // they are the weakest late-close leads.
+  inferredCandidates.sort((left, right) => (right.timestamp ?? "").localeCompare(left.timestamp ?? ""));
+  const inferredSample: string[] = [];
+  const seen = new Set<string>();
+  for (const candidate of inferredCandidates) {
+    if (inferredSample.length >= SELECTION_SAMPLE_LIMIT) break;
+    if (seen.has(candidate.label)) continue;
+    seen.add(candidate.label);
+    inferredSample.push(candidate.label);
+  }
+  return {
+    authoritative,
+    inferred: inferredCandidates.length,
+    release_pinned: releasePinned,
+    inferred_sources: inferredSources,
+    inferred_sample: inferredSample,
+  };
+}
+
 function sampleItemLabel(item: PmItem): string {
   const id = typeof item.id === "string" && item.id.trim() !== ""
     ? item.id.trim()
@@ -1067,6 +1175,7 @@ function buildSelectionHints(input: {
     release_window: number;
     hidden_by_visibility: number;
   };
+  attributionProvenance?: ChangelogAttributionProvenance;
 }): string[] {
   const hints: string[] = [];
   if (input.excludedCounts.excluded_tag > 0) {
@@ -1086,6 +1195,10 @@ function buildSelectionHints(input: {
   }
   if (input.excludedCounts.hidden_by_visibility > 0) {
     hints.push("Visibility narrowing hid sections; relax --limit or --since-version to include older releases.");
+  }
+  if (input.attributionProvenance && input.attributionProvenance.inferred > 0) {
+    const sources = formatInferredSources(input.attributionProvenance.inferred_sources);
+    hints.push(`${input.attributionProvenance.inferred} visible item(s) were attributed to their release window from an inferred timestamp (${sources}) rather than the authoritative completed_at; inspect them for a tracker closed long after its fix shipped.`);
   }
   if (input.visibleItemCount === 0 && hints.length === 0) {
     hints.push("No items matched the current filters.");
@@ -1339,6 +1452,7 @@ export function explainChangelogSelection(options: GenerateChangelogOptions): Ch
     .flatMap((section) => section.items);
   const candidateItems = candidateSections.flatMap((section) => section.items);
   const visibleItems = visibleSections.flatMap((section) => section.items);
+  const attributionProvenance = buildAttributionProvenance(visibleItems, options);
 
   const excludedCounts = {
     missing_title: missingTitle.length,
@@ -1386,10 +1500,12 @@ export function explainChangelogSelection(options: GenerateChangelogOptions): Ch
       release_window: sampleItems(excludedByReleaseWindow),
       hidden_by_visibility: sampleItems(hiddenByVisibility),
     },
+    attribution_provenance: attributionProvenance,
     hints: buildSelectionHints({
       visibleItemCount,
       hasReleaseWindows,
       excludedCounts,
+      attributionProvenance,
     }),
   };
 }
@@ -1534,8 +1650,90 @@ function compareItems(a: PmItem, b: PmItem): number {
   return a.title.localeCompare(b.title);
 }
 
+/** Provenance of the timestamp used to place an item in a release window.
+ * Extends the SDK's {@link CompletionTimestampSource} with two local outcomes
+ * the SDK chain (`completed_at -> closed_at -> updated_at`) cannot express:
+ * `"created_at"`, the final fallback pm-changelog keeps so legacy records that
+ * predate the lifecycle fields stay placeable; and `"none"`, for an item that
+ * carries no timestamp whatsoever. `"none"` is reported rather than folded into
+ * `"created_at"` so the provenance counts never credit a field that supplied no
+ * value. */
+type CompletionProvenanceSource = CompletionTimestampSource | "created_at" | "none";
+
+interface ResolvedItemCompletion {
+  /** ISO timestamp selected for release-window placement. `undefined` only when
+   * no timestamp field is present at all (the item is then unplaceable by time). */
+  timestamp: string | undefined;
+  /** Metadata field that supplied the timestamp. */
+  source: CompletionProvenanceSource;
+  /** `true` when the timestamp is an inferred fallback (`closed_at`,
+   * `updated_at`, or `created_at`); `false` only for the authoritative
+   * `completed_at`. */
+  fallback: boolean;
+}
+
+/** Reality-checked view of the SDK's resolution result.
+ *
+ * `ResolvedCompletionTimestamp` declares `timestamp: string`, but the 2026.7.29
+ * runtime omits the property entirely when `completed_at`, `closed_at` and
+ * `updated_at` are all absent (upstream
+ * [pm-cli#808](https://github.com/unbraind/pm-cli/issues/808)). Reading it back
+ * as possibly-absent is a *widening* of the declared type, so assigning the SDK
+ * result to this view needs no type assertion - the compiler still checks every
+ * other field against the SDK's own declaration, which a cast of the function
+ * signature would have silenced. */
+type ObservedSdkCompletion = Omit<ResolvedCompletionTimestamp, "timestamp"> & { timestamp?: string };
+
+/**
+ * Resolve the timestamp used to place an item in a release window, together
+ * with its provenance.
+ *
+ * Delegates the `completed_at -> closed_at -> updated_at` chain to the pm-cli
+ * SDK's {@link resolveCompletionTimestamp} (GH-675) so pm-changelog and the
+ * tracker agree on what counts as the authoritative completion time. The SDK
+ * chain does NOT consider `created_at`; when all three SDK fields are absent
+ * it returns no timestamp, so pm-changelog's existing `created_at` final
+ * fallback is preserved here to avoid regressing legacy records that predate
+ * the lifecycle fields. Such an item is reported as inferred (`fallback: true`,
+ * `source: "created_at"`).
+ *
+ * The SDK's parameter type requires `updated_at: string` even though the
+ * function's purpose is tolerating absent fallback fields (upstream
+ * [pm-cli#808](https://github.com/unbraind/pm-cli/issues/808)). Rather than
+ * assert the argument past that declaration, the SDK is called only when
+ * `updated_at` is present and the two-field precedence is applied locally when
+ * it is not - the narrower duplication is worth keeping the call site free of
+ * type assertions, and it disappears once the upstream signature widens.
+ */
+function resolveItemCompletion(item: PmItem): ResolvedItemCompletion {
+  if (item.updated_at !== undefined) {
+    const resolved: ObservedSdkCompletion = resolveCompletionTimestamp({
+      completed_at: item.completed_at,
+      closed_at: item.closed_at,
+      updated_at: item.updated_at,
+    });
+    if (resolved.timestamp !== undefined) {
+      return { timestamp: resolved.timestamp, source: resolved.source, fallback: resolved.fallback };
+    }
+  } else if (item.completed_at !== undefined) {
+    return { timestamp: item.completed_at, source: "completed_at", fallback: false };
+  } else if (item.closed_at !== undefined) {
+    return { timestamp: item.closed_at, source: "closed_at", fallback: true };
+  }
+  if (item.created_at !== undefined) {
+    return { timestamp: item.created_at, source: "created_at", fallback: true };
+  }
+  // No completion signal exists at all. Reporting this as a `created_at`
+  // fallback would credit a field that supplied nothing, inflating
+  // `inferred_sources.created_at` with items that carry zero evidence of when
+  // the work landed - precisely the accuracy the provenance report exists to
+  // provide. Such items reach here only when no time window is applied, since
+  // `filterItemsByTime` otherwise excludes them.
+  return { timestamp: undefined, source: "none", fallback: true };
+}
+
 function itemTimestamp(item: PmItem): string | undefined {
-  return item.completed_at ?? item.closed_at ?? item.updated_at ?? item.created_at;
+  return resolveItemCompletion(item).timestamp;
 }
 
 function escapeMarkdown(value: string): string {

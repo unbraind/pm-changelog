@@ -3,7 +3,7 @@ import { appendFileSync, existsSync, readFileSync } from "node:fs";
 import { basename, resolve } from "node:path";
 import { stdin } from "node:process";
 import { createUnifiedDiff, DEFAULT_MAX_DIFF_LINES } from "./diff.js";
-import { buildChangelogDocument, createChangelog, createChangelogSummary, explainChangelogSelection, formatSummaryLine, mergeChangelog, parsePmItemsJson, readPmItems, suggestSemver, writeChangelog, } from "./generator.js";
+import { buildChangelogDocument, createChangelog, createChangelogSummary, explainChangelogSelection, formatInferredSources, formatSummaryLine, mergeChangelog, parsePmItemsJson, readPmItems, suggestSemver, writeChangelog, } from "./generator.js";
 import { resolveReleaseContext, resolveReleaseTagWindows } from "./release-context.js";
 // Compatibility aliases for value-taking options. Kept intentionally small and
 // explicit so default behavior remains stable.
@@ -679,6 +679,15 @@ function writeSelectionReport(report) {
         + ` input=${report.stage_counts.input}`
         + ` visible=${report.stage_counts.visible_items}`
         + ` excluded(title=${excluded.missing_title},tag=${excluded.excluded_tag},status=${excluded.status},time=${excluded.time_window},item_release=${excluded.item_release},release_window=${excluded.release_window},visibility=${excluded.hidden_by_visibility})`);
+    const provenance = report.attribution_provenance;
+    if (provenance) {
+        const sources = formatInferredSources(provenance.inferred_sources);
+        console.error(`Attribution provenance: authoritative=${provenance.authoritative} inferred=${provenance.inferred}`
+            + ` release_pinned=${provenance.release_pinned} (inferred sources: ${sources})`);
+        if (provenance.inferred_sample.length > 0) {
+            console.error(`Inferred-attribution sample: ${provenance.inferred_sample.join(", ")}`);
+        }
+    }
     for (const hint of report.hints) {
         console.error(`Hint: ${hint}`);
     }

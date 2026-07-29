@@ -9,6 +9,7 @@ import {
   createChangelog,
   createChangelogSummary,
   explainChangelogSelection,
+  formatInferredSources,
   formatSummaryLine,
   mergeChangelog,
   parsePmItemsJson,
@@ -789,6 +790,17 @@ function writeSelectionReport(report: ChangelogSelectionReport): void {
     + ` visible=${report.stage_counts.visible_items}`
     + ` excluded(title=${excluded.missing_title},tag=${excluded.excluded_tag},status=${excluded.status},time=${excluded.time_window},item_release=${excluded.item_release},release_window=${excluded.release_window},visibility=${excluded.hidden_by_visibility})`
   );
+  const provenance = report.attribution_provenance;
+  if (provenance) {
+    const sources = formatInferredSources(provenance.inferred_sources);
+    console.error(
+      `Attribution provenance: authoritative=${provenance.authoritative} inferred=${provenance.inferred}`
+      + ` release_pinned=${provenance.release_pinned} (inferred sources: ${sources})`
+    );
+    if (provenance.inferred_sample.length > 0) {
+      console.error(`Inferred-attribution sample: ${provenance.inferred_sample.join(", ")}`);
+    }
+  }
   for (const hint of report.hints) {
     console.error(`Hint: ${hint}`);
   }
