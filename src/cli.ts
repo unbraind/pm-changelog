@@ -3,7 +3,7 @@ import { appendFileSync, existsSync, readFileSync } from "node:fs";
 import { basename, resolve } from "node:path";
 import { stdin } from "node:process";
 
-import { createUnifiedDiff, DEFAULT_MAX_DIFF_LINES } from "./diff.js";
+import { createUnifiedDiff, DEFAULT_MAX_DIFF_LINES } from "./diff.ts";
 import {
   buildChangelogDocument,
   createChangelog,
@@ -15,8 +15,8 @@ import {
   readPmItems,
   suggestSemver,
   writeChangelog,
-} from "./generator.js";
-import { resolveReleaseContext, resolveReleaseTagWindows } from "./release-context.js";
+} from "./generator.ts";
+import { resolveReleaseContext, resolveReleaseTagWindows } from "./release-context.ts";
 import type {
   ChangelogGroupBy,
   ChangelogItemRefStyle,
@@ -24,7 +24,7 @@ import type {
   ChangelogSelectionReport,
   ChangelogSectionBy,
   PmItem,
-} from "./types.js";
+} from "./types.ts";
 
 interface CliOptions {
   output: string;

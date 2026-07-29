@@ -5,7 +5,7 @@ import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import test from "node:test";
 
-const helperPath = resolve(import.meta.dirname, "../dist/sync-version.js");
+const helperPath = resolve(import.meta.dirname, "../src/sync-version.ts");
 
 function setupTempProject(): string {
   const dir = mkdtempSync(join(tmpdir(), "pm-changelog-sync-"));

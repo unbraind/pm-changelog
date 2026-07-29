@@ -16,7 +16,7 @@ import {
   type CliFlagContract,
 } from "@unbrained/pm-cli/sdk/contracts";
 
-import extension from "../dist/extension.js";
+import extension from "../src/extension.ts";
 
 /**
  * Capabilities the on-disk `manifest.json` declares.

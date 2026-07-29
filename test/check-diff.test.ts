@@ -5,7 +5,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import test from "node:test";
 
-import { createUnifiedDiff, DEFAULT_MAX_DIFF_LINES } from "../dist/diff.js";
+import { createUnifiedDiff, DEFAULT_MAX_DIFF_LINES } from "../src/diff.ts";
 
 // End-to-end tests for the `--check` drift diff. The CLI is driven with a
 // fixed pm JSON fixture via --input (no `pm` or git needed), so the generated
@@ -13,7 +13,7 @@ import { createUnifiedDiff, DEFAULT_MAX_DIFF_LINES } from "../dist/diff.js";
 // All assertions are on captured stdout/stderr, so this is the exact surface
 // a CI gate sees.
 
-const CLI = join(process.cwd(), "dist", "cli.js");
+const CLI = join(process.cwd(), "src", "cli.ts");
 
 const FIXTURE = {
   items: [

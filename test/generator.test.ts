@@ -16,7 +16,7 @@ import {
   resolveReleaseContext,
   resolveReleaseTagWindows,
   writeChangelog,
-} from "../dist/index.js";
+} from "../src/index.ts";
 
 function readEnvironmentValue(
   environment: NodeJS.ProcessEnv,
@@ -1234,7 +1234,7 @@ test("CLI writes GitHub Actions outputs", () => {
   const stdout = execFileSync(
     process.execPath,
     [
-      "dist/cli.js",
+      "src/cli.ts",
       "--input",
       input,
       "--output",
@@ -1270,7 +1270,7 @@ test("CLI can append generated markdown to GitHub step summary", () => {
   execFileSync(
     process.execPath,
     [
-      "dist/cli.js",
+      "src/cli.ts",
       "--input",
       input,
       "--output",
@@ -1302,7 +1302,7 @@ test("CLI stdout JSON includes markdown for runners without writing output", () 
   const stdout = execFileSync(
     process.execPath,
     [
-      "dist/cli.js",
+      "src/cli.ts",
       "--input",
       input,
       "--output",
@@ -1330,7 +1330,7 @@ test("CLI stdout JSON includes markdown for runners without writing output", () 
 test("CLI can derive package release version and git tag range", () => {
   const dir = mkdtempSync(join(tmpdir(), "pm-changelog-release-context-"));
   const input = join(dir, "items.json");
-  const cli = join(process.cwd(), "dist", "cli.js");
+  const cli = join(process.cwd(), "src", "cli.ts");
   writeFileSync(join(dir, "package.json"), JSON.stringify({ version: "1.2.0" }), "utf-8");
   execFileSync("git", ["init"], { cwd: dir, encoding: "utf-8" });
   execFileSync("git", ["config", "user.email", "test@example.com"], { cwd: dir, encoding: "utf-8" });
@@ -1411,7 +1411,7 @@ test("CLI can derive package release version and git tag range", () => {
 test("CLI derives release heading date from existing package tag without limiting the window", () => {
   const dir = mkdtempSync(join(tmpdir(), "pm-changelog-release-date-"));
   const input = join(dir, "items.json");
-  const cli = join(process.cwd(), "dist", "cli.js");
+  const cli = join(process.cwd(), "src", "cli.ts");
   writeFileSync(join(dir, "package.json"), JSON.stringify({ version: "1.3.0" }), "utf-8");
   execFileSync("git", ["init"], { cwd: dir, encoding: "utf-8" });
   execFileSync("git", ["config", "user.email", "test@example.com"], { cwd: dir, encoding: "utf-8" });
@@ -1688,7 +1688,7 @@ test("resolveReleaseTagWindows rejects shallow clones but preserves zero-tag pen
 
 test("CLI reports missing tag history instead of a stale changelog in a shallow tagless clone", (t) => {
   const { cloneDir } = createShallowClone(t, ["--no-tags"]);
-  const cli = join(process.cwd(), "dist", "cli.js");
+  const cli = join(process.cwd(), "src", "cli.ts");
   const input = join(cloneDir, "items.json");
   writeFileSync(
     input,
@@ -1735,7 +1735,7 @@ test("CLI reports missing tag history instead of a stale changelog in a shallow 
 test("CLI derives release heading date from explicit version tag", () => {
   const dir = mkdtempSync(join(tmpdir(), "pm-changelog-explicit-version-date-"));
   const input = join(dir, "items.json");
-  const cli = join(process.cwd(), "dist", "cli.js");
+  const cli = join(process.cwd(), "src", "cli.ts");
   execFileSync("git", ["init"], { cwd: dir, encoding: "utf-8" });
   execFileSync("git", ["config", "user.email", "test@example.com"], { cwd: dir, encoding: "utf-8" });
   execFileSync("git", ["config", "user.name", "Test"], { cwd: dir, encoding: "utf-8" });
@@ -1777,7 +1777,7 @@ test("CLI derives release heading date from explicit version tag", () => {
 test("CLI matches zero-padded calendar release tags for npm versions", () => {
   const dir = mkdtempSync(join(tmpdir(), "pm-changelog-calendar-tags-"));
   const input = join(dir, "items.json");
-  const cli = join(process.cwd(), "dist", "cli.js");
+  const cli = join(process.cwd(), "src", "cli.ts");
   writeFileSync(join(dir, "package.json"), JSON.stringify({ version: "2026.5.24-12" }), "utf-8");
   execFileSync("git", ["init"], { cwd: dir, encoding: "utf-8" });
   execFileSync("git", ["config", "user.email", "test@example.com"], { cwd: dir, encoding: "utf-8" });
@@ -1928,7 +1928,7 @@ process.stdout.write(${JSON.stringify(JSON.stringify(items))});
   const stdout = execFileSync(
     process.execPath,
     [
-      "dist/cli.js",
+      "src/cli.ts",
       "--pm-bin",
       wrapper,
       "--stdout",
@@ -1969,7 +1969,7 @@ process.stdout.write(readFileSync(resolve(process.cwd(), "fixture.json"), "utf-8
   const stdout = execFileSync(
     process.execPath,
     [
-      "dist/cli.js",
+      "src/cli.ts",
       "--pm-bin",
       wrapper,
       "--pm-arg",

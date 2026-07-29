@@ -2,6 +2,10 @@
 
 ## 2026.7.29 - 2026-07-28
 
+### Added
+
+- Enforce a real coverage gate by running tests against TypeScript sources ([pmc-6jr4](https://github.com/unbraind/pm-changelog/blob/main/.agents/pm/features/pmc-6jr4.toon))
+
 ### Fixed
 
 - Prefer actual completion time for changelog release windows ([pmc-f08u](https://github.com/unbraind/pm-changelog/blob/main/.agents/pm/issues/pmc-f08u.toon))

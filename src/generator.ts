@@ -23,7 +23,7 @@ import type {
   SemverSuggestion,
   WriteChangelogOptions,
   WriteChangelogResult,
-} from "./types.js";
+} from "./types.ts";
 
 const DEFAULT_TITLE = "Changelog";
 const DEFAULT_STATUSES = ["closed"];
