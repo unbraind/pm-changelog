@@ -157,6 +157,13 @@ jobs:
         run: |
           set -euo pipefail
           npm version "${{ steps.decide.outputs.npm_version }}" --no-git-tag-version --allow-same-version
+          # Clean before building, for the same reason CI does: tsc never removes
+          # output for a source that was deleted or renamed, so an orphaned artifact
+          # survives a plain rebuild. This package stages dist/ in the release commit,
+          # so without this the orphan is published and committed to main - where CI's
+          # clean-rebuild comparison then fails, on a later unrelated commit. Caught in
+          # review on pm-graph#48.
+          rm -rf dist
           npm run build
           node dist/sync-version.js "${{ steps.decide.outputs.npm_version }}"
         env:
