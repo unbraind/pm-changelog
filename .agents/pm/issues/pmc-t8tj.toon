@@ -6,7 +6,7 @@ status: open
 priority: 0
 tags[4]: history,privacy,release-blocker,security
 created_at: "2026-08-01T23:36:31.585Z"
-updated_at: "2026-08-01T23:39:01.836Z"
+updated_at: "2026-08-01T23:52:19.161Z"
 author: codex
 estimated_minutes: 480
 acceptance_criteria: "All refs and tags are rewritten or otherwise proven free of absolute private host paths; every author and committer identity is approved for public disclosure or rewritten to an approved noreply identity; signed/release tags and downstream clones are migrated without losing commits; a fresh all-refs credential, path, filename, and identity audit passes; maintainer explicitly approves publication after reviewing the rewrite evidence"
@@ -18,9 +18,11 @@ release: 2026.8.5
 reporter: codex
 severity: high
 environment: all Git refs and tags
-repro_steps: "Scan every revision from git rev-list --all for credential patterns and absolute host paths, then classify unique author and committer email domains without printing addresses."
+repro_steps: "1. Enumerate every ref and tag, then scan all reachable commit blobs for credential, private-key, absolute-host-path, and LAN-address patterns without printing secret values. 2. Enumerate historical filenames across all refs for env, key, credential, secret, and token artifacts. 3. Classify every author, committer, annotated-tag tagger, and signature identity against the approved public-domain allowlist. 4. Record annotated and signed tag inventories before rewriting. 5. Classify each content and filename match as a confirmed finding or documented synthetic false positive. 6. In a disposable mirror, rewrite approved identities and host paths, verify every ref, commit, tree, tag target, signature disposition, and PM history chain, then compare object/ref inventories. 7. Re-clone the rewritten repository and validate package gates plus documented downstream-clone migration instructions before any force update. 8. Repeat the complete scan after migration and obtain explicit maintainer publication approval."
 expected_result: "No private host paths, credentials, or unapproved personal identities occur anywhere in reachable history."
-actual_result: Zero current-tree sensitive-pattern files and zero historical credentials/private keys; two historical PM paths contain an absolute host path and two Git identities use non-public domains.
+actual_result: "Pre-rewrite audit: 84 refs and 71 tags were enumerated; historical sensitive-filename matches are zero. One annotated tag exists, it is unsigned, and its tagger uses a non-public identity domain. Commit history has zero credential/private-key/LAN-IP matches, two PM paths retain an absolute host path in older revisions, and two author/committer identities use non-public domains. False-positive classification found no credential fixtures in this focused pattern set. Rewrite, signature disposition, disposable-mirror equivalence, and downstream fresh-clone migration validation remain intentionally pending maintainer approval."
 component: repository-security
 customer_impact: Publishing or releasing before a coordinated rewrite could expose private host metadata or personal identity data.
+notes[1]{created_at,author,text}:
+  "2026-08-01T23:52:19.160Z",codex,"CodeRabbit review 3696947501 correctly identified missing reproduction coverage. The item now records filename, annotated-tag, tagger, signed-tag, false-positive, disposable-mirror, and downstream-clone checks while leaving post-rewrite evidence explicitly pending rather than claiming it was performed."
 body: ""
