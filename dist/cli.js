@@ -760,7 +760,7 @@ Options:
                             Alias for --version (matches pm extension syntax)
       --release-version-from-package
                             Read version heading from nearest package.json
-      --date <date>         Release date (default: resolved tag date when available, otherwise today)
+      --date <date>         Release date (default: resolved tag date when available, otherwise current UTC date)
       --since <date>        Include items changed on or after this date
       --since-previous-tag  Derive --since from the previous git tag
       --until <date>        Include items changed on or before this date

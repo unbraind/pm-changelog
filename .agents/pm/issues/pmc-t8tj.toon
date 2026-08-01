@@ -1,0 +1,26 @@
+id: pmc-t8tj
+title: Remove historical host paths and non-public Git identities before release approval
+description: "A fresh all-refs audit found no credential or private-key patterns, but two historical pmc-emom files contain an absolute host path in older Git commits and two distinct author/committer identities use non-public email domains. Current tracked files are clean. Because remediation requires a coordinated history rewrite, tag/ref verification, and downstream clone migration, publication remains blocked until a maintainer approves and executes the rewrite."
+type: Issue
+status: open
+priority: 0
+tags[4]: history,privacy,release-blocker,security
+created_at: "2026-08-01T23:36:31.585Z"
+updated_at: "2026-08-01T23:39:01.836Z"
+author: codex
+estimated_minutes: 480
+acceptance_criteria: "All refs and tags are rewritten or otherwise proven free of absolute private host paths; every author and committer identity is approved for public disclosure or rewritten to an approved noreply identity; signed/release tags and downstream clones are migrated without losing commits; a fresh all-refs credential, path, filename, and identity audit passes; maintainer explicitly approves publication after reviewing the rewrite evidence"
+reviewer: steve
+risk: critical
+confidence: high
+sprint: 2026-08-privacy
+release: 2026.8.5
+reporter: codex
+severity: high
+environment: all Git refs and tags
+repro_steps: "Scan every revision from git rev-list --all for credential patterns and absolute host paths, then classify unique author and committer email domains without printing addresses."
+expected_result: "No private host paths, credentials, or unapproved personal identities occur anywhere in reachable history."
+actual_result: Zero current-tree sensitive-pattern files and zero historical credentials/private keys; two historical PM paths contain an absolute host path and two Git identities use non-public domains.
+component: repository-security
+customer_impact: Publishing or releasing before a coordinated rewrite could expose private host metadata or personal identity data.
+body: ""
