@@ -49,7 +49,8 @@ options, and supports `--release-version` as a compatibility alias for
 When `--date` and a matching release-tag date are both absent, every generation
 path uses the current UTC calendar date. This keeps generated changelog bytes
 identical across developer and CI host timezones; pass `--date` when a different
-explicit business date is required.
+explicit business date is required. Explicit date text is rendered verbatim;
+use `YYYY-MM-DD` for a conventional changelog heading.
 
 ## Opt-in extras
 
