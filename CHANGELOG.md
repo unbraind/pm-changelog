@@ -1,5 +1,11 @@
 # Changelog
 
+## 2026.8.2 - 2026-08-02
+
+### Fixed
+
+- Generate default changelog heading dates in UTC ([pmc-vdss](https://github.com/unbraind/pm-changelog/blob/main/.agents/pm/issues/pmc-vdss.toon))
+
 ## 2026.7.29-1 - 2026-07-29
 
 ### Added
