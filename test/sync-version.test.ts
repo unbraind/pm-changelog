@@ -5,7 +5,7 @@ import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import test from "node:test";
 
-const helperPath = resolve(import.meta.dirname, "../src/sync-version.ts");
+const helperPath = resolve(import.meta.dirname, "../scripts/sync-version.ts");
 
 function setupTempProject(): string {
   const dir = mkdtempSync(join(tmpdir(), "pm-changelog-sync-"));
@@ -92,19 +92,56 @@ test("sync-version exits non-zero when no version is provided", () => {
   }
 });
 
-test("sync-version refuses to stamp an extension carrying more than one version literal", () => {
+test("sync-version stamps the registration and never a decoy in a comment or string", () => {
   const dir = setupTempProject();
   try {
-    // A second `version:` string - a flag description, a help example - would
-    // otherwise be restamped instead of the real one, and the corruption would
-    // be committed by the release job rather than shown in a reviewed diff.
+    // Every decoy here defeats a pattern-matching implementation: the help
+    // string is the first `version:` in the file, the comment is the only
+    // double-quoted one once the registration uses a template literal, and a
+    // uniqueness guard would pick the comment. Only the registration property
+    // may be rewritten.
     writeFileSync(
       join(dir, "src/extension.ts"),
       [
         'const help = { description: \'pass version: "1.2.3" to pin\' };',
-        'export default { name: "x", version: "0.0.0", help };',
+        "export default defineExtension({",
+        '  name: "x",',
+        "  version: `0.0.0`,",
+        "  help,",
+        "});",
+        '// Release documentation example: version: "do-not-stamp"',
         "",
       ].join("\n"),
+      "utf-8"
+    );
+
+    execFileSync(process.execPath, [helperPath, "9.9.9"], {
+      cwd: dir,
+      stdio: "pipe",
+      encoding: "utf-8",
+    });
+
+    const stamped = readFileSync(join(dir, "src/extension.ts"), "utf-8");
+    assert.ok(stamped.includes('version: "9.9.9",'), "the registration property must be stamped");
+    assert.ok(
+      stamped.includes('description: \'pass version: "1.2.3" to pin\''),
+      "the help string must be untouched"
+    );
+    assert.ok(
+      stamped.includes('// Release documentation example: version: "do-not-stamp"'),
+      "the comment must be untouched"
+    );
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test("sync-version refuses an ambiguous registration and leaves both files unchanged", () => {
+  const dir = setupTempProject();
+  try {
+    writeFileSync(
+      join(dir, "src/extension.ts"),
+      'export default defineExtension({ name: "x", version: "0.0.0", version: "0.0.1" });\n',
       "utf-8"
     );
 
@@ -117,7 +154,7 @@ test("sync-version refuses to stamp an extension carrying more than one version 
         stdio: "pipe",
         encoding: "utf-8",
       });
-    }, /Refusing to stamp .*found 2 'version:' literals/);
+    }, /declares 2 'version' properties/);
 
     assert.equal(
       readFileSync(join(dir, "src/extension.ts"), "utf-8"),
@@ -136,10 +173,20 @@ test("sync-version refuses to stamp an extension carrying more than one version 
   }
 });
 
-test("sync-version reports a missing version literal rather than writing nothing", () => {
+test("sync-version reports a registration with no version property rather than guessing", () => {
   const dir = setupTempProject();
   try {
-    writeFileSync(join(dir, "src/extension.ts"), 'export default { name: "x" };\n', "utf-8");
+    // The decoy is the only `version:` text in the file; a pattern matcher
+    // would stamp it.
+    writeFileSync(
+      join(dir, "src/extension.ts"),
+      [
+        'export default defineExtension({ name: "x" });',
+        '// changelog note: version: "1.0.0" shipped last week',
+        "",
+      ].join("\n"),
+      "utf-8"
+    );
 
     assert.throws(() => {
       execFileSync(process.execPath, [helperPath, "9.9.9"], {
@@ -147,7 +194,7 @@ test("sync-version reports a missing version literal rather than writing nothing
         stdio: "pipe",
         encoding: "utf-8",
       });
-    }, /Could not find version literal in/);
+    }, /Could not find a 'version' property in the default-exported registration/);
   } finally {
     rmSync(dir, { recursive: true, force: true });
   }

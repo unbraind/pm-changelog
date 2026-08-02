@@ -402,6 +402,9 @@ async function enrichItemBodies(pmRoot, items) {
     catch {
         return; // cannot resolve settings/registry → leave item metadata as-is
     }
+    /** Fill one item's body from its stored document, leaving an already-populated
+     * or unreadable item untouched. Best-effort by design: a single unreadable
+     * item must not fail an entire generation. */
     const loadBody = async (item) => {
         if (!item.id)
             return;

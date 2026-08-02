@@ -324,6 +324,43 @@ describe("docstring-gate: parsing real TypeScript", () => {
     ok(!run.stderr.includes("tiny - no docstring"), "a short internal helper needs no docstring");
   });
 
+  it("holds an oversized arrow bound to a variable to the size rule", () => {
+    const run = runGate({
+      "src/a.ts": [
+        "const wide = (): number => {",
+        "  const a = 1;",
+        "  const b = 2;",
+        "  const c = 3;",
+        "  const d = 4;",
+        "  return a + b + c + d;",
+        "};",
+        "const narrow = (): number => 1;",
+        `${GOOD_DOC}export function parseConfig(): number { return wide() + narrow(); }`,
+      ].join("\n"),
+    });
+    equal(run.status, 1);
+    match(run.stderr, /\bwide - no docstring/);
+    ok(!run.stderr.includes("narrow - no docstring"), "a one-line arrow needs no docstring");
+  });
+
+  it("leaves an anonymous inline callback out of the size rule", () => {
+    const run = runGate({
+      "src/a.ts": [
+        "/** Keep the values that survive a multi-line predicate. */",
+        "export function parseConfig(values: number[]): number[] {",
+        "  return values.filter((value) => {",
+        "    const a = value + 1;",
+        "    const b = a + 2;",
+        "    const c = b + 3;",
+        "    const d = c + 4;",
+        "    return d > 0;",
+        "  });",
+        "}",
+      ].join("\n"),
+    });
+    equal(run.status, 0, run.stderr);
+  });
+
   it("accepts an overload set documented on its first signature", () => {
     const run = runGate({
       "src/a.ts": [

@@ -35,13 +35,16 @@
  *     declared constructor, and `abstract` members, whose bodyless declaration
  *     is itself the contract an implementer reads;
  *   - every function declaration, exported or not, whose body exceeds
- *     {@link INTERNAL_BODY_LINES} lines.
+ *     {@link INTERNAL_BODY_LINES} lines, and equally every oversized arrow or
+ *     function expression bound to a variable, which is a function by another
+ *     name.
  *
  * Deliberately out of scope, each because the documentation belongs elsewhere:
  * overload signatures (the implementation carries it), re-exports such as
  * `export { x }` / `export * from` / `export type { T }` (the original
- * declaration is the documented one), and destructuring declarations, which
- * bind no single documentable name.
+ * declaration is the documented one), destructuring declarations, which bind no
+ * single documentable name, and anonymous inline callbacks - the size rule is
+ * about named units a reader looks up, not about every closure.
  *
  * ### Why this parses with `typescript5` rather than the installed `typescript`
  *
@@ -324,6 +327,7 @@ function scanFile(filePath: string, root: string): Violation[] {
     ts.ScriptKind.TS,
   );
 
+  /** Judge one node, then recurse, so nesting depth never exempts a declaration. */
   const visit = (node: ts.Node): void => {
     if (ts.isFunctionDeclaration(node)) {
       // A bodyless declaration is an overload signature; the implementation
@@ -346,12 +350,26 @@ function scanFile(filePath: string, root: string): Violation[] {
       isExported(node)
     ) {
       judge(violations, file, source, node, node.name.text, jsdocFor(node, text));
-    } else if (ts.isVariableStatement(node) && isExported(node)) {
+    } else if (ts.isVariableStatement(node)) {
       // The JSDoc precedes the statement, not the individual declarator.
       const doc = jsdocFor(node, text);
+      const exported = isExported(node);
       for (const decl of node.declarationList.declarations) {
         if (!ts.isIdentifier(decl.name)) continue;
-        judge(violations, file, source, decl, decl.name.text, doc);
+        // A named function held in a variable is a function by another name, so
+        // an oversized one is held to the same rule as a `function` declaration.
+        // Anonymous inline callbacks are deliberately not: the rule is about
+        // named units a reader looks up, not every closure.
+        const init = decl.initializer;
+        const isFunctionValue =
+          init !== undefined && (ts.isArrowFunction(init) || ts.isFunctionExpression(init));
+        const big =
+          isFunctionValue && init.body && ts.isBlock(init.body)
+            ? bodyLineSpan(init.body, source) > INTERNAL_BODY_LINES
+            : false;
+        if (exported || big) {
+          judge(violations, file, source, decl, decl.name.text, doc);
+        }
       }
     }
     ts.forEachChild(node, visit);

@@ -165,7 +165,7 @@ jobs:
           # review on pm-graph#48.
           rm -rf dist
           npm run build
-          node dist/sync-version.js "${{ steps.decide.outputs.npm_version }}"
+          node scripts/sync-version.ts "${{ steps.decide.outputs.npm_version }}"
         env:
           NPM_VERSION: ${{ steps.decide.outputs.npm_version }}
 
