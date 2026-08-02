@@ -1,0 +1,29 @@
+id: pmc-wvnz
+title: Raise pm-changelog source coverage gates to 100/100/100
+description: "The real TypeScript coverage gate is present and prevents file omission, but its enforced floor remains 89/78/90. The current authoritative run passes 212 tests at 90.36% lines, 80.08% branches, and 90.91% functions, which does not satisfy the ecosystem's mandatory 100/100/100 requirement."
+type: Issue
+status: open
+priority: 0
+tags[4]: code-quality,coverage,release-blocker,testing
+created_at: "2026-08-01T23:22:30.309Z"
+updated_at: "2026-08-01T23:23:05.427Z"
+author: codex
+estimated_minutes: 1200
+acceptance_criteria: "Every executable source line branch and function is exercised by meaningful unit integration and black-box tests; package coverage thresholds are exactly 100/100/100 and cannot be reduced without a failing policy test; the source-file inventory negative control remains; tests do not use ignore pragmas artificial calls or implementation-free mocks to inflate coverage; real CLI SDK package-install and GitHub workflow behavior remains covered; npm run release:check reports exact 100 percent for every dimension"
+reviewer: steve
+risk: high
+confidence: high
+sprint: coverage-hardening
+release: 2026.8.5
+severity: high
+expected_result: The authoritative release gate enforces and reaches exact 100 percent line branch and function coverage.
+actual_result: "The 2026-08-01 run reports 90.36 percent lines, 80.08 percent branches, and 90.91 percent functions while the package thresholds remain 89/78/90."
+component: test/coverage-gate
+customer_impact: "Uncovered production paths can regress despite a green release gate, so the package cannot yet be claimed fully production ready under the ecosystem mandate."
+dependencies[1]{id,kind,created_at,author,source_kind,author_source}:
+  pmc-6jr4,related_to,"2026-08-01T23:22:30.309Z",codex,"cli:create:dep",asserted
+files[1]{path,scope,note}:
+  scripts/coverage-gate.ts,project,threshold and source inventory gate
+tests[1]{command,scope,timeout_seconds,note}:
+  npm run coverage,project,1800,must reach exact 100/100/100
+body: ""

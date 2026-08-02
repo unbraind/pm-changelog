@@ -87,6 +87,25 @@ test("createChangelog groups closed items by category", () => {
   assert.doesNotMatch(result.markdown, /Draft release notes/);
 });
 
+test("createChangelog defaults release heading dates to UTC across host timezones", (context) => {
+  const previousTimezone = process.env.TZ;
+  context.mock.timers.enable({ apis: ["Date"], now: new Date("2026-08-01T22:30:00.000Z") });
+
+  try {
+    process.env.TZ = "UTC";
+    const utc = createChangelog({ items, version: "1.2.0" }).markdown;
+    process.env.TZ = "Europe/Vienna";
+    const vienna = createChangelog({ items, version: "1.2.0" }).markdown;
+
+    assert.equal(vienna, utc);
+    assert.match(utc, /^# Changelog\n\n## 1\.2\.0 - 2026-08-01/m);
+  } finally {
+    context.mock.timers.reset();
+    if (previousTimezone === undefined) delete process.env.TZ;
+    else process.env.TZ = previousTimezone;
+  }
+});
+
 test("createChangelog keeps harmless title punctuation readable", () => {
   const result = createChangelog({
     items: [

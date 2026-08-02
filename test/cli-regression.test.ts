@@ -372,6 +372,7 @@ test("CLI suggests the closest flag for a misspelled --item-ref-style", () => {
 
 test("CLI help documents the release-attribution and exclude-tag flags", () => {
   const output = runCli(["--help"]);
+  assert.match(output, /--date <date>\s+Release heading date text \(recommended: YYYY-MM-DD;/);
   assert.match(output, /--respect-item-release/);
   assert.match(output, /--exclude-tag <list>/);
 });

@@ -1,0 +1,48 @@
+id: pmc-vdss
+title: Generate default changelog heading dates in UTC
+description: "The core generator derives an omitted release date with local Date calendar fields, so the same instant produces different changelog bytes in UTC and Europe/Vienna. This broke pm-vcs PR #6 after local midnight and blocks safe fleet adoption of pm-changelog 2026.7.29."
+type: Issue
+status: closed
+priority: 1
+tags[5]: bug,determinism,release,timezone,utc
+created_at: "2026-08-01T23:08:34.422Z"
+updated_at: "2026-08-02T00:01:39.748Z"
+closed_at: "2026-08-01T23:19:08.084Z"
+completed_at: "2026-08-01T23:19:08.084Z"
+author: codex
+estimated_minutes: 90
+acceptance_criteria: A frozen instant whose UTC and Europe/Vienna calendar dates differ generates byte-identical headings under both timezones; The default heading date is the UTC YYYY-MM-DD date; Explicit --date and tag-derived date behavior remains unchanged; Prepend replace stdout release-notes and check paths inherit the same core policy; README and CLI help document the UTC fallback; Strict release check and installed CLI acceptance pass
+reviewer: steve
+risk: medium
+confidence: high
+sprint: 2026-08-determinism
+release: 2026.8.2
+severity: high
+environment: pm-changelog main at 28b25b8; Europe/Vienna just after midnight while UTC remains the previous date
+repro_steps: "At an instant such as 2026-08-01T22:30:00Z set TZ=UTC and generate without --date, then set TZ=Europe/Vienna and regenerate. The old generator emits 2026-08-01 and 2026-08-02 respectively."
+resolution: "The shared version-heading builder now derives an omitted date from the UTC ISO calendar date. Explicit dates and tag-derived dates are unchanged; CLI, extension generator/export surfaces, README, and usage docs state the policy."
+expected_result: "The same clock instant and PM data produce identical changelog bytes on every host, defaulting the generated calendar date to UTC."
+actual_result: "A frozen UTC/Vienna boundary regression passes, and the full 212-test coverage gate passes. All generation and check modes consume the same corrected core heading builder."
+component: generator/date-policy
+customer_impact: Fleet changelog checks fail nondeterministically near midnight and block otherwise valid PRs and releases.
+notes[5]{created_at,author,text}:
+  "2026-08-01T23:18:54.223Z",codex,"TDD evidence: the frozen 2026-08-01T22:30:00Z test failed before production changes because UTC generated 2026-08-01 while Europe/Vienna generated 2026-08-02. After the shared heading builder switched to the UTC ISO date,the same test passed byte-identically."
+  "2026-08-01T23:31:03.851Z",codex,"Packed-artifact acceptance passed with pm CLI/SDK 2026.8.1: a fresh npm install of the tarball and local current pm-cli produced byte-identical UTC and Europe/Vienna output at the live cross-date boundary,both heading 2026-08-01. bunx --bun executed the same installed artifact under both timezones with identical output. A standalone bun add attempt was bounded and stopped during registry resolution because the host had many unrelated concurrent npm installs; runtime compatibility itself passed."
+  "2026-08-01T23:37:28.939Z",codex,"Fresh all-refs privacy audit: the current tree has zero matches for private keys, GitHub/npm/AWS tokens, absolute /home host paths, or LAN IPs. Reachable history has zero credential/private-key/LAN-IP matches, but older pmc-emom revisions retain an absolute host path in two PM files; two unique Git identities use non-public domains. Tracked separately as P0 release blocker pmc-t8tj because safe remediation requires an approved coordinated history rewrite. This UTC fix introduces none of those patterns."
+  "2026-08-01T23:47:34.161Z",codex,"Review follow-up: Sourcery correctly noted that the explicit --date format was undocumented. CLI, extension, README, and usage docs now recommend YYYY-MM-DD while accurately stating that explicit text is rendered verbatim; a CLI help assertion protects the wording. Declined its parsed-as-UTC wording because no such parsing occurs, and declined one-use date/test helpers plus duplicated cross-surface string abstraction because they would add indirection without reuse."
+  "2026-08-02T00:01:39.748Z",codex,"Upstream reconciliation: merged main after v2026.8.1 and @types/node PR #114 landed. TypeScript sources merged automatically; the sole conflict was the generated one-line dist/extension.js.map and was resolved by rebuilding from the merged TypeScript source. The branch now tests against package version 2026.8.1."
+files[7]{path,scope,note}:
+  docs/usage.md,project,option reference
+  README.md,project,user-facing UTC default policy
+  src/cli.ts,project,standalone CLI help
+  src/extension.ts,project,extension command help
+  src/generator.ts,project,default release heading date policy
+  test/cli-regression.test.ts,project,CLI date-help contract
+  test/generator.test.ts,project,cross-timezone regression
+tests[2]{command,scope,timeout_seconds,note}:
+  npm run coverage,project,1200,strict source coverage and cross-timezone regression
+  "npm run release:check",project,1800,typecheck coverage audit package and changelog gate
+docs[1]{path,scope,note}:
+  "https://github.com/unbraind/pm-changelog/issues/115",project,public defect report and acceptance criteria
+close_reason: UTC default date policy implemented and verified across host timezones
+body: ""
