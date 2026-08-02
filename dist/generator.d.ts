@@ -1,5 +1,10 @@
 import type { ChangelogDocument, ChangelogSelectionReport, ChangelogSummaryEntry, GeneratedChangelog, GenerateChangelogOptions, MergeChangelogOptions, MergeChangelogResult, PmItem, ReadPmItemsOptions, SemverSuggestion, WriteChangelogOptions, WriteChangelogResult } from "./types.ts";
+/** Render a changelog and return only its markdown. Convenience wrapper over
+ * {@link createChangelog} for callers that do not need the selected sections. */
 export declare function generateChangelog(options: GenerateChangelogOptions): string;
+/** Render a changelog, returning the markdown alongside the sections and item
+ * count it was built from so a caller can report on the selection without
+ * re-parsing its own output. */
 export declare function createChangelog(options: GenerateChangelogOptions): GeneratedChangelog;
 /**
  * OPT-IN (`--changelog-json`): build a structured representation of the
@@ -29,10 +34,39 @@ export declare function createChangelogSummary(options: GenerateChangelogOptions
  * `[version] category: title (id)`.
  */
 export declare function formatSummaryLine(entry: ChangelogSummaryEntry): string;
+/**
+ * Splice a freshly generated release section into an existing changelog.
+ *
+ * A release already present is replaced in place rather than duplicated, and a
+ * new one is inserted directly beneath the title so history stays newest-first.
+ * The reported action distinguishes an unchanged file from a rewritten one,
+ * which is what lets `--check` fail only on real drift.
+ */
 export declare function mergeChangelog(existingMarkdown: string | undefined, generatedMarkdown: string, options?: MergeChangelogOptions): MergeChangelogResult;
+/** Build the `pm list-all --json` argv used to read a workspace. `--pm-path`
+ * is unshifted ahead of the subcommand because it is a host-owned global flag
+ * and pm rejects it in trailing position. */
 export declare function buildPmListArgs(options?: ReadPmItemsOptions): string[];
+/**
+ * Read every item from a pm workspace by invoking the real pm CLI.
+ *
+ * Shelling out rather than parsing `.toon` files directly keeps the workspace's
+ * own schema, merge, and visibility rules authoritative, so this package never
+ * has to track pm's storage format. With no explicit binary the installed
+ * `@unbrained/pm-cli` is resolved through its manifest and run on the current
+ * Node executable, which keeps the lookup working on Windows and inside
+ * pnpm-style layouts where the `.bin` shim may not be reachable. The buffer cap
+ * is explicit because Node's 1 MiB default truncates a large workspace's JSON
+ * into a parse error that reads like corruption.
+ */
 export declare function readPmItems(options?: ReadPmItemsOptions): PmItem[];
+/** Generate and persist a changelog, or with `check` compare against what is on
+ * disk without writing. The returned `changed` flag is the drift signal CI acts
+ * on; check mode never touches the file, so a failing gate leaves the committed
+ * changelog intact. */
 export declare function writeChangelog(options: WriteChangelogOptions): WriteChangelogResult;
+/** Parse pm JSON, accepting either a bare array or the `{ items: [...] }`
+ * envelope, since which one pm emits depends on the command and version. */
 export declare function parsePmItemsJson(raw: string): PmItem[];
 /**
  * Summarize how the visible items' release-window placement was timestamped:

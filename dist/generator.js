@@ -16,9 +16,14 @@ const CATEGORY_ORDER = [
     "Deprecated",
     "Other",
 ];
+/** Render a changelog and return only its markdown. Convenience wrapper over
+ * {@link createChangelog} for callers that do not need the selected sections. */
 export function generateChangelog(options) {
     return createChangelog(options).markdown;
 }
+/** Render a changelog, returning the markdown alongside the sections and item
+ * count it was built from so a caller can report on the selection without
+ * re-parsing its own output. */
 export function createChangelog(options) {
     const title = options.title ?? DEFAULT_TITLE;
     const { items, sections, visibleSections, sectionBy } = selectChangelogSections(options);
@@ -228,6 +233,8 @@ export function formatSummaryLine(entry) {
     const idSuffix = entry.id ? ` (${entry.id})` : "";
     return `[${versionLabel}] ${entry.category}: ${entry.title}${idSuffix}`;
 }
+/** Project an item onto one `--summary` row, keeping its title single-lined so
+ * each entry stays exactly one line. */
 function toSummaryEntry(heading, version, category, item) {
     return {
         heading,
@@ -239,6 +246,8 @@ function toSummaryEntry(heading, version, category, item) {
         status: typeof item.status === "string" ? item.status : undefined,
     };
 }
+/** Project an item onto its `--changelog-json` form, narrowing the tracker row
+ * to the fields the structured document publishes. */
 function toDocumentItem(item) {
     return {
         id: item.id,
@@ -252,6 +261,14 @@ function toDocumentItem(item) {
         url: item.url,
     };
 }
+/**
+ * Splice a freshly generated release section into an existing changelog.
+ *
+ * A release already present is replaced in place rather than duplicated, and a
+ * new one is inserted directly beneath the title so history stays newest-first.
+ * The reported action distinguishes an unchanged file from a rewritten one,
+ * which is what lets `--check` fail only on real drift.
+ */
 export function mergeChangelog(existingMarkdown, generatedMarkdown, options = {}) {
     const existing = existingMarkdown?.trimEnd();
     const generated = generatedMarkdown.trimEnd();
@@ -313,6 +330,9 @@ export function mergeChangelog(existingMarkdown, generatedMarkdown, options = {}
         changed: next !== existing + "\n",
     };
 }
+/** Build the `pm list-all --json` argv used to read a workspace. `--pm-path`
+ * is unshifted ahead of the subcommand because it is a host-owned global flag
+ * and pm rejects it in trailing position. */
 export function buildPmListArgs(options = {}) {
     const args = [...(options.pmArgs ?? []), "list-all", "--json"];
     if (options.includeBody) {
@@ -323,6 +343,18 @@ export function buildPmListArgs(options = {}) {
     }
     return args;
 }
+/**
+ * Read every item from a pm workspace by invoking the real pm CLI.
+ *
+ * Shelling out rather than parsing `.toon` files directly keeps the workspace's
+ * own schema, merge, and visibility rules authoritative, so this package never
+ * has to track pm's storage format. With no explicit binary the installed
+ * `@unbrained/pm-cli` is resolved through its manifest and run on the current
+ * Node executable, which keeps the lookup working on Windows and inside
+ * pnpm-style layouts where the `.bin` shim may not be reachable. The buffer cap
+ * is explicit because Node's 1 MiB default truncates a large workspace's JSON
+ * into a parse error that reads like corruption.
+ */
 export function readPmItems(options = {}) {
     let pmBin = options.pmBin;
     let args = buildPmListArgs(options);
@@ -365,6 +397,10 @@ export function readPmItems(options = {}) {
     }
     return parsePmItemsJson(result.stdout);
 }
+/** Generate and persist a changelog, or with `check` compare against what is on
+ * disk without writing. The returned `changed` flag is the drift signal CI acts
+ * on; check mode never touches the file, so a failing gate leaves the committed
+ * changelog intact. */
 export function writeChangelog(options) {
     const output = resolve(options.output ?? "CHANGELOG.md");
     const generated = createChangelog(options);
@@ -385,6 +421,8 @@ export function writeChangelog(options) {
         bytes: Buffer.byteLength(merged.markdown, "utf-8"),
     };
 }
+/** Parse pm JSON, accepting either a bare array or the `{ items: [...] }`
+ * envelope, since which one pm emits depends on the command and version. */
 export function parsePmItemsJson(raw) {
     const parsed = JSON.parse(raw);
     if (Array.isArray(parsed))
@@ -393,6 +431,8 @@ export function parsePmItemsJson(raw) {
         return parsed.items;
     throw new Error("Expected pm JSON to be an array or an object with an items array");
 }
+/** Rebuild the whole file from generated markdown, reporting whether the result
+ * differs from what was there. */
 function replaceChangelog(existingMarkdown, generatedMarkdown) {
     const generated = generatedMarkdown.trimEnd() + "\n";
     const existing = existingMarkdown?.trimEnd();
@@ -410,6 +450,9 @@ function replaceChangelog(existingMarkdown, generatedMarkdown) {
         changed,
     };
 }
+/** Select the items a single-window generation should render. Time filtering is
+ * skipped entirely under `releaseWindows`, where each window does its own
+ * bucketing. */
 function filterItems(options) {
     const items = filterItemsByStatus(options);
     if (options.releaseWindows && options.releaseWindows.length > 0)
@@ -420,6 +463,9 @@ function filterItems(options) {
     });
     return applyItemReleaseAttribution(items, withinWindow, options);
 }
+/** Drop untitled, tag-excluded, and wrong-status items, then order them for
+ * rendering. An empty status set means "accept every status" rather than
+ * "accept none", so an explicit empty list cannot silently empty a release. */
 function filterItemsByStatus(options) {
     const statuses = new Set((options.includeStatuses ?? DEFAULT_STATUSES).map((status) => status.toLowerCase()));
     const excludeTags = normalizeExcludeTags(options.excludeTags);
@@ -444,6 +490,8 @@ function normalizeExcludeTags(excludeTags) {
     }
     return normalized;
 }
+/** True when an item carries any excluded tag, matched case-insensitively after
+ * trimming. Returns false immediately when the option is absent. */
 function hasExcludedTag(item, excludeTags) {
     if (excludeTags.size === 0)
         return false;
@@ -488,6 +536,9 @@ function usesSingleVersionSection(options) {
         return true;
     return options.groupBy !== "release" && options.groupBy !== "milestone";
 }
+/** Split selected items into top-level sections. Release windows win when
+ * present; otherwise a version-less `release`/`milestone` grouping applies, and
+ * everything else collapses to one version section. */
 function buildSections(items, options) {
     if (options.releaseWindows && options.releaseWindows.length > 0) {
         return assignItemsToReleaseWindows(items, options.releaseWindows);
@@ -505,6 +556,15 @@ function buildSections(items, options) {
         },
     ];
 }
+/**
+ * Bucket items into release windows, declaration first and timestamps second.
+ *
+ * An item naming a release that matches a window is pinned there regardless of
+ * its timestamps; only the remainder is placed by time. That ordering is what
+ * keeps a tracker closed long after its fix shipped in the release it actually
+ * landed in, and it also stops `pm update --release` - which bumps
+ * `updated_at` - from duplicating an item into a later window.
+ */
 function assignItemsToReleaseWindows(items, windows) {
     const buckets = new Map();
     for (const window of windows)
@@ -569,6 +629,9 @@ function normalizeReleaseKey(value) {
 // boundaries come from git committer dates at second precision, while pm item
 // timestamps carry milliseconds (see filterItemsByTime).
 const toSecond = (ms) => Math.floor(ms / 1000);
+/** Keep items whose completion timestamp falls inside a window. Items with no
+ * usable timestamp survive only an entirely unbounded window, so an undated
+ * item is never silently attributed to a release. */
 function filterItemsByTime(items, window) {
     const since = window.since ? Date.parse(window.since) : undefined;
     const until = window.until ? Date.parse(window.until) : undefined;
@@ -602,6 +665,8 @@ function filterItemsByTime(items, window) {
         return true;
     });
 }
+/** Group items by their `release` or `milestone` field, collecting the unset
+ * ones under a fallback heading that always sorts first. */
 function groupSectionsByMetadata(items, field, fallback) {
     const grouped = new Map();
     for (const item of items) {
@@ -621,6 +686,9 @@ function compareVersionHeadings(a, b, fallback) {
         return 1;
     return compareVersionStrings(b, a);
 }
+/** Order two version strings segment by segment, comparing numerically where
+ * both segments are numbers so `1.10.0` sorts above `1.9.0`, and lexically
+ * otherwise so prerelease suffixes still order deterministically. */
 function compareVersionStrings(a, b) {
     const normalize = (v) => v.replace(/^v/, "");
     const segmentsA = normalize(a).split(/[.\-]/);
@@ -648,6 +716,8 @@ function buildVersionHeading(version, date) {
     const stamp = date?.trim() || new Date().toISOString().slice(0, 10);
     return `${heading} - ${stamp}`;
 }
+/** Split existing changelog markdown into its `##` release sections, each
+ * spanning from its own heading to the next one. */
 function extractReleaseSections(markdown) {
     const releaseHeading = /^##\s+(.+)$/gm;
     const matches = Array.from(markdown.matchAll(releaseHeading));
@@ -661,6 +731,10 @@ function extractReleaseSections(markdown) {
         };
     });
 }
+/** Swap one existing release section for a regenerated one, matching on a
+ * normalized heading so a date or padding difference still finds it. Reports
+ * `replaced: false` when the release is not present, leaving the input
+ * untouched for the caller to insert instead. */
 function replaceReleaseSection(markdown, heading, replacement) {
     const releaseHeading = /^##\s+(.+)$/gm;
     const matches = Array.from(markdown.matchAll(releaseHeading));
@@ -720,6 +794,8 @@ function insertReleaseSection(markdown, heading, replacement) {
     // guard the empty case so we never emit leading blank lines.
     return before ? `${before}\n\n${replacement}\n\n${after}` : `${replacement}\n\n${after}`;
 }
+/** Splice a new release directly beneath the document title, keeping history
+ * newest-first. A file with no title gets the section prepended. */
 function insertAfterTitle(markdown, releaseSection) {
     const titleMatch = markdown.match(/^#\s+.+$/m);
     if (!titleMatch || titleMatch.index === undefined) {
@@ -784,6 +860,7 @@ function groupByField(items, sectionBy) {
     }
     return Array.from(groups.entries()).map(([heading, groupedItems]) => ({ heading, items: groupedItems }));
 }
+/** Render a slug or snake/kebab identifier as a readable heading. */
 function titleCase(value) {
     return value
         .replace(/[_-]+/g, " ")
@@ -819,6 +896,8 @@ function pickContributor(value) {
         return undefined;
     return trimmed;
 }
+/** Bucket items under their keep-a-changelog category, preserving the order
+ * they arrived in within each bucket. */
 function groupByCategory(items) {
     const grouped = new Map();
     for (const item of items) {
@@ -832,6 +911,13 @@ function groupByCategory(items) {
 const BUG_LIKE_ITEM_TYPES = new Set(["issue", "bug", "bugfix", "defect"]);
 const CHANGED_NEEDLES = ["change", "changed", "refactor", "update", "updated", "improve"];
 const REMOVED_NEEDLES = ["removed", "remove", "deleted", "delete"];
+/**
+ * Decide which keep-a-changelog category an item belongs under.
+ *
+ * Author-controlled metadata (type and tags) is trusted outright; the title is
+ * consulted only as a fallback, because descriptive prose collides with command
+ * names and would misfile a defect in `pm update` as a "Changed" entry.
+ */
 function classifyItem(item) {
     // Strip CLI-flag-like tokens from titles before scanning. Without this, an
     // item titled "pm <cmd> --add fails..." gets classified as "Added" because
@@ -899,6 +985,8 @@ function hasAny(value, needles) {
     return needles.some((needle) => new RegExp(`\\b${escapeRegExp(needle)}\\b`).test(value));
 }
 const SELECTION_SAMPLE_LIMIT = 3;
+/** Take a bounded, de-duplicated sample of item labels for `--explain`
+ * diagnostics, so a report naming excluded items stays a fixed size. */
 function sampleItems(items) {
     const labels = [];
     const seen = new Set();
@@ -972,6 +1060,15 @@ function isPlacedByReleaseDeclaration(item, options) {
     }
     return Boolean(options.respectItemRelease) && usesSingleVersionSection(options);
 }
+/**
+ * Summarise how the visible items' release placement was decided.
+ *
+ * Separates items pinned by an explicit `release` declaration from those dated
+ * by an authoritative `completed_at` and those dated by an inferred fallback.
+ * The inferred ones are the late-close candidates - work that shipped in one
+ * release but was closed during another - so they are sampled newest-first for
+ * a maintainer to check.
+ */
 function buildAttributionProvenance(items, options) {
     if (items.length === 0)
         return undefined;
@@ -1013,6 +1110,8 @@ function buildAttributionProvenance(items, options) {
         inferred_sample: inferredSample,
     };
 }
+/** Render an item as a stable `id: title` diagnostic label, substituting
+ * placeholders so a row missing either field is still identifiable. */
 function sampleItemLabel(item) {
     const id = typeof item.id === "string" && item.id.trim() !== ""
         ? item.id.trim()
@@ -1022,6 +1121,9 @@ function sampleItemLabel(item) {
         : "(untitled)";
     return `${id}: ${title}`;
 }
+/** Turn selection counts into plain-language guidance for `--explain`, so an
+ * empty or surprising changelog explains which filter emptied it rather than
+ * leaving the reader to bisect flags. */
 function buildSelectionHints(input) {
     const hints = [];
     if (input.excludedCounts.excluded_tag > 0) {
@@ -1051,6 +1153,8 @@ function buildSelectionHints(input) {
     }
     return hints;
 }
+/** Render one item as its changelog bullet text, appending only the parts the
+ * enabled options asked for. */
 function formatItem(item, options) {
     const title = escapeItemTitleMarkdown(toSingleLine(item.title));
     const id = formatItemId(item, options);
@@ -1059,6 +1163,8 @@ function formatItem(item, options) {
     const preview = formatBodyPreview(item, options);
     return `${title}${id}${metadata}${link}${preview}`;
 }
+/** Render the italic `type; status; P1` trailer for `--include-metadata`,
+ * emitting nothing when disabled or when the item carries none of the fields. */
 function formatItemMetadata(item, options) {
     if (!options.includeMetadata)
         return "";
@@ -1171,6 +1277,8 @@ function normalizeTag(tag) {
 const NEGATED_BREAKING = /\b(?:non[-\s]?breaking|not\s+(?:a\s+)?breaking|no\s+breaking)\b/g;
 /** "breaking" as a standalone word (not part of e.g. "nonbreaking"). */
 const BREAKING_TOKEN = /\bbreaking\b/;
+/** Interpret a pm field as a boolean, accepting the string and numeric
+ * spellings a workspace may store, since item metadata is untyped JSON. */
 function isTruthyFlag(value) {
     if (value === true)
         return true;
@@ -1427,6 +1535,10 @@ function githubItemRef(item) {
     const { owner, repo, number } = provenance;
     return ` ([#${number}](https://github.com/${owner}/${repo}/issues/${number}))`;
 }
+/** Render an item's id in the requested reference style, falling back to a
+ * plain label whenever the chosen style lacks what it needs - an unset URL base
+ * or missing GitHub provenance - so a reference never renders as a broken
+ * link. */
 function formatItemId(item, options) {
     if (!item.id)
         return "";
@@ -1450,6 +1562,10 @@ function itemTypeToDir(type) {
     const irregular = { story: "stories" };
     return irregular[t] ?? `${t}s`;
 }
+/** Render an item's URL as a markdown link, emitting nothing for anything
+ * unparseable or non-http. Embedded credentials, query strings, and fragments
+ * are stripped so a tracker URL carrying a token cannot be published into a
+ * changelog, and a literal `)` is escaped so it cannot terminate the link. */
 function formatLink(url) {
     if (!url)
         return "";
@@ -1467,6 +1583,8 @@ function formatLink(url) {
         return "";
     }
 }
+/** Read a field from an item, falling back to the same key under `metadata`,
+ * because pm workspaces store it in either place depending on schema. */
 function getStringField(item, field) {
     const direct = item[field];
     if (typeof direct === "string" && direct.trim())
@@ -1476,6 +1594,9 @@ function getStringField(item, field) {
         return fromMetadata.trim();
     return undefined;
 }
+/** Order items newest-first, breaking ties on title so items sharing a
+ * timestamp - or lacking one entirely - still render in a stable order across
+ * regenerations. */
 function compareItems(a, b) {
     const aTime = Date.parse(itemTimestamp(a) ?? "");
     const bTime = Date.parse(itemTimestamp(b) ?? "");
@@ -1539,6 +1660,10 @@ function itemTimestamp(item) {
 function escapeMarkdown(value) {
     return value.replace(/([\\`*_[\]()#|>])/g, "\\$1");
 }
+/** Escape a title's markdown while leaving its code spans verbatim, so a title
+ * quoting a flag as `` `--add` `` keeps rendering as code instead of having its
+ * backticks escaped into literal text. An unterminated span is escaped as
+ * ordinary text rather than swallowing the rest of the title. */
 function escapeItemTitleMarkdown(value) {
     let result = "";
     let index = 0;
@@ -1560,6 +1685,10 @@ function escapeItemTitleMarkdown(value) {
     }
     return result;
 }
+/** Escape markdown control characters in a run of plain title text. An
+ * underscore between two alphanumerics is left alone so `snake_case`
+ * identifiers survive unescaped, while a delimiting one is escaped to stop it
+ * opening emphasis. */
 function escapeItemTitleText(value) {
     const escaped = value.replace(/([\\`*[\]#|>])/g, "\\$1");
     return escaped.replace(/_/g, (underscore, index) => {

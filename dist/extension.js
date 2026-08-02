@@ -402,6 +402,9 @@ async function enrichItemBodies(pmRoot, items) {
     catch {
         return; // cannot resolve settings/registry → leave item metadata as-is
     }
+    /** Fill one item's body from its stored document, leaving an already-populated
+     * or unreadable item untouched. Best-effort by design: a single unreadable
+     * item must not fail an entire generation. */
     const loadBody = async (item) => {
         if (!item.id)
             return;
@@ -451,6 +454,10 @@ function stringOption(options, kebabKey, camelKey) {
 function booleanOption(options, kebabKey, camelKey) {
     return Boolean(options[kebabKey] ?? options[camelKey]);
 }
+/** OPT-IN (`--item-ref-style`): how each entry cites its pm item. Rejects any
+ * spelling outside the four supported styles rather than silently falling back,
+ * so a typo surfaces as a usage error instead of a differently-rendered
+ * changelog. Absent → `undefined`, leaving the generator's own default. */
 function itemRefStyleOption(options) {
     const value = stringOption(options, "item-ref-style", "itemRefStyle");
     if (value === undefined)
@@ -474,6 +481,11 @@ function excludeTagsOption(options) {
         .filter(Boolean);
     return values.length > 0 ? values : undefined;
 }
+/** OPT-IN (`--limit`): how many of the most recent release sections to keep,
+ * applying only where release windows produced the sections - it is not a cap
+ * on items. Accepts the host's number or its string spelling, and rejects zero,
+ * negatives, and fractions as usage errors so an unusable value never silently
+ * truncates a changelog. Absent/blank → `undefined`, meaning every release. */
 function parseLimitOption(options) {
     const raw = options["limit"];
     if (raw === undefined || raw === null || raw === "")
@@ -484,6 +496,10 @@ function parseLimitOption(options) {
     }
     return parsed;
 }
+/** OPT-IN (`--body-preview`): how many characters of an item's body to inline
+ * beneath its entry. Validated exactly like `--limit`, so a malformed width is
+ * a usage error rather than a truncated-to-nothing preview. Absent/blank →
+ * `undefined`, which omits body previews entirely. */
 function parseBodyPreviewOption(options) {
     const raw = options["body-preview"] ?? options["bodyPreview"];
     if (raw === undefined || raw === null || raw === "")

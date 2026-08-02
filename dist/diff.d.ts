@@ -33,6 +33,7 @@ export interface UnifiedDiffOptions {
      * Default {@link DEFAULT_MAX_DIFF_LINES}. */
     maxLines?: number;
 }
+/** Outcome of rendering a unified diff under a hunk-line cap. */
 export interface UnifiedDiffResult {
     /** The rendered unified diff, ending in a newline. Empty when the inputs
      * are identical (mirrors `diff -u`, which prints nothing for equal files). */

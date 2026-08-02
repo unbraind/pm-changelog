@@ -1,4 +1,11 @@
+/** Lifecycle state of a pm item. The trailing `string` keeps custom workspace
+ * statuses assignable, since pm lets a project define its own vocabulary and a
+ * closed union would reject items this package must still be able to read. */
 export type PmItemStatus = "open" | "in_progress" | "blocked" | "closed" | "canceled" | "draft" | string;
+/** One tracker row as read from a pm workspace, the unit a changelog entry is
+ * built from. Nearly every field is optional because the shape is whatever `pm
+ * list --json` emitted, which varies by workspace schema and pm version; only
+ * `title` is depended on unconditionally. */
 export interface PmItem {
     id?: string;
     title: string;
@@ -48,6 +55,7 @@ export interface ChangelogSummaryEntry {
     type?: string;
     status?: string;
 }
+/** Which item field separates one top-level changelog section from the next. */
 export type ChangelogGroupBy = "version" | "release" | "milestone";
 /** Within-release grouping selector for the opt-in `--section-by` flag.
  * `"category"` is the default and reproduces the historical
@@ -66,6 +74,9 @@ export type ChangelogSectionBy = "category" | "type" | "status" | "label";
  *   `gh:owner/repo#number` provenance tag (as written by pm-github); items lacking
  *   a valid provenance tag fall back to a neutral label. */
 export type ChangelogItemRefStyle = "auto" | "label" | "toon" | "github";
+/** One release's heading plus the time span whose items belong under it.
+ * Generating from an ordered list of these is what produces a full historical
+ * changelog in a single pass instead of one invocation per tag. */
 export interface ChangelogReleaseWindow {
     heading: string;
     /** Git tag name (e.g. "v1.2.0") for this window. When set, items whose
@@ -77,6 +88,10 @@ export interface ChangelogReleaseWindow {
     sinceExclusive?: boolean;
     until?: string;
 }
+/** Everything that shapes one changelog rendering, from the item set through
+ * every opt-in flag. Each field marked OPT-IN is inert when absent: the default
+ * rendering is byte-for-byte the historical keep-a-changelog output, so adding
+ * a feature here can never change an existing repo's changelog by itself. */
 export interface GenerateChangelogOptions {
     items: PmItem[];
     title?: string;
@@ -153,6 +168,8 @@ export interface GenerateChangelogOptions {
 export interface PmItemBreakingFlag {
     breaking?: unknown;
 }
+/** Size of version increment a release's items imply, `"none"` when nothing
+ * user-facing changed. */
 export type SemverBump = "major" | "minor" | "patch" | "none";
 /** Result of the opt-in `--suggest-semver` analysis. Emitted as JSON / footer
  * note only; never alters default markdown. */
@@ -166,21 +183,34 @@ export interface SemverSuggestion {
         other: number;
     };
 }
+/** Rendered markdown plus the structure it came from, so a caller can inspect
+ * what was selected without re-parsing the text it just produced. */
 export interface GeneratedChangelog {
     markdown: string;
     sections: ChangelogSection[];
     itemCount: number;
 }
+/** Whether a write rebuilds the whole file or splices one release on top of the
+ * existing history. */
 export type ChangelogOutputMode = "replace" | "prepend";
+/** What a merge did to the destination file, reported so `--check` can fail on
+ * anything other than `"unchanged"`. */
 export type ChangelogMergeAction = "created" | "inserted" | "replaced" | "unchanged";
+/** Settings for splicing a generated section into existing markdown. */
 export interface MergeChangelogOptions {
     title?: string;
 }
+/** Merged markdown plus what the merge did, where `changed` is the signal a
+ * drift check acts on. */
 export interface MergeChangelogResult {
     markdown: string;
     action: ChangelogMergeAction;
     changed: boolean;
 }
+/** How to invoke pm when loading items: which workspace, which binary, and the
+ * subprocess limits. Exists because generation shells out to the real pm CLI
+ * rather than reading `.toon` files directly, so the workspace's own schema and
+ * merge semantics stay authoritative. */
 export interface ReadPmItemsOptions {
     pmRoot?: string;
     pmBin?: string;
@@ -195,11 +225,16 @@ export interface ReadPmItemsOptions {
      */
     includeBody?: boolean;
 }
+/** Generation options plus the destination and write mode. Setting `check`
+ * turns the write into a comparison that reports drift without touching disk,
+ * which is how CI gates a stale committed changelog. */
 export interface WriteChangelogOptions extends GenerateChangelogOptions {
     output?: string;
     mode?: ChangelogOutputMode;
     check?: boolean;
 }
+/** What a write produced: the destination, the markdown, and whether anything
+ * actually differed from what was already on disk. */
 export interface WriteChangelogResult {
     output: string;
     markdown: string;
@@ -208,6 +243,8 @@ export interface WriteChangelogResult {
     itemCount: number;
     bytes: number;
 }
+/** A heading and the items rendered beneath it, the intermediate structure
+ * every grouping mode reduces to before markdown is emitted. */
 export interface ChangelogSection {
     heading: string;
     items: PmItem[];
