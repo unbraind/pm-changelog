@@ -6,7 +6,7 @@ status: closed
 priority: 1
 tags[5]: bug,determinism,release,timezone,utc
 created_at: "2026-08-01T23:08:34.422Z"
-updated_at: "2026-08-01T23:47:34.493Z"
+updated_at: "2026-08-02T00:01:39.748Z"
 closed_at: "2026-08-01T23:19:08.084Z"
 completed_at: "2026-08-01T23:19:08.084Z"
 author: codex
@@ -25,11 +25,12 @@ expected_result: "The same clock instant and PM data produce identical changelog
 actual_result: "A frozen UTC/Vienna boundary regression passes, and the full 212-test coverage gate passes. All generation and check modes consume the same corrected core heading builder."
 component: generator/date-policy
 customer_impact: Fleet changelog checks fail nondeterministically near midnight and block otherwise valid PRs and releases.
-notes[4]{created_at,author,text}:
+notes[5]{created_at,author,text}:
   "2026-08-01T23:18:54.223Z",codex,"TDD evidence: the frozen 2026-08-01T22:30:00Z test failed before production changes because UTC generated 2026-08-01 while Europe/Vienna generated 2026-08-02. After the shared heading builder switched to the UTC ISO date,the same test passed byte-identically."
   "2026-08-01T23:31:03.851Z",codex,"Packed-artifact acceptance passed with pm CLI/SDK 2026.8.1: a fresh npm install of the tarball and local current pm-cli produced byte-identical UTC and Europe/Vienna output at the live cross-date boundary,both heading 2026-08-01. bunx --bun executed the same installed artifact under both timezones with identical output. A standalone bun add attempt was bounded and stopped during registry resolution because the host had many unrelated concurrent npm installs; runtime compatibility itself passed."
   "2026-08-01T23:37:28.939Z",codex,"Fresh all-refs privacy audit: the current tree has zero matches for private keys, GitHub/npm/AWS tokens, absolute /home host paths, or LAN IPs. Reachable history has zero credential/private-key/LAN-IP matches, but older pmc-emom revisions retain an absolute host path in two PM files; two unique Git identities use non-public domains. Tracked separately as P0 release blocker pmc-t8tj because safe remediation requires an approved coordinated history rewrite. This UTC fix introduces none of those patterns."
   "2026-08-01T23:47:34.161Z",codex,"Review follow-up: Sourcery correctly noted that the explicit --date format was undocumented. CLI, extension, README, and usage docs now recommend YYYY-MM-DD while accurately stating that explicit text is rendered verbatim; a CLI help assertion protects the wording. Declined its parsed-as-UTC wording because no such parsing occurs, and declined one-use date/test helpers plus duplicated cross-surface string abstraction because they would add indirection without reuse."
+  "2026-08-02T00:01:39.748Z",codex,"Upstream reconciliation: merged main after v2026.8.1 and @types/node PR #114 landed. TypeScript sources merged automatically; the sole conflict was the generated one-line dist/extension.js.map and was resolved by rebuilding from the merged TypeScript source. The branch now tests against package version 2026.8.1."
 files[7]{path,scope,note}:
   docs/usage.md,project,option reference
   README.md,project,user-facing UTC default policy
