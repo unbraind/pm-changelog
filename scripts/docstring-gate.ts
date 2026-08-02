@@ -351,10 +351,15 @@ function scanFile(filePath: string, root: string): Violation[] {
     ) {
       judge(violations, file, source, node, node.name.text, jsdocFor(node, text));
     } else if (ts.isVariableStatement(node)) {
-      // The JSDoc precedes the statement, not the individual declarator.
-      const doc = jsdocFor(node, text);
+      const declarations = node.declarationList.declarations;
+      // With one binding the JSDoc precedes the statement, so it documents that
+      // binding. With several, a single statement-level comment would be
+      // credited to every one of them, letting one generic sentence cover
+      // bindings nobody described - so each declarator must carry its own.
+      const single = declarations.length === 1;
       const exported = isExported(node);
-      for (const decl of node.declarationList.declarations) {
+      for (const decl of declarations) {
+        const doc = single ? jsdocFor(node, text) : jsdocFor(decl, text);
         if (!ts.isIdentifier(decl.name)) continue;
         // A named function held in a variable is a function by another name, so
         // an oversized one is held to the same rule as a `function` declaration.

@@ -324,6 +324,28 @@ describe("docstring-gate: parsing real TypeScript", () => {
     ok(!run.stderr.includes("tiny - no docstring"), "a short internal helper needs no docstring");
   });
 
+  it("does not let one statement-level docstring cover several bindings", () => {
+    const run = runGate({
+      "src/a.ts": "/** Default timeout and retry budget for outbound calls. */\nexport const TIMEOUT = 5000, RETRIES = 3;",
+    });
+    equal(run.status, 1);
+    match(run.stderr, /TIMEOUT - no docstring/);
+    match(run.stderr, /RETRIES - no docstring/);
+  });
+
+  it("accepts per-declarator docstrings on a multiple-binding statement", () => {
+    const run = runGate({
+      "src/a.ts": [
+        "export const",
+        "  /** Milliseconds before an outbound call is abandoned. */",
+        "  TIMEOUT = 5000,",
+        "  /** How many times an abandoned call is retried. */",
+        "  RETRIES = 3;",
+      ].join("\n"),
+    });
+    equal(run.status, 0, run.stderr);
+  });
+
   it("holds an oversized arrow bound to a variable to the size rule", () => {
     const run = runGate({
       "src/a.ts": [
