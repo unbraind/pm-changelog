@@ -1,6 +1,8 @@
 import { execFileSync } from "node:child_process";
 import { existsSync, readFileSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
+/** Stable identifier for the incomplete-tag-history failure. Callers match on
+ * this rather than on message text, so the wording stays free to change. */
 export const MISSING_TAG_HISTORY_ERROR_CODE = "E_MISSING_TAG_HISTORY";
 const TAG_HISTORY_RECOVERY_COMMANDS = ["git fetch --tags --unshallow", "git fetch --tags"];
 /**
@@ -10,6 +12,8 @@ const TAG_HISTORY_RECOVERY_COMMANDS = ["git fetch --tags --unshallow", "git fetc
  * distinguish "missing git context" from "stale generated content".
  */
 export class MissingTagHistoryError extends Error {
+    /** Machine-readable discriminator, always
+     * {@link MISSING_TAG_HISTORY_ERROR_CODE}. */
     code = MISSING_TAG_HISTORY_ERROR_CODE;
     /**
      * Machine-readable list of recovery commands. Each entry is a single
@@ -20,6 +24,8 @@ export class MissingTagHistoryError extends Error {
      * copy-paste convenience.
      */
     recoveryCommands;
+    /** Build the diagnostic, defaulting to the generic tag-refetch recovery when
+     * the caller has nothing more specific to suggest. */
     constructor(message, recoveryCommands = TAG_HISTORY_RECOVERY_COMMANDS) {
         super(message);
         this.name = "MissingTagHistoryError";
@@ -73,11 +79,15 @@ export function assertReleaseTagHistory(options) {
             `Restore them with \`git config --unset ${noTagsRemote}.tagOpt && git fetch --tags\`, then re-run the command.`, [`git config --unset ${noTagsRemote}.tagOpt`, "git fetch --tags"]);
     }
 }
-// `git clone --no-tags` durably records remote.<name>.tagOpt=--no-tags. A
-// checkout carrying that config is a tag-excluding clone whose tag set cannot
-// be trusted to be complete — not a first-release repo. Returns the remote
-// config prefix (e.g. "remote.origin") so the diagnostic can name the exact
-// recovery command, or undefined when no remote excludes tags.
+/**
+ * Name the remote whose config excludes tags, if any.
+ *
+ * `git clone --no-tags` durably records `remote.<name>.tagOpt=--no-tags`. A
+ * checkout carrying that config is a tag-excluding clone whose tag set cannot
+ * be trusted to be complete - not a first-release repo. Returns the remote
+ * config prefix (e.g. `remote.origin`) so the diagnostic can name the exact
+ * recovery command, or `undefined` when no remote excludes tags.
+ */
 function tagExcludingRemote(cwd) {
     const config = runGit(cwd, ["config", "--get-regexp", String.raw `^remote\..*\.tagopt$`]);
     if (!config)
@@ -95,6 +105,15 @@ function isShallowRepository(cwd) {
     // repository) the lookup fails open so existing non-git fallbacks are kept.
     return runGit(cwd, ["rev-parse", "--is-shallow-repository"]) === "true";
 }
+/**
+ * Discover one release's version, date, and time bounds from the checkout.
+ *
+ * Explicit values always win; the flags only fill gaps. The window is dated
+ * from tag commit timestamps rather than from when items were closed, so a
+ * regeneration long after the fact reproduces the same boundaries. Requesting
+ * any tag-derived bound first asserts the checkout actually has tag history,
+ * because a shallow clone would otherwise silently widen the window.
+ */
 export function resolveReleaseContext(options) {
     const cwd = resolve(options.cwd ?? process.cwd());
     const tagDerivedFlags = [
@@ -117,6 +136,15 @@ export function resolveReleaseContext(options) {
         until: options.until ?? (options.untilReleaseTag ? releaseTimestamp : undefined),
     };
 }
+/**
+ * Turn a repo's release tags into contiguous, newest-first release windows.
+ *
+ * Each window runs from the previous tag (exclusive, so a tag's own commit is
+ * not claimed by both neighbours) to its own tag, and an open-ended
+ * `Unreleased` window leads unless suppressed. A pending version with no tag
+ * yet is folded in at its sorted position, which is what lets the release being
+ * cut appear in the changelog before its tag exists.
+ */
 export function resolveReleaseTagWindows(options = {}) {
     const cwd = resolve(options.cwd ?? process.cwd());
     assertReleaseTagHistory({ cwd, requiredBy: ["--all-release-tags"] });
@@ -148,6 +176,13 @@ export function resolveReleaseTagWindows(options = {}) {
     }
     return windows;
 }
+/**
+ * Synthesise a tag entry for a release being cut but not yet tagged.
+ *
+ * Returns `undefined` once any spelling of that version is already tagged, so
+ * running before and after `git tag` yields the same windows rather than a
+ * duplicated section.
+ */
 function resolvePendingReleaseTag(options, existingTags) {
     const version = options.pendingVersion?.trim();
     if (!version)
@@ -160,6 +195,8 @@ function resolvePendingReleaseTag(options, existingTags) {
     const timestamp = normalizeTimestamp(options.pendingTimestamp ?? new Date().toISOString());
     return { name: canonical, timestamp };
 }
+/** Pick the tag spelling a pending release should be headed with, preferring
+ * the caller's own `v`-prefixed format. */
 function canonicalPendingTagName(candidates, fallback) {
     // Preserve the caller's version format (the first candidate is the
     // verbatim `v${version}`). Do not force calendar months/days to a
@@ -168,6 +205,8 @@ function canonicalPendingTagName(candidates, fallback) {
     // padding here would emit a `2026.05.27` heading the caller never matches.
     return candidates.find((candidate) => candidate.startsWith("v")) ?? fallback;
 }
+/** Read the nearest package.json's version, throwing when absent or blank so a
+ * release never silently generates an unversioned section. */
 function readPackageVersion(cwd) {
     const packageJsonPath = findPackageJson(cwd);
     if (!packageJsonPath) {
@@ -179,6 +218,8 @@ function readPackageVersion(cwd) {
     }
     return parsed.version;
 }
+/** Walk upward for the nearest package.json, so the command works from a
+ * subdirectory of the package as well as its root. */
 function findPackageJson(start) {
     let current = start;
     while (true) {
@@ -191,6 +232,8 @@ function findPackageJson(start) {
         current = parent;
     }
 }
+/** Return the first candidate spelling that exists as a real tag ref, letting
+ * a version resolve whether it was tagged padded, unpadded, or `v`-prefixed. */
 function findExistingTag(cwd, candidates) {
     for (const candidate of candidates) {
         const result = runGit(cwd, ["rev-parse", "--verify", "--quiet", `refs/tags/${candidate}`]);
@@ -199,6 +242,8 @@ function findExistingTag(cwd, candidates) {
     }
     return undefined;
 }
+/** Every tag spelling a version might legitimately have been tagged under,
+ * canonical spelling first. */
 function releaseTagCandidates(version) {
     // Normalize away a leading `v` so callers may pass either `2026.5.27` or
     // `v2026.5.27` without producing a malformed `vv...` candidate. The first
@@ -218,6 +263,9 @@ function findPreviousTag(cwd, releaseTag) {
     const ref = releaseTag ? `${releaseTag}^` : "HEAD";
     return runGit(cwd, ["describe", "--tags", "--abbrev=0", ref]);
 }
+/** Read matching release tags with their commit timestamps, newest first.
+ * Annotated tags are dated by the commit they point at rather than by when the
+ * tag object was written, so a retagged release keeps its original date. */
 function listReleaseTags(cwd, pattern, includeOrphaned = false) {
     const args = ["tag", "--list", pattern];
     // Default to reachable tags only. When includeOrphaned is set the `--merged
@@ -272,6 +320,8 @@ function compareReleaseTags(a, b) {
 function compareTagNames(a, b) {
     return a < b ? -1 : a > b ? 1 : 0;
 }
+/** Parse one `git tag --format` row, preferring the peeled (annotated) date and
+ * dropping rows missing a name or any timestamp. */
 function parseTagLine(line) {
     const [name, peeledCommitterDate, directCommitterDate] = line.split("\t");
     const tagName = name?.trim();
@@ -294,6 +344,9 @@ function parseTagLine(line) {
 function tryGitCommitTimestamp(cwd, ref) {
     return runGit(cwd, ["log", "-1", "--format=%cI", ref]);
 }
+/** Run a git command and return trimmed stdout, or `undefined` on any failure
+ * or empty output. Failing soft is deliberate: every caller has a defined
+ * behaviour for "git could not answer", including not being a repository. */
 function runGit(cwd, args) {
     try {
         const output = execFileSync("git", args, {
@@ -307,6 +360,7 @@ function runGit(cwd, args) {
         return undefined;
     }
 }
+/** Render a tag name as the version shown in a release heading. */
 function formatTagVersion(tag) {
     // Strip the leading `v` and normalize away zero-padding on calendar
     // (`YYYY.M.D[-N]`) versions so a padded git tag like `v2026.06.13` renders
@@ -346,11 +400,15 @@ function normalizeTimestamp(value) {
 // textual form differs across git versions, which is the root cause of audit
 // finding F2 (fragile test). Used by `canonicalizeUtcOffset`.
 const UTC_OFFSET_SUFFIXES = ["Z", "+00:00", "+0000", "-00:00", "-0000"];
-// Rewrite a UTC-equivalent timestamp to the canonical ISO `Z` form without
-// altering its instant or UTC date. Non-UTC offsets (and unparseable strings)
-// are returned verbatim so callers that depend on the local date prefix (e.g.
-// `formatLocalTimestampDate`) are unaffected. This is intentionally narrower
-// than `normalizeTimestamp` (which always converts to UTC via `toISOString`).
+/**
+ * Rewrite a UTC-equivalent timestamp to the canonical ISO `Z` form without
+ * altering its instant or its UTC date.
+ *
+ * Non-UTC offsets and unparseable strings are returned verbatim so callers that
+ * depend on the local date prefix (such as `formatLocalTimestampDate`) are
+ * unaffected. Intentionally narrower than `normalizeTimestamp`, which always
+ * converts to UTC and would therefore shift a tag's heading date.
+ */
 function canonicalizeUtcOffset(value) {
     const trimmed = value.trim();
     const offset = extractOffset(trimmed);

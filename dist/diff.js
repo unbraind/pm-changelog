@@ -116,6 +116,13 @@ function splitLines(text) {
     const normalized = text.endsWith("\n") ? text.slice(0, -1) : text;
     return normalized === "" ? [] : normalized.split("\n");
 }
+/**
+ * Reduce two line arrays to an edit script of context/add/remove operations.
+ *
+ * Identical leading and trailing lines are stripped before the quadratic
+ * {@link diffMiddle} runs, then re-attached as context, which is what keeps a
+ * localized changelog edit cheap to diff against a large file.
+ */
 function computeOps(oldLines, newLines) {
     // Changelog drift is overwhelmingly a localized change in an otherwise
     // identical file; trimming the shared edges keeps the LCS table small.
@@ -138,6 +145,14 @@ function computeOps(oldLines, newLines) {
         ...oldLines.slice(oldLines.length - suffix).map((line) => ({ op: "context", line })),
     ];
 }
+/**
+ * Produce a minimal edit script for the differing middle via an LCS table.
+ *
+ * Guards on {@link MAX_LCS_CELLS} first: the table is quadratic, so two large
+ * unrelated files would otherwise exhaust memory. Past that bound the result
+ * degrades deliberately to a single block replacement, which is still correct
+ * unified-diff output, just not the shortest one.
+ */
 function diffMiddle(oldLines, newLines) {
     const rows = oldLines.length + 1;
     const cols = newLines.length + 1;
@@ -186,6 +201,14 @@ function diffMiddle(oldLines, newLines) {
     }
     return ops;
 }
+/**
+ * Group an edit script into hunks, each padded with surrounding context.
+ *
+ * Runs of changes closer together than twice the context width are merged into
+ * one hunk so their context does not overlap and print twice. An edit script
+ * with no changes yields no hunks, which is how an identical pair renders as
+ * empty output.
+ */
 function buildHunks(ops, contextLines) {
     const changeIndices = [];
     for (const [index, entry] of ops.entries()) {

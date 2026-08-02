@@ -1,0 +1,34 @@
+id: pmc-vbft
+title: sync-version could silently restamp the wrong version literal during a release
+description: "syncExtensionVersion replaced the first match of an unanchored version regex in src/extension.ts. Only one such literal exists today, so nothing is currently corrupted, but the moment any earlier version: string appears - a flag description, a help example - the release job would stamp that string instead. Because the damage is written by the release job rather than by a reviewed diff, it would survive every review. The match is now required to be unique, turning a silent mis-stamp into a loud failure."
+type: Issue
+status: closed
+priority: 2
+tags[3]: "area:release",regression-guard,safety
+created_at: "2026-08-02T07:34:13.001Z"
+updated_at: "2026-08-02T07:34:47.735Z"
+deadline: "2026-08-31T00:00:00.000Z"
+closed_at: "2026-08-02T07:34:47.718Z"
+completed_at: "2026-08-02T07:34:47.718Z"
+author: "harness:claude-code"
+estimated_minutes: 45
+acceptance_criteria: "A file with two version: literals aborts the sync with a message naming both and leaves the file unmodified; a file with none still reports the missing literal; the single-literal case stamps exactly as before"
+resolution: syncExtensionVersion now requires exactly one version literal and aborts otherwise
+expected_result: An ambiguous extension file aborts the release rather than stamping the wrong literal
+actual_result: Two-literal fixture aborts and leaves the file unmodified; single-literal path unchanged
+dependencies[1]{id,kind,created_at,author,source_kind,author_source}:
+  pmc-kdm1,related,"2026-08-02T07:34:13.001Z","harness:claude-code","cli:create:dep",asserted
+comments[1]{created_at,author,text}:
+  "2026-08-02T07:34:13.001Z","harness:claude-code",Found while documenting sync-version.ts for the docstring gate.
+notes[1]{created_at,author,text}:
+  "2026-08-02T07:34:13.001Z","harness:claude-code","Latent rather than live: exactly one literal matched at the time of the fix."
+learnings[1]{created_at,author,text}:
+  "2026-08-02T07:34:13.001Z","harness:claude-code",A release-time rewrite that is not reviewed as a diff needs its own guard; correctness today is not evidence it stays correct.
+files[1]{path,scope,note}:
+  src/sync-version.ts,project,implementation
+tests[1]{command,scope,timeout_seconds}:
+  node --test test/sync-version.test.ts,project,240
+docs[1]{path,scope,note}:
+  src/sync-version.ts,project,guarded stamping routine
+close_reason: "Unique-match guard added with tests covering the ambiguous, missing, and single-literal cases"
+body: "This is the same failure class already recorded against release.yml, where an unanchored version regex restamped a nested help string every release and the corrupted output never appeared in a diff."

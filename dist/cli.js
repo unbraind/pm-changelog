@@ -97,6 +97,8 @@ const KNOWN_OPTIONS = [
     "--until-release-tag",
     "--version",
 ];
+/** Run one CLI invocation end to end: parse flags, resolve the release context
+ * from git, load items, generate, then write or compare. */
 async function main() {
     const options = parseArgs(process.argv.slice(2));
     applyReleaseContext(options);
@@ -227,6 +229,9 @@ async function main() {
         return;
     }
 }
+/** Turn argv into validated options, rejecting an unknown flag with a
+ * near-miss suggestion rather than ignoring it - a silently dropped flag would
+ * generate a subtly different changelog and still exit zero. */
 function parseArgs(args) {
     const normalizedArgs = normalizeArgs(args);
     const options = {
@@ -430,6 +435,8 @@ function parseArgs(args) {
     }
     return options;
 }
+/** Split `--flag=value` into separate tokens so both spellings reach one
+ * parsing path. */
 function normalizeArgs(args) {
     const normalized = [];
     for (const arg of args) {
@@ -462,6 +469,9 @@ function optionToken(arg) {
     const equalsIndex = arg.indexOf("=");
     return equalsIndex > 0 ? arg.slice(0, equalsIndex) : arg;
 }
+/** Find the closest known flag to a mistyped one, or `undefined` when nothing
+ * is close enough to be worth suggesting. Ties break toward the shorter name so
+ * the suggestion is the more common flag. */
 function suggestOption(arg) {
     let best;
     for (const candidate of KNOWN_OPTIONS) {
@@ -480,6 +490,8 @@ function suggestOption(arg) {
     }
     return best?.option;
 }
+/** Levenshtein distance between two strings, used only to rank flag
+ * suggestions. */
 function editDistance(left, right) {
     if (left === right)
         return 0;
@@ -498,6 +510,8 @@ function editDistance(left, right) {
     }
     return matrix[rows - 1][cols - 1];
 }
+/** Fill version, date, and time bounds from the checkout's git tags, mutating
+ * `options` in place. Explicit flags are preserved; only gaps are filled. */
 function applyReleaseContext(options) {
     if (options.allReleaseTags) {
         const cwd = options.pmCwd ? resolve(options.pmCwd) : process.cwd();
@@ -533,6 +547,9 @@ function applyReleaseContext(options) {
     options.since = context.since;
     options.until = context.until;
 }
+/** Load pm items from stdin, a JSON file, or the real pm CLI, in that order of
+ * precedence. Bodies are requested only when a preview will render them, since
+ * they make the list payload substantially larger. */
 async function loadItems(options) {
     if (options.stdin) {
         return parsePmItemsJson(await readStdin());
@@ -550,6 +567,7 @@ async function loadItems(options) {
         includeBody: options.bodyPreview !== undefined && options.bodyPreview > 0,
     });
 }
+/** Read stdin to completion as UTF-8, for `--stdin` item input. */
 function readStdin() {
     return new Promise((resolvePromise, reject) => {
         let data = "";
@@ -571,6 +589,8 @@ function parseSectionBy(value) {
         return value;
     throw new Error("--section-by must be 'category', 'type', 'status', or 'label'");
 }
+/** Validate `--item-ref-style`, rejecting unknown spellings so a typo cannot
+ * quietly change how every entry cites its item. */
 function parseItemRefStyle(value) {
     const normalized = value.trim().toLowerCase();
     if (normalized === "auto" || normalized === "label" || normalized === "toon" || normalized === "github") {
@@ -578,6 +598,7 @@ function parseItemRefStyle(value) {
     }
     throw new Error("--item-ref-style must be 'auto', 'label', 'toon', or 'github'");
 }
+/** Validate `--limit` as a positive integer count of release sections. */
 function parseLimit(value) {
     const parsed = Number.parseInt(value, 10);
     if (!Number.isInteger(parsed) || parsed < 1) {
@@ -585,6 +606,7 @@ function parseLimit(value) {
     }
     return parsed;
 }
+/** Validate `--body-preview` as a positive character width. */
 function parseBodyPreview(value) {
     const parsed = Number.parseInt(value, 10);
     if (!Number.isInteger(parsed) || parsed < 1) {
@@ -605,6 +627,9 @@ function parseFormat(value) {
         return "json";
     throw new Error("--format must be 'md' or 'json'");
 }
+/** Project parsed CLI options plus the loaded items onto the generator's option
+ * shape. An empty `--exclude-tag` list is passed as `undefined` so the filter
+ * stays entirely inert rather than running against nothing. */
 function buildGenerationOptions(options, items) {
     return {
         items,
@@ -634,6 +659,8 @@ function buildGenerationOptions(options, items) {
         excludeTags: options.excludeTags.length > 0 ? options.excludeTags : undefined,
     };
 }
+/** Assemble the machine-readable run summary shared by `--json`, GitHub step
+ * outputs, and the job summary. */
 function buildSummary(options, result, output = result.output, selectionReport) {
     const summary = {
         output,
@@ -649,14 +676,18 @@ function buildSummary(options, result, output = result.output, selectionReport) 
         summary.selection_report = selectionReport;
     return summary;
 }
-// OPT-OUT (`--no-check-diff` suppresses): when `--check` fails, show WHAT
-// drifted, not just THAT it drifted. The failure line alone forces the reader
-// — usually a CI agent that cannot rerun the generator interactively — to
-// clone the repo and diff generator output by hand; the common cause (a PR
-// branch behind `main`, so the merge ref sees a release commit the branch
-// lacks) is obvious from the diff in seconds. Check mode never writes, so the
-// file on disk is still the committed changelog. Stderr only: stdout stays
-// byte-identical for callers that capture it.
+/**
+ * OPT-OUT (`--no-check-diff` suppresses): when `--check` fails, show WHAT
+ * drifted, not just THAT it drifted.
+ *
+ * The failure line alone forces the reader - usually a CI agent that cannot
+ * rerun the generator interactively - to clone the repo and diff generator
+ * output by hand; the common cause (a PR branch behind `main`, so the merge ref
+ * sees a release commit the branch lacks) is obvious from the diff in seconds.
+ * Check mode never writes, so the file on disk is still the committed
+ * changelog. Stderr only: stdout stays byte-identical for callers that capture
+ * it.
+ */
 function writeCheckDiff(options, outputPath, generated) {
     const committed = existsSync(outputPath) ? readFileSync(outputPath, "utf-8") : "";
     // Label with the output's basename (e.g. `CHANGELOG.md`) rather than the
@@ -673,6 +704,9 @@ function writeCheckDiff(options, outputPath, generated) {
             + " Regenerate locally (rerun without --check, e.g. --mode replace) to see the full changelog.\n");
     }
 }
+/** Print `--explain` diagnostics to stderr: how many items each filter stage
+ * dropped, and how the survivors' release placement was dated. Stderr keeps
+ * stdout byte-identical for callers capturing generated markdown. */
 function writeSelectionReport(report) {
     const excluded = report.excluded_counts;
     console.error("Selection report:"
@@ -692,6 +726,8 @@ function writeSelectionReport(report) {
         console.error(`Hint: ${hint}`);
     }
 }
+/** Append the run summary as `key=value` step outputs for a workflow to branch
+ * on, failing loudly when invoked outside GitHub Actions. */
 function writeGitHubOutput(summary) {
     const githubOutput = process.env.GITHUB_OUTPUT;
     if (!githubOutput) {
@@ -707,6 +743,8 @@ function writeGitHubOutput(summary) {
     ];
     appendFileSync(githubOutput, `${lines.join("\n")}\n`, "utf-8");
 }
+/** Append generated markdown to the workflow's job summary panel, so release
+ * notes are readable in the run without downloading an artifact. */
 function writeGitHubStepSummary(markdown) {
     const githubStepSummary = process.env.GITHUB_STEP_SUMMARY;
     if (!githubStepSummary) {
@@ -714,6 +752,8 @@ function writeGitHubStepSummary(markdown) {
     }
     appendFileSync(githubStepSummary, `${markdown.trimEnd()}\n`, "utf-8");
 }
+/** Read a flag's value, rejecting a missing one and a following `--flag`. The
+ * latter catches an omitted value being silently swallowed by the next flag. */
 function requireValue(args, index, flag) {
     const value = args[index];
     if (!value || value.startsWith("--")) {
@@ -721,6 +761,8 @@ function requireValue(args, index, flag) {
     }
     return value;
 }
+/** Read a flag's value allowing a leading `--`, for flags whose argument may
+ * legitimately look like one. */
 function requireAnyValue(args, index, flag) {
     const value = args[index];
     if (!value) {
@@ -728,6 +770,7 @@ function requireAnyValue(args, index, flag) {
     }
     return value;
 }
+/** Write the usage text listing every supported flag. */
 function printHelp() {
     process.stdout.write(`pm-changelog
 

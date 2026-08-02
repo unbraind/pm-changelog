@@ -91,3 +91,51 @@ test("sync-version exits non-zero when no version is provided", () => {
     rmSync(dir, { recursive: true, force: true });
   }
 });
+
+test("sync-version refuses to stamp an extension carrying more than one version literal", () => {
+  const dir = setupTempProject();
+  try {
+    // A second `version:` string - a flag description, a help example - would
+    // otherwise be restamped instead of the real one, and the corruption would
+    // be committed by the release job rather than shown in a reviewed diff.
+    writeFileSync(
+      join(dir, "src/extension.ts"),
+      [
+        'const help = { description: \'pass version: "1.2.3" to pin\' };',
+        'export default { name: "x", version: "0.0.0", help };',
+        "",
+      ].join("\n"),
+      "utf-8"
+    );
+
+    assert.throws(() => {
+      execFileSync(process.execPath, [helperPath, "9.9.9"], {
+        cwd: dir,
+        stdio: "pipe",
+        encoding: "utf-8",
+      });
+    }, /Refusing to stamp .*found 2 'version:' literals/);
+
+    const untouched = readFileSync(join(dir, "src/extension.ts"), "utf-8");
+    assert.ok(untouched.includes('version: "0.0.0"'), "the file must be left unmodified");
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test("sync-version reports a missing version literal rather than writing nothing", () => {
+  const dir = setupTempProject();
+  try {
+    writeFileSync(join(dir, "src/extension.ts"), 'export default { name: "x" };\n', "utf-8");
+
+    assert.throws(() => {
+      execFileSync(process.execPath, [helperPath, "9.9.9"], {
+        cwd: dir,
+        stdio: "pipe",
+        encoding: "utf-8",
+      });
+    }, /Could not find version literal in/);
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
