@@ -22,14 +22,18 @@
  *    so a new file is covered the moment it exists, and there is deliberately
  *    no ignore list.
  * 4. **Vacuous success.** A gate that passes because it found nothing is the
- *    most expensive kind of green. A requested root that does not exist, and a
- *    root set that yields no files, both fail.
+ *    most expensive kind of green. Any named root that is missing or is not a
+ *    directory fails, defaults included - otherwise renaming `src/` would leave
+ *    the gate quietly scanning `scripts/` alone and calling that complete - and
+ *    a root set that yields no files fails too.
  *
  * Scope - what must be documented:
  *   - every exported declaration: `function`, `class`, `interface`, `type`,
- *     `enum`, `const`, `let`, `var`;
- *   - every non-private member of an exported class, including accessors and a
- *     declared constructor;
+ *     `enum`, `const`, `let`, `var`, including an anonymous
+ *     `export default function`;
+ *   - every non-private member of an exported class, including accessors, a
+ *     declared constructor, and `abstract` members, whose bodyless declaration
+ *     is itself the contract an implementer reads;
  *   - every function declaration, exported or not, whose body exceeds
  *     {@link INTERNAL_BODY_LINES} lines.
  *
@@ -101,7 +105,16 @@ interface Violation {
   readonly reason: string;
 }
 
-/** Collect every non-declaration `.ts` file beneath a directory. */
+/**
+ * Collect every TypeScript source file beneath a directory.
+ *
+ * `.d.ts` files are excluded because a declaration file restates a surface
+ * documented at its source. JavaScript (`.mjs`/`.cjs`/`.js`) is excluded
+ * deliberately rather than accidentally: this fleet mandates TypeScript, so the
+ * only JavaScript present is build glue such as `scripts/prepare-merge-driver.mjs`.
+ * Should a repo ever gain real JavaScript sources, this filter is the one place
+ * that has to change - it is not a per-file ignore list.
+ */
 function collectSourceFiles(dir: string): string[] {
   const found: string[] = [];
   for (const entry of readdirSync(dir)) {
@@ -110,7 +123,9 @@ function collectSourceFiles(dir: string): string[] {
       found.push(...collectSourceFiles(full));
       continue;
     }
-    if (entry.endsWith(".ts") && !entry.endsWith(".d.ts")) found.push(full);
+    const isTypeScript = entry.endsWith(".ts") || entry.endsWith(".mts") || entry.endsWith(".cts");
+    const isDeclaration = entry.endsWith(".d.ts") || entry.endsWith(".d.mts") || entry.endsWith(".d.cts");
+    if (isTypeScript && !isDeclaration) found.push(full);
   }
   return found;
 }
@@ -262,9 +277,13 @@ function checkClassMembers(
     const flags = ts.getCombinedModifierFlags(member);
     if (flags & (ts.ModifierFlags.Private | ts.ModifierFlags.Protected)) continue;
     if (member.name && ts.isPrivateIdentifier(member.name)) continue;
+    // A bodyless method is an overload signature, whose implementation carries
+    // the documentation - unless it is `abstract`, where the bodyless
+    // declaration IS the contract an implementer reads.
     if (
       (ts.isMethodDeclaration(member) || ts.isConstructorDeclaration(member)) &&
-      member.body === undefined
+      member.body === undefined &&
+      (flags & ts.ModifierFlags.Abstract) === 0
     ) continue;
     if (
       !ts.isMethodDeclaration(member) &&
@@ -306,13 +325,15 @@ function scanFile(filePath: string, root: string): Violation[] {
   );
 
   const visit = (node: ts.Node): void => {
-    if (ts.isFunctionDeclaration(node) && node.name) {
+    if (ts.isFunctionDeclaration(node)) {
       // A bodyless declaration is an overload signature; the implementation
-      // that follows it is the one held to the rule.
+      // that follows it is the one held to the rule. An `export default
+      // function () {}` has no name but is still exported surface, so it is
+      // reported under the name a consumer imports it by.
       if (node.body) {
         const big = bodyLineSpan(node.body, source) > INTERNAL_BODY_LINES;
         if (isExported(node) || big) {
-          judge(violations, file, source, node, node.name.text, effectiveDoc(node, text));
+          judge(violations, file, source, node, node.name?.text ?? "default", effectiveDoc(node, text));
         }
       }
     } else if (ts.isClassDeclaration(node) && isExported(node)) {
@@ -343,12 +364,20 @@ function scanFile(filePath: string, root: string): Violation[] {
 const repoRoot = process.cwd();
 const argvRoots = process.argv.slice(2);
 const roots = argvRoots.length > 0 ? argvRoots : DEFAULT_ROOTS;
-const present = roots.filter((r) => existsSync(join(repoRoot, r)));
+const present = roots.filter((r) => {
+  const full = join(repoRoot, r);
+  return existsSync(full) && statSync(full).isDirectory();
+});
 
-if (argvRoots.length > 0 && present.length !== roots.length) {
+// Every named root must exist, defaults included. Skipping an absent one is the
+// same vacuous pass this gate exists to prevent: renaming `src/` would
+// otherwise leave the gate scanning only `scripts/` and reporting a complete
+// documented surface. A repo without one of the defaults names its roots.
+if (present.length !== roots.length) {
   const missing = roots.filter((r) => !present.includes(r));
   console.error(
-    `docstring-gate: requested root(s) not found: ${missing.join(", ")} - refusing to pass vacuously.`,
+    `docstring-gate: root(s) missing or not a directory: ${missing.join(", ")} - refusing to pass vacuously.` +
+      `\nPass the roots explicitly (e.g. \`node scripts/docstring-gate.ts src\`) if this repo has no ${missing.join("/")} directory.`,
   );
   process.exit(1);
 }

@@ -528,10 +528,11 @@ function excludeTagsOption(options: Record<string, unknown>): string[] | undefin
   return values.length > 0 ? values : undefined;
 }
 
-/** OPT-IN (`--limit`): cap on how many items reach the changelog. Accepts the
- * host's number or its string spelling, and rejects zero, negatives, and
- * fractions as usage errors so an unusable cap never silently truncates a
- * release. Absent/blank → `undefined`, meaning no cap. */
+/** OPT-IN (`--limit`): how many of the most recent release sections to keep,
+ * applying only where release windows produced the sections - it is not a cap
+ * on items. Accepts the host's number or its string spelling, and rejects zero,
+ * negatives, and fractions as usage errors so an unusable value never silently
+ * truncates a changelog. Absent/blank → `undefined`, meaning every release. */
 function parseLimitOption(options: Record<string, unknown>): number | undefined {
   const raw = options["limit"];
   if (raw === undefined || raw === null || raw === "") return undefined;

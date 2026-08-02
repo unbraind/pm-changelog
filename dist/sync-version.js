@@ -16,26 +16,28 @@ function readVersionFromArgv() {
     }
     return version;
 }
-/** Rewrite the manifest's version field, preserving every other key. */
-function syncManifest(manifestPath, version) {
+/** Render the manifest with its version field replaced, preserving every other key. */
+function planManifest(manifestPath, version) {
     const raw = readFileSync(manifestPath, "utf-8");
     const parsed = JSON.parse(raw);
     parsed.version = version;
-    writeFileSync(manifestPath, `${JSON.stringify(parsed, null, 2)}\n`, "utf-8");
+    return { path: manifestPath, contents: `${JSON.stringify(parsed, null, 2)}\n` };
 }
 /**
- * Rewrite the `version` literal in the extension's registration object.
+ * Render the extension source with its `version` literal restamped.
  *
- * The match is required to be unique. An unanchored `version:` pattern that
- * simply replaces the first hit is a known way to silently corrupt a release:
- * once any earlier `version: "..."` string exists - a flag description, a help
- * example - the release stamps that string instead, and because the damage is
- * committed by the release job rather than by a reviewed diff, it survives
- * every review. Failing loudly on an ambiguous file is the whole point.
+ * The match is required to be unique, and both quote styles count toward that
+ * uniqueness. An unanchored `version:` pattern that simply replaces the first
+ * hit is a known way to silently corrupt a release: once any other
+ * `version: "..."` string exists - a flag description, a help example - the
+ * release stamps that one instead, and because the damage is written by the
+ * release job rather than by a reviewed diff, it survives every review.
+ * Counting single-quoted forms too means a decoy cannot make itself the only
+ * match and be rewritten in place of the real registration field.
  */
-function syncExtensionVersion(extensionPath, version) {
+function planExtensionVersion(extensionPath, version) {
     const source = readFileSync(extensionPath, "utf-8");
-    const pattern = /version:\s*"[^"]+"/g;
+    const pattern = /version:\s*(?:"[^"]*"|'[^']*')/g;
     const matches = source.match(pattern);
     if (!matches) {
         throw new Error(`Could not find version literal in ${extensionPath}`);
@@ -44,14 +46,26 @@ function syncExtensionVersion(extensionPath, version) {
         throw new Error(`Refusing to stamp ${extensionPath}: found ${matches.length} 'version:' literals ` +
             `(${matches.join(", ")}). Anchor the intended one before releasing.`);
     }
-    writeFileSync(extensionPath, source.replace(pattern, `version: "${version}"`), "utf-8");
+    return { path: extensionPath, contents: source.replace(pattern, `version: "${version}"`) };
 }
-/** Stamp the release version into the manifest and the extension registration. */
+/**
+ * Stamp the release version into the manifest and the extension registration.
+ *
+ * Both files are read and validated before either is written. Writing as they
+ * were validated would let a rejected extension leave `manifest.json` already
+ * bumped, so a release that aborted would still have moved one of the two
+ * version sources.
+ */
 function main() {
     const version = readVersionFromArgv();
     const cwd = process.cwd();
-    syncManifest(resolve(cwd, "manifest.json"), version);
-    syncExtensionVersion(resolve(cwd, "src/extension.ts"), version);
+    const planned = [
+        planManifest(resolve(cwd, "manifest.json"), version),
+        planExtensionVersion(resolve(cwd, "src/extension.ts"), version),
+    ];
+    for (const file of planned) {
+        writeFileSync(file.path, file.contents, "utf-8");
+    }
     process.stdout.write(`Synced version ${version} into manifest.json and src/extension.ts\n`);
 }
 main();

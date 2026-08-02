@@ -596,8 +596,9 @@ function editDistance(left: string, right: string): number {
   return matrix[rows - 1][cols - 1];
 }
 
-/** Fill version, date, and time bounds from the checkout's git tags, mutating
- * `options` in place. Explicit flags are preserved; only gaps are filled. */
+/** Fill version, date, and time bounds from the checkout, mutating `options` in
+ * place. The version may come from the nearest package.json; the dates and
+ * bounds come from git tags. Explicit flags are preserved; only gaps filled. */
 function applyReleaseContext(options: CliOptions): void {
   if (options.allReleaseTags) {
     const cwd = options.pmCwd ? resolve(options.pmCwd) : process.cwd();
@@ -753,8 +754,9 @@ function buildGenerationOptions(options: CliOptions, items: PmItem[]) {
   };
 }
 
-/** Assemble the machine-readable run summary shared by `--json`, GitHub step
- * outputs, and the job summary. */
+/** Assemble the machine-readable run summary emitted by `--json` and written as
+ * GitHub step outputs. The job-summary panel receives generated markdown
+ * instead, so it is not a consumer of this. */
 function buildSummary(
   options: CliOptions,
   result: {

@@ -108,6 +108,9 @@ test("sync-version refuses to stamp an extension carrying more than one version 
       "utf-8"
     );
 
+    const extensionBefore = readFileSync(join(dir, "src/extension.ts"), "utf-8");
+    const manifestBefore = readFileSync(join(dir, "manifest.json"), "utf-8");
+
     assert.throws(() => {
       execFileSync(process.execPath, [helperPath, "9.9.9"], {
         cwd: dir,
@@ -116,8 +119,18 @@ test("sync-version refuses to stamp an extension carrying more than one version 
       });
     }, /Refusing to stamp .*found 2 'version:' literals/);
 
-    const untouched = readFileSync(join(dir, "src/extension.ts"), "utf-8");
-    assert.ok(untouched.includes('version: "0.0.0"'), "the file must be left unmodified");
+    assert.equal(
+      readFileSync(join(dir, "src/extension.ts"), "utf-8"),
+      extensionBefore,
+      "the extension must be byte-identical after a rejected sync"
+    );
+    // The manifest is written only after both files validate, so an aborted
+    // sync must not leave it bumped while the extension stays behind.
+    assert.equal(
+      readFileSync(join(dir, "manifest.json"), "utf-8"),
+      manifestBefore,
+      "the manifest must not be bumped when the extension is rejected"
+    );
   } finally {
     rmSync(dir, { recursive: true, force: true });
   }
