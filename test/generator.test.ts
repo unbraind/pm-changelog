@@ -2146,6 +2146,12 @@ test("pm package install activates changelog command", (t) => {
       "Verify pm-changelog package install",
       "--status",
       "closed",
+      // `governance_require_close_reason` defaults to enabled, so a terminal
+      // `closed` transition on `pm create` needs an author-controlled closing
+      // summary. `--message` supplies it without weakening the install-smoke
+      // assertion the test exists to make.
+      "--message",
+      "Closed: pm-changelog install smoke verified",
       "--json",
     ],
     {
@@ -2265,6 +2271,14 @@ test("pm extension command works when only node cli entrypoint is available", ()
       "Verify extension can use the current node cli entrypoint",
       "--status",
       "closed",
+      // Governance `require_close_reason` defaults to enabled, and this test
+      // deliberately runs against the inherited (non-isolated) environment so
+      // it exercises the real `.bin/pm` shim. A terminal `closed` transition
+      // therefore needs an author-controlled closing summary; `--message`
+      // supplies it without weakening the assertion the test exists to make
+      // (that the extension command runs through the node CLI entrypoint).
+      "--message",
+      "Closed: extension command reached via node CLI entrypoint",
       "--json",
     ],
     {
@@ -2849,6 +2863,63 @@ test("itemTimestamp returns undefined (unplaceable) when no timestamp field is p
     ],
   });
   assert.doesNotMatch(markdown, /Timestampless item/);
+});
+
+test("unresolved SDK completion never fabricates a date or credits a field that supplied nothing", () => {
+  // Since pm-cli 2026.8.3 the SDK resolver returns an explicit unresolved arm
+  // (`resolved: false`) when completed_at, closed_at and updated_at are all
+  // absent. Such an item must stay undated: it survives only an unbounded
+  // window, and the provenance report keys it under "none" rather than
+  // crediting created_at (or any lifecycle field) with a value it never
+  // supplied - the anti-fabrication guarantee filterItemsByTime relies on.
+  const undated = {
+    id: "pm-unresolved",
+    title: "Record carrying no completion signal",
+    status: "closed",
+    type: "task",
+  };
+  const report = explainChangelogSelection({
+    items: [undated],
+    version: "2026.7.24",
+    date: "2026-07-24",
+  });
+  assert.equal(report.stage_counts.visible_items, 1);
+  const provenance = report.attribution_provenance;
+  assert.ok(provenance, "attribution_provenance must be present when items are visible");
+  assert.equal(provenance.authoritative, 0);
+  assert.equal(provenance.inferred, 1);
+  assert.equal(provenance.inferred_sources.none, 1);
+  assert.equal(provenance.inferred_sources.created_at ?? 0, 0);
+  assert.equal(provenance.inferred_sources.completed_at ?? 0, 0);
+  assert.equal(provenance.inferred_sources.closed_at ?? 0, 0);
+  assert.equal(provenance.inferred_sources.updated_at ?? 0, 0);
+  assert.ok(provenance.inferred_sample.some((label) => label.startsWith("pm-unresolved")));
+});
+
+test("unresolved SDK completion still falls back to created_at for legacy records", () => {
+  // The unresolved arm (`resolved: false`) only means no LIFECYCLE field
+  // supplied a timestamp; pm-changelog's created_at final fallback must still
+  // place legacy records that predate the lifecycle fields, reported as an
+  // inferred created_at attribution rather than an SDK-sourced one.
+  const report = explainChangelogSelection({
+    items: [
+      {
+        id: "pm-legacy-created",
+        title: "Legacy record with only created_at",
+        status: "closed",
+        type: "task",
+        created_at: "2026-07-24T09:00:00Z",
+      },
+    ],
+    version: "2026.7.24",
+    date: "2026-07-24",
+  });
+  const provenance = report.attribution_provenance;
+  assert.ok(provenance);
+  assert.equal(provenance.authoritative, 0);
+  assert.equal(provenance.inferred, 1);
+  assert.equal(provenance.inferred_sources.created_at, 1);
+  assert.equal(provenance.inferred_sources.none ?? 0, 0);
 });
 
 test("explainChangelogSelection reports authoritative vs inferred attribution provenance", () => {

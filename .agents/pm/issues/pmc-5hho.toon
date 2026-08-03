@@ -1,0 +1,18 @@
+id: pmc-5hho
+title: Handle SDK CompletionTimestampResolution unresolved arm and upgrade pm-cli pin to 2026.8.3
+description: "Under @unbrained/pm-cli 2026.8.3 the SDK type CompletionTimestampResolution is a union that includes an UnresolvedCompletionTimestamp arm (resolved false), so src/generator.ts no longer typechecks: the ObservedSdkCompletion widening assumed every resolution was resolved (TS2322 at generator.ts line 1831). Handle the unresolved arm explicitly: an item whose completion timestamp cannot be resolved must not silently acquire a wrong changelog date; it keeps the existing created_at final fallback and otherwise stays unplaceable by time (source none), matching how filterItemsByTime treats missing dates. Also bump the dev pin to caret 2026.8.3 and the peer floor to 2026.8.3, refresh the lockfile, and add a regression test covering the unresolved arm."
+type: Issue
+status: in_progress
+priority: 2
+tags: []
+created_at: "2026-08-03T22:03:32.133Z"
+updated_at: "2026-08-03T22:47:21.204Z"
+assignee: pi-agent
+claim_principal: pi-agent
+author: pi-agent
+acceptance_criteria: "npm run typecheck passes against @unbrained/pm-cli 2026.8.3 with the unresolved arm handled via the resolved discriminant; no fabricated date for unresolved items; new test covers the unresolved arm; package.json pins dev caret 2026.8.3 and peer floor 2026.8.3 with lockfile committed; npm run build, npm test, npm run coverage, npm run docstring and npm run changelog:check all pass"
+notes[3]{created_at,author,text}:
+  "2026-08-03T22:47:11.843Z",pi-agent,"Investigated the FlagDefinition type-surface change in @unbrained/pm-cli 2026.8.3. Read node_modules/@unbrained/pm-cli/dist/core/extensions/extension-types.d.ts: FlagDefinition is now a CLOSED interface (no index signature) with fields long, short, value_name, description, required, enabled, visible, value_type, type (deprecated), list, repeatable, default. There is NO aliases field — alias support for extension-declared flags was genuinely dropped. The host-side CliFlagContract (sdk/cli-contracts/flag-contracts.d.ts) still carries aliases?: string[], so hostOwnedFlagSet() reading contract.aliases stays correct."
+  "2026-08-03T22:47:16.827Z",pi-agent,"Fixed test/host-flag-contracts.test.ts: removed the dead flag.aliases read and the stale 'open shape' comment from collectDeclaredFlags; removed the now-unused FlagDefinition import; narrowed DeclaredFlag to just {command, long?, short?}; updated findHostFlagCollision to compare only long/short spellings (dropping aliases) and rewrote its docstring so the gate no longer claims to check a spelling the host no longer lets an extension declare. No 'as any' / index-signature cast — the loop reads flag.long/flag.short directly off the declared FlagDefinition type."
+  "2026-08-03T22:47:21.204Z",pi-agent,"Also fixed a pre-existing, environment-sensitive test failure exposed while running the gate suite: two tests in test/generator.test.ts did 'pm create --status closed' without a closing summary. governance_require_close_reason defaults to enabled (confirmed via 'pm config global get' showing policy: enabled, changed: false), so both creates were rejected with close_reason_required even on clean main (verified by stashing all working-tree changes and re-running). Added a --message closing summary to each create call (lines ~2147 and ~2263); this satisfies governance without weakening the assertions those tests exist to make (install-smoke and node-CLI-entrypoint routing). All 248 tests pass."
+body: ""

@@ -1611,37 +1611,28 @@ function compareItems(a, b) {
  *
  * Delegates the `completed_at -> closed_at -> updated_at` chain to the pm-cli
  * SDK's {@link resolveCompletionTimestamp} (GH-675) so pm-changelog and the
- * tracker agree on what counts as the authoritative completion time. The SDK
- * chain does NOT consider `created_at`; when all three SDK fields are absent
- * it returns no timestamp, so pm-changelog's existing `created_at` final
- * fallback is preserved here to avoid regressing legacy records that predate
- * the lifecycle fields. Such an item is reported as inferred (`fallback: true`,
- * `source: "created_at"`).
+ * tracker agree on what counts as the authoritative completion time. Since
+ * pm-cli 2026.8.3 the SDK result is the discriminated union
+ * `CompletionTimestampResolution`: a resolved arm carrying
+ * `timestamp`/`source`/`fallback`, and an unresolved arm (`resolved: false`)
+ * proving that no lifecycle field supplied a value.
  *
- * The SDK's parameter type requires `updated_at: string` even though the
- * function's purpose is tolerating absent fallback fields (upstream
- * [pm-cli#808](https://github.com/unbraind/pm-cli/issues/808)). Rather than
- * assert the argument past that declaration, the SDK is called only when
- * `updated_at` is present and the two-field precedence is applied locally when
- * it is not - the narrower duplication is worth keeping the call site free of
- * type assertions, and it disappears once the upstream signature widens.
+ * The unresolved arm must never acquire a fabricated date: the SDK chain does
+ * NOT consider `created_at`, so pm-changelog's existing `created_at` final
+ * fallback is applied locally for legacy records that predate the lifecycle
+ * fields (reported as inferred, `fallback: true`, `source: "created_at"`), and
+ * an item carrying no timestamp of any kind is reported as `source: "none"`
+ * with no timestamp, leaving it unplaceable by time rather than silently
+ * dating it into a release.
  */
 function resolveItemCompletion(item) {
-    if (item.updated_at !== undefined) {
-        const resolved = resolveCompletionTimestamp({
-            completed_at: item.completed_at,
-            closed_at: item.closed_at,
-            updated_at: item.updated_at,
-        });
-        if (resolved.timestamp !== undefined) {
-            return { timestamp: resolved.timestamp, source: resolved.source, fallback: resolved.fallback };
-        }
-    }
-    else if (item.completed_at !== undefined) {
-        return { timestamp: item.completed_at, source: "completed_at", fallback: false };
-    }
-    else if (item.closed_at !== undefined) {
-        return { timestamp: item.closed_at, source: "closed_at", fallback: true };
+    const resolution = resolveCompletionTimestamp({
+        completed_at: item.completed_at,
+        closed_at: item.closed_at,
+        updated_at: item.updated_at,
+    });
+    if (resolution.resolved) {
+        return { timestamp: resolution.timestamp, source: resolution.source, fallback: resolution.fallback };
     }
     if (item.created_at !== undefined) {
         return { timestamp: item.created_at, source: "created_at", fallback: true };
