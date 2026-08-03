@@ -2894,6 +2894,25 @@ test("unresolved SDK completion never fabricates a date or credits a field that 
   assert.equal(provenance.inferred_sources.closed_at ?? 0, 0);
   assert.equal(provenance.inferred_sources.updated_at ?? 0, 0);
   assert.ok(provenance.inferred_sample.some((label) => label.startsWith("pm-unresolved")));
+
+  // The provenance bookkeeping above only proves how the item was LABELLED.
+  // The guarantee that actually matters is behavioural: an item no lifecycle
+  // field could date must be unplaceable in time, so a bounded window must
+  // exclude it. Without a since/until there is no time filtering at all, so
+  // the assertions above would still pass if an undated item were silently
+  // treated as in-window.
+  const bounded = explainChangelogSelection({
+    items: [undated],
+    version: "2026.7.24",
+    date: "2026-07-24",
+    since: "2026-07-01T00:00:00Z",
+    until: "2026-07-31T00:00:00Z",
+  });
+  assert.equal(
+    bounded.stage_counts.visible_items,
+    0,
+    "an item with no resolvable completion timestamp must not appear in a bounded window",
+  );
 });
 
 test("unresolved SDK completion still falls back to created_at for legacy records", () => {
@@ -2901,16 +2920,15 @@ test("unresolved SDK completion still falls back to created_at for legacy record
   // supplied a timestamp; pm-changelog's created_at final fallback must still
   // place legacy records that predate the lifecycle fields, reported as an
   // inferred created_at attribution rather than an SDK-sourced one.
+  const legacyRecord = {
+    id: "pm-legacy-created",
+    title: "Legacy record with only created_at",
+    status: "closed",
+    type: "task",
+    created_at: "2026-07-24T09:00:00Z",
+  };
   const report = explainChangelogSelection({
-    items: [
-      {
-        id: "pm-legacy-created",
-        title: "Legacy record with only created_at",
-        status: "closed",
-        type: "task",
-        created_at: "2026-07-24T09:00:00Z",
-      },
-    ],
+    items: [legacyRecord],
     version: "2026.7.24",
     date: "2026-07-24",
   });
@@ -2920,6 +2938,36 @@ test("unresolved SDK completion still falls back to created_at for legacy record
   assert.equal(provenance.inferred, 1);
   assert.equal(provenance.inferred_sources.created_at, 1);
   assert.equal(provenance.inferred_sources.none ?? 0, 0);
+
+  // The complement of the unresolved case: the created_at fallback is only
+  // useful if it actually PLACES the record, so a bounded window containing
+  // created_at must include it — and one that excludes that date must not.
+  // Asserting both directions proves the fallback supplies a real timestamp
+  // rather than merely being reported as one.
+  const inWindow = explainChangelogSelection({
+    items: [legacyRecord],
+    version: "2026.7.24",
+    date: "2026-07-24",
+    since: "2026-07-01T00:00:00Z",
+    until: "2026-07-31T00:00:00Z",
+  });
+  assert.equal(
+    inWindow.stage_counts.visible_items,
+    1,
+    "a legacy record must be placed by its created_at fallback",
+  );
+  const outOfWindow = explainChangelogSelection({
+    items: [legacyRecord],
+    version: "2026.7.24",
+    date: "2026-07-24",
+    since: "2026-08-01T00:00:00Z",
+    until: "2026-08-31T00:00:00Z",
+  });
+  assert.equal(
+    outOfWindow.stage_counts.visible_items,
+    0,
+    "the created_at fallback must respect window bounds, not bypass them",
+  );
 });
 
 test("explainChangelogSelection reports authoritative vs inferred attribution provenance", () => {
