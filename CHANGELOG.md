@@ -1,5 +1,15 @@
 # Changelog
 
+## 2026.8.3 - 2026-08-03
+
+### Added
+
+- Docstring coverage gate: a parser-backed, self-scanning mandatory check ([pmc-kdm1](https://github.com/unbraind/pm-changelog/blob/main/.agents/pm/features/pmc-kdm1.toon))
+
+### Fixed
+
+- sync-version could silently restamp the wrong version literal during a release ([pmc-vbft](https://github.com/unbraind/pm-changelog/blob/main/.agents/pm/issues/pmc-vbft.toon))
+
 ## 2026.8.2 - 2026-08-02
 
 ### Fixed
