@@ -1,5 +1,11 @@
 # Changelog
 
+## Unreleased
+
+### Fixed
+
+- Handle SDK CompletionTimestampResolution unresolved arm and upgrade pm-cli pin to 2026.8.3 ([pmc-5hho](https://github.com/unbraind/pm-changelog/blob/main/.agents/pm/issues/pmc-5hho.toon))
+
 ## 2026.8.3 - 2026-08-03
 
 ### Added
