@@ -8,7 +8,6 @@ import { activateExtensionForTest } from "@unbrained/pm-cli/sdk/testing";
 import type {
   ExtensionActivationResult,
   ExtensionCapability,
-  FlagDefinition,
 } from "@unbrained/pm-cli/sdk/authoring";
 import {
   GLOBAL_FLAG_CONTRACTS,
@@ -84,12 +83,19 @@ function hostOwnedFlagSet(): Set<string> {
   return owned;
 }
 
-/** A flag declared by the extension, annotated with the command path it rides on. */
+/** A flag declared by the extension, annotated with the command path it rides on.
+ *
+ * Mirrors the spellings an extension can actually register: as of
+ * `@unbrained/pm-cli` 2026.8.3 `FlagDefinition` is a closed interface that
+ * exposes only `long` and `short` as flag-name fields (alias support for
+ * extension-declared flags was dropped), so this view carries exactly those
+ * two and nothing more. Keeping the shape narrowed to the real SDK surface
+ * means the collision gate below cannot claim to check a spelling the host
+ * no longer lets an extension declare. */
 interface DeclaredFlag {
   command: string;
   long?: string;
   short?: string;
-  aliases?: string[];
 }
 
 /**
@@ -114,18 +120,17 @@ interface DeclaredFlag {
 function collectDeclaredFlags(activation: ExtensionActivationResult): DeclaredFlag[] {
   const declared: DeclaredFlag[] = [];
   for (const entry of activation.registrations.flags) {
-    for (const flag of entry.flags as FlagDefinition[]) {
-      // `FlagDefinition` is an open shape (`[key: string]: unknown`); read the
-      // optional `aliases` array defensively so a host that adds alias support
-      // is still gated rather than silently bypassed.
-      const aliases = Array.isArray(flag.aliases)
-        ? (flag.aliases as string[]).filter((alias) => typeof alias === "string")
-        : undefined;
+    // `FlagDefinition` is a closed interface in pm-cli 2026.8.3 and exposes
+    // only `long` and `short` as flag-name fields, so those are the sole
+    // spellings an extension can register and the sole spellings this gate
+    // can meaningfully check. Reading them directly off the declared type
+    // (no cast, no index-signature widening) keeps the compiler enforcing
+    // exactly the surface the host advertises.
+    for (const flag of entry.flags) {
       declared.push({
         command: entry.target_command,
         long: flag.long,
         short: flag.short,
-        aliases,
       });
     }
   }
@@ -137,15 +142,19 @@ function collectDeclaredFlags(activation: ExtensionActivationResult): DeclaredFl
  *
  * Returns a descriptive string (offending flag + command) when a collision
  * exists, or `undefined` when the extension declares only host-safe flags.
- * Comparing `long`, `short`, and `aliases` against the full host-owned set
- * catches a shadow regardless of which spelling the extension used.
+ * Compares each declared flag's `long` and `short` spellings against the full
+ * host-owned set (which itself folds in host `flag`, `short`, and `aliases`),
+ * catching a shadow regardless of which spelling the extension used. Only
+ * `long` and `short` are checked because those are the only flag-name fields
+ * `FlagDefinition` exposes in pm-cli 2026.8.3; asserting more would claim a
+ * check the gate does not actually perform.
  */
 function findHostFlagCollision(
   declared: readonly DeclaredFlag[],
   owned: ReadonlySet<string>,
 ): string | undefined {
   for (const flag of declared) {
-    const spellings = [flag.long, flag.short, ...(flag.aliases ?? [])].filter(
+    const spellings = [flag.long, flag.short].filter(
       (value): value is string => typeof value === "string" && value.length > 0,
     );
     for (const spelling of spellings) {
