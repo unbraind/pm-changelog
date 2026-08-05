@@ -31,6 +31,11 @@ export interface ReleaseTagHistoryOptions {
     pendingVersion?: string;
     pendingTimestamp?: string;
 }
+/** A release tag and the timestamp of the commit it points at. */
+export interface ReleaseTag {
+    name: string;
+    timestamp: string;
+}
 /** Stable identifier for the incomplete-tag-history failure. Callers match on
  * this rather than on message text, so the wording stays free to change. */
 export declare const MISSING_TAG_HISTORY_ERROR_CODE = "E_MISSING_TAG_HISTORY";
@@ -117,4 +122,71 @@ export declare function resolveReleaseContext(options: ReleaseContextOptions): R
  * cut appear in the changelog before its tag exists.
  */
 export declare function resolveReleaseTagWindows(options?: ReleaseTagHistoryOptions): ChangelogReleaseWindow[];
+/** Pick the tag spelling a pending release should be headed with, preferring
+ * the caller's own `v`-prefixed format. */
+/** Pick the tag spelling a pending release should be headed with, preferring
+ * the caller's own `v`-prefixed format. Exported for direct testing because the
+ * spelling decision is pure and the caller's-format preference is the one
+ * property worth pinning independently of git.
+ *
+ * @param candidates - Tag spellings from {@link releaseTagCandidates}; the first
+ *   is always the verbatim `v${version}`.
+ * @returns The first `v`-prefixed candidate (guaranteed present by
+ *   {@link releaseTagCandidates}).
+ */
+export declare function canonicalPendingTagName(candidates: readonly string[]): string;
+/**
+ * Total deterministic comparator for ReleaseTag pairs. Contract:
+ *  1. Valid parsed timestamps sort in descending order (newest first).
+ *  2. A tag with a valid (parseable) timestamp sorts before one with an invalid
+ *     unparseable timestamp, regardless of name.
+ *  3. Two tags with equally-invalid timestamps tie-break by name ascending.
+ *
+ * This replaces bare `Date.parse(a) - Date.parse(b)` which returns `NaN` when
+ * either timestamp is unparseable — and `Array.sort(NaN)` is non-deterministic
+ * (the spec says the sort order is implementation-defined when the comparator
+ * does not return a total order).
+ */
+export declare function compareReleaseTags(a: ReleaseTag, b: ReleaseTag): number;
+/** Parse one `git tag --format` row, preferring the peeled (annotated) date and
+ * dropping rows missing a name or any timestamp. */
+export declare function parseTagLine(line: string): ReleaseTag | undefined;
+/** Render an arbitrary timestamp as a UTC `YYYY-MM-DD` date, falling back to
+ * the first ten characters when the value is not a parseable date so a heading
+ * never becomes `Invalid Date`. Exported for direct testing because the
+ * fallback is the one path real git-tag output never exercises.
+ *
+ * @param timestamp - A timestamp string, parseable or not.
+ * @returns A `YYYY-MM-DD` date string.
+ */
+export declare function formatDate(timestamp: string): string;
+/** Render a release-tag timestamp as the heading date, preferring the literal
+ * leading `YYYY-MM-DD` so a commit's local date (not its UTC instant) heads the
+ * release, and falling back to {@link formatDate} when no date prefix is present.
+ * Exported for direct testing because the fallback is unreachable through git's
+ * `iso-strict` output.
+ *
+ * @param timestamp - The timestamp string a release tag carries.
+ * @returns A `YYYY-MM-DD` heading date.
+ */
+export declare function formatLocalTimestampDate(timestamp: string): string;
+/**
+ * Rewrite a UTC-equivalent timestamp to the canonical ISO `Z` form without
+ * altering its instant or its UTC date.
+ *
+ * Non-UTC offsets and unparseable strings are returned verbatim so callers that
+ * depend on the local date prefix (such as `formatLocalTimestampDate`) are
+ * unaffected. Intentionally narrower than `normalizeTimestamp`, which always
+ * converts to UTC and would therefore shift a tag's heading date.
+ */
+export declare function canonicalizeUtcOffset(value: string): string;
+/**
+ * Extract the trailing timezone offset of an ISO-8601 / RFC-3339 timestamp:
+ * `Z`, `±HH:MM`, or `±HHMM`. Returns `null` when no offset is present (the
+ * timestamp is "local" or naively formatted) so the caller can avoid guessing.
+ *
+ * @param value - A timestamp string that may carry a trailing offset.
+ * @returns The offset text (`Z` or `±HH:MM`/`±HHMM`), or `null` when none.
+ */
+export declare function extractOffset(value: string): string | null;
 //# sourceMappingURL=release-context.d.ts.map
