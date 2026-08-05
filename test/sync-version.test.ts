@@ -11,7 +11,7 @@
  */
 import { describe, it } from "node:test";
 import { equal, match, ok, throws } from "node:assert/strict";
-import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { mkdirSync, mkdtempSync, readFileSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import { pathToFileURL } from "node:url";
@@ -57,6 +57,23 @@ function setupTempProject(): string {
   return dir;
 }
 
+/**
+ * Run `body` against a fresh temporary project and always remove it.
+ *
+ * Wraps the setup/try/finally trio every case in this file repeated, so a new
+ * test cannot leak a temporary directory by forgetting the `finally`.
+ *
+ * @param body - Receives the project directory; its return value is passed through.
+ */
+function withTempProject<T>(body: (dir: string) => T): T {
+  const dir = setupTempProject();
+  try {
+    return body(dir);
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+}
+
 /** Capture `process.stdout.write` for the duration of `fn`, returning the bytes. */
 function captureStdout(fn: () => void): string {
   const original = process.stdout.write.bind(process.stdout);
@@ -96,24 +113,20 @@ describe("sync-version: resolveVersion", () => {
 
 describe("sync-version: planManifest", () => {
   it("replaces the version field and preserves every other key", () => {
-    const dir = setupTempProject();
-    try {
+    withTempProject((dir) => {
       const plan = planManifest(join(dir, "manifest.json"), "7.7.7");
       const reparsed = JSON.parse(plan.contents) as { version: string; name: string; manifest_version: number };
       equal(reparsed.version, "7.7.7");
       equal(reparsed.name, "x");
       equal(reparsed.manifest_version, 2);
       ok(plan.contents.endsWith("\n"), "the manifest keeps its trailing newline");
-    } finally {
-      rmSync(dir, { recursive: true, force: true });
-    }
+    });
   });
 });
 
 describe("sync-version: planExtensionVersion and findVersionInitializer", () => {
   it("stamps the registration property and never a decoy in a comment or string", () => {
-    const dir = setupTempProject();
-    try {
+    withTempProject((dir) => {
       // Every decoy here defeats a pattern-matching implementation: the help
       // string is the first `version:` in the file, the comment is the only
       // double-quoted one once the registration uses a template literal, and a
@@ -144,14 +157,11 @@ describe("sync-version: planExtensionVersion and findVersionInitializer", () => 
         plan.contents.includes('// Release documentation example: version: "do-not-stamp"'),
         "the comment must be untouched",
       );
-    } finally {
-      rmSync(dir, { recursive: true, force: true });
-    }
+    });
   });
 
   it("refuses an ambiguous registration with two version properties", () => {
-    const dir = setupTempProject();
-    try {
+    withTempProject((dir) => {
       writeFileSync(
         join(dir, "src/extension.ts"),
         'export default defineExtension({ name: "x", version: "0.0.0", version: "0.0.1" });\n',
@@ -161,14 +171,11 @@ describe("sync-version: planExtensionVersion and findVersionInitializer", () => 
         () => planExtensionVersion(join(dir, "src/extension.ts"), "9.9.9"),
         /declares 2 'version' properties/,
       );
-    } finally {
-      rmSync(dir, { recursive: true, force: true });
-    }
+    });
   });
 
   it("reports a registration with no version property rather than guessing", () => {
-    const dir = setupTempProject();
-    try {
+    withTempProject((dir) => {
       // The decoy is the only `version:` text in the file; a pattern matcher
       // would stamp it.
       writeFileSync(
@@ -184,9 +191,7 @@ describe("sync-version: planExtensionVersion and findVersionInitializer", () => 
         () => planExtensionVersion(join(dir, "src/extension.ts"), "9.9.9"),
         /Could not find a 'version' property in the default-exported registration/,
       );
-    } finally {
-      rmSync(dir, { recursive: true, force: true });
-    }
+    });
   });
 });
 
@@ -242,8 +247,7 @@ describe("sync-version: findVersionInitializer branches", () => {
 
 describe("sync-version: main", () => {
   it("updates manifest.json and src/extension.ts to the supplied version", () => {
-    const dir = setupTempProject();
-    try {
+    withTempProject((dir) => {
       const stdout = captureStdout(() => main(["9.9.9-alpha"], {}, dir));
 
       const manifest = JSON.parse(readFileSync(join(dir, "manifest.json"), "utf-8")) as {
@@ -257,14 +261,11 @@ describe("sync-version: main", () => {
         "extension.ts should contain the new version literal",
       );
       match(stdout, /Synced version 9\.9\.9-alpha into manifest\.json and src\/extension\.ts/);
-    } finally {
-      rmSync(dir, { recursive: true, force: true });
-    }
+    });
   });
 
   it("honors NPM_VERSION env when no argv is passed", () => {
-    const dir = setupTempProject();
-    try {
+    withTempProject((dir) => {
       captureStdout(() => main([], { NPM_VERSION: "2026.5.25-1" }, dir));
 
       const manifest = JSON.parse(readFileSync(join(dir, "manifest.json"), "utf-8")) as {
@@ -274,26 +275,20 @@ describe("sync-version: main", () => {
 
       equal(manifest.version, "2026.5.25-1");
       ok(/version:\s*"2026\.5\.25-1"/.test(extensionSource));
-    } finally {
-      rmSync(dir, { recursive: true, force: true });
-    }
+    });
   });
 
   it("throws when no version is provided", () => {
-    const dir = setupTempProject();
-    try {
+    withTempProject((dir) => {
       throws(
         () => main([], {}, dir),
         /sync-version requires a version argument or NPM_VERSION env var/,
       );
-    } finally {
-      rmSync(dir, { recursive: true, force: true });
-    }
+    });
   });
 
   it("leaves both files unchanged when the extension is rejected", () => {
-    const dir = setupTempProject();
-    try {
+    withTempProject((dir) => {
       writeFileSync(
         join(dir, "src/extension.ts"),
         'export default defineExtension({ name: "x", version: "0.0.0", version: "0.0.1" });\n',
@@ -320,9 +315,7 @@ describe("sync-version: main", () => {
         manifestBefore,
         "the manifest must not be bumped when the extension is rejected",
       );
-    } finally {
-      rmSync(dir, { recursive: true, force: true });
-    }
+    });
   });
 });
 
@@ -332,5 +325,33 @@ describe("sync-version: CLI guard", () => {
     equal(isMainInvocation(["node", SCRIPT_PATH], url), true);
     equal(isMainInvocation(["node", "/tmp/other.ts"], url), false);
     equal(isMainInvocation(["node"], url), false);
+  });
+
+  it("matches when argv[1] reaches the script through a symlink", () => {
+    // The regression this guards: `import.meta.url` is already symlink-resolved
+    // while `argv[1]` keeps the invoked spelling. Comparing them without
+    // resolving argv[1] makes a symlinked release invocation - an npm bin shim,
+    // a linked workspace - skip main() and leave manifest.json and
+    // src/extension.ts unstamped with a zero exit code.
+    //
+    // Deliberately asymmetric: argv[1] is the LINK, moduleUrl is the TARGET.
+    // A test that derived both sides from the same path would pass for any
+    // path form and could never detect this.
+    const dir = mkdtempSync(join(tmpdir(), "sync-version-link-"));
+    try {
+      const link = join(dir, "sync-version-link.ts");
+      symlinkSync(SCRIPT_PATH, link);
+      equal(isMainInvocation(["node", link], pathToFileURL(SCRIPT_PATH).href), true);
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
+  it("returns false when argv[1] cannot be resolved", () => {
+    // Fail closed: an unresolvable entry path must not be treated as a match.
+    equal(
+      isMainInvocation(["node", join(tmpdir(), "sync-version-does-not-exist.ts")], pathToFileURL(SCRIPT_PATH).href),
+      false,
+    );
   });
 });
