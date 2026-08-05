@@ -447,8 +447,8 @@ function runGit(cwd: string, args: string[]): string | undefined {
 function formatTagVersion(tag: string): string {
   // Strip the leading `v` and normalize away zero-padding on calendar
   // (`YYYY.M.D[-N]`) versions so a padded git tag like `v2026.06.13` renders
-  // the same unpadded `2026.6.13` heading that `canonicalPendingTagName`
-  // emits pre-tag and that the pm-cli release pipeline keys off. Without this
+  // the same unpadded `2026.6.13` heading that a pending release emits before
+  // the tag exists and that the pm-cli release pipeline keys off. Without this
   // the release heading flips from `2026.6.13` to `2026.06.13` the moment the
   // padded tag is pushed, so the committed CHANGELOG mismatches every later
   // regeneration and `changelog:check` fails fleet-wide (issue #41).
