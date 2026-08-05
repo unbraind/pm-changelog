@@ -271,30 +271,15 @@ function resolvePendingReleaseTag(options: ReleaseTagHistoryOptions, existingTag
   const candidates = releaseTagCandidates(version);
   const candidateSet = new Set(candidates);
   if (existingTags.some((tag) => candidateSet.has(tag.name))) return undefined;
-  const canonical = canonicalPendingTagName(candidates);
+  // Preserve the caller's version format: the first candidate is the verbatim
+  // `v${version}`. Do not force calendar months/days to a zero-padded width —
+  // downstream consumers (e.g. the pm-cli release pipeline) key off the
+  // unpadded `YYYY.M.D` heading they passed in, so padding here would emit a
+  // `2026.05.27` heading the caller never matches. A `v`-prefixed candidate is
+  // guaranteed present by releaseTagCandidates.
+  const canonical = candidates.find((candidate) => candidate.startsWith("v"))!;
   const timestamp = normalizeTimestamp(options.pendingTimestamp ?? new Date().toISOString());
   return { name: canonical, timestamp };
-}
-
-/** Pick the tag spelling a pending release should be headed with, preferring
- * the caller's own `v`-prefixed format. */
-/** Pick the tag spelling a pending release should be headed with, preferring
- * the caller's own `v`-prefixed format. Exported for direct testing because the
- * spelling decision is pure and the caller's-format preference is the one
- * property worth pinning independently of git.
- *
- * @param candidates - Tag spellings from {@link releaseTagCandidates}; the first
- *   is always the verbatim `v${version}`.
- * @returns The first `v`-prefixed candidate (guaranteed present by
- *   {@link releaseTagCandidates}).
- */
-export function canonicalPendingTagName(candidates: readonly string[]): string {
-  // Preserve the caller's version format (the first candidate is the
-  // verbatim `v${version}`). Do not force calendar months/days to a
-  // zero-padded width: downstream consumers (e.g. the pm-cli release
-  // pipeline) key off the unpadded `YYYY.M.D` heading they passed in, so
-  // padding here would emit a `2026.05.27` heading the caller never matches.
-  return candidates.find((candidate) => candidate.startsWith("v"))!;
 }
 
 /** Read the nearest package.json's version, throwing when absent or blank so a

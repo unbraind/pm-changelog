@@ -690,6 +690,11 @@ function groupSectionsByMetadata(items, field, fallback) {
  * @returns Negative, zero, or positive per `Array.sort` convention.
  */
 export function compareVersionHeadings(a, b, fallback) {
+    // Equality first: without it, comparing the fallback heading against itself
+    // returns -1, which breaks the reflexivity `Array.sort` assumes and can
+    // reorder duplicate headings unpredictably.
+    if (a === b)
+        return 0;
     if (a === fallback)
         return -1;
     if (b === fallback)
@@ -805,7 +810,12 @@ function insertReleaseSection(markdown, heading, replacement) {
     return `${before}\n\n${replacement}\n\n${after}`;
 }
 /** Splice a new release directly beneath the document title, keeping history
- * newest-first. A file with no title gets the section prepended. */
+ * newest-first.
+ *
+ * Requires a titled document: every caller reaches this through
+ * {@link mergeChangelog}, which runs {@link ensureTitle} first, so the heading
+ * is guaranteed present rather than merely likely. Calling it on untitled
+ * markdown is a programming error and throws instead of silently prepending. */
 function insertAfterTitle(markdown, releaseSection) {
     const titleMatch = markdown.match(/^#\s+.+$/m);
     const titleEnd = titleMatch.index + titleMatch[0].length;

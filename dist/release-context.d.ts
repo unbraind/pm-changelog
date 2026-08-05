@@ -122,19 +122,6 @@ export declare function resolveReleaseContext(options: ReleaseContextOptions): R
  * cut appear in the changelog before its tag exists.
  */
 export declare function resolveReleaseTagWindows(options?: ReleaseTagHistoryOptions): ChangelogReleaseWindow[];
-/** Pick the tag spelling a pending release should be headed with, preferring
- * the caller's own `v`-prefixed format. */
-/** Pick the tag spelling a pending release should be headed with, preferring
- * the caller's own `v`-prefixed format. Exported for direct testing because the
- * spelling decision is pure and the caller's-format preference is the one
- * property worth pinning independently of git.
- *
- * @param candidates - Tag spellings from {@link releaseTagCandidates}; the first
- *   is always the verbatim `v${version}`.
- * @returns The first `v`-prefixed candidate (guaranteed present by
- *   {@link releaseTagCandidates}).
- */
-export declare function canonicalPendingTagName(candidates: readonly string[]): string;
 /**
  * Total deterministic comparator for ReleaseTag pairs. Contract:
  *  1. Valid parsed timestamps sort in descending order (newest first).

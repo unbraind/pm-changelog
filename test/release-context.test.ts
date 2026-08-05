@@ -22,7 +22,6 @@ import { join } from "node:path";
 import {
   assertReleaseTagHistory,
   canonicalizeUtcOffset,
-  canonicalPendingTagName,
   compareReleaseTags,
   extractOffset,
   formatDate,
@@ -217,9 +216,22 @@ describe("release-context: resolveReleaseTagWindows", () => {
   });
 });
 
-describe("release-context: canonicalPendingTagName", () => {
-  it("prefers the first v-prefixed candidate", () => {
-    equal(canonicalPendingTagName(["v1.2.3", "1.2.3"]), "v1.2.3");
+describe("release-context: pending tag spelling", () => {
+  it("heads a pending release with the caller's v-prefixed, unpadded version", () => {
+    // Asserted through the public window rather than against the internal
+    // spelling helper: the property that matters downstream is that the
+    // emitted tag preserves the caller's unpadded `YYYY.M.D`, because the
+    // pm-cli release pipeline matches on the heading it passed in. A
+    // zero-padded `v2026.09.09` would still satisfy a helper-level test and
+    // still break that consumer.
+    const dir = gitRepo();
+    try {
+      const windows = resolveReleaseTagWindows({ cwd: dir, pendingVersion: "2026.9.9" });
+      ok(windows.length > 0, "a pending version produces a window");
+      equal(windows[windows.length - 1]?.releaseTag, "v2026.9.9");
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
   });
 });
 

@@ -42,7 +42,7 @@
  * ```
  */
 
-import { readFileSync, writeFileSync } from "node:fs";
+import { readFileSync, realpathSync, writeFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { pathToFileURL } from "node:url";
 import ts from "typescript5";
@@ -206,7 +206,19 @@ export function main(args: readonly string[], env: Readonly<Record<string, strin
  * @returns True when `argv[1]` resolves to this module's own URL.
  */
 export function isMainInvocation(argv: readonly string[], moduleUrl: string): boolean {
-  return argv[1] !== undefined && pathToFileURL(argv[1]).href === moduleUrl;
+  const entry = argv[1];
+  if (entry === undefined) return false;
+  // Compare resolved real paths, not the invoked spelling. `import.meta.url`
+  // is already symlink-resolved, so a launcher that reaches this file through
+  // a symlink (an npm bin shim, a linked workspace) would otherwise compare
+  // unequal and silently skip `main` — a release script that no-ops without
+  // erroring is worse than one that throws. Fail closed if the entry path
+  // cannot be resolved at all.
+  try {
+    return pathToFileURL(realpathSync(entry)).href === moduleUrl;
+  } catch {
+    return false;
+  }
 }
 
 // Run only when invoked directly, not when imported by the test suite.

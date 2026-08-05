@@ -592,16 +592,22 @@ describe("docstring-gate: main default roots", () => {
         return true;
       }) as typeof process.stderr.write;
       process.exitCode = undefined;
+      // Capture and restore inside the same finally that restores the stream
+      // writers. Asserting before restoring would leave exitCode at 1 for the
+      // rest of the process if an assertion threw, failing the whole run for
+      // an unrelated reason.
+      let observedExitCode: number | string | undefined;
       try {
         main([], dir);
       } finally {
+        observedExitCode = process.exitCode;
         process.stdout.write = originalStdoutWrite;
         process.stderr.write = originalStderrWrite;
+        process.exitCode = originalExitCode;
       }
-      equal(process.exitCode, 1);
+      equal(observedExitCode, 1);
       match(stderr, /root\(s\) missing or not a directory: scripts/);
       equal(stdout, "");
-      process.exitCode = originalExitCode;
     } finally {
       rmSync(dir, { recursive: true, force: true });
     }
@@ -645,11 +651,18 @@ describe("docstring-gate: helpers and CLI entry", () => {
           "const x = 1;",
         ].join("\n"),
       );
-      // Use scanFile indirectly to exercise declaredName's branches; the
-      // computed-name branch returns undefined, so the `[Symbol.iterator]`
-      // member is reported under a `<computed>` symbol rather than its text.
+      // Exercises declaredName's branches through scanFile. The computed-member
+      // fallback now reports the name's source text, not a `<computed>`
+      // placeholder, so assert both member names this case claims to cover —
+      // a bare `startsWith("C.")` would pass even if one branch stopped
+      // reporting entirely.
       const violations = scanFile(file, dir);
-      ok(violations.some((v) => v.symbol.startsWith("C.")), "class members are reported");
+      const symbols = violations.map((v) => v.symbol);
+      ok(symbols.includes("C.constructor"), `constructor reported, got ${symbols.join(", ")}`);
+      ok(
+        symbols.includes("C.[Symbol.iterator]"),
+        `computed member reported by source text, got ${symbols.join(", ")}`,
+      );
     } finally {
       rmSync(dir, { recursive: true, force: true });
     }
@@ -715,16 +728,19 @@ describe("docstring-gate: helpers and CLI entry", () => {
         return true;
       }) as typeof process.stderr.write;
       process.exitCode = undefined;
+      // Same capture-and-restore discipline as the missing-roots case above.
+      let observedExitCode: number | string | undefined;
       try {
         main(["src"], dir);
       } finally {
+        observedExitCode = process.exitCode;
         process.stdout.write = originalStdoutWrite;
         process.stderr.write = originalStderrWrite;
+        process.exitCode = originalExitCode;
       }
-      equal(process.exitCode, 1);
+      equal(observedExitCode, 1);
       equal(stdout, "");
       match(stderr, /undocumented - no docstring/);
-      process.exitCode = originalExitCode;
     } finally {
       rmSync(dir, { recursive: true, force: true });
     }
