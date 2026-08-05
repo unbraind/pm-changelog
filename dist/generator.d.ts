@@ -68,6 +68,21 @@ export declare function writeChangelog(options: WriteChangelogOptions): WriteCha
 /** Parse pm JSON, accepting either a bare array or the `{ items: [...] }`
  * envelope, since which one pm emits depends on the command and version. */
 export declare function parsePmItemsJson(raw: string): PmItem[];
+/** Order two release headings, pinning a `fallback` heading (the unset
+ * `Unreleased` bucket) ahead of every versioned release, then newest-first by
+ * version. Exported for direct testing because the comparator's fallback and
+ * segment-count edges are most reliably exercised up close.
+ *
+ * @param a - First release heading text.
+ * @param b - Second release heading text.
+ * @param fallback - Heading that always sorts first.
+ * @returns Negative, zero, or positive per `Array.sort` convention.
+ */
+export declare function compareVersionHeadings(a: string, b: string, fallback: string): number;
+/** Order two version strings segment by segment, comparing numerically where
+ * both segments are numbers so `1.10.0` sorts above `1.9.0`, and lexically
+ * otherwise so prerelease suffixes still order deterministically. */
+export declare function compareVersionStrings(a: string, b: string): number;
 /**
  * Summarize how the visible items' release-window placement was timestamped:
  * authoritative (`completed_at`, `fallback: false`) versus an inferred fallback

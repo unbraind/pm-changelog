@@ -245,3 +245,82 @@ test("help documents --no-check-diff and the --check diff behavior", () => {
   assert.match(out, /--no-check-diff/);
   assert.match(out, /unified diff/);
 });
+// --- branch coverage of the diff engine internals ---------------------------
+
+test("createUnifiedDiff falls back to a block replace for inputs beyond the LCS cell budget", () => {
+  // Two disjoint inputs of ~2100 lines exceed MAX_LCS_CELLS (4_000_000), so the
+  // quadratic table is skipped and the middle degrades to all-deletes-then-all-
+  // inserts. The line cap keeps the rendered output bounded either way.
+  const oldText = Array.from({ length: 2100 }, (_, i) => `o${i}`).join("\n") + "\n";
+  const newText = Array.from({ length: 2100 }, (_, i) => `n${i}`).join("\n") + "\n";
+  const result = createUnifiedDiff(oldText, newText, { maxLines: 200 });
+  assert.equal(result.truncated, true);
+  assert.match(result.text, /^--- old\n\+\+\+ new\n/);
+  // The fallback emits deletions first; the cap preserves both sides.
+  const body = result.text.split("\n").filter(Boolean).slice(2);
+  assert.ok(body.some((line) => line.startsWith("-")), "fallback must still show deletions");
+  assert.ok(body.some((line) => line.startsWith("+")), "fallback must still show insertions");
+});
+
+test("createUnifiedDiff uses default labels when none are given", () => {
+  const result = createUnifiedDiff("a\n", "b\n");
+  assert.match(result.text, /^--- old\n\+\+\+ new\n/);
+});
+
+test("createUnifiedDiff emits a trailing-deletion tail after a shared prefix", () => {
+  // old is longer than new with a shared head: the LCS trace leaves old-only
+  // lines after the shared prefix, exercising the trailing-deletes loop.
+  const result = createUnifiedDiff("keep\ndrop1\ndrop2\n", "keep\n");
+  const body = result.text.split("\n").filter(Boolean).slice(2);
+  assert.ok(body.some((line) => line === "-drop1"));
+  assert.ok(body.some((line) => line === "-drop2"));
+});
+
+test("createUnifiedDiff splits far-apart changes into separate hunks", () => {
+  // Two single-line edits separated by many unchanged lines exceed the context
+  // window, so buildHunks pushes the first span and starts a second hunk.
+  const lines = Array.from({ length: 40 }, (_, i) => `line ${i}`);
+  const oldText = lines.join("\n") + "\n";
+  const newText = lines.map((line, i) => (i === 2 ? "CHANGED-A" : i === 37 ? "CHANGED-B" : line)).join("\n") + "\n";
+  const result = createUnifiedDiff(oldText, newText, { maxLines: 200 });
+  const headers = result.text.split("\n").filter((line) => line.startsWith("@@"));
+  assert.ok(headers.length >= 2, "far-apart changes must split into multiple hunks");
+});
+
+test("a pure-deletion hunk reports a newStart with no +1 offset", () => {
+  // Removing every line against an empty new side yields a hunk whose newCount
+  // is 0, so the newStart ternary takes its `newBefore[start]` (no +1) arm.
+  const result = createUnifiedDiff("gone1\ngone2\n", "", { maxLines: 200 });
+  const body = result.text.split("\n").filter(Boolean).slice(2);
+  assert.ok(body.some((line) => line === "-gone1"));
+  assert.ok(body.some((line) => line === "-gone2"));
+  // The hunk header carries the +0,0 range for a pure-deletion hunk.
+  assert.match(result.text, /\+0,0 @@/);
+});
+
+test("createUnifiedDiff caps a multi-hunk diff and stops emitting whole hunks", () => {
+  // Changes spaced far apart (well beyond twice the context window) split into
+  // separate hunks; a tiny budget exhausts the cap on the first hunk, so the
+  // hunk loop breaks at the top of the next iteration rather than emitting
+  // further headers.
+  const lines = Array.from({ length: 60 }, (_, i) => `line ${i}`);
+  const oldText = lines.join("\n") + "\n";
+  const newText = lines.map((line, i) => (i === 5 ? "EDIT-A" : i === 45 ? "EDIT-B" : line)).join("\n") + "\n";
+  const result = createUnifiedDiff(oldText, newText, { maxLines: 4 });
+  assert.equal(result.truncated, true);
+  assert.ok(result.omittedLines > 0);
+  const body = result.text.split("\n").filter(Boolean).slice(2);
+  assert.ok(body.length <= 4, `emitted body (${body.length}) must respect the 4-line cap`);
+});
+
+test("createUnifiedDiff shares a common suffix across edits", () => {
+  // A shared tail that the prefix scan cannot reach is captured by the suffix
+  // loop, so a middle edit keeps trailing context intact.
+  const oldText = "head\nMIDDLE\nfoot\n";
+  const newText = "head\nchanged\nfoot\n";
+  const result = createUnifiedDiff(oldText, newText, { maxLines: 200 });
+  const body = result.text.split("\n").filter(Boolean).slice(2);
+  assert.ok(body.some((line) => line === " foot"), "shared suffix must render as context");
+  assert.ok(body.some((line) => line === "-MIDDLE"));
+  assert.ok(body.some((line) => line === "+changed"));
+});

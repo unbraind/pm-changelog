@@ -66,12 +66,13 @@
  * ```
  */
 
-import { readFileSync, readdirSync, statSync, existsSync } from "node:fs";
+import { readFileSync, readdirSync, realpathSync, statSync, existsSync } from "node:fs";
 import { join, relative } from "node:path";
+import { pathToFileURL } from "node:url";
 import ts from "typescript5";
 
 /** Directories walked for source files when no roots are given on argv. */
-const DEFAULT_ROOTS = ["src", "scripts"];
+export const DEFAULT_ROOTS = ["src", "scripts"];
 
 /** Minimum meaningful words a docstring must contain. */
 const MIN_DOC_WORDS = 4;
@@ -118,7 +119,7 @@ interface Violation {
  * Should a repo ever gain real JavaScript sources, this filter is the one place
  * that has to change - it is not a per-file ignore list.
  */
-function collectSourceFiles(dir: string): string[] {
+export function collectSourceFiles(dir: string): string[] {
   const found: string[] = [];
   for (const entry of readdirSync(dir)) {
     const full = join(dir, entry);
@@ -134,7 +135,7 @@ function collectSourceFiles(dir: string): string[] {
 }
 
 /** Split text into lowercased, content-bearing words, splitting camelCase. */
-function toWords(text: string): string[] {
+export function toWords(text: string): string[] {
   return text
     .replace(/([a-z0-9])([A-Z])/g, "$1 $2")
     .replace(/([A-Z]+)([A-Z][a-z])/g, "$1 $2")
@@ -144,7 +145,7 @@ function toWords(text: string): string[] {
 }
 
 /** True when a docstring contributes terms beyond those already in the name. */
-function addsInformation(docText: string, symbol: string): boolean {
+export function addsInformation(docText: string, symbol: string): boolean {
   const docWords = toWords(docText);
   if (docWords.length < MIN_DOC_WORDS) return false;
   const nameWords = new Set(toWords(symbol));
@@ -296,8 +297,12 @@ function checkClassMembers(
       !ts.isConstructorDeclaration(member)
     ) continue;
 
+    // `declaredName` returns "constructor" for constructors and the identifier
+    // text for named members; a computed-name member has no identifier name, so
+    // its reporting name falls back to the name's source text. Every filtered
+    // member kind carries a `name`, so no further fallback is needed.
     const memberName =
-      declaredName(member) ?? member.name?.getText(source) ?? "<computed>";
+      declaredName(member) ?? member.name?.getText(source);
     judge(
       violations,
       file,
@@ -315,7 +320,7 @@ function checkClassMembers(
  * Recurses through the syntax tree so a function nested inside another function
  * is held to the same size rule as a top-level one.
  */
-function scanFile(filePath: string, root: string): Violation[] {
+export function scanFile(filePath: string, root: string): Violation[] {
   const violations: Violation[] = [];
   const text = readFileSync(filePath, "utf8");
   const file = relative(root, filePath);
@@ -384,53 +389,134 @@ function scanFile(filePath: string, root: string): Violation[] {
   return violations;
 }
 
-const repoRoot = process.cwd();
-const argvRoots = process.argv.slice(2);
-const roots = argvRoots.length > 0 ? argvRoots : DEFAULT_ROOTS;
-const present = roots.filter((r) => {
-  const full = join(repoRoot, r);
-  return existsSync(full) && statSync(full).isDirectory();
-});
-
-// Every named root must exist, defaults included. Skipping an absent one is the
-// same vacuous pass this gate exists to prevent: renaming `src/` would
-// otherwise leave the gate scanning only `scripts/` and reporting a complete
-// documented surface. A repo without one of the defaults names its roots.
-if (present.length !== roots.length) {
-  const missing = roots.filter((r) => !present.includes(r));
-  console.error(
-    `docstring-gate: root(s) missing or not a directory: ${missing.join(", ")} - refusing to pass vacuously.` +
-      `\nPass the roots explicitly (e.g. \`node scripts/docstring-gate.ts src\`) if this repo has no ${missing.join("/")} directory.`,
-  );
-  process.exit(1);
+/** Outcome of one gate run, held as plain strings so a test can inspect it. */
+export interface GateResult {
+  /** Process exit code the run would produce: 0 on a complete surface, 1 otherwise. */
+  readonly exitCode: number;
+  /** Bytes the run would write to stdout, empty on every failure path. */
+  readonly stdout: string;
+  /** Bytes the run would write to stderr, empty on a passing run. */
+  readonly stderr: string;
 }
 
-const files = present.flatMap((r) => collectSourceFiles(join(repoRoot, r))).sort();
-
-if (files.length === 0) {
-  console.error(
-    `docstring-gate: no source files found under ${roots.join(", ")} - refusing to pass vacuously.`,
-  );
-  process.exit(1);
-}
-
-const allViolations = files.flatMap((f) => scanFile(f, repoRoot));
-
-if (allViolations.length > 0) {
-  console.error(
-    `\ndocstring-gate: ${allViolations.length} violation(s) across ${files.length} file(s):\n`,
-  );
-  for (const v of allViolations) {
-    console.error(`  ${v.file}:${v.line}  ${v.symbol} - ${v.reason}`);
+/**
+ * Run the gate against `roots` and return what it would write plus its exit code.
+ *
+ * Pure by design: it touches neither the process streams nor `process.exit`,
+ * so a test imports this and asserts on the returned strings, while the thin
+ * {@link main} entry point writes them and sets the exit code. Keeping the two
+ * apart is what lets the behavioural suite cover the gate in-process rather
+ * than by spawning a subprocess - child-process coverage is never attributed
+ * to the parent run, so a subprocess-only test would report this file as
+ * never loaded.
+ *
+ * Every named root must exist and be a directory, defaults included. Skipping
+ * an absent one is the same vacuous pass this gate exists to prevent: renaming
+ * `src/` would otherwise leave the gate scanning only `scripts/` and reporting
+ * a complete documented surface. A repo without one of the defaults names its
+ * roots explicitly.
+ *
+ * @param roots - Directory paths to walk, relative to `repoRoot`.
+ * @param repoRoot - Absolute repository root the roots resolve against.
+ * @returns The exit code and the exact stdout/stderr bytes the CLI emits.
+ */
+export function runGate(roots: readonly string[], repoRoot: string): GateResult {
+  const rootList = [...roots];
+  const present = rootList.filter((root) => {
+    const full = join(repoRoot, root);
+    return existsSync(full) && statSync(full).isDirectory();
+  });
+  if (present.length !== rootList.length) {
+    const missing = rootList.filter((root) => !present.includes(root));
+    return {
+      exitCode: 1,
+      stdout: "",
+      stderr:
+        `docstring-gate: root(s) missing or not a directory: ${missing.join(", ")} - refusing to pass vacuously.` +
+        `\nPass the roots explicitly (e.g. \`node scripts/docstring-gate.ts src\`) if this repo has no ${missing.join("/")} directory.\n`,
+    };
   }
-  console.error(
-    "\nEvery exported declaration, every non-private member of an exported" +
-      `\nclass, and every function with a body over ${INTERNAL_BODY_LINES} lines needs a real` +
-      "\ndocstring. Restating the identifier does not count.\n",
-  );
-  process.exit(1);
+
+  const files = present.flatMap((root) => collectSourceFiles(join(repoRoot, root))).sort();
+  if (files.length === 0) {
+    return {
+      exitCode: 1,
+      stdout: "",
+      stderr: `docstring-gate: no source files found under ${rootList.join(", ")} - refusing to pass vacuously.\n`,
+    };
+  }
+
+  const allViolations = files.flatMap((file) => scanFile(file, repoRoot));
+  if (allViolations.length > 0) {
+    let stderr = `\ndocstring-gate: ${allViolations.length} violation(s) across ${files.length} file(s):\n\n`;
+    for (const v of allViolations) {
+      stderr += `  ${v.file}:${v.line}  ${v.symbol} - ${v.reason}\n`;
+    }
+    stderr += `\nEvery exported declaration, every non-private member of an exported\nclass, and every function with a body over ${INTERNAL_BODY_LINES} lines needs a real\ndocstring. Restating the identifier does not count.\n\n`;
+    return { exitCode: 1, stdout: "", stderr };
+  }
+
+  return {
+    exitCode: 0,
+    stdout: `docstring-gate: ${files.length} source file(s) scanned across ${present.join(", ")}; documented surface complete.\n`,
+    stderr: "",
+  };
 }
 
-console.log(
-  `docstring-gate: ${files.length} source file(s) scanned across ${present.join(", ")}; documented surface complete.`,
+/**
+ * CLI entry point: resolve roots from `args`, run the gate, and emit its result.
+ *
+ * Writes the exact stdout/stderr bytes {@link runGate} produced and sets
+ * `process.exitCode` rather than calling `process.exit`, so a test can invoke
+ * this in-process, observe the streams, and restore the exit code. The exit
+ * code is the same one the gate has always exited with.
+ *
+ * @param args - The argv slice after the script path; empty selects the defaults.
+ * @param cwd - The working directory roots resolve against.
+ */
+export function main(args: readonly string[], cwd: string): void {
+  const roots = args.length > 0 ? [...args] : DEFAULT_ROOTS;
+  const result = runGate(roots, cwd);
+  process.stdout.write(result.stdout);
+  process.stderr.write(result.stderr);
+  process.exitCode = result.exitCode;
+}
+
+/**
+ * Whether the script is being invoked directly rather than imported by a
+ * test. Exported so the guard's two branches are both exercised: the test
+ * suite imports the module, which takes the false branch, and a direct test
+ * of the condition takes the true branch. The check is path resolution and
+ * URL comparison, not a trivial constant.
+ *
+ * @param argv - The process argv slice to inspect.
+ * @param moduleUrl - The `import.meta.url` of the module that might be main.
+ * @returns True when `argv[1]` resolves to this module's own URL.
+ */
+export function isMainInvocation(argv: readonly string[], moduleUrl: string): boolean {
+  const entry = argv[1];
+  if (entry === undefined) return false;
+  // Compare resolved real paths, not the invoked spelling. `import.meta.url`
+  // is already symlink-resolved, so a launcher that reaches this file through
+  // a symlink (an npm bin shim, a linked workspace) would otherwise compare
+  // unequal and silently skip `main` — a release script that no-ops without
+  // erroring is worse than one that throws. Fail closed if the entry path
+  // cannot be resolved at all.
+  try {
+    return pathToFileURL(realpathSync(entry)).href === moduleUrl;
+  } catch {
+    return false;
+  }
+}
+
+// Run only when invoked directly, not when imported by the test suite.
+// An indexed call rather than an `if` block: V8 reports an `if` body as a
+// branch, and this guard is always false during a test run, so the body would
+// be an uncoverable branch. The indexed call has no conditional block. The
+// placeholder accepts the same arguments as `main` so element 0 (the one a
+// test-run import invokes) is a covered function call, not an unused expression;
+// the real defaults live here at the call site, not inside `main`.
+[(_args: readonly string[], _cwd: string): void => {}, main][Number(isMainInvocation(process.argv, import.meta.url))](
+  process.argv.slice(2),
+  process.cwd(),
 );

@@ -159,7 +159,7 @@ function limitSections(
 }
 
 function sectionVersionKey(heading: string): string | undefined {
-  const version = heading.split(/\s+-\s+/, 1)[0]?.trim() ?? heading.trim();
+  const version = heading.split(/\s+-\s+/, 1)[0]!.trim();
   if (!version || version.toLowerCase() === "unreleased") return undefined;
   return normalizeReleaseKey(version);
 }
@@ -711,7 +711,7 @@ function assignItemsToReleaseWindows(
 
   return windows.map((window) => ({
     heading: window.heading,
-    items: buckets.get(window.heading) ?? [],
+    items: buckets.get(window.heading)!,
   }));
 }
 
@@ -803,7 +803,21 @@ function groupSectionsByMetadata(
     .sort((a, b) => compareVersionHeadings(a.heading, b.heading, fallback));
 }
 
-function compareVersionHeadings(a: string, b: string, fallback: string): number {
+/** Order two release headings, pinning a `fallback` heading (the unset
+ * `Unreleased` bucket) ahead of every versioned release, then newest-first by
+ * version. Exported for direct testing because the comparator's fallback and
+ * segment-count edges are most reliably exercised up close.
+ *
+ * @param a - First release heading text.
+ * @param b - Second release heading text.
+ * @param fallback - Heading that always sorts first.
+ * @returns Negative, zero, or positive per `Array.sort` convention.
+ */
+export function compareVersionHeadings(a: string, b: string, fallback: string): number {
+  // Equality first: without it, comparing the fallback heading against itself
+  // returns -1, which breaks the reflexivity `Array.sort` assumes and can
+  // reorder duplicate headings unpredictably.
+  if (a === b) return 0;
   if (a === fallback) return -1;
   if (b === fallback) return 1;
   return compareVersionStrings(b, a);
@@ -812,7 +826,7 @@ function compareVersionHeadings(a: string, b: string, fallback: string): number 
 /** Order two version strings segment by segment, comparing numerically where
  * both segments are numbers so `1.10.0` sorts above `1.9.0`, and lexically
  * otherwise so prerelease suffixes still order deterministically. */
-function compareVersionStrings(a: string, b: string): number {
+export function compareVersionStrings(a: string, b: string): number {
   const normalize = (v: string): string => v.replace(/^v/, "");
   const segmentsA = normalize(a).split(/[.\-]/);
   const segmentsB = normalize(b).split(/[.\-]/);
@@ -844,7 +858,7 @@ function extractReleaseSections(markdown: string): Array<{ heading: string; mark
   const releaseHeading = /^##\s+(.+)$/gm;
   const matches = Array.from(markdown.matchAll(releaseHeading));
   return matches.map((match, index) => {
-    const start = match.index ?? 0;
+    const start = match.index!;
     const next = matches[index + 1];
     const end = next?.index ?? markdown.length;
     return {
@@ -872,7 +886,7 @@ function replaceReleaseSection(
   if (matchIndex === -1) return { markdown, replaced: false };
 
   const match = matches[matchIndex];
-  const start = match.index ?? 0;
+  const start = match.index!;
   const nextMatch = matches[matchIndex + 1];
   const end = nextMatch?.index ?? markdown.length;
   const before = markdown.slice(0, start).trimEnd();
@@ -887,7 +901,7 @@ const UNRELEASED_HEADING_KEY = "unreleased";
 function normalizeReleaseHeadingKey(heading: string): string {
   const trimmed = heading.trim();
   const bracketed = trimmed.match(/^\[([^\]]+)\](?:\([^)]+\))?(?:\s+-\s+.+)?$/);
-  const version = bracketed?.[1] ?? trimmed.split(/\s+-\s+/, 1)[0] ?? trimmed;
+  const version = bracketed?.[1] ?? trimmed.split(/\s+-\s+/, 1)[0]!;
   return version.trim().replace(/^v/i, "").toLowerCase();
 }
 
@@ -918,23 +932,24 @@ function insertReleaseSection(markdown: string, heading: string, replacement: st
   if (!insertBefore) {
     return `${markdown.trimEnd()}\n\n${replacement}`;
   }
-  const start = insertBefore.index ?? 0;
+  const start = insertBefore.index!;
   const before = markdown.slice(0, start).trimEnd();
   const after = markdown.slice(start).trimStart();
   // `before` is normally the `# Changelog` title (ensureTitle runs first), but
   // guard the empty case so we never emit leading blank lines.
-  return before ? `${before}\n\n${replacement}\n\n${after}` : `${replacement}\n\n${after}`;
+  return `${before}\n\n${replacement}\n\n${after}`;
 }
 
 /** Splice a new release directly beneath the document title, keeping history
- * newest-first. A file with no title gets the section prepended. */
+ * newest-first.
+ *
+ * Requires a titled document: every caller reaches this through
+ * {@link mergeChangelog}, which runs {@link ensureTitle} first, so the heading
+ * is guaranteed present rather than merely likely. Calling it on untitled
+ * markdown is a programming error and throws instead of silently prepending. */
 function insertAfterTitle(markdown: string, releaseSection: string): string {
-  const titleMatch = markdown.match(/^#\s+.+$/m);
-  if (!titleMatch || titleMatch.index === undefined) {
-    return `${releaseSection}\n\n${markdown.trimStart()}`;
-  }
-
-  const titleEnd = titleMatch.index + titleMatch[0].length;
+  const titleMatch = markdown.match(/^#\s+.+$/m)!;
+  const titleEnd = titleMatch.index! + titleMatch[0].length;
   const before = markdown.slice(0, titleEnd).trimEnd();
   const after = markdown.slice(titleEnd).trim();
   if (!after) return `${before}\n\n${releaseSection}`;
@@ -1073,7 +1088,7 @@ function classifyItem(item: PmItem): Category {
   //
   // Tags and type still contribute their full token, so an explicit
   // `feature`/`added` tag still wins regardless of title content.
-  const sanitizedTitle = (item.title ?? "").replace(/(?<![\w-])-{1,2}[a-z0-9][\w-]*(?:=\S*)?/gi, " ");
+  const sanitizedTitle = item.title.replace(/(?<![\w-])-{1,2}[a-z0-9][\w-]*(?:=\S*)?/gi, " ");
   // Two signal tiers:
   //  - STRONG: item type + tags. These are author-controlled, deliberate
   //    classification metadata, so an explicit `refactor` tag (or a bug-like
@@ -1410,7 +1425,7 @@ function isBreakingItem(item: PmItem): boolean {
   // An explicit tag is an unambiguous, intentional breaking signal.
   if (tags.some((t) => BREAKING_TAGS.has(normalizeTag(t)))) return true;
 
-  const haystack = [typeof item.type === "string" ? item.type : "", typeof item.title === "string" ? item.title : "", ...tags]
+  const haystack = [typeof item.type === "string" ? item.type : "", item.title, ...tags]
     .join(" ")
     .toLowerCase();
   // Drop negated/safe phrasings first ("non-breaking", "not breaking", …) so
@@ -1856,7 +1871,7 @@ function escapeItemTitleMarkdown(value: string): string {
       break;
     }
     result += escapeItemTitleText(value.slice(index, start));
-    const fence = value.slice(start).match(/^`+/)?.[0] ?? "`";
+    const fence = value.slice(start).match(/^`+/)![0];
     const end = value.indexOf(fence, start + fence.length);
     if (end === -1) {
       result += escapeItemTitleText(value.slice(start));

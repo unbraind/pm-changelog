@@ -191,19 +191,15 @@ function resolvePendingReleaseTag(options, existingTags) {
     const candidateSet = new Set(candidates);
     if (existingTags.some((tag) => candidateSet.has(tag.name)))
         return undefined;
-    const canonical = canonicalPendingTagName(candidates, version);
+    // Preserve the caller's version format: the first candidate is the verbatim
+    // `v${version}`. Do not force calendar months/days to a zero-padded width —
+    // downstream consumers (e.g. the pm-cli release pipeline) key off the
+    // unpadded `YYYY.M.D` heading they passed in, so padding here would emit a
+    // `2026.05.27` heading the caller never matches. A `v`-prefixed candidate is
+    // guaranteed present by releaseTagCandidates.
+    const canonical = candidates.find((candidate) => candidate.startsWith("v"));
     const timestamp = normalizeTimestamp(options.pendingTimestamp ?? new Date().toISOString());
     return { name: canonical, timestamp };
-}
-/** Pick the tag spelling a pending release should be headed with, preferring
- * the caller's own `v`-prefixed format. */
-function canonicalPendingTagName(candidates, fallback) {
-    // Preserve the caller's version format (the first candidate is the
-    // verbatim `v${version}`). Do not force calendar months/days to a
-    // zero-padded width: downstream consumers (e.g. the pm-cli release
-    // pipeline) key off the unpadded `YYYY.M.D` heading they passed in, so
-    // padding here would emit a `2026.05.27` heading the caller never matches.
-    return candidates.find((candidate) => candidate.startsWith("v")) ?? fallback;
 }
 /** Read the nearest package.json's version, throwing when absent or blank so a
  * release never silently generates an unversioned section. */
@@ -297,7 +293,7 @@ function listReleaseTags(cwd, pattern, includeOrphaned = false) {
  * (the spec says the sort order is implementation-defined when the comparator
  * does not return a total order).
  */
-function compareReleaseTags(a, b) {
+export function compareReleaseTags(a, b) {
     const aTime = Date.parse(a.timestamp);
     const bTime = Date.parse(b.timestamp);
     const aValid = !Number.isNaN(aTime);
@@ -322,7 +318,7 @@ function compareTagNames(a, b) {
 }
 /** Parse one `git tag --format` row, preferring the peeled (annotated) date and
  * dropping rows missing a name or any timestamp. */
-function parseTagLine(line) {
+export function parseTagLine(line) {
     const [name, peeledCommitterDate, directCommitterDate] = line.split("\t");
     const tagName = name?.trim();
     const rawTimestamp = (peeledCommitterDate || directCommitterDate)?.trim();
@@ -364,8 +360,8 @@ function runGit(cwd, args) {
 function formatTagVersion(tag) {
     // Strip the leading `v` and normalize away zero-padding on calendar
     // (`YYYY.M.D[-N]`) versions so a padded git tag like `v2026.06.13` renders
-    // the same unpadded `2026.6.13` heading that `canonicalPendingTagName`
-    // emits pre-tag and that the pm-cli release pipeline keys off. Without this
+    // the same unpadded `2026.6.13` heading that a pending release emits before
+    // the tag exists and that the pm-cli release pipeline keys off. Without this
     // the release heading flips from `2026.6.13` to `2026.06.13` the moment the
     // padded tag is pushed, so the committed CHANGELOG mismatches every later
     // regeneration and `changelog:check` fails fleet-wide (issue #41).
@@ -377,13 +373,30 @@ function formatTagVersion(tag) {
     const [, year, month, day, suffix = ""] = calendar;
     return `${year}.${Number(month)}.${Number(day)}${suffix}`;
 }
-function formatDate(timestamp) {
+/** Render an arbitrary timestamp as a UTC `YYYY-MM-DD` date, falling back to
+ * the first ten characters when the value is not a parseable date so a heading
+ * never becomes `Invalid Date`. Exported for direct testing because the
+ * fallback is the one path real git-tag output never exercises.
+ *
+ * @param timestamp - A timestamp string, parseable or not.
+ * @returns A `YYYY-MM-DD` date string.
+ */
+export function formatDate(timestamp) {
     const date = new Date(timestamp);
     if (Number.isNaN(date.getTime()))
         return timestamp.slice(0, 10);
     return date.toISOString().slice(0, 10);
 }
-function formatLocalTimestampDate(timestamp) {
+/** Render a release-tag timestamp as the heading date, preferring the literal
+ * leading `YYYY-MM-DD` so a commit's local date (not its UTC instant) heads the
+ * release, and falling back to {@link formatDate} when no date prefix is present.
+ * Exported for direct testing because the fallback is unreachable through git's
+ * `iso-strict` output.
+ *
+ * @param timestamp - The timestamp string a release tag carries.
+ * @returns A `YYYY-MM-DD` heading date.
+ */
+export function formatLocalTimestampDate(timestamp) {
     const match = timestamp.match(/^(\d{4}-\d{2}-\d{2})(?:[T\s]|$)/);
     if (match)
         return match[1];
@@ -409,7 +422,7 @@ const UTC_OFFSET_SUFFIXES = ["Z", "+00:00", "+0000", "-00:00", "-0000"];
  * unaffected. Intentionally narrower than `normalizeTimestamp`, which always
  * converts to UTC and would therefore shift a tag's heading date.
  */
-function canonicalizeUtcOffset(value) {
+export function canonicalizeUtcOffset(value) {
     const trimmed = value.trim();
     const offset = extractOffset(trimmed);
     if (offset === null)
@@ -422,10 +435,15 @@ function canonicalizeUtcOffset(value) {
         return value;
     return parsed.toISOString();
 }
-// Extract the trailing timezone offset of an ISO-8601 / RFC-3339 timestamp:
-// `Z`, `±HH:MM`, or `±HHMM`. Returns `null` when no offset is present (the
-// timestamp is "local" or naively formatted) so the caller can avoid guessing.
-function extractOffset(value) {
+/**
+ * Extract the trailing timezone offset of an ISO-8601 / RFC-3339 timestamp:
+ * `Z`, `±HH:MM`, or `±HHMM`. Returns `null` when no offset is present (the
+ * timestamp is "local" or naively formatted) so the caller can avoid guessing.
+ *
+ * @param value - A timestamp string that may carry a trailing offset.
+ * @returns The offset text (`Z` or `±HH:MM`/`±HHMM`), or `null` when none.
+ */
+export function extractOffset(value) {
     if (value.endsWith("Z"))
         return "Z";
     const match = value.match(/[+-]\d{2}:?\d{2}$/);
