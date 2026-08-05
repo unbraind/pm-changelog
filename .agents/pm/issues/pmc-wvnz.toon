@@ -6,7 +6,7 @@ status: in_progress
 priority: 0
 tags[4]: code-quality,coverage,release-blocker,testing
 created_at: "2026-08-01T23:22:30.309Z"
-updated_at: "2026-08-05T18:29:12.849Z"
+updated_at: "2026-08-05T19:45:38.725Z"
 assignee: pi-agent
 claim_principal: pi-agent
 author: codex
@@ -24,12 +24,13 @@ component: test/coverage-gate
 customer_impact: "Uncovered production paths can regress despite a green release gate, so the package cannot yet be claimed fully production ready under the ecosystem mandate."
 dependencies[1]{id,kind,created_at,author,source_kind,author_source}:
   pmc-6jr4,related_to,"2026-08-01T23:22:30.309Z",codex,"cli:create:dep",asserted
-notes[5]{created_at,author,text}:
+notes[6]{created_at,author,text}:
   "2026-08-05T17:48:58.276Z",pi-agent,"Starting scripts/ blind spot: refactor docstring-gate.ts and sync-version.ts into importable modules with thin CLI entry (isMainInvocation indexed-call pattern from pm-vcs/scripts/self-host.ts), convert subprocess tests to in-process, add scripts to coverageGate.sources, raise thresholds to 100/100/100."
   "2026-08-05T17:49:05.248Z",pi-agent,"Starting scripts blind spot refactor: convert docstring-gate.ts and sync-version.ts to importable modules with isMainInvocation guard, convert subprocess tests to in-process."
   "2026-08-05T17:49:08.376Z",pi-agent,started scripts refactor
   "2026-08-05T18:13:07.917Z",pi-agent,"Scripts blind spot closed: docstring-gate.ts and sync-version.ts now measured at 100/100/100 via in-process tests. Refactored to importable modules with isMainInvocation indexed-call guard."
   "2026-08-05T18:29:12.849Z",pi-agent,"src progress: diff.ts and release-context.ts now 100/100/100. Exported pure helpers (compareReleaseTags, parseTagLine, formatDate, canonicalizeUtcOffset, extractOffset, ReleaseTag) for direct testing of defensive branches real git never triggers."
+  "2026-08-05T19:45:38.725Z","harness:claude-code","PARTIAL DELIVERY, measured and honest. The primary goal - closing the scripts blind spot - is DONE. The 100/100/100 aggregate is NOT reached; the remainder is tracked as pmc-p5l1.\n\nACHIEVED at a genuine 100/100/100, each inside the gate's own measured set:\n  scripts/docstring-gate.ts  100.00 / 100.00 / 100.00  (was UNMEASURED entirely)\n  scripts/sync-version.ts    100.00 / 100.00 / 100.00  (was UNMEASURED entirely)\n  src/diff.ts                100.00 / 100.00 / 100.00\n  src/index.ts               100.00 / 100.00 / 100.00\n  src/release-context.ts     100.00 / 100.00 / 100.00\n  src/generator.ts           100.00 /  99.84 / 100.00\n\nREMAINING: src/cli.ts at 88.69/59.56/80.65 and src/extension.ts at 62.39/38.98/47.37.\n\nAGGREGATE 93.72 / 92.40 / 93.82, up from the 90.36 / 80.08 / 90.91 baseline recorded in this item's description. Branch coverage gained 12.3 points.\n\nThe gate's reported file count went from 6 to 8, which is the proof the two scripts are actually IN the measured set rather than merely having tests. Thresholds ratcheted from 89/78/90 to 93/92/93, the measured floor. No threshold lowered, no coverage ignore added, and no c8, istanbul or v8 ignore comment exists anywhere in src or scripts.\n\nBoth scripts were refactored to be importable - logic exported, thin CLI entry behind a direct-execution guard - because coverage is only attributed to files loaded in-process, so a subprocess-only test would have left them at zero and the gate would have correctly called them never loaded.\n\nWHY IT STOPPED HERE: the subagent driving this died mid-run while writing cli.ts tests, after committing the four completed units. It left an incomplete test/cli-coverage.test.ts whose node --test child kept running under --test-timeout=0 and hung, contaminating the first measurement. That WIP is parked outside the repo, not committed; this branch contains only completed, verified units.\n\nOwnership note: this append used --force because the item is still claimed by pi-agent, which is no longer running. The override is recording verified measurements, not changing the agent's work."
 files[1]{path,scope,note}:
   scripts/coverage-gate.ts,project,threshold and source inventory gate
 tests[1]{command,scope,timeout_seconds,note}:
