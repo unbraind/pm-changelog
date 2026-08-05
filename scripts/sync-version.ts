@@ -42,8 +42,9 @@
  * ```
  */
 
-import { readFileSync, writeFileSync } from "node:fs";
+import { readFileSync, realpathSync, writeFileSync } from "node:fs";
 import { resolve } from "node:path";
+import { pathToFileURL } from "node:url";
 import ts from "typescript5";
 
 /** Shape of `manifest.json`, the pm extension manifest kept in version lockstep. */
@@ -69,12 +70,23 @@ interface FilePlan {
 /**
  * Resolve the version to stamp, from argv or the release job's environment.
  *
- * Throws rather than defaulting, because a silent fallback would stamp an empty
- * or stale version into two tracked files during a release.
+ * Takes the argv slice and environment as parameters rather than reading
+ * `process.argv`/`process.env` directly, so a test exercises this in-process
+ * without mutating global state. Throws rather than defaulting, because a
+ * silent fallback would stamp an empty or stale version into two tracked
+ * files during a release.
+ *
+ * @param args - The argv slice after the script path; the first entry is the
+ *   version when given on the command line.
+ * @param env - The environment the release job runs under.
+ * @returns The trimmed version string to stamp.
  */
-function readVersionFromArgv(): string {
-  const fromArg = process.argv[2];
-  const fromEnv = process.env["NPM_VERSION"];
+export function resolveVersion(
+  args: readonly string[],
+  env: Readonly<Record<string, string | undefined>>,
+): string {
+  const fromArg = args[0];
+  const fromEnv = env["NPM_VERSION"];
   const version = (fromArg ?? fromEnv ?? "").trim();
   if (!version) {
     throw new Error("sync-version requires a version argument or NPM_VERSION env var");
@@ -83,7 +95,7 @@ function readVersionFromArgv(): string {
 }
 
 /** Render the manifest with its version field replaced, preserving every other key. */
-function planManifest(manifestPath: string, version: string): FilePlan {
+export function planManifest(manifestPath: string, version: string): FilePlan {
   const raw = readFileSync(manifestPath, "utf-8");
   const parsed = JSON.parse(raw) as PmPackageManifest;
   parsed.version = version;
@@ -99,7 +111,7 @@ function planManifest(manifestPath: string, version: string): FilePlan {
  * shape, which the caller reports rather than guessing at, and throws when the
  * registration is itself ambiguous.
  */
-function findVersionInitializer(source: ts.SourceFile): ts.Expression | undefined {
+export function findVersionInitializer(source: ts.SourceFile): ts.Expression | undefined {
   for (const statement of source.statements) {
     if (!ts.isExportAssignment(statement) || statement.isExportEquals) continue;
     // Accept both `export default defineExtension({...})` and a bare
@@ -131,7 +143,7 @@ function findVersionInitializer(source: ts.SourceFile): ts.Expression | undefine
  * formatting, comments, and every other literal in the file survive
  * byte-for-byte.
  */
-function planExtensionVersion(extensionPath: string, version: string): FilePlan {
+export function planExtensionVersion(extensionPath: string, version: string): FilePlan {
   const source = readFileSync(extensionPath, "utf-8");
   const parsed = ts.createSourceFile(
     extensionPath,
@@ -162,10 +174,16 @@ function planExtensionVersion(extensionPath: string, version: string): FilePlan 
  * it was validated would let a rejected extension leave `manifest.json` already
  * bumped, so an aborted release would still have moved one of the two version
  * sources.
+ *
+ * @param args - The argv slice after the script path; the first entry is the
+ *   version when given on the command line.
+ * @param env - The environment the release job runs under, read for
+ *   `NPM_VERSION` when no version argument is supplied.
+ * @param cwd - The repository root whose `manifest.json` and `src/extension.ts`
+ *   are stamped.
  */
-function main(): void {
-  const version = readVersionFromArgv();
-  const cwd = process.cwd();
+export function main(args: readonly string[], env: Readonly<Record<string, string | undefined>>, cwd: string): void {
+  const version = resolveVersion(args, env);
   const planned = [
     planManifest(resolve(cwd, "manifest.json"), version),
     planExtensionVersion(resolve(cwd, "src/extension.ts"), version),
@@ -176,4 +194,45 @@ function main(): void {
   process.stdout.write(`Synced version ${version} into manifest.json and src/extension.ts\n`);
 }
 
-main();
+/**
+ * Whether the script is being invoked directly rather than imported by a
+ * test. Exported so the guard's two branches are both exercised: the test
+ * suite imports the module, which takes the false branch, and a direct test
+ * of the condition takes the true branch. The check is path resolution and
+ * URL comparison, not a trivial constant.
+ *
+ * @param argv - The process argv slice to inspect.
+ * @param moduleUrl - The `import.meta.url` of the module that might be main.
+ * @returns True when `argv[1]` resolves to this module's own URL.
+ */
+export function isMainInvocation(argv: readonly string[], moduleUrl: string): boolean {
+  const entry = argv[1];
+  if (entry === undefined) return false;
+  // Compare resolved real paths, not the invoked spelling. `import.meta.url`
+  // is already symlink-resolved, so a launcher that reaches this file through
+  // a symlink (an npm bin shim, a linked workspace) would otherwise compare
+  // unequal and silently skip `main` — a release script that no-ops without
+  // erroring is worse than one that throws. Fail closed if the entry path
+  // cannot be resolved at all.
+  try {
+    return pathToFileURL(realpathSync(entry)).href === moduleUrl;
+  } catch {
+    return false;
+  }
+}
+
+// Run only when invoked directly, not when imported by the test suite.
+// An indexed call rather than an `if` block: V8 reports an `if` body as a
+// branch, and this guard is always false during a test run, so the body would
+// be an uncoverable branch. The indexed call has no conditional block. The
+// placeholder accepts the same arguments as `main` so element 0 (the one a
+// test-run import invokes) is a covered function call, not an unused
+// expression; the real defaults live here at the call site, not inside `main`.
+[
+  (_args: readonly string[], _env: Readonly<Record<string, string | undefined>>, _cwd: string): void => {},
+  main,
+][Number(isMainInvocation(process.argv, import.meta.url))](
+  process.argv.slice(2),
+  process.env,
+  process.cwd(),
+);
