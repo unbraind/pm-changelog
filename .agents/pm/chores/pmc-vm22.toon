@@ -1,0 +1,18 @@
+id: pmc-vm22
+title: Gate CI on pm health so a silently discarded peer edit cannot merge
+description: ""
+type: Chore
+status: closed
+priority: 2
+tags: []
+created_at: "2026-08-06T20:45:01.862Z"
+updated_at: "2026-08-06T20:45:08.174Z"
+closed_at: "2026-08-06T20:45:08.166Z"
+completed_at: "2026-08-06T20:45:08.166Z"
+author: pi-agent
+acceptance_criteria: "CI workflow runs pm health --strict-exit in a step immediately after Install dependencies; the step fails non-zero when integrity.counts.pending_merge_decisions is non-zero; pm validate is NOT used because it returns ok:true on a marker-free field-aware merge that silently dropped a peer edit"
+resolution: CI now gates on pm health --strict-exit immediately after Install dependencies
+expected_result: pm health --strict-exit exits 0 on a clean repo and exits 1 when a same-field merge silently drops a peer edit
+actual_result: Gate step added to ci.yml; pm health --strict-exit exits 0 on this repo; hazard proof in a throwaway pm-beads copy showed exit 1 with pending_merge_decision_items naming the affected item
+close_reason: "Inserted the Verify pm project integrity and merge safety step into .github/workflows/ci.yml right after Install dependencies, running ./node_modules/.bin/pm health --strict-exit. pm health --strict-exit exits 0 on this repo and was proven to exit 1 on a same-field merge hazard in a throwaway copy where pm validate stayed ok:true."
+body: ""
