@@ -4,7 +4,7 @@
 
 ### Other
 
-- Gate CI on pm health so a silently discarded peer edit cannot merge ([pmc-vm22](https://github.com/unbraind/pm-changelog/blob/main/.agents/pm/chores/pmc-vm22.toon))
+- Gate CI on pm health for tracker integrity (does not cover discarded peer edits, see pm-cli 922) ([pmc-vm22](https://github.com/unbraind/pm-changelog/blob/main/.agents/pm/chores/pmc-vm22.toon))
 
 ## 2026.8.4 - 2026-08-04
 
