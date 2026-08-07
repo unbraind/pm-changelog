@@ -4,7 +4,6 @@
 
 ### Other
 
-- Cover pm-changelog cli.ts and extension.ts to reach the 100/100/100 aggregate ([pmc-p5l1](https://github.com/unbraind/pm-changelog/blob/main/.agents/pm/tasks/pmc-p5l1.toon))
 - Gate CI on strict tracked pm project health ([pmc-vm22](https://github.com/unbraind/pm-changelog/blob/main/.agents/pm/chores/pmc-vm22.toon))
 
 ## 2026.8.4 - 2026-08-04

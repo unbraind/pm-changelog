@@ -6,7 +6,7 @@ status: closed
 priority: 1
 tags[3]: coverage,gates,pm-changelog
 created_at: "2026-08-05T19:44:45.910Z"
-updated_at: "2026-08-07T21:17:16.000Z"
+updated_at: "2026-08-07T21:20:55.455Z"
 closed_at: "2026-08-07T21:13:01.763Z"
 completed_at: "2026-08-07T21:13:01.763Z"
 claim_principal: "harness:codex"
@@ -17,9 +17,10 @@ expected_result: "Every measured source and the aggregate report exact 100 perce
 actual_result: 406 tests pass; all nine measured sources and aggregate report 100.00/100.00/100.00; release check passes.
 dependencies[1]{id,kind,created_at,author,source_kind,author_source}:
   pmc-wvnz,parent,"2026-08-05T19:45:16.212Z","harness:claude-code","cli:update:dep",detected
-notes[2]{created_at,author,text}:
+notes[3]{created_at,author,text}:
   "2026-08-07T20:46:01.362Z","harness:codex",Baseline on main a0dfa9e reproduces 379 passing tests at 93.74/92.40/93.80. The required npm ci also exposed a distinct package-local pm 2026.8.6 prepare regression that removes the 2026.8.7 extension merge fence; a separate P0 issue now owns that compatibility fix so the coverage task remains honest and non-duplicative.
   "2026-08-07T21:12:49.033Z","harness:codex","Exact coverage achieved on 2026-08-07: npm run coverage reports 406 passing tests and 100.00 lines, 100.00 branches, and 100.00 functions for every one of the nine measured sources. package.json now enforces 100/100/100 with no new ignore entries or coverage pragmas. npm run release:check passes."
+  "2026-08-07T21:20:55.455Z","harness:codex","PR #127 CI exact head ab38273 passed install, strict pm health, typecheck, docstrings, exact coverage, audit, and pack on Node 22 and 26. Changelog check alone exposed that the local clone had generated before fetching the newly published v2026.8.7 tag; after fetching tags, authoritative regeneration correctly excludes this post-tag closure from the already-published release."
 files[6]{path,scope,note}:
   src/cli.ts,project,in-process CLI seams and exact behavior coverage
   src/extension.ts,project,SDK extension boundaries and body enrichment seams
