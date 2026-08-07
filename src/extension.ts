@@ -28,6 +28,21 @@ interface RenderedCommandResult {
   output: string;
 }
 
+/** SDK operations used to enrich body previews, injectable at the filesystem boundary. */
+interface BodyEnrichmentDependencies {
+  readSettings: typeof readSettings;
+  resolveItemTypeRegistry: typeof resolveItemTypeRegistry;
+  locateItem: typeof locateItem;
+  readLocatedItem: typeof readLocatedItem;
+}
+
+const BODY_ENRICHMENT_DEPENDENCIES: BodyEnrichmentDependencies = {
+  readSettings,
+  resolveItemTypeRegistry,
+  locateItem,
+  readLocatedItem,
+};
+
 /** Determine whether an unknown command result carries valid pre-rendered changelog output. */
 function isRenderedCommandResult(value: unknown): value is RenderedCommandResult {
   return (
@@ -407,7 +422,7 @@ export default defineExtension({
       }
 
       if (outputPath) {
-        writeFileSync(resolve(outputPath), generated.markdown.endsWith("\n") ? generated.markdown : generated.markdown + "\n", "utf-8");
+        writeFileSync(resolve(outputPath), generated.markdown, "utf-8");
         return { file: outputPath, format: "markdown", item_count: generated.itemCount };
       }
       return { changelog: generated.markdown, format: "markdown", item_count: generated.itemCount };
@@ -439,13 +454,17 @@ export default defineExtension({
  * locate/read helpers. Items already carrying a body are skipped, and any
  * per-item read failure is swallowed so changelog generation never breaks.
  */
-async function enrichItemBodies(pmRoot: string, items: PmItem[]): Promise<void> {
+async function enrichItemBodies(
+  pmRoot: string,
+  items: PmItem[],
+  dependencies: BodyEnrichmentDependencies = BODY_ENRICHMENT_DEPENDENCIES,
+): Promise<void> {
   let typeToFolder: Record<string, string>;
   let idPrefix: string;
   let format: Awaited<ReturnType<typeof readSettings>>["item_format"];
   try {
-    const settings = await readSettings(pmRoot);
-    typeToFolder = resolveItemTypeRegistry(settings).type_to_folder;
+    const settings = await dependencies.readSettings(pmRoot);
+    typeToFolder = dependencies.resolveItemTypeRegistry(settings).type_to_folder;
     idPrefix = settings.id_prefix;
     format = settings.item_format;
   } catch {
@@ -459,9 +478,9 @@ async function enrichItemBodies(pmRoot: string, items: PmItem[]): Promise<void> 
     if (!item.id) return;
     if (typeof item.body === "string" && item.body.trim() !== "") return;
     try {
-      const located = await locateItem(pmRoot, item.id, idPrefix, format, typeToFolder);
+      const located = await dependencies.locateItem(pmRoot, item.id, idPrefix, format, typeToFolder);
       if (!located) return;
-      const { document } = await readLocatedItem(located);
+      const { document } = await dependencies.readLocatedItem(located);
       if (typeof document.body === "string" && document.body.trim() !== "") {
         item.body = document.body;
       }
@@ -559,3 +578,19 @@ function parseBodyPreviewOption(options: Record<string, unknown>): number | unde
   }
   return parsed;
 }
+
+/** Internal behavior surface used by package-local extension coverage tests. */
+export const extensionTestSurface = {
+  bodyEnrichmentDependencies: BODY_ENRICHMENT_DEPENDENCIES,
+  booleanOption,
+  enrichItemBodies,
+  excludeTagsOption,
+  isRenderedCommandResult,
+  itemRefStyleOption,
+  parseBodyPreviewOption,
+  parseLimitOption,
+  renderCommandResult,
+  renderedCommandResult,
+  stringOption,
+  withTagHistoryDiagnostics,
+};

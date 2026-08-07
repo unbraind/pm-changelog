@@ -1,7 +1,9 @@
 #!/usr/bin/env node
-import { appendFileSync, existsSync, readFileSync } from "node:fs";
+import { appendFileSync, existsSync, readFileSync, realpathSync } from "node:fs";
 import { basename, resolve } from "node:path";
 import { stdin } from "node:process";
+import type { Readable } from "node:stream";
+import { fileURLToPath } from "node:url";
 
 import { createUnifiedDiff, DEFAULT_MAX_DIFF_LINES } from "./diff.ts";
 import {
@@ -174,8 +176,8 @@ const KNOWN_OPTIONS = [
 
 /** Run one CLI invocation end to end: parse flags, resolve the release context
  * from git, load items, generate, then write or compare. */
-async function main(): Promise<void> {
-  const options = parseArgs(process.argv.slice(2));
+async function main(args: string[] = process.argv.slice(2)): Promise<void> {
+  const options = parseArgs(args);
   applyReleaseContext(options);
   const items = await loadItems(options);
   const outputPath = resolve(options.output);
@@ -556,9 +558,9 @@ function optionToken(arg: string): string {
 /** Find the closest known flag to a mistyped one, or `undefined` when nothing
  * is close enough to be worth suggesting. Ties break toward the shorter name so
  * the suggestion is the more common flag. */
-function suggestOption(arg: string): string | undefined {
+function suggestOption(arg: string, knownOptions: readonly string[] = KNOWN_OPTIONS): string | undefined {
   let best: { option: string; distance: number } | undefined;
-  for (const candidate of KNOWN_OPTIONS) {
+  for (const candidate of knownOptions) {
     const distance = editDistance(arg, candidate);
     // Keep suggestions conservative: close edits only.
     const threshold = Math.max(2, Math.floor(candidate.length * 0.34));
@@ -638,9 +640,9 @@ function applyReleaseContext(options: CliOptions): void {
 /** Load pm items from stdin, a JSON file, or the real pm CLI, in that order of
  * precedence. Bodies are requested only when a preview will render them, since
  * they make the list payload substantially larger. */
-async function loadItems(options: CliOptions): Promise<PmItem[]> {
+async function loadItems(options: CliOptions, input: Readable = stdin): Promise<PmItem[]> {
   if (options.stdin) {
-    return parsePmItemsJson(await readStdin());
+    return parsePmItemsJson(await readStdin(input));
   }
 
   if (options.input) {
@@ -659,15 +661,15 @@ async function loadItems(options: CliOptions): Promise<PmItem[]> {
 }
 
 /** Read stdin to completion as UTF-8, for `--stdin` item input. */
-function readStdin(): Promise<string> {
+function readStdin(input: Readable = stdin): Promise<string> {
   return new Promise((resolvePromise, reject) => {
     let data = "";
-    stdin.setEncoding("utf-8");
-    stdin.on("data", (chunk) => {
+    input.setEncoding("utf-8");
+    input.on("data", (chunk) => {
       data += chunk;
     });
-    stdin.on("end", () => resolvePromise(data));
-    stdin.on("error", reject);
+    input.on("end", () => resolvePromise(data));
+    input.on("error", reject);
   });
 }
 
@@ -966,8 +968,59 @@ Value flags accept both "--flag value" and "--flag=value" forms.
 `);
 }
 
-main().catch((error: unknown) => {
-  const message = error instanceof Error ? error.message : String(error);
-  console.error(message);
-  process.exit(1);
-});
+/** Internal behavior surface used by in-process black-box coverage tests. */
+export const cliTestSurface = {
+  applyReleaseContext,
+  buildGenerationOptions,
+  buildSummary,
+  editDistance,
+  errorMessage,
+  loadItems,
+  main,
+  normalizeArgs,
+  optionToken,
+  parseArgs,
+  parseBodyPreview,
+  parseFormat,
+  parseGroupBy,
+  parseItemRefStyle,
+  parseLimit,
+  parseMode,
+  parseSectionBy,
+  printHelp,
+  readStdin,
+  requireAnyValue,
+  requireValue,
+  resolveOptionAlias,
+  suggestOption,
+  unknownOptionError,
+  writeCheckDiff,
+  writeGitHubOutput,
+  writeGitHubStepSummary,
+  writeSelectionReport,
+};
+
+/**
+ * Runs the CLI only when Node invoked this module as the entry script.
+ *
+ * @param argv - Process arguments used to identify and invoke the script.
+ * @returns Whether this module was the direct entrypoint.
+ */
+export async function runCliEntry(argv: readonly string[] = process.argv): Promise<boolean> {
+  if (!argv[1]) return false;
+  if (realpathSync(resolve(argv[1])) !== realpathSync(fileURLToPath(import.meta.url))) return false;
+  try {
+    await main(argv.slice(2));
+  } catch (error: unknown) {
+    console.error(errorMessage(error));
+    process.exitCode = 1;
+  }
+  return true;
+}
+
+/** Convert an unknown CLI failure into a stable human-readable message. */
+function errorMessage(error: unknown): string {
+  return error instanceof Error ? error.message : String(error);
+}
+
+void runCliEntry();

@@ -1,7 +1,8 @@
 #!/usr/bin/env node
-import { appendFileSync, existsSync, readFileSync } from "node:fs";
+import { appendFileSync, existsSync, readFileSync, realpathSync } from "node:fs";
 import { basename, resolve } from "node:path";
 import { stdin } from "node:process";
+import { fileURLToPath } from "node:url";
 import { createUnifiedDiff, DEFAULT_MAX_DIFF_LINES } from "./diff.js";
 import { buildChangelogDocument, createChangelog, createChangelogSummary, explainChangelogSelection, formatInferredSources, formatSummaryLine, mergeChangelog, parsePmItemsJson, readPmItems, suggestSemver, writeChangelog, } from "./generator.js";
 import { resolveReleaseContext, resolveReleaseTagWindows } from "./release-context.js";
@@ -99,8 +100,8 @@ const KNOWN_OPTIONS = [
 ];
 /** Run one CLI invocation end to end: parse flags, resolve the release context
  * from git, load items, generate, then write or compare. */
-async function main() {
-    const options = parseArgs(process.argv.slice(2));
+async function main(args = process.argv.slice(2)) {
+    const options = parseArgs(args);
     applyReleaseContext(options);
     const items = await loadItems(options);
     const outputPath = resolve(options.output);
@@ -472,9 +473,9 @@ function optionToken(arg) {
 /** Find the closest known flag to a mistyped one, or `undefined` when nothing
  * is close enough to be worth suggesting. Ties break toward the shorter name so
  * the suggestion is the more common flag. */
-function suggestOption(arg) {
+function suggestOption(arg, knownOptions = KNOWN_OPTIONS) {
     let best;
-    for (const candidate of KNOWN_OPTIONS) {
+    for (const candidate of knownOptions) {
         const distance = editDistance(arg, candidate);
         // Keep suggestions conservative: close edits only.
         const threshold = Math.max(2, Math.floor(candidate.length * 0.34));
@@ -551,9 +552,9 @@ function applyReleaseContext(options) {
 /** Load pm items from stdin, a JSON file, or the real pm CLI, in that order of
  * precedence. Bodies are requested only when a preview will render them, since
  * they make the list payload substantially larger. */
-async function loadItems(options) {
+async function loadItems(options, input = stdin) {
     if (options.stdin) {
-        return parsePmItemsJson(await readStdin());
+        return parsePmItemsJson(await readStdin(input));
     }
     if (options.input) {
         return parsePmItemsJson(readFileSync(resolve(options.input), "utf-8"));
@@ -569,15 +570,15 @@ async function loadItems(options) {
     });
 }
 /** Read stdin to completion as UTF-8, for `--stdin` item input. */
-function readStdin() {
+function readStdin(input = stdin) {
     return new Promise((resolvePromise, reject) => {
         let data = "";
-        stdin.setEncoding("utf-8");
-        stdin.on("data", (chunk) => {
+        input.setEncoding("utf-8");
+        input.on("data", (chunk) => {
             data += chunk;
         });
-        stdin.on("end", () => resolvePromise(data));
-        stdin.on("error", reject);
+        input.on("end", () => resolvePromise(data));
+        input.on("error", reject);
     });
 }
 function parseGroupBy(value) {
@@ -845,9 +846,60 @@ Options:
 Value flags accept both "--flag value" and "--flag=value" forms.
 `);
 }
-main().catch((error) => {
-    const message = error instanceof Error ? error.message : String(error);
-    console.error(message);
-    process.exit(1);
-});
+/** Internal behavior surface used by in-process black-box coverage tests. */
+export const cliTestSurface = {
+    applyReleaseContext,
+    buildGenerationOptions,
+    buildSummary,
+    editDistance,
+    errorMessage,
+    loadItems,
+    main,
+    normalizeArgs,
+    optionToken,
+    parseArgs,
+    parseBodyPreview,
+    parseFormat,
+    parseGroupBy,
+    parseItemRefStyle,
+    parseLimit,
+    parseMode,
+    parseSectionBy,
+    printHelp,
+    readStdin,
+    requireAnyValue,
+    requireValue,
+    resolveOptionAlias,
+    suggestOption,
+    unknownOptionError,
+    writeCheckDiff,
+    writeGitHubOutput,
+    writeGitHubStepSummary,
+    writeSelectionReport,
+};
+/**
+ * Runs the CLI only when Node invoked this module as the entry script.
+ *
+ * @param argv - Process arguments used to identify and invoke the script.
+ * @returns Whether this module was the direct entrypoint.
+ */
+export async function runCliEntry(argv = process.argv) {
+    if (!argv[1])
+        return false;
+    if (realpathSync(resolve(argv[1])) !== realpathSync(fileURLToPath(import.meta.url)))
+        return false;
+    try {
+        await main(argv.slice(2));
+    }
+    catch (error) {
+        console.error(errorMessage(error));
+        process.exitCode = 1;
+    }
+    return true;
+}
+/** Convert an unknown CLI failure into a stable human-readable message. */
+function errorMessage(error) {
+    return error instanceof Error ? error.message : String(error);
+}
+void runCliEntry();
 //# sourceMappingURL=cli.js.map
