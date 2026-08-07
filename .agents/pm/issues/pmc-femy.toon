@@ -1,0 +1,32 @@
+id: pmc-femy
+title: Node-CLI acceptance test assumes pmc-or-pm item prefixes and leaks the invoking PM tracker
+description: The real node-CLI extension acceptance passes in the package checkout but fails when invoked through companion pm test because inherited PM_PROJECT_PATH creates valid pm-cli-website item references while the assertion hardcodes pmc-or-pm IDs. The fixture must own its tracker and prove a long configured prefix without weakening the rendered link contract.
+type: Issue
+status: closed
+priority: 1
+tags[5]: acceptance,agent-ux,isolation,pm-cli-2026.8.7,test-quality
+created_at: "2026-08-07T21:44:18.554Z"
+updated_at: "2026-08-07T21:49:49.131Z"
+closed_at: "2026-08-07T21:49:49.120Z"
+completed_at: "2026-08-07T21:49:49.120Z"
+author: "harness:codex"
+acceptance_criteria: The acceptance fixture explicitly isolates project and global PM paths; it initializes a pm-cli-website prefix; it asserts the exact created item ID and matching .toon URL without a permissive hardcoded prefix regex; direct package and companion-linked release gates pass at exact 100/100/100
+risk: medium
+confidence: high
+severity: medium
+environment: pm-changelog 2026.8.7 with @unbrained/pm-cli 2026.8.7; companion pm test sandbox
+repro_steps: Run the release gate with PM_PROJECT_PATH pointing at a tracker whose id_prefix is pm-cli-website; generator.test.ts node-CLI acceptance rejects the valid item link.
+resolution: Made the acceptance fixture independent of the invoking tracker and replaced the pmc-or-pm regex with the exact deterministic long-prefix item link.
+expected_result: The real installed pm CLI acceptance is deterministic under arbitrary invoking PM environments and validates the item reference emitted for the item it created.
+actual_result: "The acceptance now owns PM_PATH and PM_GLOBAL_PATH, initializes pm-cli-website, creates pm-cli-website-prefix-proof, and asserts its exact rendered .toon link. The focused installed-CLI test passes; direct release check and PM_PATH=.agents/pm coverage both pass with 406 tests and exact 100/100/100."
+component: test/generator node-cli acceptance
+regression: false
+customer_impact: Cross-project and agent harness verification reports a false release failure even though generated changelog output is correct.
+notes[1]{created_at,author,text}:
+  "2026-08-07T21:49:48.561Z","harness:codex","Regression evidence: companion-linked execution produced valid pm-cli-website IDs and the old hardcoded regex failed after 405 passes. Corrected fixture passes against the real package-local @unbrained/pm-cli 2026.8.7. Direct npm release check is green with zero production vulnerabilities; package-owned PM_PATH coverage is 406 of 406 and exact 100/100/100. An intentionally foreign PM_PATH can still change unrelated CLI coverage paths and makes the prepare lifecycle correctly reject an out-of-repository tracker; that is not treated as a supported release environment."
+files[1]{path,scope,note}:
+  test/generator.test.ts,project,real node CLI acceptance fixture and prefix assertion
+tests[1]{command,path,scope,pm_context_mode}:
+  "npm run release:check",package.json,project,auto
+close_reason: Fixed deterministic long-prefix acceptance isolation
+body: ""

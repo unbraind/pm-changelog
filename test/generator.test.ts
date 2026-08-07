@@ -2248,13 +2248,20 @@ test("pm extension command works when only node cli entrypoint is available", ()
   const dir = mkdtempSync(join(tmpdir(), "pm-changelog-node-cli-"));
   const pmCli = join(process.cwd(), "node_modules", "@unbrained", "pm-cli", "dist", "cli.js");
   const pmBin = join(process.cwd(), "node_modules", ".bin", "pm");
+  const pmEnv: NodeJS.ProcessEnv = {
+    ...process.env,
+    PM_GLOBAL_PATH: join(dir, "global-pm"),
+    PM_PATH: join(dir, ".agents", "pm"),
+  };
 
-  execFileSync(pmBin, ["init", "--json"], {
+  execFileSync(pmBin, ["init", "pm-cli-website", "--json"], {
     cwd: dir,
+    env: pmEnv,
     encoding: "utf-8",
   });
   execFileSync(pmBin, ["install", process.cwd(), "--project", "--json"], {
     cwd: dir,
+    env: pmEnv,
     encoding: "utf-8",
   });
   execFileSync(
@@ -2265,6 +2272,8 @@ test("pm extension command works when only node cli entrypoint is available", ()
       "progressive",
       "--type",
       "task",
+      "--id",
+      "prefix-proof",
       "--title",
       "Generate changelog without global pm",
       "--description",
@@ -2283,6 +2292,7 @@ test("pm extension command works when only node cli entrypoint is available", ()
     ],
     {
       cwd: dir,
+      env: pmEnv,
       encoding: "utf-8",
     }
   );
@@ -2306,7 +2316,7 @@ test("pm extension command works when only node cli entrypoint is available", ()
     {
       cwd: dir,
       encoding: "utf-8",
-      env: { ...process.env, PATH: dirname(process.execPath) },
+      env: { ...pmEnv, PATH: dirname(process.execPath) },
     }
   ));
 
@@ -2315,7 +2325,9 @@ test("pm extension command works when only node cli entrypoint is available", ()
   const markdown = readFileSync(join(dir, "CHANGELOG.md"), "utf-8");
   assert.match(markdown, /## node-cli - 2026-05-17/);
   assert.match(markdown, /Generate changelog without global pm/);
-  assert.match(markdown, /\[pmc?-[a-z0-9]+\]\(https:\/\/example\.com\/pm\/tasks\/pmc?-[a-z0-9]+\.toon\)/);
+  assert.ok(markdown.includes(
+    "[pm-cli-website-prefix-proof](https://example.com/pm/tasks/pm-cli-website-prefix-proof.toon)"
+  ));
 });
 
 test("createChangelog: CLI-flag tokens in titles do not falsely classify Issues as Added", () => {
