@@ -104,8 +104,9 @@ test("in-process main renders summary, document, semver, and markdown modes", as
     return true;
   });
   await cliTestSurface.main(["--input", input, "--summary", "--format", "json", "--explain"]);
+  await cliTestSurface.main(["--input", input, "--summary", "--explain"]);
   await cliTestSurface.main(["--input", input, "--changelog-json"]);
-  await cliTestSurface.main(["--input", input, "--suggest-semver"]);
+  await cliTestSurface.main(["--input", input, "--suggest-semver", "--explain"]);
   await cliTestSurface.main(["--input", input, "--stdout", "--mode", "prepend", "--output", join(directory, "missing.md")]);
   assert.match(writes.join(""), /"entries"/);
   assert.match(writes.join(""), /"releases"/);
@@ -132,12 +133,17 @@ test("in-process main writes files, workflow outputs, check diffs, and JSON stdo
     assert.match(readFileSync(output, "utf-8"), /Add covered behavior/);
     assert.match(readFileSync(githubOutput, "utf-8"), /item_count=1/);
     assert.match(readFileSync(githubSummary, "utf-8"), /# Changelog/);
+    await cliTestSurface.main(["--input", input, "--output", output, "--explain"]);
     writeFileSync(output, "stale\n", "utf-8");
     process.exitCode = undefined;
     await cliTestSurface.main(["--input", input, "--output", output, "--check"]);
     assert.equal(process.exitCode, 1);
     process.exitCode = undefined;
-    await cliTestSurface.main(["--input", input, "--stdout", "--json", "--mode", "replace"]);
+    await cliTestSurface.main([
+      "--input", input, "--stdout", "--json", "--mode", "replace", "--github-output",
+      "--github-step-summary",
+    ]);
+    await cliTestSurface.main(["--input", input, "--stdout", "--github-step-summary"]);
   } finally {
     if (previousOutput === undefined) delete process.env.GITHUB_OUTPUT;
     else process.env.GITHUB_OUTPUT = previousOutput;

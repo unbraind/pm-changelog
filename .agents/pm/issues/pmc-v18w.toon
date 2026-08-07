@@ -1,0 +1,44 @@
+id: pmc-v18w
+title: Node 22 exact branch coverage is nondeterministic across identical CI reruns
+description: "On pm-changelog PR 128 exact head a152fe7, Node 22.23.1 attempt one ran all 406 tests successfully but reported cli.ts at 99.52 branch and aggregate 99.93; the unchanged failed-job rerun reported exact 100/100/100 and passed. Node 26 and local Node 22.19.0 were exact. A gate that alternates without code changes is not trustworthy even when the rerun is green."
+type: Issue
+status: closed
+priority: 1
+tags[6]: ci,coverage,determinism,node22,release-gate,test-quality
+created_at: "2026-08-07T22:18:48.719Z"
+updated_at: "2026-08-07T22:46:28.202Z"
+closed_at: "2026-08-07T22:41:40.661Z"
+completed_at: "2026-08-07T22:41:40.661Z"
+author: "harness:codex"
+estimated_minutes: 45
+acceptance_criteria: Identify the exact unstable cli.ts branch counter with retained failure evidence; reproduce or bound the Node 22.23.1 behavior; make coverage deterministic without lowering thresholds or ignoring executable code; run repeated Node 22 and Node 26 exact gates; keep all nine sources at 100/100/100
+reviewer: steve
+risk: high
+confidence: high
+sprint: 2026-08-release
+release: 2026.8.8
+severity: high
+environment: GitHub Actions ubuntu runner Node 22.23.1 versus Node 26 and local Node 22.19.0
+repro_steps: "Inspect run 31221924738 Node 22 first attempt job 93008149373, then unchanged rerun job 93008547003. Both execute npm run coverage at head a152fe7."
+resolution: All child-process-dependent cli.ts branch arms now have direct in-process behavior tests; exact coverage is stable across Node 22.23.1 and Node 26.7.0.
+expected_result: Identical source tests timezone and Node version produce identical branch coverage and a release gate never needs a blind rerun.
+actual_result: "Ten consecutive Node 22.23.1 runs and three consecutive Node 26.7.0 runs each passed 406 tests with all nine sources at exact 100 lines, branches, and functions; full release:check passed."
+affected_version: 2026.8.7
+fixed_version: 2026.8.8
+component: scripts/coverage-gate.ts and src/cli.ts coverage
+regression: false
+customer_impact: A mandatory exact release gate can reject correct changes nondeterministically or encourage unsafe blind reruns that conceal missing behavioral coverage.
+notes[3]{created_at,author,text}:
+  "2026-08-07T22:18:48.719Z","harness:codex",Do not weaken the exact threshold and do not treat the green rerun as resolution. The first failure printed no uncovered line because it was a branch-only miss; diagnosis needs branch-level retained evidence or a controlled Node 22.23.1 reproduction.
+  "2026-08-07T22:22:39.970Z","harness:codex","Local Node 22.23.1 reproduced on the third identical run: 406 pass 0 fail but cli.ts lines 262-263 were uncovered,cli branch 98.58,aggregate 99.96 lines and 99.80 branches. Retained run-2 and run-3 LCOV comparison shows the unstable path is file-output selectionReport rendering,previously credited only through subprocess coverage. Added a direct in-process --explain file-output call so exactness no longer depends on child coverage collection."
+  "2026-08-07T22:41:40.255Z",codex,"Root cause evidence: Node 22.23.1 local run 3 before the fix lost cli.ts lines 262-263 despite 406 passing tests. After directly covering that file-output explain path, a second repeated run exposed five nondeterministic zero-hit branch records at cli.ts lines 215, 237, 295, 296, and 303. These were modes exercised only through child-process CLI tests, whose V8 branch aggregation varied between identical runs. The final test change exercises explained Markdown summary, explained semver, and stdout JSON/Markdown workflow-output behavior in-process; it does not lower thresholds, ignore code, or add artificial branches. Verification: 10 consecutive Node 22.23.1 gates and 3 consecutive Node 26.7.0 gates passed, 406 tests per run, every one of nine sources exact 100 lines/branches/functions, and each retained cli.ts LCOV record had zero missing branch arms. A full Node 26.7.0 release:check also passed typecheck, 100 percent docstrings, exact coverage, zero production vulnerabilities, package dry-run, and changelog check."
+files[3]{path,scope,note}:
+  scripts/coverage-gate.ts,project,exact V8 coverage gate
+  src/cli.ts,project,source with unstable branch counter
+  test/cli-coverage.test.ts,project,direct in-process coverage for every unstable CLI mode
+tests[1]{command,path,scope,pm_context_mode}:
+  npm run coverage,package.json,project,auto
+docs[1]{path,scope,note}:
+  "https://github.com/unbraind/pm-changelog/actions/runs/31221924738",project,identical-head failed attempt and passing rerun
+close_reason: Made exact coverage deterministic by moving every unstable CLI mode into direct in-process behavioral coverage; 13 repeated cross-runtime gates and the full release gate pass without exclusions or threshold changes.
+body: ""
