@@ -886,8 +886,13 @@ export const cliTestSurface = {
 export async function runCliEntry(argv = process.argv) {
     if (!argv[1])
         return false;
-    if (realpathSync(resolve(argv[1])) !== realpathSync(fileURLToPath(import.meta.url)))
+    try {
+        if (realpathSync(resolve(argv[1])) !== realpathSync(fileURLToPath(import.meta.url)))
+            return false;
+    }
+    catch {
         return false;
+    }
     try {
         await main(argv.slice(2));
     }

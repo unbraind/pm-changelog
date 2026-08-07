@@ -6,7 +6,7 @@ status: closed
 priority: 0
 tags[6]: bug,merge-safety,multi-agent,pm-cli-2026.8.7,release-blocker,typescript
 created_at: "2026-08-07T20:46:00.720Z"
-updated_at: "2026-08-07T21:17:16.619Z"
+updated_at: "2026-08-07T21:28:02.026Z"
 deadline: "2026-08-08T20:46:00.720Z"
 closed_at: "2026-08-07T21:13:02.559Z"
 completed_at: "2026-08-07T21:13:02.559Z"
@@ -39,9 +39,10 @@ dependencies[1]{id,kind,created_at,author,source_kind,author_source}:
   pmc-p5l1,related_to,"2026-08-07T20:46:00.720Z","harness:codex",coverage-discovery,asserted
 comments[1]{created_at,author,text}:
   "2026-08-07T20:46:00.720Z","harness:codex",Reproduced against the real package prepare lifecycle before source edits; this is separate from the cli.ts and extension.ts coverage deficit.
-notes[2]{created_at,author,text}:
+notes[3]{created_at,author,text}:
   "2026-08-07T20:46:00.720Z","harness:codex",Package-local pm reports 2026.8.6 while host pm reports 2026.8.7. Only the host dry-run emits both canonical extension rules.
   "2026-08-07T21:12:49.725Z","harness:codex","Regression proof complete: npm ci resolved package-local @unbrained/pm-cli 2026.8.7 and preserved .gitattributes byte-for-byte (SHA-256 ddc3bafc07ad7eafa9c67152e0c3ee2f8b81c52a9485ddee9277c7c0d7fcdccb before and after), including .agents/pm/extensions/** -merge and the managed manifest pm-json rule. Twelve lifecycle tests are exact 100/100/100; npm release check, Bun tarball CLI smoke, fresh pm install, package doctor, governed item creation, and changelog generation all pass."
+  "2026-08-07T21:28:02.026Z","harness:codex",CodeRabbit correctly requested an asymmetric symlink fixture for the prepare entry guard. The guard now also catches missing argv paths before realpath comparison; the symlink and missing-path cases pass while lifecycle source remains exact 100/100/100.
 learnings[1]{created_at,author,text}:
   "2026-08-07T20:46:00.720Z","harness:codex",A package release version does not prove its development pm dependency is current; npm ci can silently rewrite tracked merge policy through prepare.
 files[5]{path,scope,note}:

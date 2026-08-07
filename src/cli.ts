@@ -1008,7 +1008,11 @@ export const cliTestSurface = {
  */
 export async function runCliEntry(argv: readonly string[] = process.argv): Promise<boolean> {
   if (!argv[1]) return false;
-  if (realpathSync(resolve(argv[1])) !== realpathSync(fileURLToPath(import.meta.url))) return false;
+  try {
+    if (realpathSync(resolve(argv[1])) !== realpathSync(fileURLToPath(import.meta.url))) return false;
+  } catch {
+    return false;
+  }
   try {
     await main(argv.slice(2));
   } catch (error: unknown) {

@@ -1,9 +1,9 @@
 /** Exercises the public CLI in-process so V8 attributes behavior to cli.ts. */
 
 import assert from "node:assert/strict";
-import { chmodSync, mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSync } from "node:fs";
+import { mkdtempSync, readFileSync, realpathSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { dirname, join } from "node:path";
 import { PassThrough } from "node:stream";
 import test, { type TestContext } from "node:test";
 import { fileURLToPath } from "node:url";
@@ -208,9 +208,9 @@ test("GitHub output preserves supplied values and stdout prepend reads an existi
   const options = cliTestSurface.parseArgs([]);
   options.bodyPreview = 0;
   const wrapper = join(directory, "pm-wrapper.mjs");
-  writeFileSync(wrapper, `#!/usr/bin/env node\nprocess.stdout.write(${JSON.stringify(INPUT_DOCUMENT)});\n`, "utf-8");
-  chmodSync(wrapper, 0o755);
-  options.pmBin = wrapper;
+  writeFileSync(wrapper, `process.stdout.write(${JSON.stringify(INPUT_DOCUMENT)});\n`, "utf-8");
+  options.pmBin = process.execPath;
+  options.pmArgs = [wrapper];
   assert.ok(Array.isArray(await cliTestSurface.loadItems(options)));
 });
 
@@ -240,7 +240,18 @@ test("all-release context resolves real repository tags and package version", ()
 test("entry guard rejects imports and accepts the real script path", async (t) => {
   assert.equal(await runCliEntry(["node"]), false);
   assert.equal(await runCliEntry(["node", import.meta.dirname]), false);
+  assert.equal(await runCliEntry(["node", join(tmpdir(), "pm-changelog-missing-entry.ts")]), false);
   const { input } = fixture(t);
+  const alias = join(dirname(input), "cli-entry.ts");
+  try {
+    symlinkSync(realpathSync(fileURLToPath(new URL("../src/cli.ts", import.meta.url))), alias, "file");
+  } catch (error: unknown) {
+    if (error instanceof Error && "code" in error && (error.code === "EPERM" || error.code === "EACCES")) {
+      t.skip(`symlink creation is unavailable: ${error.code}`);
+      return;
+    }
+    throw error;
+  }
   const writes: string[] = [];
   t.mock.method(process.stdout, "write", (chunk: string | Uint8Array) => {
     writes.push(String(chunk));
@@ -248,7 +259,7 @@ test("entry guard rejects imports and accepts the real script path", async (t) =
   });
   assert.equal(await runCliEntry([
     "node",
-    realpathSync(fileURLToPath(new URL("../src/cli.ts", import.meta.url))),
+    alias,
     "--input",
     input,
     "--summary",

@@ -1,7 +1,7 @@
 /** Tests the TypeScript-only, fail-loud merge-driver lifecycle. */
 
 import assert from "node:assert/strict";
-import { chmodSync, mkdtempSync, mkdirSync, realpathSync, rmSync, writeFileSync } from "node:fs";
+import { chmodSync, mkdtempSync, mkdirSync, realpathSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join, win32 } from "node:path";
 import test from "node:test";
@@ -179,8 +179,21 @@ test("installer distinguishes absence and execution failures", () => {
   assert.strictEqual(installMergeDrivers(() => ({ status: null }), "linux", () => "/bin/pm"), 1);
 });
 
-test("entry guard declines imports and runs the main script", () => {
+test("entry guard declines imports and runs a canonicalized script alias", (t) => {
   assert.strictEqual(runScriptEntry(["node"]), undefined);
   assert.strictEqual(runScriptEntry(["node", import.meta.dirname]), undefined);
-  assert.strictEqual(runScriptEntry(["node", SCRIPT_PATH], () => ({ status: 0 })), 0);
+  assert.strictEqual(runScriptEntry(["node", join(tmpdir(), "pm-changelog-missing-prepare.ts")]), undefined);
+  const directory = mkdtempSync(join(tmpdir(), "pm-changelog-prepare-entry-"));
+  const alias = join(directory, "prepare-entry.ts");
+  t.after(() => rmSync(directory, { recursive: true, force: true }));
+  try {
+    symlinkSync(SCRIPT_PATH, alias, "file");
+  } catch (error: unknown) {
+    if (error instanceof Error && "code" in error && (error.code === "EPERM" || error.code === "EACCES")) {
+      t.skip(`symlink creation is unavailable: ${error.code}`);
+      return;
+    }
+    throw error;
+  }
+  assert.strictEqual(runScriptEntry(["node", alias], () => ({ status: 0 })), 0);
 });

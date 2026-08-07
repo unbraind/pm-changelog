@@ -456,13 +456,15 @@ test("generate all-tag and body-preview paths use the real tracker", async () =>
       throw new Error("locate failed");
     },
   });
-  await extensionTestSurface.enrichItemBodies(TRACKER_ROOT, [{ id: "pmc-2sfc", title: "empty body" }], {
+  const emptyBodyItems = [{ id: "pmc-2sfc", title: "empty body" }];
+  await extensionTestSurface.enrichItemBodies(TRACKER_ROOT, emptyBodyItems, {
     ...extensionTestSurface.bodyEnrichmentDependencies,
     readLocatedItem: async (located, options) => {
       const loaded = await extensionTestSurface.bodyEnrichmentDependencies.readLocatedItem(located, options);
       return { ...loaded, document: { ...loaded.document, body: "" } };
     },
   });
+  assert.equal("body" in emptyBodyItems[0], false);
 });
 
 test("exporter exercises validation, JSON, markdown, stdout, and file modes", async (t) => {

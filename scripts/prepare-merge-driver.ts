@@ -157,7 +157,11 @@ export function runScriptEntry(
   if (!argv[1]) {
     return undefined;
   }
-  if (realpathSync(resolve(argv[1])) !== realpathSync(fileURLToPath(import.meta.url))) {
+  try {
+    if (realpathSync(resolve(argv[1])) !== realpathSync(fileURLToPath(import.meta.url))) {
+      return undefined;
+    }
+  } catch {
     return undefined;
   }
   return installMergeDrivers(runner);
