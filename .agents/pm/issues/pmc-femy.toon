@@ -6,7 +6,7 @@ status: closed
 priority: 1
 tags[5]: acceptance,agent-ux,isolation,pm-cli-2026.8.7,test-quality
 created_at: "2026-08-07T21:44:18.554Z"
-updated_at: "2026-08-07T21:49:49.131Z"
+updated_at: "2026-08-07T21:54:36.801Z"
 closed_at: "2026-08-07T21:49:49.120Z"
 completed_at: "2026-08-07T21:49:49.120Z"
 author: "harness:codex"
@@ -22,8 +22,9 @@ actual_result: "The acceptance now owns PM_PATH and PM_GLOBAL_PATH, initializes 
 component: test/generator node-cli acceptance
 regression: false
 customer_impact: Cross-project and agent harness verification reports a false release failure even though generated changelog output is correct.
-notes[1]{created_at,author,text}:
+notes[2]{created_at,author,text}:
   "2026-08-07T21:49:48.561Z","harness:codex","Regression evidence: companion-linked execution produced valid pm-cli-website IDs and the old hardcoded regex failed after 405 passes. Corrected fixture passes against the real package-local @unbrained/pm-cli 2026.8.7. Direct npm release check is green with zero production vulnerabilities; package-owned PM_PATH coverage is 406 of 406 and exact 100/100/100. An intentionally foreign PM_PATH can still change unrelated CLI coverage paths and makes the prepare lifecycle correctly reject an out-of-repository tracker; that is not treated as a supported release environment."
+  "2026-08-07T21:54:36.786Z","harness:codex","Sourcery correctly noted that the exact expected link alone did not reject extra ambient items because item_count accepted any value at least one. Strengthened the contract to exactly one generated item,which rejects every leaked prefix rather than adding another legacy-prefix-specific negative regex."
 files[1]{path,scope,note}:
   test/generator.test.ts,project,real node CLI acceptance fixture and prefix assertion
 tests[1]{command,path,scope,pm_context_mode}:

@@ -2184,7 +2184,7 @@ test("pm package install activates changelog command", (t) => {
   ));
 
   assert.equal(generated.changed, true);
-  assert.ok(generated.item_count >= 1);
+  assert.equal(generated.item_count, 1);
   assert.match(readFileSync(join(dir, "CHANGELOG.md"), "utf-8"), /## smoke - 2026-05-17/);
   assert.match(readFileSync(join(dir, "CHANGELOG.md"), "utf-8"), /Add changelog install smoke/);
 
