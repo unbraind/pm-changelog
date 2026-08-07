@@ -2,13 +2,43 @@ id: pmc-p5l1
 title: Cover pm-changelog cli.ts and extension.ts to reach the 100/100/100 aggregate
 description: "The scripts blind spot is closed and six of eight measured files are at 100/100/100, but two remain and hold the aggregate at 93.72 / 92.40 / 93.82.\n\nsrc/cli.ts   88.69 lines / 59.56 branches / 80.65 functions\n  uncovered: 260-261 386-387 389-390 401-402 419-420 425-426 428-429 438-439 456-457 462-463 465-466 468-469 474-475 477-478 480-481 483-484 486-487 489-490 492-493 495-496 571-572 604-620 643-644 662-672 674-677 681 686-692 695-701 704-710 712-715 850-851 869-870 880-881 890-891\nsrc/extension.ts   62.39 lines / 38.98 branches / 47.37 functions\n  uncovered: 44-54 57-59 129-130 132-133 136-137 176-181 186-188 190-195 230-251 253-293 295-303 356-362 366-372 376-377 396-413 442-479 494-495 511-519 524-532 544-546 553-561\nsrc/generator.ts is at 99.84 branches, one branch short of 100.\n\nApproach that worked for the scripts and should be reused: export the logic and guard the CLI entry with a direct-execution check, then import in-process. Coverage is only attributed to files loaded in the same process, so a test that spawns the CLI as a subprocess adds nothing and the gate correctly reports the file as never loaded. If any child process is spawned by a test, pass NODE_V8_COVERAGE set to empty string in the child env or the child writes coverage into the parent's directory and corrupts lcov.\n\nA partially written test/cli-coverage.test.ts from the abandoned first attempt is parked outside the repo. Do not restore it blindly: it hung indefinitely under node --test with --test-timeout=0 and its orphaned child contaminated a measurement run. Treat it as a reference for which cases were planned, not as working code.\n\nRaise thresholds to 100/100/100 only once measured. Do not reach the number by lowering a threshold, adding a coverage ignore, or adding a c8/istanbul/v8 ignore comment."
 type: Task
-status: open
+status: closed
 priority: 1
 tags[3]: coverage,gates,pm-changelog
 created_at: "2026-08-05T19:44:45.910Z"
-updated_at: "2026-08-05T19:45:16.241Z"
+updated_at: "2026-08-07T21:28:01.663Z"
+closed_at: "2026-08-07T21:13:01.763Z"
+completed_at: "2026-08-07T21:13:01.763Z"
+claim_principal: "harness:codex"
 author: "harness:claude-code"
-acceptance_criteria: "npm run coverage reports 100 lines, 100 branches and 100 functions with all 8 files present in the measured set; coverageGate.thresholds is 100/100/100; no coverage ignore comments and no additions to coverageGate.ignore; npm run docstring still reports the documented surface complete."
+acceptance_criteria: "npm run coverage reports 100 lines, 100 branches and 100 functions with all 9 files present in the measured set; coverageGate.thresholds is 100/100/100; no coverage ignore comments and no additions to coverageGate.ignore; npm run docstring still reports the documented surface complete."
+resolution: "Covered cli.ts and extension.ts fully, closed the final generator branch, and raised the fail-closed gate to exact 100/100/100."
+expected_result: "Every measured source and the aggregate report exact 100 percent lines, branches, and functions."
+actual_result: 406 tests pass; all nine measured sources and aggregate report 100.00/100.00/100.00; release check passes.
 dependencies[1]{id,kind,created_at,author,source_kind,author_source}:
   pmc-wvnz,parent,"2026-08-05T19:45:16.212Z","harness:claude-code","cli:update:dep",detected
+notes[5]{created_at,author,text}:
+  "2026-08-07T20:46:01.362Z","harness:codex",Baseline on main a0dfa9e reproduces 379 passing tests at 93.74/92.40/93.80. The required npm ci also exposed a distinct package-local pm 2026.8.6 prepare regression that removes the 2026.8.7 extension merge fence; a separate P0 issue now owns that compatibility fix so the coverage task remains honest and non-duplicative.
+  "2026-08-07T21:12:49.033Z","harness:codex","Exact coverage achieved on 2026-08-07: npm run coverage reports 406 passing tests and 100.00 lines, 100.00 branches, and 100.00 functions for every one of the nine measured sources. package.json now enforces 100/100/100 with no new ignore entries or coverage pragmas. npm run release:check passes."
+  "2026-08-07T21:20:55.455Z","harness:codex","PR #127 CI exact head ab38273 passed install, strict pm health, typecheck, docstrings, exact coverage, audit, and pack on Node 22 and 26. Changelog check alone exposed that the local clone had generated before fetching the newly published v2026.8.7 tag; after fetching tags, authoritative regeneration correctly excludes this post-tag closure from the already-published release."
+  "2026-08-07T21:26:15.688Z",codex,CodeRabbit correctly identified that the pre-completion acceptance text still named eight measured sources even though the added TypeScript lifecycle makes nine. Corrected through pm update without rewriting append-only history.
+  "2026-08-07T21:28:01.663Z","harness:codex","CodeRabbit exact-head review found five valid coverage-contract and test-strength issues: corrected the measured-source criterion from eight to nine through pm, made CLI entry-path failures non-rejecting, made the pm fixture cross-platform through process.execPath, proved realpath canonicalization with a symlink, and asserted empty-body non-mutation. Focused tests and the full 406-test exact 100/100/100 coverage gate pass."
+files[6]{path,scope,note}:
+  src/cli.ts,project,in-process CLI seams and exact behavior coverage
+  src/extension.ts,project,SDK extension boundaries and body enrichment seams
+  test/cli-coverage.test.ts,project,CLI behavior coverage
+  test/extension.test.ts,project,real SDK host extension coverage
+  test/generator-coverage.test.ts,project,final generator branch behavior
+  package.json,project,exact enforced coverage thresholds
+tests[2]:
+  - command: "npm run release:check"
+    scope: project
+    timeout_seconds: 600
+    pm_context_mode: tracker
+  - command: npm run coverage
+    path: test/cli-coverage.test.ts
+    scope: project
+    timeout_seconds: 300
+    pm_context_mode: tracker
+close_reason: All authored-source coverage acceptance criteria met with behavior-driven in-process and real SDK-host tests
 body: ""
