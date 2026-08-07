@@ -99,17 +99,30 @@ test("argument helpers cover normalization, aliases, validation, and suggestions
 test("in-process main renders summary, document, semver, and markdown modes", async (t) => {
   const { directory, input } = fixture(t);
   const writes: string[] = [];
+  const errors: string[] = [];
   t.mock.method(process.stdout, "write", (chunk: string | Uint8Array) => {
     writes.push(String(chunk));
     return true;
   });
+  t.mock.method(console, "error", (...values: unknown[]) => {
+    errors.push(values.map(String).join(" "));
+  });
   await cliTestSurface.main(["--input", input, "--summary", "--format", "json", "--explain"]);
+  assert.match(writes.join(""), /"selection_report"/);
+  writes.length = 0;
+  await cliTestSurface.main(["--input", input, "--summary", "--explain"]);
+  assert.match(writes.join(""), /\[Unreleased\].*Add covered behavior.*pmc-covered/);
+  assert.match(errors.join("\n"), /Selection report: input=1 visible=1/);
+  writes.length = 0;
+  errors.length = 0;
   await cliTestSurface.main(["--input", input, "--changelog-json"]);
-  await cliTestSurface.main(["--input", input, "--suggest-semver"]);
-  await cliTestSurface.main(["--input", input, "--stdout", "--mode", "prepend", "--output", join(directory, "missing.md")]);
-  assert.match(writes.join(""), /"entries"/);
   assert.match(writes.join(""), /"releases"/);
+  writes.length = 0;
+  await cliTestSurface.main(["--input", input, "--suggest-semver", "--explain"]);
   assert.match(writes.join(""), /"bump"/);
+  assert.match(writes.join(""), /"selection_report"/);
+  writes.length = 0;
+  await cliTestSurface.main(["--input", input, "--stdout", "--mode", "prepend", "--output", join(directory, "missing.md")]);
   assert.match(writes.join(""), /# Changelog/);
 });
 
@@ -118,9 +131,16 @@ test("in-process main writes files, workflow outputs, check diffs, and JSON stdo
   const output = join(directory, "CHANGELOG.md");
   const githubOutput = join(directory, "github-output.txt");
   const githubSummary = join(directory, "github-summary.md");
-  t.mock.method(process.stdout, "write", () => true);
+  const stdoutWrites: string[] = [];
+  const consoleErrors: string[] = [];
+  t.mock.method(process.stdout, "write", (chunk: string | Uint8Array) => {
+    stdoutWrites.push(String(chunk));
+    return true;
+  });
   t.mock.method(process.stderr, "write", () => true);
-  t.mock.method(console, "error", () => undefined);
+  t.mock.method(console, "error", (...values: unknown[]) => {
+    consoleErrors.push(values.map(String).join(" "));
+  });
   const previousOutput = process.env.GITHUB_OUTPUT;
   const previousSummary = process.env.GITHUB_STEP_SUMMARY;
   process.env.GITHUB_OUTPUT = githubOutput;
@@ -132,12 +152,28 @@ test("in-process main writes files, workflow outputs, check diffs, and JSON stdo
     assert.match(readFileSync(output, "utf-8"), /Add covered behavior/);
     assert.match(readFileSync(githubOutput, "utf-8"), /item_count=1/);
     assert.match(readFileSync(githubSummary, "utf-8"), /# Changelog/);
+    await cliTestSurface.main(["--input", input, "--output", output, "--explain"]);
+    assert.match(consoleErrors.join("\n"), /Selection report: input=1 visible=1/);
     writeFileSync(output, "stale\n", "utf-8");
     process.exitCode = undefined;
     await cliTestSurface.main(["--input", input, "--output", output, "--check"]);
     assert.equal(process.exitCode, 1);
     process.exitCode = undefined;
-    await cliTestSurface.main(["--input", input, "--stdout", "--json", "--mode", "replace"]);
+    stdoutWrites.length = 0;
+    const githubOutputBefore = readFileSync(githubOutput, "utf-8");
+    const githubSummaryBefore = readFileSync(githubSummary, "utf-8");
+    await cliTestSurface.main([
+      "--input", input, "--stdout", "--json", "--mode", "replace", "--github-output",
+      "--github-step-summary",
+    ]);
+    assert.match(stdoutWrites.join(""), /"itemCount":1/);
+    assert.match(readFileSync(githubOutput, "utf-8").slice(githubOutputBefore.length), /item_count=1/);
+    assert.match(readFileSync(githubSummary, "utf-8").slice(githubSummaryBefore.length), /# Changelog/);
+    stdoutWrites.length = 0;
+    const markdownSummaryBefore = readFileSync(githubSummary, "utf-8");
+    await cliTestSurface.main(["--input", input, "--stdout", "--github-step-summary"]);
+    assert.match(stdoutWrites.join(""), /# Changelog/);
+    assert.match(readFileSync(githubSummary, "utf-8").slice(markdownSummaryBefore.length), /# Changelog/);
   } finally {
     if (previousOutput === undefined) delete process.env.GITHUB_OUTPUT;
     else process.env.GITHUB_OUTPUT = previousOutput;
