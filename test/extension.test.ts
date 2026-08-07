@@ -9,7 +9,8 @@ import { fileURLToPath, pathToFileURL } from "node:url";
 import { activateExtensionForTest, runRegisteredCommandForTest } from "@unbrained/pm-cli/sdk/testing";
 import type { ExtensionActivationResult, ExtensionCapability, FlagDefinition } from "@unbrained/pm-cli/sdk/authoring";
 
-import extension from "../src/extension.ts";
+import extension, { extensionTestSurface } from "../src/extension.ts";
+import { MissingTagHistoryError } from "../src/release-context.ts";
 
 /**
  * Capabilities the on-disk `manifest.json` declares.
@@ -32,6 +33,7 @@ assert.ok(
   "manifest.json must declare capabilities as an array of strings",
 );
 const MANIFEST_CAPABILITIES = declaredCapabilities as readonly ExtensionCapability[];
+const TRACKER_ROOT = join(process.cwd(), ".agents", "pm");
 
 let cachedActivation: Promise<ExtensionActivationResult> | undefined;
 
@@ -61,6 +63,11 @@ async function registeredFlagLongs(command: string): Promise<(string | undefined
   );
   assert.ok(entry, `flags should be registered for "${command}"`);
   return entry.flags.map((flag: FlagDefinition) => flag.long);
+}
+
+/** Returns the extension-owned payload from the SDK dispatch envelope. */
+function commandResult(value: Awaited<ReturnType<typeof runRegisteredCommandForTest>>): unknown {
+  return value.result;
 }
 
 test("extension command exposes item-url-base for clickable item IDs", async () => {
@@ -149,7 +156,7 @@ test("changelog exporter rejects unsupported formats", async () => {
     () => runRegisteredCommandForTest(commands, {
       command: "changelog export",
       options: { format: "js" },
-      pmRoot: process.cwd(),
+      pmRoot: TRACKER_ROOT,
     }),
     /--format must be 'md' or 'json'/,
   );
@@ -249,8 +256,276 @@ test("changelog generate rejects unsupported --format values", async () => {
     () => runRegisteredCommandForTest(commands, {
       command: "changelog generate",
       options: { format: "js" },
-      pmRoot: process.cwd(),
+      pmRoot: TRACKER_ROOT,
     }),
     /--format must be 'md' or 'json'/,
   );
+});
+
+test("extension option helpers validate every supported representation", () => {
+  assert.equal(extensionTestSurface.stringOption({ "some-key": "kebab" }, "some-key", "someKey"), "kebab");
+  assert.equal(extensionTestSurface.stringOption({ someKey: "camel" }, "some-key", "someKey"), "camel");
+  assert.equal(extensionTestSurface.stringOption({ someKey: 3 }, "some-key", "someKey"), undefined);
+  assert.equal(extensionTestSurface.booleanOption({ someKey: true }, "some-key", "someKey"), true);
+  assert.equal(extensionTestSurface.booleanOption({}, "some-key", "someKey"), false);
+  assert.equal(extensionTestSurface.itemRefStyleOption({}), undefined);
+  assert.equal(extensionTestSurface.itemRefStyleOption({ itemRefStyle: " GITHUB " }), "github");
+  assert.throws(() => extensionTestSurface.itemRefStyleOption({ "item-ref-style": "invalid" }), /item-ref-style/);
+  assert.equal(extensionTestSurface.excludeTagsOption({}), undefined);
+  assert.equal(extensionTestSurface.excludeTagsOption({ "exclude-tag": null }), undefined);
+  assert.equal(extensionTestSurface.excludeTagsOption({ excludeTags: [" one,two ", ""] })?.join(","), "one,two");
+  assert.equal(extensionTestSurface.excludeTagsOption({ excludeTag: " , " }), undefined);
+  assert.equal(extensionTestSurface.parseLimitOption({}), undefined);
+  assert.equal(extensionTestSurface.parseLimitOption({ limit: 2 }), 2);
+  assert.equal(extensionTestSurface.parseLimitOption({ limit: "3" }), 3);
+  assert.throws(() => extensionTestSurface.parseLimitOption({ limit: 0 }), /positive integer/);
+  assert.throws(() => extensionTestSurface.parseLimitOption({ limit: 1.5 }), /positive integer/);
+  assert.equal(extensionTestSurface.parseBodyPreviewOption({ bodyPreview: "4" }), 4);
+  assert.equal(extensionTestSurface.parseBodyPreviewOption({ "body-preview": 5 }), 5);
+  assert.equal(extensionTestSurface.parseBodyPreviewOption({ "body-preview": "" }), undefined);
+  assert.throws(() => extensionTestSurface.parseBodyPreviewOption({ bodyPreview: -1 }), /positive integer/);
+});
+
+test("rendered result helpers own only valid JSON markers", () => {
+  const rendered = extensionTestSurface.renderedCommandResult({ value: 1 });
+  assert.equal(extensionTestSurface.isRenderedCommandResult(rendered), true);
+  assert.equal(extensionTestSurface.renderCommandResult({ result: rendered }), '{\n  "value": 1\n}\n');
+  assert.equal(extensionTestSurface.renderCommandResult(undefined), null);
+  assert.equal(extensionTestSurface.isRenderedCommandResult(null), false);
+  assert.equal(extensionTestSurface.isRenderedCommandResult({ pmChangelogRendered: false, output: "{}" }), false);
+  assert.equal(extensionTestSurface.isRenderedCommandResult({ pmChangelogRendered: true, output: 1 }), false);
+  assert.throws(() => extensionTestSurface.renderedCommandResult(undefined), /not JSON-serializable/);
+});
+
+test("tag-history diagnostics preserve ordinary errors and structure missing-history errors", () => {
+  assert.equal(extensionTestSurface.withTagHistoryDiagnostics(() => "ok"), "ok");
+  assert.throws(
+    () => extensionTestSurface.withTagHistoryDiagnostics(() => {
+      throw new Error("ordinary");
+    }),
+    /ordinary/,
+  );
+  assert.throws(
+    () => extensionTestSurface.withTagHistoryDiagnostics(() => {
+      throw new MissingTagHistoryError("missing tags");
+    }),
+    (error: unknown) => {
+      assert.equal((error as Error).message, "missing tags");
+      assert.equal((error as { exitCode?: number }).exitCode, 1);
+      return true;
+    },
+  );
+});
+
+test("generate command exercises validation and every result mode through the real SDK host", async (t) => {
+  const { commands } = await activateChangelog();
+  for (const [key, value, pattern] of [
+    ["group-by", "bad", /--group-by/],
+    ["mode", "bad", /--mode/],
+    ["section-by", "bad", /--section-by/],
+  ] as const) {
+    await assert.rejects(
+      () => runRegisteredCommandForTest(commands, {
+        command: "changelog generate",
+        options: { [key]: value },
+        pmRoot: TRACKER_ROOT,
+      }),
+      pattern,
+    );
+  }
+
+  const directory = mkdtempSync(join(tmpdir(), "pm-changelog-extension-modes-"));
+  t.after(() => rmSync(directory, { recursive: true, force: true }));
+  const output = join(directory, "CHANGELOG.md");
+  const baseOptions = {
+    status: "open,in_progress,closed,done",
+    "release-version": "2026.8.7",
+    date: "2026-08-07",
+    explain: true,
+  };
+  const summaryJson = await runRegisteredCommandForTest(commands, {
+    command: "changelog generate",
+    options: { ...baseOptions, summary: true, format: "json" },
+    pmRoot: TRACKER_ROOT,
+  });
+  assert.equal(extensionTestSurface.isRenderedCommandResult(commandResult(summaryJson)), true);
+  const summaryJsonWithoutExplain = await runRegisteredCommandForTest(commands, {
+    command: "changelog generate",
+    options: { ...baseOptions, explain: false, summary: true, format: "json" },
+    pmRoot: TRACKER_ROOT,
+  });
+  assert.equal(extensionTestSurface.isRenderedCommandResult(commandResult(summaryJsonWithoutExplain)), true);
+  const summaryText = await runRegisteredCommandForTest(commands, {
+    command: "changelog generate",
+    options: { ...baseOptions, summary: true },
+    pmRoot: TRACKER_ROOT,
+  });
+  assert.equal((commandResult(summaryText) as { format?: string }).format, "text");
+  const populatedSummary = await runRegisteredCommandForTest(commands, {
+    command: "changelog generate",
+    options: { summary: true, status: "open,in_progress,closed" },
+    pmRoot: TRACKER_ROOT,
+  });
+  assert.match((commandResult(populatedSummary) as { summary: string }).summary, /pmc-/);
+  await runRegisteredCommandForTest(commands, {
+    command: "changelog generate",
+    options: { ...baseOptions, explain: false, summary: true },
+    pmRoot: TRACKER_ROOT,
+  });
+  const document = await runRegisteredCommandForTest(commands, {
+    command: "changelog generate",
+    options: { ...baseOptions, "changelog-json": true },
+    pmRoot: TRACKER_ROOT,
+  });
+  assert.equal(extensionTestSurface.isRenderedCommandResult(commandResult(document)), true);
+  await runRegisteredCommandForTest(commands, {
+    command: "changelog generate",
+    options: { ...baseOptions, explain: false, "changelog-json": true },
+    pmRoot: TRACKER_ROOT,
+  });
+  const semver = await runRegisteredCommandForTest(commands, {
+    command: "changelog generate",
+    options: { ...baseOptions, "suggest-semver": true, format: "json" },
+    pmRoot: TRACKER_ROOT,
+  });
+  assert.equal(extensionTestSurface.isRenderedCommandResult(commandResult(semver)), true);
+  await runRegisteredCommandForTest(commands, {
+    command: "changelog generate",
+    options: { ...baseOptions, explain: false, "suggest-semver": true },
+    pmRoot: TRACKER_ROOT,
+  });
+  const stdout = await runRegisteredCommandForTest(commands, {
+    command: "changelog generate",
+    options: { ...baseOptions, stdout: true, mode: "prepend" },
+    pmRoot: TRACKER_ROOT,
+  });
+  assert.equal(typeof (commandResult(stdout) as { changelog?: unknown }).changelog, "string");
+  const written = await runRegisteredCommandForTest(commands, {
+    command: "changelog generate",
+    options: { ...baseOptions, output },
+    pmRoot: TRACKER_ROOT,
+  });
+  assert.equal((commandResult(written) as { changed?: boolean }).changed, true);
+  await runRegisteredCommandForTest(commands, {
+    command: "changelog generate",
+    options: { ...baseOptions, explain: false, output },
+    pmRoot: TRACKER_ROOT,
+  });
+  await assert.rejects(
+    () => runRegisteredCommandForTest(commands, {
+      command: "changelog generate",
+      options: { ...baseOptions, output, check: true, title: "Changed title" },
+      pmRoot: TRACKER_ROOT,
+    }),
+    /out of date/,
+  );
+});
+
+test("generate all-tag and body-preview paths use the real tracker", async () => {
+  const { commands } = await activateChangelog();
+  const result = await runRegisteredCommandForTest(commands, {
+    command: "changelog generate",
+    options: {
+      stdout: true,
+      "all-release-tags": true,
+      "release-version": "2026.8.8",
+      "body-preview": 8,
+      "release-tag-pattern": "v*",
+    },
+    pmRoot: TRACKER_ROOT,
+  });
+  assert.equal(typeof (commandResult(result) as { changelog?: unknown }).changelog, "string");
+  const items = [
+    { id: "missing-item", title: "missing" },
+    { title: "no id" },
+    { id: "already", title: "already", body: "present" },
+    { id: "pmc-2sfc", title: "tracker with body" },
+  ];
+  await extensionTestSurface.enrichItemBodies(TRACKER_ROOT, items);
+  assert.equal(items[2]?.body, "present");
+  assert.equal(typeof items[3]?.body, "string");
+  await extensionTestSurface.enrichItemBodies(TRACKER_ROOT, items, {
+    ...extensionTestSurface.bodyEnrichmentDependencies,
+    readSettings: async () => {
+      throw new Error("settings failed");
+    },
+  });
+  await extensionTestSurface.enrichItemBodies(TRACKER_ROOT, [{ id: "broken", title: "broken" }], {
+    ...extensionTestSurface.bodyEnrichmentDependencies,
+    locateItem: async () => {
+      throw new Error("locate failed");
+    },
+  });
+  const emptyBodyItems = [{ id: "pmc-2sfc", title: "empty body" }];
+  await extensionTestSurface.enrichItemBodies(TRACKER_ROOT, emptyBodyItems, {
+    ...extensionTestSurface.bodyEnrichmentDependencies,
+    readLocatedItem: async (located, options) => {
+      const loaded = await extensionTestSurface.bodyEnrichmentDependencies.readLocatedItem(located, options);
+      return { ...loaded, document: { ...loaded.document, body: "" } };
+    },
+  });
+  assert.equal("body" in emptyBodyItems[0], false);
+});
+
+test("exporter exercises validation, JSON, markdown, stdout, and file modes", async (t) => {
+  const { commands } = await activateChangelog();
+  await assert.rejects(
+    () => runRegisteredCommandForTest(commands, {
+      command: "changelog export",
+      options: { "group-by": "bad" },
+      pmRoot: TRACKER_ROOT,
+    }),
+    /--group-by/,
+  );
+  const directory = mkdtempSync(join(tmpdir(), "pm-changelog-export-modes-"));
+  t.after(() => rmSync(directory, { recursive: true, force: true }));
+  const jsonPath = join(directory, "notes.json");
+  const markdownPath = join(directory, "notes.md");
+  const baseOptions = {
+    status: "closed,done",
+    "release-version": "2026.8.7",
+    date: "2026-08-07",
+    "release-notes": true,
+    "include-metadata": true,
+  };
+  const json = await runRegisteredCommandForTest(commands, {
+    command: "changelog export",
+    options: { ...baseOptions, format: "json" },
+    pmRoot: TRACKER_ROOT,
+  });
+  assert.equal(extensionTestSurface.isRenderedCommandResult(commandResult(json)), true);
+  const jsonFile = await runRegisteredCommandForTest(commands, {
+    command: "changelog export",
+    options: { ...baseOptions, format: "json", output: jsonPath },
+    pmRoot: TRACKER_ROOT,
+  });
+  assert.equal((commandResult(jsonFile) as { format?: string }).format, "json");
+  assert.match(readFileSync(jsonPath, "utf-8"), /"markdown"/);
+  const markdown = await runRegisteredCommandForTest(commands, {
+    command: "changelog export",
+    options: baseOptions,
+    pmRoot: TRACKER_ROOT,
+  });
+  assert.equal((commandResult(markdown) as { format?: string }).format, "markdown");
+  const markdownFile = await runRegisteredCommandForTest(commands, {
+    command: "changelog export",
+    options: { ...baseOptions, output: markdownPath },
+    pmRoot: TRACKER_ROOT,
+  });
+  assert.equal((commandResult(markdownFile) as { format?: string }).format, "markdown");
+  assert.match(readFileSync(markdownPath, "utf-8"), /Release Notes/);
+  const defaults = await runRegisteredCommandForTest(commands, {
+    command: "changelog export",
+    options: { format: "json" },
+    pmRoot: TRACKER_ROOT,
+  });
+  const defaultPayload = commandResult(defaults);
+  assert.equal(extensionTestSurface.isRenderedCommandResult(defaultPayload), true);
+  assert.match((defaultPayload as { output: string }).output, /"version": "Unreleased"/);
+  const defaultMarkdown = await runRegisteredCommandForTest(commands, {
+    command: "changelog export",
+    options: {},
+    pmRoot: TRACKER_ROOT,
+  });
+  assert.equal((commandResult(defaultMarkdown) as { format?: string }).format, "markdown");
 });

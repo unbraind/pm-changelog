@@ -3,6 +3,12 @@ import { resolve } from "node:path";
 import { defineExtension, listAllItemMetadata, locateItem, readLocatedItem, readSettings, resolveItemTypeRegistry, EXIT_CODE, PmCliError, } from "@unbrained/pm-cli/sdk";
 import { buildChangelogDocument, createChangelog, createChangelogSummary, explainChangelogSelection, formatSummaryLine, mergeChangelog, suggestSemver, writeChangelog } from "./generator.js";
 import { MissingTagHistoryError, resolveReleaseContext, resolveReleaseTagWindows } from "./release-context.js";
+const BODY_ENRICHMENT_DEPENDENCIES = {
+    readSettings,
+    resolveItemTypeRegistry,
+    locateItem,
+    readLocatedItem,
+};
 /** Determine whether an unknown command result carries valid pre-rendered changelog output. */
 function isRenderedCommandResult(value) {
     return (typeof value === "object" &&
@@ -359,7 +365,7 @@ export default defineExtension({
                 return renderedCommandResult(payload);
             }
             if (outputPath) {
-                writeFileSync(resolve(outputPath), generated.markdown.endsWith("\n") ? generated.markdown : generated.markdown + "\n", "utf-8");
+                writeFileSync(resolve(outputPath), generated.markdown, "utf-8");
                 return { file: outputPath, format: "markdown", item_count: generated.itemCount };
             }
             return { changelog: generated.markdown, format: "markdown", item_count: generated.itemCount };
@@ -389,13 +395,13 @@ export default defineExtension({
  * locate/read helpers. Items already carrying a body are skipped, and any
  * per-item read failure is swallowed so changelog generation never breaks.
  */
-async function enrichItemBodies(pmRoot, items) {
+async function enrichItemBodies(pmRoot, items, dependencies = BODY_ENRICHMENT_DEPENDENCIES) {
     let typeToFolder;
     let idPrefix;
     let format;
     try {
-        const settings = await readSettings(pmRoot);
-        typeToFolder = resolveItemTypeRegistry(settings).type_to_folder;
+        const settings = await dependencies.readSettings(pmRoot);
+        typeToFolder = dependencies.resolveItemTypeRegistry(settings).type_to_folder;
         idPrefix = settings.id_prefix;
         format = settings.item_format;
     }
@@ -411,10 +417,10 @@ async function enrichItemBodies(pmRoot, items) {
         if (typeof item.body === "string" && item.body.trim() !== "")
             return;
         try {
-            const located = await locateItem(pmRoot, item.id, idPrefix, format, typeToFolder);
+            const located = await dependencies.locateItem(pmRoot, item.id, idPrefix, format, typeToFolder);
             if (!located)
                 return;
-            const { document } = await readLocatedItem(located);
+            const { document } = await dependencies.readLocatedItem(located);
             if (typeof document.body === "string" && document.body.trim() !== "") {
                 item.body = document.body;
             }
@@ -510,4 +516,19 @@ function parseBodyPreviewOption(options) {
     }
     return parsed;
 }
+/** Internal behavior surface used by package-local extension coverage tests. */
+export const extensionTestSurface = {
+    bodyEnrichmentDependencies: BODY_ENRICHMENT_DEPENDENCIES,
+    booleanOption,
+    enrichItemBodies,
+    excludeTagsOption,
+    isRenderedCommandResult,
+    itemRefStyleOption,
+    parseBodyPreviewOption,
+    parseLimitOption,
+    renderCommandResult,
+    renderedCommandResult,
+    stringOption,
+    withTagHistoryDiagnostics,
+};
 //# sourceMappingURL=extension.js.map

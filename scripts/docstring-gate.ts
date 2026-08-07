@@ -114,10 +114,9 @@ interface Violation {
  *
  * `.d.ts` files are excluded because a declaration file restates a surface
  * documented at its source. JavaScript (`.mjs`/`.cjs`/`.js`) is excluded
- * deliberately rather than accidentally: this fleet mandates TypeScript, so the
- * only JavaScript present is build glue such as `scripts/prepare-merge-driver.mjs`.
- * Should a repo ever gain real JavaScript sources, this filter is the one place
- * that has to change - it is not a per-file ignore list.
+ * deliberately rather than accidentally: this fleet mandates TypeScript and
+ * carries no authored JavaScript source. Should a repo ever gain real JavaScript,
+ * this filter is the one place that has to change - it is not a per-file ignore list.
  */
 export function collectSourceFiles(dir: string): string[] {
   const found: string[] = [];

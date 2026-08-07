@@ -618,6 +618,7 @@ describe("generator: sample dedup and limit", () => {
 
 describe("generator: version comparators directly", () => {
   it("compareVersionHeadings pins the fallback first in both directions", () => {
+    equal(compareVersionHeadings("1.2.0", "1.2.0", "Unreleased"), 0);
     equal(compareVersionHeadings("Unreleased", "1.2.0", "Unreleased"), -1);
     equal(compareVersionHeadings("1.2.0", "Unreleased", "Unreleased"), 1);
     equal(compareVersionHeadings("1.2.0", "1.1.0", "Unreleased"), -1);
@@ -640,6 +641,13 @@ describe("generator: remaining edges", () => {
     });
     equal(suggestion.bump, "patch");
     match(suggestion.reason, /other change/);
+    const plural = suggestSemver({
+      items: [
+        { id: "a", title: "Tidy the docs layout", status: "closed", updated_at: "2026-06-01T00:00:00Z" },
+        { id: "b", title: "Polish the usage guide", status: "closed", updated_at: "2026-06-02T00:00:00Z" },
+      ],
+    });
+    equal(plural.reason, "2 other changes");
   });
 
   it("detects breaking from a string `true` flag", () => {
