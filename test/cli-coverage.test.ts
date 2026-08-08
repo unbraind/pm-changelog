@@ -269,7 +269,18 @@ test("all-release context resolves real repository tags and package version", ()
     process.cwd(),
   ]);
   cliTestSurface.applyReleaseContext(options);
-  assert.equal(options.version, "2026.8.7");
+  // The committed version is mutable: the daily release workflow runs
+  // `npm version` before `npm test`, so on release day the resolved value is
+  // the not-yet-tagged next version. Asserting a frozen literal here made
+  // every release fail at "Run release checks". Read the expected value from
+  // the same package.json the resolution mechanism reads, so the assertion
+  // holds at any committed or bumped version and still fails the moment
+  // applyReleaseContext stops populating options.version.
+  const expectedVersion = (JSON.parse(readFileSync(
+    join(dirname(fileURLToPath(import.meta.url)), "..", "package.json"),
+    "utf-8",
+  )) as { version: string }).version;
+  assert.equal(options.version, expectedVersion);
   assert.ok(options.releaseWindows && options.releaseWindows.length > 0);
 });
 
