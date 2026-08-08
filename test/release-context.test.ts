@@ -105,6 +105,27 @@ describe("release-context: resolveReleaseContext", () => {
     }
   });
 
+  it("resolves a package version even when no matching git tag exists yet", () => {
+    // Regression for the release-time condition: the daily release workflow
+    // bumps package.json on disk and runs the test suite BEFORE the matching
+    // git tag is pushed, so resolveReleaseContext must return the in-flight
+    // package version rather than undefined or the newest existing tag. The
+    // fixture carries an older release tag to prove the resolution ignores
+    // tags that do not match the bumped version instead of grabbing the
+    // newest one -- the exact state that made a frozen-literal assertion fail
+    // on release day.
+    const dir = gitRepo();
+    try {
+      gitIn(dir, ["tag", "v2026.8.7"]);
+      writeFileSync(join(dir, "package.json"), `${JSON.stringify({ name: "x", version: "2026.8.9" }, null, 2)}\n`, "utf-8");
+      const ctx = resolveReleaseContext({ cwd: dir, versionFromPackage: true });
+      equal(ctx.version, "2026.8.9");
+      equal(ctx.releaseTag, undefined, "an untagged in-flight version resolves no release tag");
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
   it("throws when release-version-from-package finds no package.json", () => {
     // A tmpdir with no package.json in any ancestor walks up to the filesystem
     // root and returns undefined, so readPackageVersion throws.
