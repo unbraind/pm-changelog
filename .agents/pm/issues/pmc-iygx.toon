@@ -1,0 +1,44 @@
+id: pmc-iygx
+title: Self-referential release-context test freezes the package version the release bump mutates
+description: "The in-process CLI coverage test 'all-release context resolves real repository tags and package version' asserted options.version against the frozen literal '2026.8.7'. That value is read from this repo's own package.json via --release-version-from-package, but the daily release workflow runs 'npm version <next>' (the 'Update release version' step) BEFORE the 'Run release checks' step that runs 'npm test'. On release day the resolved version is the not-yet-tagged next version, so the assertion compares it against a stale literal and fails. The defect is structural: a test pinned to a mutable fact about the very checkout the release mutates makes the release that mutates it fail. Net effect: pm-changelog cannot release again until the assertion stops freezing the version."
+type: Issue
+status: closed
+priority: 0
+tags[3]: release-blocker,release-context,testing
+created_at: "2026-08-08T22:31:58.181Z"
+updated_at: "2026-08-08T22:33:40.723Z"
+deadline: "2026-08-10T22:31:58.181Z"
+closed_at: "2026-08-08T22:33:40.692Z"
+completed_at: "2026-08-08T22:33:40.692Z"
+claim_principal: pi-agent
+author: pi-agent
+estimated_minutes: 60
+acceptance_criteria: "The named assertion compares options.version to the version read from this repo's package.json at runtime, not to a literal, so it passes at both the committed version and a bumped untagged version; A regression test encodes the release-time condition against a temporary git repo fixture: a package version with no matching git tag still resolves to the package version and resolves no release tag; No other test in test/ asserts against this repo's live package.json or manifest.json version or its newest git tag; npm run check, npm test, npm run coverage, npm run docstring, and npm run changelog:check all pass with coverage at 100/100/100 and thresholds unchanged"
+risk: high
+confidence: high
+severity: high
+repro_steps: cp -a <repo> /tmp/pmc-repro && cd /tmp/pmc-repro; npm version 2026.8.9 --no-git-tag-version --allow-same-version; node scripts/sync-version.ts 2026.8.9; npm test  # the named test fails with '2026.8.9' vs '2026.8.7'
+resolution: "Assertion now compares options.version to the version read from this repo's package.json at runtime, and a regression test resolves a not-yet-tagged package version against a temporary git repo fixture; the release-time mutation no longer breaks the test."
+expected_result: "A release that bumps package.json before running npm test passes the test suite at the bumped, not-yet-tagged version."
+actual_result: "The scheduled release run 2026-08-08T04:27Z failed at 'Run release checks' because options.version resolved to the bumped version while the test asserted the stale literal '2026.8.7'."
+component: test/cli-coverage.test.ts
+dependencies[1]{id,kind,created_at,author,source_kind,author_source}:
+  pmc-wvnz,related_to,"2026-08-08T22:31:58.181Z",pi-agent,"cli:create:dep",asserted
+comments[1]{created_at,author,text}:
+  "2026-08-08T22:31:58.181Z",pi-agent,"Root cause: options.version is resolved from this repo's own package.json via --release-version-from-package,but the test equated it to a frozen literal; the release workflow bumps package.json before npm test,so the resolved value diverges from the literal on every release day."
+notes[4]{created_at,author,text}:
+  "2026-08-08T22:31:58.181Z",pi-agent,"Reproduced before the fix in a scratch copy at bumped untagged 2026.8.9: npm test reported 1 failure (cli-coverage.test.ts '2026.8.9' vs '2026.8.7')."
+  "2026-08-08T22:32:39.337Z",pi-agent,"VERIFICATION (release condition, bumped UNTAGGED version 2026.8.9): cp -a <repo> /tmp/pmc-repro2; npm version 2026.8.9 --no-git-tag-version --allow-same-version; node scripts/sync-version.ts 2026.8.9; npm test => tests 407, suites 43, pass 407, fail 0, cancelled 0, skipped 0. The previously-failing test now passes because the assertion reads the expected version from package.json at runtime."
+  "2026-08-08T22:32:39.923Z",pi-agent,"VERIFICATION (committed version 2026.8.7, real repo): npm run check OK; npm test => tests 407, suites 43, pass 407, fail 0; npm run coverage => all files 100.00 / 100.00 / 100.00 (9 source files, thresholds met, unchanged); npm run docstring => 11 source files scanned, documented surface complete; npm run changelog:check => Changelog is up to date."
+  "2026-08-08T22:32:40.536Z",pi-agent,"BEFORE-FIX REPRODUCTION (proof of the bug, scratch copy at bumped untagged 2026.8.9): npm test => tests 406, pass 405, fail 1 -- test/cli-coverage.test.ts:264 'all-release context resolves real repository tags and package version' AssertionError actual '2026.8.9' expected '2026.8.7'. This is exactly the failure the scheduled release run 2026-08-08T04:27Z hit at 'Run release checks'."
+learnings[1]{created_at,author,text}:
+  "2026-08-08T22:31:58.181Z",pi-agent,"A test that depends on a mutable checkout fact must assert the resolution mechanism,not a snapshot of the fact captured at authoring time."
+files[2]{path,scope,note}:
+  test/cli-coverage.test.ts,project,assertion made version-aware
+  test/release-context.test.ts,project,added untagged-version regression test
+tests[1]{command,scope,timeout_seconds,note}:
+  npm test,project,240,must pass at the committed version and at a bumped untagged version
+docs[1]{path,scope,note}:
+  .github/workflows/release.yml,project,Update release version step runs before Run release checks
+close_reason: All acceptance criteria met; verified at committed and bumped untagged versions. closed with verification evidence.
+body: ""
