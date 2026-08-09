@@ -1,0 +1,34 @@
+id: pmc-j0dx
+title: Retire the vendored docstring gate for the canonical pm-ops analyzer
+description: "This package carried a 521 line vendored implementation of the fleet docstring policy and ran it inside release:check where it PASSED. The canonical analyzer published as the pm-ops docstrings subpath finds five undocumented non-exported functions in the same source tree: unknownOptionError and parseFormat in src/cli.ts splitLines in src/diff.ts and normalizeReleaseHeadingKey and pickContributor in src/generator.ts. Both implementations scan the identical eleven files so the divergence was purely a rule set difference - the fork did not judge non-exported functions with substantial bodies. That is the concrete argument against vendoring a policy: independent copies drift independently and this one had already drifted into the weaker rule set while reporting success which is worse than no gate because it produced a passing signal. The fork also pinned the typescript5 npm alias to avoid the TypeScript 7 scanner mishandling template substitutions; the canonical analyzer solves that instead of routing around it. The alias stays a devDependency regardless because the release version sync script parses package.json with it."
+type: Issue
+status: closed
+priority: 1
+tags[4]: docstrings,gates,quality,tech-debt
+created_at: "2026-08-09T00:42:37.358Z"
+updated_at: "2026-08-09T00:43:08.011Z"
+deadline: "2026-08-16T00:00:00.000Z"
+closed_at: "2026-08-09T00:43:07.996Z"
+completed_at: "2026-08-09T00:43:07.996Z"
+author: claude
+estimated_minutes: 180
+acceptance_criteria: "The vendored gate is deleted and replaced by a thin launcher over the pm-ops docstrings subpath with pm-ops added as a devDependency; all five previously undocumented functions carry docstrings stating their contract rather than restating their names; the canonical analyzer reports zero violations; the launcher is mutation tested by removing a docstring from a real declaration and confirming the gate exits non-zero; the 100 percent line branch and function coverage gate is still met with no threshold lowered and no coverage ignore added; the gate still runs in CI and inside release:check"
+resolution: Fixed by replacing the vendored gate with a thin launcher over the canonical pm-ops docstrings analyzer and documenting the five functions the fork passed over.
+expected_result: "The canonical analyzer reports zero violations for this package; the gate fails when a real docstring is removed; coverage stays at 100 percent line branch and function with no threshold lowered and no ignore added; the gate runs in CI and inside release:check."
+actual_result: "Canonical analyzer reports 11 files 136 declarations 0 violations. Mutation test: removing the splitLines docstring makes the gate exit 1 naming file line and symbol; restoring returns it to 0. Coverage 100/100/100 with thresholds unchanged and no ignore added - which required a pure runGate(root) returning exit code and stream bytes plus a thin main(args) rather than injectable log error and exit boundaries whose fallback branches no in-process test can reach. 370 tests pass typecheck clean audit 0 vulnerabilities pack 37 files changelog up to date. The typescript5 alias stays because scripts/sync-version.ts parses package.json with it."
+dependencies[1]{id,kind,created_at,author,source_kind,author_source}:
+  pmc-kdm1,related,"2026-08-09T00:42:37.358Z",claude,"cli:create:dep",asserted
+comments[1]{created_at,author,text}:
+  "2026-08-09T00:42:37.358Z",claude,The fork's 754 line defeat attempt suite retired with the fork because pm-ops carries a larger 62 case suite against the analyzer itself. The policy is now tested once where it is implemented rather than in two places that can disagree.
+notes[1]{created_at,author,text}:
+  "2026-08-09T00:42:37.358Z",claude,Restoring 100 percent branch coverage required rejecting an injectable-boundary design. A gate written with log/error/exit fallbacks leaves one side of every fallback unreachable from an in-process test. The launcher instead exposes a pure runGate(root) returning exit code and stream bytes plus a thin main(args) that writes them - which is also the shape pm-rl and pm-linear already use.
+learnings[1]{created_at,author,text}:
+  "2026-08-09T00:42:37.358Z",claude,"A vendored copy of a shared policy fails silently rather than loudly: it keeps reporting success while its rule set falls behind. Prefer depending on a published implementation over copying one even when the copy is currently correct."
+files[1]{path,scope,note}:
+  src/generator.ts,project,two of the five undocumented functions lived here
+tests[1]{command,scope,timeout_seconds}:
+  node --test test/docstring-gate.test.ts,project,240
+docs[1]{path,scope,note}:
+  scripts/docstring-gate.ts,project,thin launcher over pm-ops/docstrings replacing the fork
+close_reason: Vendored 521 line docstring gate retired for the canonical pm-ops analyzer; the five functions its weaker rule set passed over are now documented.
+body: Superseded pmc-kdm1's implementation without weakening the policy it established.

@@ -768,6 +768,13 @@ function replaceReleaseSection(markdown, heading, replacement) {
 }
 /** Normalized heading key for the pending `Unreleased` section. */
 const UNRELEASED_HEADING_KEY = "unreleased";
+/** Reduce a release heading to a stable identity key, so the same release is
+ * recognized across the spellings a changelog accumulates over time. Strips the
+ * keep-a-changelog link brackets and any trailing ` - <date>`, drops a leading
+ * `v`, and lowercases the result — so `## [v1.2.0](url) - 2026-01-01`,
+ * `## 1.2.0 - 2026-01-01` and `## V1.2.0` all key as `1.2.0`. Section matching
+ * depends on this: a heading whose key differs is treated as a *different*
+ * release and duplicated rather than replaced. */
 function normalizeReleaseHeadingKey(heading) {
     const trimmed = heading.trim();
     const bracketed = trimmed.match(/^\[([^\]]+)\](?:\([^)]+\))?(?:\s+-\s+.+)?$/);
@@ -905,6 +912,13 @@ function collectContributors(items) {
     }
     return ordered;
 }
+/** Accept an item's author field as a creditable contributor, or reject it.
+ * Rejects non-strings, blanks, and the literal `unknown` — the placeholder the
+ * pm CLI records for history events written before author attribution existed, of
+ * which older trackers hold thousands. Crediting it would put a contributor named
+ * "unknown" in published release notes, so it is filtered here rather than at each
+ * call site. Returns the trimmed name so incidental whitespace does not split one
+ * contributor into two entries. */
 function pickContributor(value) {
     if (typeof value !== "string")
         return undefined;

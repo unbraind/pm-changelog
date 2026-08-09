@@ -177,6 +177,9 @@ function capRun(run: DiffLine[], budget: number): string[] {
   return [...kept, `${prefix}... ${run.length - budget} more ${run[0].op} line(s) omitted`];
 }
 
+/** Split text into diffable lines, treating a file that ends with a newline as
+ * having no trailing empty line. Returns an empty array for empty input rather
+ * than `[""]`, so an empty file diffs as zero lines instead of one blank one. */
 function splitLines(text: string): string[] {
   // Drop one trailing newline: drift detection already normalizes the final
   // newline, so a missing one must not surface as a phantom blank diff line.
