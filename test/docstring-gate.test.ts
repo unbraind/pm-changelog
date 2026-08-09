@@ -20,7 +20,7 @@
 
 import { describe, it } from "node:test";
 import { equal, match, ok } from "node:assert/strict";
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { mkdirSync, mkdtempSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
 import { join, resolve } from "node:path";
 import { pathToFileURL } from "node:url";
 import { tmpdir } from "node:os";
@@ -60,8 +60,11 @@ describe("docstring gate launcher", () => {
       equal(result.exitCode, 1);
       equal(result.stdout, "", "a failing run writes nothing to stdout");
       match(result.stderr, /1 violation\(s\)/);
-      match(result.stderr, /sample\.ts:1\s+undocumented/, "the violation names its file, line and symbol");
-      match(result.stderr, /no docstring/, "the violation names its reason");
+      // Assert the LAYOUT runGate formats, not the reason wording, which pm-ops
+      // owns: re-asserting the analyzer's strings here would re-couple this suite
+      // to rules the header says live with the analyzer, and a pm-ops rewording
+      // would break a launcher that had not changed.
+      match(result.stderr, /sample\.ts:1\s+undocumented\s+-\s+\S/, "the violation names its file, line, symbol and a reason");
     } finally {
       rmSync(root, { recursive: true, force: true });
     }
@@ -90,8 +93,8 @@ describe("docstring gate launcher", () => {
       } catch (error) {
         thrown = error;
       }
+      // That it throws is the launcher's contract; the wording is pm-ops's.
       ok(thrown instanceof Error, "scanning zero files must throw, not report a clean scan");
-      match(String(thrown), /no TypeScript source files|zero files/i);
     } finally {
       rmSync(root, { recursive: true, force: true });
     }
@@ -147,6 +150,27 @@ describe("docstring gate launcher", () => {
     ok(isMainInvocation(["node", gatePath], gateUrl), "a direct invocation runs the gate");
     ok(!isMainInvocation(["node", resolve(packageRoot, "package.json")], gateUrl), "another entry point does not");
     ok(!isMainInvocation(["node"], gateUrl), "a missing argv[1] does not");
+  });
+
+  it("resolves a symlinked entry path to the real module URL", () => {
+    // Without this case the direct-invocation assertion is tautological: argv[1]
+    // and moduleUrl are built from the same path through the same transformation,
+    // so it passes even with realpathSync removed - and realpathSync is the whole
+    // reason the guard exists. npm bin shims and linked workspaces reach a script
+    // through a symlink, and a gate that silently declines to run is worse than
+    // one that throws.
+    const gatePath = resolve(packageRoot, "scripts", "docstring-gate.ts");
+    const linkDir = mkdtempSync(join(tmpdir(), "pm-changelog-docgate-link-"));
+    const link = join(linkDir, "docstring-gate.ts");
+    try {
+      symlinkSync(gatePath, link);
+      ok(
+        isMainInvocation(["node", link], pathToFileURL(gatePath).href),
+        "a symlinked entry path resolves to the real module and runs the gate",
+      );
+    } finally {
+      rmSync(linkDir, { recursive: true, force: true });
+    }
   });
 
   it("returns false rather than throwing when argv[1] cannot be resolved", () => {
