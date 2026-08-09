@@ -61,6 +61,11 @@ declare function parseArgs(args: string[]): CliOptions;
  * parsing path. */
 declare function normalizeArgs(args: string[]): string[];
 declare function resolveOptionAlias(arg: string): string;
+/** Build the rejection for an unrecognized flag, with a spelling suggestion when
+ * one is close enough to be worth offering. The raw `arg` is echoed rather than
+ * the normalized token so the message quotes what the caller actually typed,
+ * including any `=value` suffix — a user who wrote `--modes=prepend` needs to see
+ * that spelling to spot the error. */
 declare function unknownOptionError(arg: string): Error;
 declare function optionToken(arg: string): string;
 /** Find the closest known flag to a mistyped one, or `undefined` when nothing
@@ -90,6 +95,12 @@ declare function parseLimit(value: string): number;
 /** Validate `--body-preview` as a positive character width. */
 declare function parseBodyPreview(value: string): number;
 declare function parseMode(value: string): "replace" | "prepend";
+/** Resolve the `--format` argument to the two shapes the generator emits.
+ * Accepts `markdown` as an alias for `md` because the flag reads as prose and
+ * the long spelling is the natural guess; case and surrounding whitespace are
+ * normalized so a value copied from a shell script still matches. Anything else
+ * throws rather than defaulting, so a typo cannot silently produce the wrong
+ * output format in a release job. */
 declare function parseFormat(value: string): "md" | "json";
 /** Project parsed CLI options plus the loaded items onto the generator's option
  * shape. An empty `--exclude-tag` list is passed as `undefined` so the filter

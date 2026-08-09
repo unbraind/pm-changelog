@@ -542,6 +542,11 @@ function resolveOptionAlias(arg: string): string {
   return OPTION_ALIASES[arg] ?? arg;
 }
 
+/** Build the rejection for an unrecognized flag, with a spelling suggestion when
+ * one is close enough to be worth offering. The raw `arg` is echoed rather than
+ * the normalized token so the message quotes what the caller actually typed,
+ * including any `=value` suffix — a user who wrote `--modes=prepend` needs to see
+ * that spelling to spot the error. */
 function unknownOptionError(arg: string): Error {
   const token = optionToken(arg);
   const suggestion = suggestOption(token);
@@ -716,6 +721,12 @@ function parseMode(value: string): "replace" | "prepend" {
   throw new Error("--mode must be 'replace' or 'prepend'");
 }
 
+/** Resolve the `--format` argument to the two shapes the generator emits.
+ * Accepts `markdown` as an alias for `md` because the flag reads as prose and
+ * the long spelling is the natural guess; case and surrounding whitespace are
+ * normalized so a value copied from a shell script still matches. Anything else
+ * throws rather than defaulting, so a typo cannot silently produce the wrong
+ * output format in a release job. */
 function parseFormat(value: string): "md" | "json" {
   const normalized = value.trim().toLowerCase();
   if (normalized === "md" || normalized === "markdown") return "md";
