@@ -4,11 +4,12 @@
 
 ### Fixed
 
+- Node 22 exact branch coverage is nondeterministic across identical CI reruns ([pmc-v18w](https://github.com/unbraind/pm-changelog/blob/main/.agents/pm/issues/pmc-v18w.toon))
+- Repository-local pm 2026.8.6 prepare removes the 2026.8.7 extension merge fence ([pmc-rdc3](https://github.com/unbraind/pm-changelog/blob/main/.agents/pm/issues/pmc-rdc3.toon))
+- The release merge-wait read branch protection which the workflow token can never read ([pmc-o58h](https://github.com/unbraind/pm-changelog/blob/main/.agents/pm/issues/pmc-o58h.toon))
 - Retire the vendored docstring gate for the canonical pm-ops analyzer ([pmc-j0dx](https://github.com/unbraind/pm-changelog/blob/main/.agents/pm/issues/pmc-j0dx.toon))
 - Self-referential release-context test freezes the package version the release bump mutates ([pmc-iygx](https://github.com/unbraind/pm-changelog/blob/main/.agents/pm/issues/pmc-iygx.toon))
-- Node 22 exact branch coverage is nondeterministic across identical CI reruns ([pmc-v18w](https://github.com/unbraind/pm-changelog/blob/main/.agents/pm/issues/pmc-v18w.toon))
 - Node-CLI acceptance test assumes pmc-or-pm item prefixes and leaks the invoking PM tracker ([pmc-femy](https://github.com/unbraind/pm-changelog/blob/main/.agents/pm/issues/pmc-femy.toon))
-- Repository-local pm 2026.8.6 prepare removes the 2026.8.7 extension merge fence ([pmc-rdc3](https://github.com/unbraind/pm-changelog/blob/main/.agents/pm/issues/pmc-rdc3.toon))
 
 ### Other
 
