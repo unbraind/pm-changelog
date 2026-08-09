@@ -6,7 +6,7 @@ status: closed
 priority: 1
 tags[6]: ci,coverage,determinism,node22,release-gate,test-quality
 created_at: "2026-08-07T22:18:48.719Z"
-updated_at: "2026-08-07T22:52:39.663Z"
+updated_at: "2026-08-09T13:40:50.910Z"
 closed_at: "2026-08-07T22:52:39.636Z"
 completed_at: "2026-08-07T22:52:39.636Z"
 author: "harness:codex"
@@ -16,7 +16,7 @@ reviewer: steve
 risk: high
 confidence: high
 sprint: 2026-08-release
-release: 2026.8.8
+release: 2026.8.9
 severity: high
 environment: GitHub Actions ubuntu runner Node 22.23.1 versus Node 26 and local Node 22.19.0
 repro_steps: "Inspect run 31221924738 Node 22 first attempt job 93008149373, then unchanged rerun job 93008547003. Both execute npm run coverage at head a152fe7."
