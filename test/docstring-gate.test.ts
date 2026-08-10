@@ -173,6 +173,31 @@ describe("docstring gate launcher", () => {
     }
   });
 
+  it("canonicalizes a symlinked moduleUrl, as --preserve-symlinks produces", () => {
+    // The symlink test above passes argv[1] as the link and moduleUrl as the REAL
+    // path, which the old one-sided comparison also satisfied - so it could not
+    // tell the two implementations apart. This is the case that can: moduleUrl
+    // holds the SYMLINK, which is what Node records in import.meta.url under
+    // --preserve-symlinks / --preserve-symlinks-main.
+    //
+    // Old: pathToFileURL(realpathSync(link)).href === linkUrl -> false, so the
+    // selector calls the placeholder and the gate exits 0 without scanning.
+    // New: realpathSync(link) === realpathSync(fileURLToPath(linkUrl)) -> true.
+    const gatePath = resolve(packageRoot, "scripts", "docstring-gate.ts");
+    const linkDir = mkdtempSync(join(tmpdir(), "pm-changelog-docgate-preserve-"));
+    const link = join(linkDir, "docstring-gate.ts");
+    try {
+      symlinkSync(gatePath, link);
+      equal(
+        isMainInvocation([process.execPath, link], pathToFileURL(link).href),
+        true,
+        "a symlinked moduleUrl must still resolve to a direct invocation",
+      );
+    } finally {
+      rmSync(linkDir, { recursive: true, force: true });
+    }
+  });
+
   it("throws rather than skipping the gate when argv[1] cannot be resolved", () => {
     const gateUrl = pathToFileURL(resolve(packageRoot, "scripts", "docstring-gate.ts")).href;
     // Returning false here would leave `npm run docstring` exiting 0 having
