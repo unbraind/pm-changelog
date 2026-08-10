@@ -19,7 +19,7 @@
  */
 
 import { describe, it } from "node:test";
-import { equal, match, ok } from "node:assert/strict";
+import { equal, match, ok, throws } from "node:assert/strict";
 import { mkdirSync, mkdtempSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
 import { join, resolve } from "node:path";
 import { pathToFileURL } from "node:url";
@@ -173,11 +173,15 @@ describe("docstring gate launcher", () => {
     }
   });
 
-  it("returns false rather than throwing when argv[1] cannot be resolved", () => {
+  it("throws rather than skipping the gate when argv[1] cannot be resolved", () => {
     const gateUrl = pathToFileURL(resolve(packageRoot, "scripts", "docstring-gate.ts")).href;
-
-    // A release gate that crashes on an unresolvable argv is worse than one that
-    // declines to self-invoke: the guard must fail closed, not propagate ENOENT.
-    ok(!isMainInvocation(["node", resolve(packageRoot, "does-not-exist.ts")], gateUrl));
+    // Returning false here would leave `npm run docstring` exiting 0 having
+    // scanned nothing - a required release check reporting success without doing
+    // its job. Crashing is the safe outcome, so assert it is what happens.
+    throws(
+      () => isMainInvocation(["node", resolve(packageRoot, "does-not-exist.ts")], gateUrl),
+      /ENOENT/,
+      "an unresolvable entry must propagate, not silently decline to run the gate",
+    );
   });
 });
