@@ -147,9 +147,9 @@ describe("docstring gate launcher", () => {
     const gatePath = resolve(packageRoot, "scripts", "docstring-gate.ts");
     const gateUrl = pathToFileURL(gatePath).href;
 
-    ok(isMainInvocation(["node", gatePath], gateUrl), "a direct invocation runs the gate");
-    ok(!isMainInvocation(["node", resolve(packageRoot, "package.json")], gateUrl), "another entry point does not");
-    ok(!isMainInvocation(["node"], gateUrl), "a missing argv[1] does not");
+    ok(isMainInvocation([process.execPath, gatePath], gateUrl), "a direct invocation runs the gate");
+    ok(!isMainInvocation([process.execPath, resolve(packageRoot, "package.json")], gateUrl), "another entry point does not");
+    ok(!isMainInvocation([process.execPath], gateUrl), "a missing argv[1] does not");
   });
 
   it("resolves a symlinked entry path to the real module URL", () => {
@@ -165,7 +165,7 @@ describe("docstring gate launcher", () => {
     try {
       symlinkSync(gatePath, link);
       ok(
-        isMainInvocation(["node", link], pathToFileURL(gatePath).href),
+        isMainInvocation([process.execPath, link], pathToFileURL(gatePath).href),
         "a symlinked entry path resolves to the real module and runs the gate",
       );
     } finally {
@@ -179,8 +179,8 @@ describe("docstring gate launcher", () => {
     // scanned nothing - a required release check reporting success without doing
     // its job. Crashing is the safe outcome, so assert it is what happens.
     throws(
-      () => isMainInvocation(["node", resolve(packageRoot, "does-not-exist.ts")], gateUrl),
-      /ENOENT/,
+      () => isMainInvocation([process.execPath, resolve(packageRoot, "does-not-exist.ts")], gateUrl),
+      (error: unknown) => (error as NodeJS.ErrnoException).code === "ENOENT",
       "an unresolvable entry must propagate, not silently decline to run the gate",
     );
   });
