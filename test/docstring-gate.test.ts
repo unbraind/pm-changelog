@@ -19,7 +19,7 @@
  */
 
 import { describe, it } from "node:test";
-import { equal, match, ok } from "node:assert/strict";
+import { equal, match, ok, throws } from "node:assert/strict";
 import { mkdirSync, mkdtempSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
 import { join, resolve } from "node:path";
 import { pathToFileURL } from "node:url";
@@ -147,9 +147,9 @@ describe("docstring gate launcher", () => {
     const gatePath = resolve(packageRoot, "scripts", "docstring-gate.ts");
     const gateUrl = pathToFileURL(gatePath).href;
 
-    ok(isMainInvocation(["node", gatePath], gateUrl), "a direct invocation runs the gate");
-    ok(!isMainInvocation(["node", resolve(packageRoot, "package.json")], gateUrl), "another entry point does not");
-    ok(!isMainInvocation(["node"], gateUrl), "a missing argv[1] does not");
+    ok(isMainInvocation([process.execPath, gatePath], gateUrl), "a direct invocation runs the gate");
+    ok(!isMainInvocation([process.execPath, resolve(packageRoot, "package.json")], gateUrl), "another entry point does not");
+    ok(!isMainInvocation([process.execPath], gateUrl), "a missing argv[1] does not");
   });
 
   it("resolves a symlinked entry path to the real module URL", () => {
@@ -165,7 +165,7 @@ describe("docstring gate launcher", () => {
     try {
       symlinkSync(gatePath, link);
       ok(
-        isMainInvocation(["node", link], pathToFileURL(gatePath).href),
+        isMainInvocation([process.execPath, link], pathToFileURL(gatePath).href),
         "a symlinked entry path resolves to the real module and runs the gate",
       );
     } finally {
@@ -173,11 +173,40 @@ describe("docstring gate launcher", () => {
     }
   });
 
-  it("returns false rather than throwing when argv[1] cannot be resolved", () => {
-    const gateUrl = pathToFileURL(resolve(packageRoot, "scripts", "docstring-gate.ts")).href;
+  it("canonicalizes a symlinked moduleUrl, as --preserve-symlinks produces", () => {
+    // The symlink test above passes argv[1] as the link and moduleUrl as the REAL
+    // path, which the old one-sided comparison also satisfied - so it could not
+    // tell the two implementations apart. This is the case that can: moduleUrl
+    // holds the SYMLINK, which is what Node records in import.meta.url under
+    // --preserve-symlinks / --preserve-symlinks-main.
+    //
+    // Old: pathToFileURL(realpathSync(link)).href === linkUrl -> false, so the
+    // selector calls the placeholder and the gate exits 0 without scanning.
+    // New: realpathSync(link) === realpathSync(fileURLToPath(linkUrl)) -> true.
+    const gatePath = resolve(packageRoot, "scripts", "docstring-gate.ts");
+    const linkDir = mkdtempSync(join(tmpdir(), "pm-changelog-docgate-preserve-"));
+    const link = join(linkDir, "docstring-gate.ts");
+    try {
+      symlinkSync(gatePath, link);
+      equal(
+        isMainInvocation([process.execPath, link], pathToFileURL(link).href),
+        true,
+        "a symlinked moduleUrl must still resolve to a direct invocation",
+      );
+    } finally {
+      rmSync(linkDir, { recursive: true, force: true });
+    }
+  });
 
-    // A release gate that crashes on an unresolvable argv is worse than one that
-    // declines to self-invoke: the guard must fail closed, not propagate ENOENT.
-    ok(!isMainInvocation(["node", resolve(packageRoot, "does-not-exist.ts")], gateUrl));
+  it("throws rather than skipping the gate when argv[1] cannot be resolved", () => {
+    const gateUrl = pathToFileURL(resolve(packageRoot, "scripts", "docstring-gate.ts")).href;
+    // Returning false here would leave `npm run docstring` exiting 0 having
+    // scanned nothing - a required release check reporting success without doing
+    // its job. Crashing is the safe outcome, so assert it is what happens.
+    throws(
+      () => isMainInvocation([process.execPath, resolve(packageRoot, "does-not-exist.ts")], gateUrl),
+      (error: unknown) => (error as NodeJS.ErrnoException).code === "ENOENT",
+      "an unresolvable entry must propagate, not silently decline to run the gate",
+    );
   });
 });
