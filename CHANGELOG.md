@@ -8,6 +8,7 @@
 
 ### Other
 
+- Prove classifier precedence across every weak title signal ([pmc-hscf](https://github.com/unbraind/pm-changelog/blob/main/.agents/pm/tasks/pmc-hscf.toon))
 - Adopt pm-cli 2026.8.11 for current history verification ([pmc-ypbc](https://github.com/unbraind/pm-changelog/blob/main/.agents/pm/chores/pmc-ypbc.toon))
 
 ## 2026.8.9 - 2026-08-10

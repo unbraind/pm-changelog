@@ -2,27 +2,32 @@ id: pmc-hscf
 title: Prove classifier precedence across every weak title signal
 description: "PR #138 review found the recurrence test covered only four of eleven title-only Added and Changed signals and asserted row presence without proving Fixed-section membership. Expand the existing test without duplication, retain explicit strong override coverage, and acknowledge every reviewer thread."
 type: Task
-status: in_progress
+status: closed
 priority: 2
 tags: []
 created_at: "2026-08-12T00:31:31.027Z"
-updated_at: "2026-08-12T00:44:43.873Z"
-assignee: codex
-claim_principal: codex
+updated_at: "2026-08-12T00:52:05.195Z"
+closed_at: "2026-08-12T00:51:39.560Z"
+completed_at: "2026-08-12T00:51:39.560Z"
 author: codex
 estimated_minutes: 60
 acceptance_criteria: "All five Added and six Changed title needles on Issue items are asserted inside Fixed; Added and Changed sections are absent; existing feature/refactor/removal/security strong overrides remain covered; full release gate passes; every review thread is replied to, reacted to, and resolved"
 parent: pmc-4279
+resolution: Expanded the classifier regression across every weak Added/Changed title signal and made Fixed-section presence and membership explicit; all review feedback and hosted checks are dispositioned.
+expected_result: "Ambiguous Issue titles containing any weak Added or Changed keyword remain in Fixed, with clear failures if the section disappears, while explicit strong metadata overrides retain precedence."
+actual_result: All eleven ambiguous Issue fixtures render inside an explicitly required Fixed section; Added and Changed headings are absent; focused 106-test and full 372-test release gates pass at 100% coverage.
 dependencies[2]{id,kind,created_at,author,source_kind,author_source}:
   pmc-874d,verifies,"2026-08-12T00:31:31.027Z",codex,"cli:create:dep",detected
   pmc-ypbc,related,"2026-08-12T00:31:31.027Z",codex,"cli:create:dep",detected
-comments[3]{created_at,author,text}:
+comments[4]{created_at,author,text}:
   "2026-08-12T00:31:31.027Z",codex,"Duplicate check: searched all statuses for PR 138 review hardening, classifier test, all Added/Changed needles, and Fixed-section assertions. pmc-874d owns the implementation recurrence; this task owns exact-head review acceptance and links back with verifies."
   "2026-08-12T00:33:14.821Z",codex,"Implementation evidence: the existing regression now enumerates all five Added needles and all six Changed needles on Issue titles, extracts the Fixed section, and requires every row to be inside it while Added/Changed headings remain absent. Existing tests retain explicit feature, refactor, removal, and security override coverage. Focused generator suite passes 106/106; full release:check exits 0."
   "2026-08-12T00:44:43.873Z",codex,"Review follow-up evidence: accepted Sourcery's diagnostic-quality suggestion by asserting the Fixed section match exists before testing all eleven ambiguous Issue titles. Focused node --test test/generator.test.ts passed 106/106; full npm run release:check passed 372/372 with 100% line/branch/function coverage, 136 documented declarations, zero production vulnerabilities, valid pack dry run, and an up-to-date generated changelog."
+  "2026-08-12T00:51:39.202Z",codex,"Hosted exact-head evidence for a6941cfa72c8b957cc80c943771f8c363c519535: Node 22 and Node 26 CI, Semgrep, Sourcery, DeepScan, and Hound are terminal green; cubic is explicitly skipped. The new Sourcery finding was accepted, implemented, reacted to, replied to, and resolved. CodeRabbit exact-head retries were rate-limited and are recorded as provider unavailability rather than approval; every surfaced bot comment, review, and inline thread was reacted to and acknowledged. Greptile was requested and exposed no review surface."
 files[1]{path,scope,note}:
   test/generator.test.ts,project,Complete weak-signal and Fixed-section regression matrix
 tests[2]{command,scope,timeout_seconds}:
   npm test,project,300
   "npm run release:check",project,600
+close_reason: "Completed the full weak-signal classifier precedence matrix and exact-head review hardening. Eleven ambiguous Issue titles are proven inside Fixed, missing Fixed-section diagnostics are explicit, Added/Changed are absent, strong overrides remain covered, local release gates and hosted CI are green, and all surfaced feedback is dispositioned."
 body: ""
