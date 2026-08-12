@@ -6,7 +6,7 @@ status: in_progress
 priority: 2
 tags: []
 created_at: "2026-08-12T00:31:31.027Z"
-updated_at: "2026-08-12T00:33:14.821Z"
+updated_at: "2026-08-12T00:44:43.873Z"
 assignee: codex
 claim_principal: codex
 author: codex
@@ -16,9 +16,10 @@ parent: pmc-4279
 dependencies[2]{id,kind,created_at,author,source_kind,author_source}:
   pmc-874d,verifies,"2026-08-12T00:31:31.027Z",codex,"cli:create:dep",detected
   pmc-ypbc,related,"2026-08-12T00:31:31.027Z",codex,"cli:create:dep",detected
-comments[2]{created_at,author,text}:
+comments[3]{created_at,author,text}:
   "2026-08-12T00:31:31.027Z",codex,"Duplicate check: searched all statuses for PR 138 review hardening, classifier test, all Added/Changed needles, and Fixed-section assertions. pmc-874d owns the implementation recurrence; this task owns exact-head review acceptance and links back with verifies."
   "2026-08-12T00:33:14.821Z",codex,"Implementation evidence: the existing regression now enumerates all five Added needles and all six Changed needles on Issue titles, extracts the Fixed section, and requires every row to be inside it while Added/Changed headings remain absent. Existing tests retain explicit feature, refactor, removal, and security override coverage. Focused generator suite passes 106/106; full release:check exits 0."
+  "2026-08-12T00:44:43.873Z",codex,"Review follow-up evidence: accepted Sourcery's diagnostic-quality suggestion by asserting the Fixed section match exists before testing all eleven ambiguous Issue titles. Focused node --test test/generator.test.ts passed 106/106; full npm run release:check passed 372/372 with 100% line/branch/function coverage, 136 documented declarations, zero production vulnerabilities, valid pack dry run, and an up-to-date generated changelog."
 files[1]{path,scope,note}:
   test/generator.test.ts,project,Complete weak-signal and Fixed-section regression matrix
 tests[2]{command,scope,timeout_seconds}:

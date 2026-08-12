@@ -2385,7 +2385,9 @@ test("createChangelog: title-only Added and Changed keywords in Issues still rou
     updated_at: "2026-05-28T09:00:00Z",
   }));
   const result = createChangelog({ items: ambiguousTitleIssues, version: "1.2.0", date: "2026-05-28" });
-  const fixedSection = result.markdown.match(/### Fixed\n\n[\s\S]*?(?=\n### |\n## |$)/)?.[0] ?? "";
+  const fixedSectionMatch = result.markdown.match(/### Fixed\n\n[\s\S]*?(?=\n### |\n## |$)/);
+  assert.ok(fixedSectionMatch, "### Fixed section must be present in the changelog");
+  const fixedSection = fixedSectionMatch[0];
   for (const issue of ambiguousTitleIssues) {
     assert.ok(fixedSection.includes(issue.title), `${issue.id} must be inside the Fixed section`);
   }
