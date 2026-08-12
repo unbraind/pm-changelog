@@ -6,6 +6,10 @@
 
 - Classifier misroutes Issues with CLI command-name titles (update/change) to Changed not Fixed ([pmc-874d](https://github.com/unbraind/pm-changelog/blob/main/.agents/pm/issues/pmc-874d.toon))
 
+### Other
+
+- Adopt pm-cli 2026.8.11 for current history verification ([pmc-ypbc](https://github.com/unbraind/pm-changelog/blob/main/.agents/pm/chores/pmc-ypbc.toon))
+
 ## 2026.8.9 - 2026-08-10
 
 ### Fixed
