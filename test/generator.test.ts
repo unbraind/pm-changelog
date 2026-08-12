@@ -2363,26 +2363,32 @@ test("createChangelog: Issue type defaults to Fixed when no keyword matches", ()
 });
 
 test("createChangelog: title-only Added and Changed keywords in Issues still route to Fixed", () => {
-  // Regression: Issue titles containing weak Added/Changed keywords described
-  // broken commands or requested graph evidence but overrode the stronger item
-  // type. Only explicit type/tag metadata may outrank the Issue default.
-  const commandNameIssues = [
+  // Regression: title-only Added and Changed keywords in Issue descriptions of
+  // broken commands or requested graph evidence must not override the Issue
+  // default.
+  const ambiguousTitleIssues = [
     { id: "pm-u", title: "pm update doesn't accept --expected/--actual aliases that pm close accepts", type: "Issue" },
     { id: "pm-c", title: "pm update change is not applied to nested items", type: "Issue" },
+    { id: "pm-changed", title: "Changed graph evidence drops canonical edge counts", type: "Issue" },
+    { id: "pm-refactor", title: "Refactor graph evidence loses canonical edge counts", type: "Issue" },
+    { id: "pm-updated", title: "Updated graph evidence drops canonical edge counts", type: "Issue" },
+    { id: "pm-improve", title: "Improve graph evidence without losing canonical edge counts", type: "Issue" },
     { id: "pm-a", title: "Add graph composition to evidence without changing canonical edge counts", type: "Issue" },
     { id: "pm-n", title: "New retry command expands shell input before pm can validate it", type: "Issue" },
+    { id: "pm-f", title: "Feature graph composition drops canonical edge counts", type: "Issue" },
+    { id: "pm-feat", title: "feat graph composition drops canonical edge counts", type: "Issue" },
+    { id: "pm-added", title: "Added graph composition drops canonical edge counts", type: "Issue" },
   ].map((entry) => ({
     ...entry,
     status: "closed",
     release: "1.2.0",
     updated_at: "2026-05-28T09:00:00Z",
   }));
-  const result = createChangelog({ items: commandNameIssues, version: "1.2.0", date: "2026-05-28" });
-  assert.match(result.markdown, /### Fixed/);
-  assert.match(result.markdown, /- pm update doesn't accept/);
-  assert.match(result.markdown, /- pm update change is not applied/);
-  assert.match(result.markdown, /- Add graph composition/);
-  assert.match(result.markdown, /- New retry command/);
+  const result = createChangelog({ items: ambiguousTitleIssues, version: "1.2.0", date: "2026-05-28" });
+  const fixedSection = result.markdown.match(/### Fixed\n\n[\s\S]*?(?=\n### |\n## |$)/)?.[0] ?? "";
+  for (const issue of ambiguousTitleIssues) {
+    assert.ok(fixedSection.includes(issue.title), `${issue.id} must be inside the Fixed section`);
+  }
   assert.doesNotMatch(result.markdown, /### Added/);
   assert.doesNotMatch(result.markdown, /### Changed/);
 });
