@@ -2362,13 +2362,15 @@ test("createChangelog: Issue type defaults to Fixed when no keyword matches", ()
   assert.doesNotMatch(result.markdown, /### Other/);
 });
 
-test("createChangelog: command-name keywords (update/change) in Issue titles still route to Fixed", () => {
-  // Regression: an Issue titled after the `pm update` command matched the weak
-  // "update" needle in the Changed bucket and was misfiled under Changed. A
-  // bug-like item *type* must win over those command-name-colliding keywords.
+test("createChangelog: title-only Added and Changed keywords in Issues still route to Fixed", () => {
+  // Regression: Issue titles containing weak Added/Changed keywords described
+  // broken commands or requested graph evidence but overrode the stronger item
+  // type. Only explicit type/tag metadata may outrank the Issue default.
   const commandNameIssues = [
     { id: "pm-u", title: "pm update doesn't accept --expected/--actual aliases that pm close accepts", type: "Issue" },
     { id: "pm-c", title: "pm update change is not applied to nested items", type: "Issue" },
+    { id: "pm-a", title: "Add graph composition to evidence without changing canonical edge counts", type: "Issue" },
+    { id: "pm-n", title: "New retry command expands shell input before pm can validate it", type: "Issue" },
   ].map((entry) => ({
     ...entry,
     status: "closed",
@@ -2379,6 +2381,9 @@ test("createChangelog: command-name keywords (update/change) in Issue titles sti
   assert.match(result.markdown, /### Fixed/);
   assert.match(result.markdown, /- pm update doesn't accept/);
   assert.match(result.markdown, /- pm update change is not applied/);
+  assert.match(result.markdown, /- Add graph composition/);
+  assert.match(result.markdown, /- New retry command/);
+  assert.doesNotMatch(result.markdown, /### Added/);
   assert.doesNotMatch(result.markdown, /### Changed/);
 });
 

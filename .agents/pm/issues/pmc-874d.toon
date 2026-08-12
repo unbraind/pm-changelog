@@ -6,31 +6,41 @@ status: closed
 priority: 2
 tags[2]: bug,classifier
 created_at: "2026-05-29T00:25:48.699Z"
-updated_at: "2026-05-29T00:26:00.823Z"
+updated_at: "2026-08-11T23:39:53.936Z"
 deadline: "2026-05-30T00:00:00.000Z"
+closed_at: "2026-08-11T23:39:53.597Z"
+completed_at: "2026-08-11T23:39:53.597Z"
 author: maintainer-agent
 estimated_minutes: 30
 acceptance_criteria: "Issue/Bug/Defect titled with command words update/change route to Fixed; chore 'update dependency' stays Changed; explicit feature tag still wins; regression tests added; dist rebuilt; changelog:check passes"
 reviewer: steve
 severity: medium
-resolution: "Reordered classifyItem: bug-like item type (issue/bug/bugfix/defect) now defaults to Fixed BEFORE the weak change/update/refactor/improve keyword bucket, while explicit security/removed/fix/feature signals stay ahead. Added regression tests for command-name keywords in Issue titles and for non-bug 'update dependency' chores staying Changed."
+resolution: "Bug-like item types now outrank ambiguous title-only Added and Changed keywords, while explicit type/tag signals remain authoritative and non-bug title keywords retain Added/Changed behavior."
 expected_result: Issues titled after CLI commands (pm update ...) classify as Fixed; chores 'update dependency' stay Changed; explicit feature tag still wins
-actual_result: All 42 tests pass; typecheck + dist rebuilt
+actual_result: 372 tests pass; source coverage 100/100/100; 136 declarations documented; production audit 0 vulnerabilities; dry-run tarball valid; focused Add/New/Update/Change Issue regressions pass.
 fixed_version: 2026.5.29-1
 component: generator
-dependencies[1]{id,kind,created_at,author,source_kind}:
-  pmc-2lzr,related,"2026-05-29T00:25:48.699Z",maintainer-agent,null
-comments[1]{created_at,author,text}:
+dependencies[1]{id,kind,created_at,author}:
+  pmc-2lzr,related,"2026-05-29T00:25:48.699Z",maintainer-agent
+comments[3]{created_at,author,text}:
   "2026-05-29T00:25:48.699Z",maintainer-agent,Discovered while shipping pm-cli pm-1lws which was misfiled under Changed
+  "2026-08-11T22:51:18.731Z",codex,"Recurrence evidence: pm-cli item pm-q6n8sj is type Issue but its descriptive title contains the standalone word add, so pm-changelog 2026.8.9 placed it under Added. The prior fix only moved the Issue fallback ahead of weak Changed keywords; title-only Added keywords still run first. This work will separate strong type/tag Added signals from weak title signals, keep explicit feature tags authoritative, and add an executable regression."
+  "2026-08-11T23:39:52.948Z",codex,"Evidence: npm run release:check completed typecheck, 136-declaration docstring gate, 372 passing tests, 100/100/100 source coverage, zero production vulnerabilities, and a valid npm dry-run tarball. The only expected failure was changelog drift while this reopened item was non-terminal; close then generator-owned regeneration resolves that state transition without hand edits."
 notes[1]{created_at,author,text}:
   "2026-05-29T00:25:48.699Z",maintainer-agent,Same command-name-collision class as the #19 CLI-flag-token fix
-learnings[1]{created_at,author,text}:
+learnings[2]{created_at,author,text}:
   "2026-05-29T00:25:48.699Z",maintainer-agent,Item TYPE is a stronger classification signal than ambiguous title keywords that collide with command/flag names
-files[1]{path,scope,note}:
+  "2026-08-11T23:39:53.272Z",codex,"Classification precedence must separate strong metadata signals (type and tags) from ambiguous natural-language title tokens. A bug-like type should beat title-only add/new/update/change words, while explicit feature/refactor/removal tags remain intentional overrides."
+files[5]{path,scope,note}:
+  dist/generator.d.ts.map,project,Built declaration source map
+  dist/generator.js,project,Built runtime classifier output
+  dist/generator.js.map,project,Built runtime source map
   src/generator.ts,project,classifier reorder
-tests[1]{command,path,scope,timeout_seconds,pm_context_mode,env_set,env_clear,shared_host_safe,assert_stdout_contains,assert_stdout_regex,assert_stderr_contains,assert_stderr_regex,assert_stdout_min_lines,assert_json_field_equals,assert_json_field_gte,note}:
-  npm test,null,project,240,null,null,null,null,null,null,null,null,null,null,null,null
+  test/generator.test.ts,project,Regression coverage for title-only Added and Changed keywords on Issue items
+tests[2]{command,scope,timeout_seconds}:
+  npm test,project,240
+  "npm run release:check",project,600
 docs[1]{path,scope,note}:
   src/generator.ts,project,classifyItem ordering
-close_reason: Classifier reordered so bug-like item types win over command-name-colliding Changed keywords; regression tests added; verified 42 tests green
+close_reason: "Implemented strong-metadata-before-weak-title classification for Added and Changed keywords; regression, coverage, documentation, audit, and package gates pass."
 body: "Reorder classifyItem so BUG_LIKE_ITEM_TYPES default-Fixed runs before the weak change/update/refactor/improve keyword bucket, after the explicit security/removed/fix/feature checks."
