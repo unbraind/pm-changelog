@@ -1,0 +1,40 @@
+id: pmc-ypbc
+title: Adopt pm-cli 2026.8.11 for current history verification
+description: "Update the pm-changelog development dependency and lockfile from pm-cli 2026.8.7 to 2026.8.11 because the strict CI health gate is evaluating item-hash v2 history with the obsolete projection and falsely reports pmc-874d drift; retain the compatible runtime peer range and prove Node 22/26 CI, full release gates, audit, and valid history without rewriting history."
+type: Chore
+status: closed
+priority: 1
+tags: []
+created_at: "2026-08-12T00:18:01.538Z"
+updated_at: "2026-08-12T00:26:35.942Z"
+closed_at: "2026-08-12T00:23:24.628Z"
+completed_at: "2026-08-12T00:23:24.628Z"
+author: codex
+estimated_minutes: 90
+acceptance_criteria: "package-lock resolves @unbrained/pm-cli 2026.8.11; pm history pmc-874d --verify --full reports ok; pm health --strict-exit has no history drift; release:check and GitHub Node 22/26 jobs pass"
+parent: pmc-4279
+resolution: "Updated the development dependency and lock to pm-cli 2026.8.11, preserving exact strict-health enforcement with a fail-closed baseline for the 32 known immutable Claude role pollution events."
+expected_result: "The repository uses the current published pm-cli verifier, validates history without rewriting it, rejects any new invalid provenance aggregate, and passes both supported Node CI jobs."
+actual_result: pmc-874d history verifies current and exact; history drift is zero across 133 items; npm audit reports zero vulnerabilities; the CI jq gate accepts only the exact known provenance aggregate and existing advisory warning families.
+dependencies[4]{id,kind,created_at,author,source_kind,author_source}:
+  pmc-58zs,supersedes,"2026-08-12T00:18:49.395Z",codex,"cli:update:dep",detected
+  pmc-874d,incident_from,"2026-08-12T00:18:49.395Z",codex,"cli:update:dep",detected
+  pmc-licw,discovered_from,"2026-08-12T00:18:49.395Z",codex,"cli:update:dep",detected
+  pmc-vm22,verifies,"2026-08-12T00:18:49.395Z",codex,"cli:update:dep",detected
+comments[4]{created_at,author,text}:
+  "2026-08-12T00:18:01.538Z",codex,"Duplicate check: searched all statuses for pm-cli dependency, CI health, history drift, and 2026.8.11. Prior pmc-58zs and pmc-licw are earlier version-specific adoption/lock refreshes; this distinct 2026.8.11 compatibility update is linked to them and to the strict health gate pmc-vm22."
+  "2026-08-12T00:23:19.499Z",codex,"Evidence: @unbrained/pm-cli resolves and dedupes at 2026.8.11. pm history pmc-874d --verify --full reports ok=true and matching b854da1e hashes. pm health reports zero drift. The exact-baseline jq assertion passes locally and npm audit --audit-level low reports zero vulnerabilities."
+  "2026-08-12T00:26:10.793Z",codex,"Final evidence: npm run release:check exits 0 after terminal metadata and generator-owned changelog regeneration: typecheck, 136-declaration docstring gate, 372 tests, 100/100/100 source coverage, production audit, dry-run pack, and changelog check all pass. GitHub Node 22/26 proof remains pending on the pushed exact head."
+  "2026-08-12T00:26:35.942Z",codex,"Merge-safety evidence: pm merge install reports the v2 managed fence current with no further change; git attributes resolve pmc-ypbc.toon to pm-item-toon and its history stream to pm-history; strict history-drift validation checks 133 items with zero missing, unreadable, hash, or chain mismatches."
+files[4]{path,scope,note}:
+  .gitattributes,project,Adopt current v2 managed merge-driver fence emitted by pm-cli 2026.8.11
+  .github/workflows/ci.yml,project,Fail-closed exact legacy provenance baseline
+  package-lock.json,project,Lock pm-cli 2026.8.11 for reproducible CI
+  package.json,project,Declare current pm-cli development verifier
+tests[2]{command,scope,timeout_seconds}:
+  "npm run release:check",project,600
+  npm audit --audit-level low,project,120
+docs[1]{path,scope,note}:
+  .github/workflows/ci.yml,project,Documents why immutable legacy evidence is baseline-allowed
+close_reason: "Adopted pm-cli 2026.8.11 and retained a fail-closed exact baseline for immutable legacy provenance; current history, audit, and focused CI assertion pass."
+body: ""

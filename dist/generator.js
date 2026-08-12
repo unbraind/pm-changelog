@@ -940,6 +940,7 @@ function groupByCategory(items) {
     return grouped;
 }
 const BUG_LIKE_ITEM_TYPES = new Set(["issue", "bug", "bugfix", "defect"]);
+const ADDED_NEEDLES = ["feature", "feat", "added", "add", "new"];
 const CHANGED_NEEDLES = ["change", "changed", "refactor", "update", "updated", "improve"];
 const REMOVED_NEEDLES = ["removed", "remove", "deleted", "delete"];
 /**
@@ -989,7 +990,7 @@ function classifyItem(item) {
         return "Removed";
     if (hasAny(allValues, ["fix", "fixed", "bug", "bugfix", "hotfix", "regression"]))
         return "Fixed";
-    if (hasAny(allValues, ["feature", "feat", "added", "add", "new"]))
+    if (hasAny(strongValues, ADDED_NEEDLES))
         return "Added";
     // An explicit Changed signal in the STRONG tier (type/tags) wins over the
     // bug-like-type default, mirroring how an explicit `feature` tag routes to
@@ -1003,6 +1004,9 @@ function classifyItem(item) {
     // for genuine "update dependency …" / "improve …" work.
     if (BUG_LIKE_ITEM_TYPES.has(itemType)) {
         return "Fixed";
+    }
+    if (hasAny(titleValue, ADDED_NEEDLES)) {
+        return "Added";
     }
     if (hasAny(titleValue, CHANGED_NEEDLES)) {
         return "Changed";

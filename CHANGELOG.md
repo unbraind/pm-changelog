@@ -1,5 +1,16 @@
 # Changelog
 
+## Unreleased
+
+### Fixed
+
+- Classifier misroutes Issues with CLI command-name titles (update/change) to Changed not Fixed ([pmc-874d](https://github.com/unbraind/pm-changelog/blob/main/.agents/pm/issues/pmc-874d.toon))
+
+### Other
+
+- Prove classifier precedence across every weak title signal ([pmc-hscf](https://github.com/unbraind/pm-changelog/blob/main/.agents/pm/tasks/pmc-hscf.toon))
+- Adopt pm-cli 2026.8.11 for current history verification ([pmc-ypbc](https://github.com/unbraind/pm-changelog/blob/main/.agents/pm/chores/pmc-ypbc.toon))
+
 ## 2026.8.9 - 2026-08-10
 
 ### Fixed
@@ -306,12 +317,6 @@
 
 - Committed CHANGELOG.md stale vs current history (orphaned release tags) ([pmc-e3sy](https://github.com/unbraind/pm-changelog/blob/main/.agents/pm/issues/pmc-e3sy.toon))
 
-## 2026.5.29-1 - 2026-05-29
-
-### Fixed
-
-- Classifier misroutes Issues with CLI command-name titles (update/change) to Changed not Fixed ([pmc-874d](https://github.com/unbraind/pm-changelog/blob/main/.agents/pm/issues/pmc-874d.toon))
-
 ## 2026.5.27-1 - 2026-05-27
 
 ### Added
@@ -376,7 +381,7 @@
 
 ## 2026.5.24-10 - 2026-05-24
 
-### Added
+### Fixed
 
 - Add package-owned release context flags ([pmc-34gb](https://github.com/unbraind/pm-changelog/blob/main/.agents/pm/issues/pmc-34gb.toon))
 
