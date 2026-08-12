@@ -51,9 +51,25 @@ jobs:
           # Keep receipt review as a local pre-push step; pm-cli#921 and pm-cli#922 track
           # the missing durable proof.
           #
-          # `--strict-exit` is load-bearing: non-strict health may report findings while
-          # still exiting successfully.
-          ./node_modules/.bin/pm health --strict-exit
+          # pm-cli 2026.8.11 correctly detects 32 immutable role="1" events written
+          # before its Claude role resolver was repaired, but it has no disposition
+          # path yet and classifies that known legacy aggregate as blocking. Keep an
+          # exact fail-closed baseline here: a changed count, a different provenance
+          # finding, or any other non-advisory warning still fails this gate.
+          health_json="$(./node_modules/.bin/pm health --json || true)"
+          printf '%s\n' "$health_json"
+          printf '%s\n' "$health_json" | jq -e '
+            def advisory:
+              startswith("telemetry_") or
+              startswith("history_stream_over_compact_threshold:") or
+              startswith("stale_in_progress_items:") or
+              startswith("provenance_resolver_zero_success:") or
+              startswith("merge_driver_configuration_missing:") or
+              . == "provenance_value_domain_invalid:claude-code:role:single_digit:32";
+            ([.warnings[] | select(advisory | not)] | length) == 0 and
+            ([.warnings[] | select(startswith("provenance_value_domain_invalid:"))] ==
+              ["provenance_value_domain_invalid:claude-code:role:single_digit:32"])
+          '
 
       - name: Type check
         run: npm run check

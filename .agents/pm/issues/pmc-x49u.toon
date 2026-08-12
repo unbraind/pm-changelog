@@ -1,0 +1,19 @@
+id: pmc-x49u
+title: Add tag-aware fallback dates for release-gated changelogs
+description: "GitHub issue #120: a release-gated package with no tag falls back to the current UTC date, so changelog checks drift daily; the existing --date override then masks a real tag date once publication occurs. Add a fallback-only date contract, optionally derived from CalVer, whose value is ignored whenever an authoritative tag timestamp exists."
+type: Issue
+status: open
+priority: 1
+tags[3]: determinism,github-issue,release-context
+created_at: "2026-08-11T23:41:20.016Z"
+updated_at: "2026-08-11T23:41:20.016Z"
+author: codex
+estimated_minutes: 180
+acceptance_criteria: "A fallback date is used only when no release tag resolves; an eventual tag timestamp always wins; CalVer-derived fallback behavior is explicit and tested; CLI, SDK extension flags, docs, 100/100/100 coverage, release checks, and installed-package acceptance pass."
+severity: high
+dependencies[2]{id,kind,created_at,author,source_kind,author_source}:
+  pmc-7dm6,related,"2026-08-11T23:41:20.016Z",codex,"cli:create:dep",detected
+  pmc-vdss,discovered_from,"2026-08-11T23:41:20.016Z",codex,"cli:create:dep",detected
+comments[1]{created_at,author,text}:
+  "2026-08-11T23:41:20.016Z",codex,"Duplicate check: exact-title and all-status searches found no canonical item for GitHub issue #120. pmc-vdss addresses UTC timezone drift, not daily clock drift in intentionally tagless packages; pmc-7dm6 covers authoritative tag dates. This open item owns the missing fallback-only contract."
+body: ""
