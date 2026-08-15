@@ -6,7 +6,7 @@
   "author": "@unbraind",
   "entry": "./dist/extension.js",
   "priority": 50,
-  "pm_min_version": "2026.8.3",
+  "pm_min_version": "2026.8.15",
   "trusted": true,
   "sandbox_profile": "none",
   "permissions": {

@@ -12,6 +12,15 @@ import { cliTestSurface, runCliEntry } from "../src/cli.ts";
 
 /** Stable closed-item input shared by in-process CLI cases. */
 const INPUT_DOCUMENT = JSON.stringify({
+  // A real `pm list-all --json` envelope carries a completeness receipt; the
+  // list-all read refuses answers without one, so the fake runner output must
+  // match the real shape. The permissive --input/--stdin paths accept it too.
+  count: 1,
+  total: 1,
+  truncated: false,
+  has_more: false,
+  completeness: { status: "complete", unreadable_item_count: 0, unreadable_directory_count: 0 },
+  omission_receipt: { has_omissions: false, omitted_field_group_count: 0, omitted_field_groups: [] },
   items: [{
     id: "pmc-covered",
     title: "Add covered behavior",
