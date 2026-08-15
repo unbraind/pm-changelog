@@ -468,7 +468,7 @@ test("readPmItems requests --include-body only when includeBody is set (GH #27)"
         "const args = process.argv.slice(2);",
         'const item = { id: "x", title: "T", status: "closed", type: "Feature", tags: ["feature"] };',
         'if (args.includes("--include-body")) item.body = "REAL BODY CONTENT";',
-        "process.stdout.write(JSON.stringify({ items: [item] }));",
+        'process.stdout.write(JSON.stringify({ items: [item], count: 1, total: 1, truncated: false, has_more: false, completeness: { status: "complete", unreadable_item_count: 0, unreadable_directory_count: 0 }, omission_receipt: { has_omissions: false, omitted_field_group_count: 0, omitted_field_groups: [] } }));',
       ].join("\n"),
       "utf-8"
     );

@@ -66,8 +66,38 @@ export declare function readPmItems(options?: ReadPmItemsOptions): PmItem[];
  * changelog intact. */
 export declare function writeChangelog(options: WriteChangelogOptions): WriteChangelogResult;
 /** Parse pm JSON, accepting either a bare array or the `{ items: [...] }`
- * envelope, since which one pm emits depends on the command and version. */
+ * envelope, since which one pm emits depends on the command and version.
+ * Permissive on purpose: this is the shape parser for caller-supplied pm
+ * documents (`--input`, `--stdin`), not the gate for live CLI reads. */
 export declare function parsePmItemsJson(raw: string): PmItem[];
+/** Typed failure for a `pm list-all --json` answer whose completeness receipt
+ * proves the answer is not the whole workspace. Thrown (never logged) so the
+ * CLI exits non-zero instead of writing a changelog built from half the
+ * history. Carries the tripped signals and the count/total split for callers
+ * that render the failure themselves. */
+export declare class IncompleteListAllError extends Error {
+    /** The receipt signals that tripped, one per checked flag. */
+    readonly signals: readonly string[];
+    /** The `count` field of the refused envelope, when it carried a number. */
+    readonly count: number | undefined;
+    /** The `total` field of the refused envelope, when it carried a number. */
+    readonly total: number | undefined;
+    constructor(signals: readonly string[], envelope?: Record<string, unknown>);
+}
+/** Parse a `pm list-all --json` answer, refusing one whose completeness
+ * receipt does not prove the answer complete.
+ *
+ * Unlike {@link parsePmItemsJson} this rejects the legacy bare-array answer:
+ * an array carries no receipt, so it cannot prove completeness, and consuming
+ * it silently is exactly the 2026.8.14 failure mode. This is the parser for
+ * live CLI reads; caller-supplied documents keep the permissive one.
+ *
+ * @param raw - stdout of a successful `pm list-all --json` invocation.
+ * @returns The envelope's items, only when every receipt signal is clean.
+ * @throws {IncompleteListAllError} when any receipt signal tripped.
+ * @throws {SyntaxError} when the answer is not valid JSON, matching
+ * {@link parsePmItemsJson}'s behavior for unparseable reads. */
+export declare function parseListAllItemsJson(raw: string): PmItem[];
 /** Order two release headings, pinning a `fallback` heading (the unset
  * `Unreleased` bucket) ahead of every versioned release, then newest-first by
  * version. Exported for direct testing because the comparator's fallback and
