@@ -6,6 +6,7 @@ import { dirname, join } from "node:path";
 import test from "node:test";
 import { fileURLToPath, pathToFileURL } from "node:url";
 
+import { checkExtensionManifestCompatibility } from "@unbrained/pm-cli/sdk";
 import { activateExtensionForTest, runRegisteredCommandForTest } from "@unbrained/pm-cli/sdk/testing";
 import type { ExtensionActivationResult, ExtensionCapability, FlagDefinition } from "@unbrained/pm-cli/sdk/authoring";
 
@@ -528,4 +529,54 @@ test("exporter exercises validation, JSON, markdown, stdout, and file modes", as
     pmRoot: TRACKER_ROOT,
   });
   assert.equal((commandResult(defaultMarkdown) as { format?: string }).format, "markdown");
+});
+
+/**
+ * `package.json` and `manifest.json` state the same host-compatibility fact to
+ * two different installers: npm reads the `peerDependencies` floor, the pm host
+ * reads `manifest.json`'s `pm_min_version` when it loads the extension. Nothing
+ * bound them, and this package had drifted like its siblings — a manifest still
+ * advertising `2026.8.3` against a peer floor three releases later. Each file
+ * stayed internally consistent, so no gate noticed. This binds them, and the
+ * second test runs the SDK's own host gate against the manifest bytes on disk so
+ * a floor written into a field the gate does not read fails loudly rather than
+ * shipping as an inert claim (which is exactly how pm-context and pm-linear
+ * ended up with no enforced floor at all).
+ */
+test("the manifest host floor matches the package peer floor", () => {
+  const manifest = JSON.parse(
+    readFileSync(new URL("../manifest.json", import.meta.url), "utf8"),
+  ) as { pm_min_version?: string };
+  const pkg = JSON.parse(
+    readFileSync(new URL("../package.json", import.meta.url), "utf8"),
+  ) as { peerDependencies?: Record<string, string>; devDependencies?: Record<string, string> };
+  const peer = pkg.peerDependencies?.["@unbrained/pm-cli"] ?? "";
+  assert.match(peer, /^>=\d+\.\d+\.\d+$/, "the peer declaration must be a concrete >= floor");
+  assert.equal(
+    manifest.pm_min_version,
+    peer.replace(/^>=/, ""),
+    `manifest.json pm_min_version "${manifest.pm_min_version}" must equal the peer floor "${peer}"`,
+  );
+  // The dev pin is exact, not a range: it decides which CLI the gates run
+  // against, and a caret range is how the 2026.8.14 truncated-`list-all` build
+  // reached packages with no diff to review.
+  assert.match(
+    pkg.devDependencies?.["@unbrained/pm-cli"] ?? "",
+    /^\d+\.\d+\.\d+$/,
+    "the dev CLI must be pinned exactly, not to a range",
+  );
+});
+
+test("the pm host gate refuses every version below the declared floor", () => {
+  const manifest = JSON.parse(
+    readFileSync(new URL("../manifest.json", import.meta.url), "utf8"),
+  ) as Record<string, unknown>;
+  const below = checkExtensionManifestCompatibility(manifest, { pmVersion: "2026.8.14" });
+  assert.equal(below.compatible, false, "the known-bad 2026.8.14 host must be refused");
+  assert.deepEqual(below.findings.map((f) => f.code), ["pm_min_version_unmet"]);
+  assert.equal(
+    checkExtensionManifestCompatibility(manifest, { pmVersion: "2027.1.1" }).compatible,
+    true,
+    "a floor must not reject later hosts: that is what an exact pin would do",
+  );
 });
