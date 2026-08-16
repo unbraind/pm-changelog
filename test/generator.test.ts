@@ -1653,6 +1653,11 @@ test("resolveReleaseContext keeps full-clone and zero-tag first-release behavior
   // Compare instants, not textual offsets: %cI offset formatting varies by git version.
   assert.equal(Date.parse(context.since!), Date.parse("2026-05-01T00:00:00Z"));
   assert.equal(Date.parse(context.until!), Date.parse("2026-05-10T00:00:00Z"));
+  assert.equal(
+    resolveReleaseContext({ cwd: sourceDir, version: "1.2.0", dateFromVersion: true }).date,
+    context.date,
+    "an existing tag must prevent the inapplicable CalVer fallback from being parsed",
+  );
 
   // Full clone genuinely without any release tags yet (first-release flow):
   // the intentional silent fallback to an unbounded window is preserved.
@@ -1670,6 +1675,92 @@ test("resolveReleaseContext keeps full-clone and zero-tag first-release behavior
   assert.equal(first.previousTag, undefined);
   assert.equal(first.since, undefined);
   assert.equal(first.until, undefined);
+
+  // A release-gated repository has no tag by design. Its fallback must be
+  // stable before the first release instead of inheriting the wall clock.
+  assert.equal(
+    resolveReleaseContext({ cwd: firstDir, version: "1.0.0", dateFallback: "2026-08-08" }).date,
+    "2026-08-08",
+  );
+  assert.equal(
+    resolveReleaseContext({ cwd: firstDir, version: "2026.8.8", dateFromVersion: true }).date,
+    "2026-08-08",
+  );
+
+  // Once the release is tagged, the commit timestamp is authoritative and the
+  // old fallback disarms itself without a follow-up edit.
+  writeFileSync(join(firstDir, "file.txt"), "two\n", "utf-8");
+  execFileSync("git", ["commit", "-am", "release"], {
+    cwd: firstDir,
+    env: {
+      ...process.env,
+      GIT_AUTHOR_DATE: "2026-08-12T23:30:00+02:00",
+      GIT_COMMITTER_DATE: "2026-08-12T23:30:00+02:00",
+    },
+    encoding: "utf-8",
+  });
+  execFileSync("git", ["tag", "v2026.8.8"], {
+    cwd: firstDir,
+    encoding: "utf-8",
+  });
+  assert.equal(
+    resolveReleaseContext({ cwd: firstDir, version: "2026.8.8", dateFallback: "2026-01-01" }).date,
+    "2026-08-12",
+  );
+  assert.equal(
+    resolveReleaseContext({ cwd: firstDir, version: "2026.8.8", dateFromVersion: true }).date,
+    "2026-08-12",
+  );
+});
+
+test("resolveReleaseContext validates version-derived fallback dates", () => {
+  for (const version of [undefined, "1.2.3", "2026.13.1", "2026.2.30", "2026.8.8-beta.1"]) {
+    assert.throws(
+      () => resolveReleaseContext({ version, dateFromVersion: true }),
+      /--date-from-version requires a calendar version in YYYY\.M\.D form/,
+    );
+  }
+  assert.throws(
+    () => resolveReleaseContext({ version: "2026.8.8", dateFallback: "2026-08-08", dateFromVersion: true }),
+    /--date-fallback and --date-from-version are mutually exclusive/,
+  );
+});
+
+test("CLI exposes stable no-tag fallback dates without weakening explicit date precedence", () => {
+  const directory = mkdtempSync(join(tmpdir(), "pm-changelog-date-fallback-cli-"));
+  const input = join(directory, "items.json");
+  writeFileSync(input, JSON.stringify(items), "utf-8");
+  const cli = join(process.cwd(), "src", "cli.ts");
+
+  const derived = execFileSync(process.execPath, [
+    cli,
+    "--input", input,
+    "--stdout",
+    "--version", "2026.8.8",
+    "--date-from-version",
+  ], { cwd: directory, encoding: "utf-8" });
+  assert.match(derived, /## 2026\.8\.8 - 2026-08-08/);
+
+  const explicit = execFileSync(process.execPath, [
+    cli,
+    "--input", input,
+    "--stdout",
+    "--version", "2026.8.8",
+    "--date", "2026-09-01",
+    "--date-fallback", "2026-08-08",
+  ], { cwd: directory, encoding: "utf-8" });
+  assert.match(explicit, /## 2026\.8\.8 - 2026-09-01/);
+
+  const conflicting = spawnSync(process.execPath, [
+    cli,
+    "--input", input,
+    "--stdout",
+    "--version", "2026.8.8",
+    "--date-fallback", "2026-08-08",
+    "--date-from-version",
+  ], { cwd: directory, encoding: "utf-8" });
+  assert.equal(conflicting.status, 1);
+  assert.match(conflicting.stderr, /mutually exclusive/);
 });
 
 test("resolveReleaseTagWindows rejects shallow clones but preserves zero-tag pending windows", (t) => {

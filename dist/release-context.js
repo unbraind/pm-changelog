@@ -116,6 +116,9 @@ function isShallowRepository(cwd) {
  */
 export function resolveReleaseContext(options) {
     const cwd = resolve(options.cwd ?? process.cwd());
+    if (options.dateFallback !== undefined && options.dateFromVersion) {
+        throw new Error("--date-fallback and --date-from-version are mutually exclusive");
+    }
     const tagDerivedFlags = [
         options.sincePreviousTag ? "--since-previous-tag" : undefined,
         options.untilReleaseTag ? "--until-release-tag" : undefined,
@@ -127,14 +130,39 @@ export function resolveReleaseContext(options) {
     const releaseTag = version ? findExistingTag(cwd, releaseTagCandidates(version)) : undefined;
     const previousTag = options.sincePreviousTag ? findPreviousTag(cwd, releaseTag) : undefined;
     const releaseTimestamp = releaseTag ? tryGitCommitTimestamp(cwd, releaseTag) : undefined;
+    const fallbackDate = releaseTimestamp
+        ? undefined
+        : options.dateFromVersion
+            ? calendarDateFromVersion(version)
+            : options.dateFallback;
     return {
         version,
-        date: releaseTimestamp ? formatLocalTimestampDate(releaseTimestamp) : undefined,
+        date: releaseTimestamp ? formatLocalTimestampDate(releaseTimestamp) : fallbackDate,
         releaseTag,
         previousTag,
         since: options.since ?? (previousTag ? tryGitCommitTimestamp(cwd, previousTag) : undefined),
         until: options.until ?? (options.untilReleaseTag ? releaseTimestamp : undefined),
     };
+}
+/** Convert the fleet's calendar-version spelling into an ISO heading date.
+ * Invalid dates fail closed: JavaScript's date constructor normalizes values
+ * such as February 30, which would turn a typo into a different release day. */
+function calendarDateFromVersion(version) {
+    const match = version?.trim().replace(/^v/i, "").match(/^(\d{4})\.(\d{1,2})\.(\d{1,2})$/);
+    const message = `--date-from-version requires a calendar version in YYYY.M.D form; received ${JSON.stringify(version ?? "")}`;
+    if (!match)
+        throw new Error(message);
+    const [, yearText, monthText, dayText] = match;
+    const year = Number(yearText);
+    const month = Number(monthText);
+    const day = Number(dayText);
+    const candidate = new Date(Date.UTC(year, month - 1, day));
+    if (candidate.getUTCFullYear() !== year
+        || candidate.getUTCMonth() !== month - 1
+        || candidate.getUTCDate() !== day) {
+        throw new Error(message);
+    }
+    return `${yearText}-${monthText.padStart(2, "0")}-${dayText.padStart(2, "0")}`;
 }
 /**
  * Turn a repo's release tags into contiguous, newest-first release windows.

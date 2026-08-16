@@ -7,6 +7,10 @@ export interface ReleaseContextOptions {
     cwd?: string;
     version?: string;
     versionFromPackage?: boolean;
+    /** Stable heading date used only when the requested release has no tag. */
+    dateFallback?: string;
+    /** Derive the no-tag fallback from a calendar version (`YYYY.M.D`). */
+    dateFromVersion?: boolean;
     since?: string;
     sincePreviousTag?: boolean;
     until?: string;

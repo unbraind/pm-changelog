@@ -98,7 +98,9 @@ export default defineExtension({
         { long: "--title", value_name: "text", description: "Changelog title (default: Changelog)" },
         { long: "--release-version", value_name: "version", description: "Release/version heading (default: Unreleased)" },
         { long: "--release-version-from-package", description: "Read release/version heading from nearest package.json" },
-        { long: "--date", value_name: "date", description: "Release heading date text (recommended: YYYY-MM-DD; default: resolved tag date when available, otherwise current UTC date)" },
+        { long: "--date", value_name: "date", description: "Unconditional release heading date override (recommended: YYYY-MM-DD)" },
+        { long: "--date-fallback", value_name: "date", description: "Use this heading date only when no release tag exists" },
+        { long: "--date-from-version", description: "Derive the no-tag fallback from a YYYY.M.D release version" },
         { long: "--since", value_name: "date", description: "Include items changed on or after this date" },
         { long: "--since-previous-tag", description: "Derive --since from the previous git tag" },
         { long: "--until", value_name: "date", description: "Include items changed on or before this date" },
@@ -172,30 +174,30 @@ export default defineExtension({
         const releaseVersion = stringOption(ctx.options, "release-version", "releaseVersion");
         const titleOption = stringOption(ctx.options, "title", "title");
         const dateOption = stringOption(ctx.options, "date", "date");
+        const dateFallback = stringOption(ctx.options, "date-fallback", "dateFallback");
+        const dateFromVersion = booleanOption(ctx.options, "date-from-version", "dateFromVersion");
         const sinceOption = stringOption(ctx.options, "since", "since");
         const untilOption = stringOption(ctx.options, "until", "until");
-        const { releaseContext, releaseWindows } = withTagHistoryDiagnostics(() => ({
-          releaseContext: allReleaseTags
-            ? { version: undefined, date: undefined, since: undefined, until: undefined }
-            : resolveReleaseContext({
-                cwd: ctx.pm_root,
-                version: releaseVersion,
-                versionFromPackage: booleanOption(ctx.options, "release-version-from-package", "releaseVersionFromPackage"),
-                since: sinceOption,
-                sincePreviousTag: booleanOption(ctx.options, "since-previous-tag", "sincePreviousTag"),
-                until: untilOption,
-                untilReleaseTag: booleanOption(ctx.options, "until-release-tag", "untilReleaseTag"),
-              }),
-          releaseWindows: allReleaseTags
-            ? resolveReleaseTagWindows({
-                cwd: ctx.pm_root,
-                tagPattern: stringOption(ctx.options, "release-tag-pattern", "releaseTagPattern"),
-                includeOrphaned: true,
-                pendingVersion: releaseVersion,
-                pendingTimestamp: untilOption ?? dateOption,
-              })
-            : undefined,
+        const releaseContext = withReleaseContextDiagnostics(() => resolveReleaseContext({
+          cwd: ctx.pm_root,
+          version: releaseVersion,
+          versionFromPackage: booleanOption(ctx.options, "release-version-from-package", "releaseVersionFromPackage"),
+          dateFallback,
+          dateFromVersion,
+          since: sinceOption,
+          sincePreviousTag: booleanOption(ctx.options, "since-previous-tag", "sincePreviousTag"),
+          until: untilOption,
+          untilReleaseTag: booleanOption(ctx.options, "until-release-tag", "untilReleaseTag"),
         }));
+        const releaseWindows = allReleaseTags
+          ? withTagHistoryDiagnostics(() => resolveReleaseTagWindows({
+              cwd: ctx.pm_root,
+              tagPattern: stringOption(ctx.options, "release-tag-pattern", "releaseTagPattern"),
+              includeOrphaned: true,
+              pendingVersion: releaseContext.version,
+              pendingTimestamp: untilOption ?? dateOption ?? releaseContext.date,
+            }))
+          : undefined;
 
         const items = await listAllItemMetadata(ctx.pm_root);
         const bodyPreview = parseBodyPreviewOption(ctx.options);
@@ -344,7 +346,9 @@ export default defineExtension({
         { long: "--title", value_name: "text", description: "Output title (default: Changelog or Release Notes)" },
         { long: "--release-version", value_name: "version", description: "Release/version heading (default: Unreleased)" },
         { long: "--release-version-from-package", description: "Read release/version heading from nearest package.json" },
-        { long: "--date", value_name: "date", description: "Release heading date text (recommended: YYYY-MM-DD; default: resolved tag date when available, otherwise current UTC date)" },
+        { long: "--date", value_name: "date", description: "Unconditional release heading date override (recommended: YYYY-MM-DD)" },
+        { long: "--date-fallback", value_name: "date", description: "Use this heading date only when no release tag exists" },
+        { long: "--date-from-version", description: "Derive the no-tag fallback from a YYYY.M.D release version" },
         { long: "--since", value_name: "date", description: "Include items changed on or after this date" },
         { long: "--since-previous-tag", description: "Derive --since from the previous git tag" },
         { long: "--until", value_name: "date", description: "Include items changed on or before this date" },
@@ -377,10 +381,12 @@ export default defineExtension({
       const statuses = (ctx.options["status"] as string | undefined)
         ?.split(",").map((s) => s.trim()).filter(Boolean);
 
-      const releaseContext = withTagHistoryDiagnostics(() => resolveReleaseContext({
+      const releaseContext = withReleaseContextDiagnostics(() => resolveReleaseContext({
         cwd: ctx.pm_root,
         version: releaseVersion,
         versionFromPackage: booleanOption(ctx.options, "release-version-from-package", "releaseVersionFromPackage"),
+        dateFallback: stringOption(ctx.options, "date-fallback", "dateFallback"),
+        dateFromVersion: booleanOption(ctx.options, "date-from-version", "dateFromVersion"),
         since: sinceOption,
         sincePreviousTag: booleanOption(ctx.options, "since-previous-tag", "sincePreviousTag"),
         until: untilOption,
@@ -514,6 +520,19 @@ function withTagHistoryDiagnostics<T>(resolve: () => T): T {
   }
 }
 
+/** Render release-context option failures as real CLI usage errors.
+ * The SDK host converts ordinary thrown errors into warnings, which would let
+ * an invalid fallback invocation appear successful to automation. */
+function withReleaseContextDiagnostics<T>(resolve: () => T): T {
+  try {
+    return withTagHistoryDiagnostics(resolve);
+  } catch (error) {
+    if (error instanceof PmCliError) throw error;
+    if (error instanceof Error) throw new PmCliError(error.message, EXIT_CODE.USAGE);
+    throw error;
+  }
+}
+
 function stringOption(options: Record<string, unknown>, kebabKey: string, camelKey: string): string | undefined {
   const value = options[kebabKey] ?? options[camelKey];
   return typeof value === "string" ? value : undefined;
@@ -592,5 +611,6 @@ export const extensionTestSurface = {
   renderCommandResult,
   renderedCommandResult,
   stringOption,
+  withReleaseContextDiagnostics,
   withTagHistoryDiagnostics,
 };

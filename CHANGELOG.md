@@ -1,5 +1,11 @@
 # Changelog
 
+## Unreleased
+
+### Fixed
+
+- Add tag-aware fallback dates for release-gated changelogs ([pmc-x49u](https://github.com/unbraind/pm-changelog/blob/main/.agents/pm/issues/pmc-x49u.toon))
+
 ## 2026.8.12 - 2026-08-12
 
 ### Fixed

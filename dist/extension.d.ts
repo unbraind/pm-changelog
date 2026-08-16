@@ -46,6 +46,10 @@ declare function enrichItemBodies(pmRoot: string, items: PmItem[], dependencies?
  * stale (the CLI path surfaces the same message via its main() error handler).
  */
 declare function withTagHistoryDiagnostics<T>(resolve: () => T): T;
+/** Render release-context option failures as real CLI usage errors.
+ * The SDK host converts ordinary thrown errors into warnings, which would let
+ * an invalid fallback invocation appear successful to automation. */
+declare function withReleaseContextDiagnostics<T>(resolve: () => T): T;
 declare function stringOption(options: Record<string, unknown>, kebabKey: string, camelKey: string): string | undefined;
 declare function booleanOption(options: Record<string, unknown>, kebabKey: string, camelKey: string): boolean;
 /** OPT-IN (`--item-ref-style`): how each entry cites its pm item. Rejects any
@@ -81,6 +85,7 @@ export declare const extensionTestSurface: {
     renderCommandResult: typeof renderCommandResult;
     renderedCommandResult: typeof renderedCommandResult;
     stringOption: typeof stringOption;
+    withReleaseContextDiagnostics: typeof withReleaseContextDiagnostics;
     withTagHistoryDiagnostics: typeof withTagHistoryDiagnostics;
 };
 //# sourceMappingURL=extension.d.ts.map
