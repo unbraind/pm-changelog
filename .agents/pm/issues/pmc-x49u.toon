@@ -6,7 +6,7 @@ status: closed
 priority: 1
 tags[3]: determinism,github-issue,release-context
 created_at: "2026-08-11T23:41:20.016Z"
-updated_at: "2026-08-16T22:53:38.613Z"
+updated_at: "2026-08-16T23:08:18.481Z"
 closed_at: "2026-08-16T22:51:50.827Z"
 completed_at: "2026-08-16T22:51:50.827Z"
 claim_principal: codex
@@ -17,9 +17,9 @@ reviewer: codex
 risk: medium
 confidence: high
 severity: high
-resolution: "Added --date-fallback and --date-from-version to standalone generate, SDK generate, and SDK export. Existing tag timestamps remain authoritative; contradictory or invalid fallback inputs fail closed; documentation and real packed-install acceptance are included."
-expected_result: "Untagged releases generate stable dates without an unconditional override, and a later tag automatically becomes authoritative."
-actual_result: "Literal and CalVer fallbacks are stable before tagging, existing tag dates supersede them without edits, 387-test exact coverage passes, and the packed extension generated and exported the expected pm-rust heading."
+resolution: "Added --date-fallback and --date-from-version to standalone generate, SDK generate, and SDK export. Existing tag timestamps remain authoritative and bypass fallback-value validation; mutually exclusive fallback flags fail closed on every invocation, while an invalid CalVer fallback fails closed only when no tag resolves and the fallback would be consumed. Documentation and real packed-install acceptance are included."
+expected_result: "Untagged releases generate stable, validated fallback dates without an unconditional override; a later tag automatically becomes authoritative and bypasses unused fallback-value validation."
+actual_result: Literal and CalVer fallbacks are stable and validated before tagging; existing tag dates supersede them without evaluating an unused CalVer fallback; mutually exclusive flags still fail closed; 387-test exact coverage passes; and the packed extension generated and exported the expected pm-rust heading.
 dependencies[2]{id,kind,created_at,author,source_kind,author_source}:
   pmc-7dm6,related,"2026-08-11T23:41:20.016Z",codex,"cli:create:dep",detected
   pmc-vdss,discovered_from,"2026-08-11T23:41:20.016Z",codex,"cli:create:dep",detected
