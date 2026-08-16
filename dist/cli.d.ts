@@ -15,6 +15,8 @@ interface CliOptions {
     version?: string;
     versionFromPackage: boolean;
     date?: string;
+    dateFallback?: string;
+    dateFromVersion: boolean;
     since?: string;
     sincePreviousTag: boolean;
     until?: string;

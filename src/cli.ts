@@ -43,6 +43,8 @@ interface CliOptions {
   version?: string;
   versionFromPackage: boolean;
   date?: string;
+  dateFallback?: string;
+  dateFromVersion: boolean;
   since?: string;
   sincePreviousTag: boolean;
   until?: string;
@@ -90,6 +92,7 @@ const VALUE_OPTIONS = new Set<string>([
   "-o",
   "--body-preview",
   "--date",
+  "--date-fallback",
   "--exclude-tag",
   "--exclude-tags",
   "--format",
@@ -128,6 +131,8 @@ const KNOWN_OPTIONS = [
   "--conventional",
   "--contributors",
   "--date",
+  "--date-fallback",
+  "--date-from-version",
   "--emoji-prefix",
   "--exclude-tag",
   "--exclude-tags",
@@ -338,6 +343,7 @@ function parseArgs(args: string[]): CliOptions {
     githubOutput: false,
     githubStepSummary: false,
     versionFromPackage: false,
+    dateFromVersion: false,
     sincePreviousTag: false,
     untilReleaseTag: false,
     allReleaseTags: false,
@@ -410,6 +416,12 @@ function parseArgs(args: string[]): CliOptions {
         break;
       case "--date":
         options.date = requireValue(normalizedArgs, ++i, rawArg);
+        break;
+      case "--date-fallback":
+        options.dateFallback = requireValue(normalizedArgs, ++i, rawArg);
+        break;
+      case "--date-from-version":
+        options.dateFromVersion = true;
         break;
       case "--since":
         options.since = requireValue(normalizedArgs, ++i, rawArg);
@@ -609,28 +621,38 @@ function editDistance(left: string, right: string): number {
 function applyReleaseContext(options: CliOptions): void {
   if (options.allReleaseTags) {
     const cwd = options.pmCwd ? resolve(options.pmCwd) : process.cwd();
-    if (options.versionFromPackage && !options.version) {
-      const context = resolveReleaseContext({
-        cwd,
-        versionFromPackage: true,
-      });
-      options.version = context.version;
-    }
+    const context = resolveReleaseContext({
+      cwd,
+      version: options.version,
+      versionFromPackage: options.versionFromPackage,
+      dateFallback: options.dateFallback,
+      dateFromVersion: options.dateFromVersion,
+    });
+    options.version = context.version;
     options.releaseWindows = resolveReleaseTagWindows({
       cwd,
       tagPattern: options.releaseTagPattern,
       includeOrphaned: true,
       pendingVersion: options.version,
-      pendingTimestamp: options.until ?? options.date,
+      pendingTimestamp: options.until ?? options.date ?? context.date,
     });
     return;
   }
 
-  if (!options.version && !options.versionFromPackage && !options.sincePreviousTag && !options.untilReleaseTag) return;
+  if (
+    !options.version
+    && !options.versionFromPackage
+    && !options.dateFallback
+    && !options.dateFromVersion
+    && !options.sincePreviousTag
+    && !options.untilReleaseTag
+  ) return;
   const context = resolveReleaseContext({
     cwd: options.pmCwd ? resolve(options.pmCwd) : process.cwd(),
     version: options.version,
     versionFromPackage: options.versionFromPackage,
+    dateFallback: options.dateFallback,
+    dateFromVersion: options.dateFromVersion,
     since: options.since,
     sincePreviousTag: options.sincePreviousTag,
     until: options.until,
@@ -939,7 +961,10 @@ Options:
       --release-version-from-package
                             Read version heading from nearest package.json
       --date <date>         Release heading date text (recommended: YYYY-MM-DD;
-                            default: resolved tag date when available, otherwise current UTC date)
+                            explicit override; default: tag date, then fallback, then current UTC date)
+      --date-fallback <date>
+                            Use this heading date only when no release tag exists
+      --date-from-version   Derive the no-tag fallback from a YYYY.M.D version
       --since <date>        Include items changed on or after this date
       --since-previous-tag  Derive --since from the previous git tag
       --until <date>        Include items changed on or before this date
