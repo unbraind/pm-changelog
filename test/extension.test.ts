@@ -316,6 +316,21 @@ test("tag-history diagnostics preserve ordinary errors and structure missing-his
       return true;
     },
   );
+  assert.equal(extensionTestSurface.withReleaseContextDiagnostics(() => "ok"), "ok");
+  assert.throws(
+    () => extensionTestSurface.withReleaseContextDiagnostics(() => {
+      throw new Error("invalid release option");
+    }),
+    (error: unknown) => (error as Error).message === "invalid release option"
+      && (error as { exitCode?: number }).exitCode === 2,
+  );
+  const nonError = { diagnostic: "opaque" };
+  assert.throws(
+    () => extensionTestSurface.withReleaseContextDiagnostics(() => {
+      throw nonError;
+    }),
+    (error: unknown) => error === nonError,
+  );
 });
 
 test("generate command exercises validation and every result mode through the real SDK host", async (t) => {
@@ -401,6 +416,33 @@ test("generate command exercises validation and every result mode through the re
     pmRoot: TRACKER_ROOT,
   });
   assert.equal(typeof (commandResult(stdout) as { changelog?: unknown }).changelog, "string");
+  const versionDated = await runRegisteredCommandForTest(commands, {
+    command: "changelog generate",
+    options: {
+      stdout: true,
+      status: "open,in_progress,closed,done",
+      "release-version": "2099.1.2",
+      "date-from-version": true,
+    },
+    pmRoot: TRACKER_ROOT,
+  });
+  assert.match(
+    (commandResult(versionDated) as { changelog: string }).changelog,
+    /## 2099\.1\.2 - 2099-01-02/,
+  );
+  await assert.rejects(
+    () => runRegisteredCommandForTest(commands, {
+      command: "changelog generate",
+      options: {
+        stdout: true,
+        "release-version": "2099.1.2",
+        "date-fallback": "2099-01-02",
+        "date-from-version": true,
+      },
+      pmRoot: TRACKER_ROOT,
+    }),
+    /mutually exclusive/,
+  );
   const written = await runRegisteredCommandForTest(commands, {
     command: "changelog generate",
     options: { ...baseOptions, output },
