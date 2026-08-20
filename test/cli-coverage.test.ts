@@ -12,8 +12,8 @@ import { cliTestSurface, runCliEntry } from "../src/cli.ts";
 
 /** Stable closed-item input shared by in-process CLI cases. */
 const INPUT_DOCUMENT = JSON.stringify({
-  // A real `pm list-all --json` envelope carries a completeness receipt; the
-  // list-all read refuses answers without one, so the fake runner output must
+  // A real canonical whole-tracker list envelope carries a completeness receipt;
+  // the strict reader refuses answers without one, so the fake runner output must
   // match the real shape. The permissive --input/--stdin paths accept it too.
   count: 1,
   total: 1,

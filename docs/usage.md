@@ -101,7 +101,7 @@ npx pm-changelog --stdout --version 1.2.0
 Read JSON from a previous step:
 
 ```bash
-pm list-all --json | npx pm-changelog --stdin --stdout
+pm --output-budget unbounded --output-limit unbounded list --all --json | npx pm-changelog --stdin --stdout
 ```
 
 Use a pinned or wrapped pm executable:
@@ -192,7 +192,7 @@ npx pm-changelog --changelog-json --suggest-semver
 npx pm-changelog --all-release-tags --limit 1 --suggest-semver   # bump for just the newest release
 ```
 
-Append a short preview of each item body to its entry (first N characters, single-lined; truncated with an ellipsis when longer). When sourcing items from `pm` directly, the CLI requests bodies via `pm list-all --json --include-body`; the extension loads them on demand. The preview falls back to the item `description` when the body is empty, so it always has content against real pm items:
+Append a short preview of each item body to its entry (first N characters, single-lined; truncated with an ellipsis when longer). When sourcing items from `pm` directly, the CLI requests bodies through its canonical unbounded whole-tracker list with `--include-body`; the extension loads them on demand. The preview falls back to the item `description` when the body is empty, so it always has content against real pm items:
 
 ```bash
 npx pm-changelog --stdout --body-preview 80
@@ -281,9 +281,9 @@ and its history untouched in the tracker. Both flags are reported by `--explain`
 | `--stdout` | false | Print markdown instead of writing a file |
 | `--input <file>` | - | Read pm JSON from a file |
 | `--stdin` | false | Read pm JSON from stdin |
-| `--pm-root <dir>` | - | Run `pm --pm-path <dir> list-all --json` |
+| `--pm-root <dir>` | - | Run an unbounded `pm --pm-path <dir> list --all --json` read |
 | `--pm-bin <file>` | `pm` | pm executable to run |
-| `--pm-arg <arg>` | - | Extra argument passed before `list-all --json`; repeat for multiple args |
+| `--pm-arg <arg>` | - | Extra global argument passed before the canonical list command; repeat for multiple args |
 | `--pm-cwd <dir>` | - | Working directory for running pm |
 | `--version <version>` | `Unreleased` | Version heading for the standalone CLI |
 | `--release-version <version>` | - | Compatibility alias for `--version` (matches extension syntax) |

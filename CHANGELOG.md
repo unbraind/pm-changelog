@@ -1,10 +1,23 @@
 # Changelog
 
+## Unreleased
+
+### Fixed
+
+- Raise pm-changelog source coverage gates to 100/100/100 ([pmc-wvnz](https://github.com/unbraind/pm-changelog/blob/main/.agents/pm/issues/pmc-wvnz.toon))
+- Use canonical unbounded list reads with pm CLI 2026.8.20 ([pmc-6j4o](https://github.com/unbraind/pm-changelog/blob/main/.agents/pm/issues/pmc-6j4o.toon))
+
 ## 2026.8.17 - 2026-08-17
 
 ### Fixed
 
 - Add tag-aware fallback dates for release-gated changelogs ([pmc-x49u](https://github.com/unbraind/pm-changelog/blob/main/.agents/pm/issues/pmc-x49u.toon))
+
+## 2026.8.16 - 2026-08-16
+
+### Fixed
+
+- pm-changelog consumes a truncated `pm list-all` answer as if it were complete ([pmc-wv37](https://github.com/unbraind/pm-changelog/blob/main/.agents/pm/issues/pmc-wv37.toon))
 
 ## 2026.8.12 - 2026-08-12
 

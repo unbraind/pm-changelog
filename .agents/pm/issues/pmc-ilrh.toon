@@ -1,0 +1,44 @@
+id: pmc-ilrh
+title: Expose an independently measured statement-coverage release metric
+description: "The fail-closed Node/V8 coverage gate proves exact line, branch, and function coverage across every production source, but Node reports only those three dimensions and the package currently describes statements as equivalent to lines. The ecosystem mandate requires a visible, independently justified fourth statement percentage. Add a trustworthy statement metric or formally prove and validate equivalence at the report/counter level without relabeling the line value."
+type: Issue
+status: open
+priority: 1
+tags[4]: code-quality,coverage,release-blocker,testing
+created_at: "2026-08-20T21:07:04.041Z"
+updated_at: "2026-08-20T21:07:04.041Z"
+deadline: "2026-09-03T21:07:04.041Z"
+assignee: codex
+author: codex
+estimated_minutes: 240
+acceptance_criteria: "npm run release:check reports exact 100.00 percent statements, branches, functions, and lines; the statement result is derived from real executable statement counters or a tested counter-level equivalence proof rather than copying the line percentage; all production TypeScript sources remain fail-closed in the measured inventory; a negative policy test fails if the statement threshold is lowered, a source is omitted, or executable code is exempted; no coverage ignore pragmas, artificial invocations, implementation-free mocks, or duplicated tests are introduced; Node 22 and 26 behavior is deterministic and documented"
+reviewer: steve
+risk: high
+confidence: medium
+sprint: coverage-hardening
+release: next
+severity: high
+environment: pm-changelog Node built-in V8 coverage gate on Node 22 and 26
+repro_steps: "Run npm run coverage and inspect the emitted summary and scripts/coverage-gate.ts: only line, branch, and function thresholds and percentages are exposed; the source comment currently equates statements with lines."
+expected_result: The release gate exposes and enforces the standard four exact coverage dimensions with a defensible statement measurement.
+actual_result: "The current gate is exact and fail-closed for lines, branches, and functions, but has no separately reported or independently validated statement dimension."
+component: test/coverage-gate
+customer_impact: "Without explicit statement evidence, the package cannot honestly claim the ecosystem-wide 100/100/100/100 coverage contract even though its existing three-dimensional gate is exact."
+dependencies[2]{id,kind,created_at,author,source_kind,author_source}:
+  pmc-p5l1,related,"2026-08-20T21:07:04.041Z",codex,"cli:create:dep",asserted
+  pmc-wvnz,related,"2026-08-20T21:07:04.041Z",codex,"cli:create:dep",asserted
+comments[1]{created_at,author,text}:
+  "2026-08-20T21:07:04.041Z",codex,Created after reconciling pmc-wvnz so the completed 100/100/100 contract remains distinct from this new four-dimensional reporting requirement.
+notes[1]{created_at,author,text}:
+  "2026-08-20T21:07:04.041Z",codex,Do not implement this by duplicating the line percentage under a statements label. Inspect the primary Node/V8 and any candidate instrumentation APIs before selecting a provider.
+learnings[1]{created_at,author,text}:
+  "2026-08-20T21:07:04.041Z",codex,Exact coverage claims must name the dimensions the authoritative tool actually measures; semantic equivalence needs evidence when a required metric is absent.
+files[2]{path,scope,note}:
+  scripts/coverage-gate.ts,project,Fail-closed Node/V8 coverage runner and source inventory
+  package.json,project,Coverage thresholds and release scripts
+tests[2]{command,scope,timeout_seconds,pm_context_mode,note}:
+  npm run coverage,project,600,tracker,Must report exact four-dimensional coverage
+  "npm run release:check",project,900,tracker,Authoritative package gate
+docs[1]{path,scope,note}:
+  "https://nodejs.org/api/test.html#collecting-code-coverage",project,Primary Node test-runner coverage contract to verify during implementation
+body: "## Scope\n\nPreserve the existing Node/V8 all-source inventory and exact three-dimensional gate while establishing a genuine, reviewable statement metric. Prefer primary runtime/tooling contracts and measured counter data over naming assumptions.\n\n## Boundary\n\nThis item does not authorize lowering thresholds, excluding executable source, or treating the line percentage as a fourth result without a testable proof."

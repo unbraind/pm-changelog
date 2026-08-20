@@ -219,7 +219,7 @@ export interface ReadPmItemsOptions {
     env?: NodeJS.ProcessEnv;
     maxBuffer?: number;
     /**
-     * Pass `--include-body` to `pm list-all --json` so each row carries its body.
+     * Pass `--include-body` to the canonical whole-tracker `pm list` read so each row carries its body.
      * Required for `--body-preview` to render real body content (GH #27); the
      * field is otherwise omitted from list output.
      */

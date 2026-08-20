@@ -43,9 +43,11 @@ export declare function formatSummaryLine(entry: ChangelogSummaryEntry): string;
  * which is what lets `--check` fail only on real drift.
  */
 export declare function mergeChangelog(existingMarkdown: string | undefined, generatedMarkdown: string, options?: MergeChangelogOptions): MergeChangelogResult;
-/** Build the `pm list-all --json` argv used to read a workspace. `--pm-path`
- * is unshifted ahead of the subcommand because it is a host-owned global flag
- * and pm rejects it in trailing position. */
+/** Build the canonical, unbounded `pm list` argv used to read a workspace.
+ * `--pm-path` is unshifted ahead of the caller's global arguments because pm
+ * rejects it in trailing position. The host-owned output controls follow the
+ * caller arguments so a conflicting `pmArgs` value cannot silently re-bound a
+ * correctness-critical whole-tracker read. */
 export declare function buildPmListArgs(options?: ReadPmItemsOptions): string[];
 /**
  * Read every item from a pm workspace by invoking the real pm CLI.
@@ -70,7 +72,7 @@ export declare function writeChangelog(options: WriteChangelogOptions): WriteCha
  * Permissive on purpose: this is the shape parser for caller-supplied pm
  * documents (`--input`, `--stdin`), not the gate for live CLI reads. */
 export declare function parsePmItemsJson(raw: string): PmItem[];
-/** Typed failure for a `pm list-all --json` answer whose completeness receipt
+/** Typed failure for a whole-tracker `pm list` answer whose completeness receipt
  * proves the answer is not the whole workspace. Thrown (never logged) so the
  * CLI exits non-zero instead of writing a changelog built from half the
  * history. Carries the tripped signals and the count/total split for callers
@@ -84,7 +86,7 @@ export declare class IncompleteListAllError extends Error {
     readonly total: number | undefined;
     constructor(signals: readonly string[], envelope?: Record<string, unknown>);
 }
-/** Parse a `pm list-all --json` answer, refusing one whose completeness
+/** Parse a whole-tracker `pm list` answer, refusing one whose completeness
  * receipt does not prove the answer complete.
  *
  * Unlike {@link parsePmItemsJson} this rejects the legacy bare-array answer:
@@ -92,7 +94,7 @@ export declare class IncompleteListAllError extends Error {
  * it silently is exactly the 2026.8.14 failure mode. This is the parser for
  * live CLI reads; caller-supplied documents keep the permissive one.
  *
- * @param raw - stdout of a successful `pm list-all --json` invocation.
+ * @param raw - stdout of a successful canonical whole-tracker list invocation.
  * @returns The envelope's items, only when every receipt signal is clean.
  * @throws {IncompleteListAllError} when any receipt signal tripped.
  * @throws {SyntaxError} when the answer is not valid JSON, matching
