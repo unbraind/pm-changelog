@@ -6,7 +6,7 @@ status: closed
 priority: 1
 tags[5]: agents,cli-ux,completeness,pm-cli-2026.8.20,release
 created_at: "2026-08-20T20:53:35.645Z"
-updated_at: "2026-08-20T21:09:05.217Z"
+updated_at: "2026-08-20T21:09:53.330Z"
 deadline: "2026-08-22T20:53:35.645Z"
 closed_at: "2026-08-20T21:03:08.467Z"
 completed_at: "2026-08-20T21:03:08.467Z"
@@ -27,8 +27,9 @@ component: src/generator.ts whole-tracker reader
 customer_impact: "Without the fix, default changelog generation refuses legitimate medium-sized workspaces and agent stderr includes a deprecation warning; weakening the refusal instead would silently omit release notes."
 dependencies[1]{id,kind,created_at,author,source_kind,author_source}:
   pmc-wv37,related,"2026-08-20T20:53:35.645Z",codex,"cli:create:dep",asserted
-comments[1]{created_at,author,text}:
+comments[2]{created_at,author,text}:
   "2026-08-20T20:53:35.645Z",codex,GitHub #147 is the external defect report and companion item pm-cli-website-cbyb owns the 11-package fleet migration.
+  "2026-08-20T21:09:53.305Z",codex,Opened PR #148 from commit 8aec307. The PR explicitly remains unmerged and unpublished while pmc-t8tj is unresolved; review and CI evidence will be appended here.
 notes[2]{created_at,author,text}:
   "2026-08-20T20:53:35.645Z",codex,Do not weaken parseListAllItemsJson. The refusal remains necessary for unreadable-item partial receipts and future protocol violations even when the default argv requests unbounded output.
   "2026-08-20T21:03:07.955Z",codex,"author=codex,created_at=2026-08-20T21:03:07.955Z,text=TDD evidence: before implementation, the exact argv and wrapper tests failed. The first real-receipt attempt also showed that pm 2026.8.16 rejects list --all and that --no-truncate is reported as a legacy alias; upgrading the declared floor to 2026.8.20 and using list --all yields empty stderr and legacy_aliases_used=[]."
@@ -52,8 +53,9 @@ tests[3]:
     scope: project
     timeout_seconds: 180
     note: Packed npm and Bun parity with empty stderr
-docs[2]{path,scope,note}:
+docs[3]{path,scope,note}:
   "https://github.com/unbraind/pm-changelog/issues/147",global,Reported whole-corpus output-control defect
+  "https://github.com/unbraind/pm-changelog/pull/148",global,Delivery PR with exact-head checks and review
   docs/usage.md,project,Canonical whole-tracker command examples
 close_reason: "Canonical unbounded pm 2026.8.20 list reads are implemented and locally verified through exact gates plus packed npx/bunx acceptance; GitHub review and delivery remain PR work, while publication remains independently blocked by pmc-t8tj."
 body: "TDD sequence: pin exact argv in unit and wrapper tests first; add a real installed-CLI receipt assertion including empty legacy aliases; implement canonical command and unbounded controls; migrate user-facing terminology; upgrade exact SDK/host floors; regenerate the package changelog; run privacy, merge, health, release, packed npm/npx and Bun/bunx acceptance."
