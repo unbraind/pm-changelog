@@ -281,7 +281,7 @@ and its history untouched in the tracker. Both flags are reported by `--explain`
 | `--stdout` | false | Print markdown instead of writing a file |
 | `--input <file>` | - | Read pm JSON from a file |
 | `--stdin` | false | Read pm JSON from stdin |
-| `--pm-root <dir>` | - | Run an unbounded `pm --pm-path <dir> list --all --json` read |
+| `--pm-root <dir>` | - | Run an unbounded `pm --pm-path <dir> --output-budget unbounded --output-limit unbounded list --all --json` read |
 | `--pm-bin <file>` | `pm` | pm executable to run |
 | `--pm-arg <arg>` | - | Extra global argument passed before the canonical list command; repeat for multiple args |
 | `--pm-cwd <dir>` | - | Working directory for running pm |

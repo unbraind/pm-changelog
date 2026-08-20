@@ -70,11 +70,17 @@ const items = [
 test("buildPmListArgs centralizes canonical pm runner argument order", () => {
   assert.deepEqual(buildPmListArgs({
     pmRoot: ".agents/pm",
-    pmArgs: ["--profile", "ci"],
+    pmArgs: [
+      "--profile", "ci",
+      "--output-budget", "1",
+      "--output-limit", "1",
+    ],
     includeBody: true,
   }), [
     "--pm-path", ".agents/pm",
     "--profile", "ci",
+    "--output-budget", "1",
+    "--output-limit", "1",
     "--output-budget", "unbounded",
     "--output-limit", "unbounded",
     "list", "--all", "--json", "--include-body",
@@ -2068,6 +2074,7 @@ function captureRealListAllEnvelope(): Record<string, unknown> {
     assert.equal(result.stderr, "", "canonical list argv must not emit alias deprecation diagnostics");
     const parsed = JSON.parse(result.stdout) as Record<string, unknown>;
     assert.ok(Array.isArray(parsed.items) && parsed.items.length > 0, "the real envelope must carry items");
+    assert.equal(parsed.items.length, parsed.count, "the real envelope must return every counted item");
     assert.equal(parsed.count, parsed.total, "the real unbounded read must return the full tracker");
     assert.equal(parsed.truncated, false, "the real unbounded read must not be token-truncated");
     assert.equal(parsed.has_more, false, "the real unbounded read must not require pagination");
@@ -2090,6 +2097,15 @@ function captureRealListAllEnvelope(): Record<string, unknown> {
   }
   return realListAllEnvelope;
 }
+
+test("readPmItems host controls override bounded caller output controls", () => {
+  const rows = readPmItems({
+    pmRoot: join(process.cwd(), ".agents", "pm"),
+    pmArgs: ["--output-budget", "1", "--output-limit", "1"],
+  });
+  assert.ok(rows.length > 1, "host-owned unbounded controls must defeat caller-supplied one-item bounds");
+  assert.ok(rows.some((row) => row.id === "pmc-6j4o"), "the complete read must contain the delivery item");
+});
 
 /** Stringify a mutated copy of the real envelope with exactly one receipt
  * field replaced, keeping every other byte the CLI produced. */
@@ -2142,6 +2158,24 @@ test("parseListAllItemsJson refuses an envelope whose completeness block is abse
     () => parseListAllItemsJson(JSON.stringify(withoutCompleteness)),
     (error: unknown) => error instanceof IncompleteListAllError && /completeness\.status=<missing>/.test(error.message),
   );
+});
+
+test("parseListAllItemsJson refuses unverifiable or inconsistent receipt counts", () => {
+  const envelope = captureRealListAllEnvelope();
+  const items = envelope.items as unknown[];
+  const count = envelope.count as number;
+  for (const [override, expected] of [
+    [{ count: undefined }, "count=<missing-or-invalid>"],
+    [{ total: -1 }, "total=<missing-or-invalid>"],
+    [{ total: count + 1 }, `count=${count} differs from total=${count + 1}`],
+    [{ items: items.slice(1) }, `items.length=${items.length - 1} differs from count=${count}`],
+  ] as const) {
+    assert.throws(
+      () => parseListAllItemsJson(realEnvelopeWith(override)),
+      (error: unknown) => error instanceof IncompleteListAllError && error.message.includes(expected),
+      `expected a refusal naming ${expected}`,
+    );
+  }
 });
 
 test("parseListAllItemsJson names every tripped signal and unknown counts together", () => {

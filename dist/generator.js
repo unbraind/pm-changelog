@@ -471,8 +471,10 @@ export class IncompleteListAllError extends Error {
  * The 2026.8.14 CLI regression returned ten of 682 items with `truncated: true`
  * set, and an output budget can still truncate a read while
  * `completeness.status` reports unreadable items as `partial`. Each of the
- * four signals is an independent way for the CLI to say "this is not the
- * whole workspace", so all four are checked on every read. A missing
+ * receipt signals is an independent way for the CLI to say "this is not the
+ * whole workspace", so all are checked on every read. Counts are validated
+ * against both each other and the returned row array: clean boolean flags do
+ * not make a missing or internally inconsistent corpus complete. A missing
  * `completeness` block counts as incomplete too: an answer that cannot prove
  * its own completeness must not be consumed as if it had. `next_cursor` is
  * deliberately NOT followed - this package has no paging consumer, and
@@ -494,6 +496,22 @@ function incompleteListAllSignals(record) {
     }
     if (isRecord(record.omission_receipt) && record.omission_receipt.has_omissions === true) {
         signals.push("omission_receipt.has_omissions=true");
+    }
+    const count = typeof record.count === "number" && Number.isInteger(record.count) && record.count >= 0
+        ? record.count
+        : undefined;
+    const total = typeof record.total === "number" && Number.isInteger(record.total) && record.total >= 0
+        ? record.total
+        : undefined;
+    if (count === undefined)
+        signals.push("count=<missing-or-invalid>");
+    if (total === undefined)
+        signals.push("total=<missing-or-invalid>");
+    if (count !== undefined && total !== undefined && count !== total) {
+        signals.push(`count=${count} differs from total=${total}`);
+    }
+    if (Array.isArray(record.items) && count !== undefined && record.items.length !== count) {
+        signals.push(`items.length=${record.items.length} differs from count=${count}`);
     }
     return signals;
 }
