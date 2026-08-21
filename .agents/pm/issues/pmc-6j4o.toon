@@ -6,7 +6,7 @@ status: closed
 priority: 1
 tags[5]: agents,cli-ux,completeness,pm-cli-2026.8.20,release
 created_at: "2026-08-20T20:53:35.645Z"
-updated_at: "2026-08-20T21:21:36.765Z"
+updated_at: "2026-08-21T23:09:39.432Z"
 deadline: "2026-08-22T20:53:35.645Z"
 closed_at: "2026-08-20T21:03:08.467Z"
 completed_at: "2026-08-20T21:03:08.467Z"
@@ -30,11 +30,12 @@ dependencies[1]{id,kind,created_at,author,source_kind,author_source}:
 comments[2]{created_at,author,text}:
   "2026-08-20T20:53:35.645Z",codex,GitHub #147 is the external defect report and companion item pm-cli-website-cbyb owns the 11-package fleet migration.
   "2026-08-20T21:09:53.305Z",codex,Opened PR #148 from commit 8aec307. The PR explicitly remains unmerged and unpublished while pmc-t8tj is unresolved; review and CI evidence will be appended here.
-notes[4]{created_at,author,text}:
+notes[5]{created_at,author,text}:
   "2026-08-20T21:21:36.742Z",codex,"CodeRabbit exact-head review on PR #148 correctly required receipt count consistency. Added fail-closed checks for missing or invalid count/total, count-total disagreement, and item-row-count disagreement, plus real installed-CLI acceptance proving bounded caller output controls are overridden by the host-owned unbounded controls."
   "2026-08-20T21:21:36.742Z",codex,Do not weaken parseListAllItemsJson. The refusal remains necessary for unreadable-item partial receipts and future protocol violations even when the default argv requests unbounded output.
   "2026-08-20T21:21:36.742Z",codex,"Post-review authoritative gate on 2026-08-20: npm run release:check passed 389 tests, exact 100.00 percent lines/branches/functions for all nine measured sources, 143 documented declarations, zero production audit vulnerabilities, clean pack, and current changelog."
   "2026-08-20T21:21:36.742Z",codex,"TDD evidence: before implementation, the exact argv and wrapper tests failed. The first real-receipt attempt also showed that pm 2026.8.16 rejects list --all and that --no-truncate is reported as a legacy alias; upgrading the declared floor to 2026.8.20 and using list --all yields empty stderr and legacy_aliases_used=[]."
+  "2026-08-21T23:09:39.407Z","harness:ox-alpha","merged PR #150 as 377d4a14aa5a366d5bd3250e679c0277a6977a8a, all threads resolved, checks green, release workflow scheduled (cron 17 3 * * *, next daily run will publish)"
 learnings[2]{created_at,author,text}:
   "2026-08-20T20:53:35.645Z",codex,A fail-closed complete-corpus consumer must both request an unbounded answer and validate the receipt; either half alone is insufficient.
   "2026-08-20T21:03:07.955Z",codex,"Canonical command migration and host-floor migration are one atomic compatibility change: retaining the old floor would advertise support for a host that rejects the new argv."
