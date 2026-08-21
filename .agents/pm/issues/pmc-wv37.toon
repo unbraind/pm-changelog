@@ -2,13 +2,50 @@ id: pmc-wv37
 title: pm-changelog consumes a truncated `pm list-all` answer as if it were complete
 description: "readPmItems shells out to pm list-all --json and takes .items via parsePmItemsJson without consulting the answer's completeness receipt. Under pm-cli 2026.8.14 the default output budget returned 10 of 682 workspace items with truncated=true, and pm-changelog generated a changelog missing most entries while reporting success. truncated can still go true under an output budget and completeness.status can go partial when item documents are unreadable, so the read itself must refuse those answers instead of generating from half a workspace."
 type: Issue
-status: open
+status: closed
 priority: 2
 tags: []
 created_at: "2026-08-15T11:11:36.652Z"
-updated_at: "2026-08-15T16:20:17.493Z"
+updated_at: "2026-08-20T21:19:05.141Z"
+closed_at: "2026-08-20T21:01:56.354Z"
+completed_at: "2026-08-20T21:01:56.354Z"
 author: pi-agent
+estimated_minutes: 240
+acceptance_criteria: "Live pm CLI reads reject truncated=true, has_more=true, missing or non-complete completeness.status, and omission_receipt.has_omissions=true; bare arrays and malformed complete-looking envelopes fail closed; the dev CLI is exact-pinned and the manifest floor matches its compatible peer floor; real CLI receipt mutations and wrapper tests are revert-sensitive; package release gate and CI pass; package PM and PR evidence are linked"
+reviewer: steve
+risk: high
+confidence: high
+sprint: 2026-08-completeness
+release: 2026.8.16
+reporter: pi-agent
+severity: high
+environment: pm-changelog whole-tracker CLI reader
+repro_steps: "Run pm list-all under the 2026.8.14 default output budget on a tracker above that budget, then feed the returned envelope to the former permissive reader; it returned only the items array and silently generated a partial changelog."
+resolution: "PR 143 replaced permissive live list parsing with parseListAllItemsJson and IncompleteListAllError, exact-pinned the compatible CLI, aligned the manifest floor, and added real-envelope adversarial regression coverage. Canonical unbounded argv is intentionally the linked follow-up pmc-6j4o."
+expected_result: "Every live whole-tracker read validates the CLI completeness receipt and refuses partial, truncated, paginated, omitted, malformed, or unverifiable output."
+actual_result: "Merged PR 143 at ed09c3dc32c4fe422fa7f66b28ff272ed0651448. The strict live reader rejects all four receipt failure families and receipt-less shapes, with exact coverage and Node 22/26 plus security checks green. The later default-output and deprecated-alias follow-up is separately tracked as pmc-6j4o / GitHub #147."
+component: src/generator.ts complete-corpus decoder
+customer_impact: Prevents successful changelog generation from silently omitting tracker items when the host returns an incomplete corpus.
+dependencies[1]{id,kind,created_at,author,source_kind,author_source}:
+  pmc-6j4o,related,"2026-08-20T21:01:40.284Z",codex,"cli:update:dep",detected
 comments[2]{created_at,author,text}:
   "2026-08-15T11:12:00.848Z",pi-agent,"Wired refusal signals at the list-all read (src/generator.ts readPmItems -> parseListAllItemsJson): truncated===true, has_more===true, completeness.status!=='complete' (a missing or non-object receipt counts as incomplete), omission_receipt.has_omissions===true. The new typed IncompleteListAllError names every tripped signal plus count vs total, and readPmItems propagates it so the CLI exits non-zero instead of writing a changelog from half the history. next_cursor is deliberately NOT followed: no paging consumer here, refusing loudly is the contract. Also exact-pinned @unbrained/pm-cli to 2026.8.15 in devDependencies (^2026.8.11 before) and peerDependencies (>=2026.8.3 before). Revert-proof: with parseListAllItemsJson reverted to the permissive parsePmItemsJson behavior, nine regression tests fail, e.g. 'AssertionError [ERR_ASSERTION]: Missing expected exception: the refusal must name the truncated signal and the counts'; only the happy-path test still passes."
   "2026-08-15T16:20:17.493Z",claude-agent,"Rebase onto main plus the fleet compatibility convention (PR #143).\n\nThe branch went DIRTY after Dependabot PRs #140 and #141 merged to main, conflicting on `package.json` and `package-lock.json`. Resolved by taking each side's own contribution: the branch's EXACT `@unbrained/pm-cli` pin at 2026.8.15 (the point of this PR) and main's newer `pm-ops` 2026.8.10 (the merged bump). One commit dropped as already upstream.\n\nWhile resolving, three compatibility declarations were brought in line with the convention the rest of the fleet converged on today:\n\n- `peerDependencies` was the EXACT `2026.8.15`. Corrected to the lower-bound `>=2026.8.15`: an exact peer pin makes every later CLI patch a peer conflict for consumers under strict peer resolution, turning a compatibility statement into a lockstep release dependency. Reviewers raised this independently on pm-beads, pm-brief and pm-context.\n- `manifest.json` `pm_min_version` was still `2026.8.3`, three releases below the peer floor, so the pm host would have loaded this package on a CLI that predates the completeness receipt it depends on. Corrected to 2026.8.15 and verified against the SDK gate: 2026.8.14 now fails with `pm_min_version_unmet`, 2026.8.15 and 2027.1.1 pass.\n- The lockfile root metadata was regenerated so `npm ci` sees a consistent manifest and lockfile.\n\nTwo regression tests added, matching those now in pm-beads, pm-brief, pm-context and pm-linear: one binds `pm_min_version` to the peer floor and asserts the dev pin is exact rather than a range, the other runs the SDK host gate against the manifest bytes on disk so a floor moved into a field the gate does not read fails loudly instead of shipping inert. That second case is not hypothetical — it is exactly how pm-context and pm-linear ended up with no enforced floor at all.\n\nrelease:check green including changelog:check.\n"
+notes[1]{created_at,author,text}:
+  "2026-08-20T21:19:05.121Z",codex,"Current GitHub readback for merged PR #143: head c7229d8a3fdf85c57057320553b8edfc7f7895ee,merge commit ed09c3dc32c4fe422fa7f66b28ff272ed0651448,Node 22/26 and Semgrep/DeepScan/Hound green. Cubic and Sourcery were unavailable and CodeRabbit skipped automatic line review,so those are not claimed as approvals."
+files[1]{path,scope,note}:
+  src/generator.ts,project,Fail-closed live whole-tracker reader
+tests[2]:
+  - command: "npm run release:check"
+    scope: project
+    timeout_seconds: 600
+    pm_context_mode: tracker
+    note: Exact source and package release gate
+  - command: gh pr checks 143 --repo unbraind/pm-changelog
+    scope: project
+    timeout_seconds: 120
+    note: "2026-08-20 readback: Node 22 and 26,Semgrep,DeepScan,and Hound passed; Cubic and Sourcery skipped; CodeRabbit status explicitly said manual review required"
+docs[1]{path,scope,note}:
+  "https://github.com/unbraind/pm-changelog/pull/143",global,Merged complete-corpus implementation
+close_reason: Merged PR 143 implements and verifies fail-closed whole-tracker receipt validation; canonical unbounded pm 2026.8.20 argv remains separately tracked by related item pmc-6j4o and GitHub #147.
 body: ""

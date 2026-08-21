@@ -415,11 +415,18 @@ export function mergeChangelog(
   };
 }
 
-/** Build the `pm list-all --json` argv used to read a workspace. `--pm-path`
- * is unshifted ahead of the subcommand because it is a host-owned global flag
- * and pm rejects it in trailing position. */
+/** Build the canonical, unbounded `pm list` argv used to read a workspace.
+ * `--pm-path` is unshifted ahead of the caller's global arguments because pm
+ * rejects it in trailing position. The host-owned output controls follow the
+ * caller arguments so a conflicting `pmArgs` value cannot silently re-bound a
+ * correctness-critical whole-tracker read. */
 export function buildPmListArgs(options: ReadPmItemsOptions = {}): string[] {
-  const args = [...(options.pmArgs ?? []), "list-all", "--json"];
+  const args = [
+    ...(options.pmArgs ?? []),
+    "--output-budget", "unbounded",
+    "--output-limit", "unbounded",
+    "list", "--all", "--json",
+  ];
   if (options.includeBody) {
     args.push("--include-body");
   }
@@ -485,7 +492,7 @@ export function readPmItems(options: ReadPmItemsOptions = {}): PmItem[] {
     maxBuffer: options.maxBuffer ?? DEFAULT_PM_JSON_MAX_BUFFER,
   });
   if (result.status !== 0) {
-    throw new Error(result.stderr || `${pmBin} list-all --json failed`);
+    throw new Error(result.stderr || `${pmBin} list --all --json failed`);
   }
 
   return parseListAllItemsJson(result.stdout);
@@ -529,7 +536,7 @@ export function parsePmItemsJson(raw: string): PmItem[] {
   throw new Error("Expected pm JSON to be an array or an object with an items array");
 }
 
-/** Typed failure for a `pm list-all --json` answer whose completeness receipt
+/** Typed failure for a whole-tracker `pm list` answer whose completeness receipt
  * proves the answer is not the whole workspace. Thrown (never logged) so the
  * CLI exits non-zero instead of writing a changelog built from half the
  * history. Carries the tripped signals and the count/total split for callers
@@ -546,7 +553,7 @@ export class IncompleteListAllError extends Error {
     const count = envelope !== undefined && typeof envelope.count === "number" ? envelope.count : undefined;
     const total = envelope !== undefined && typeof envelope.total === "number" ? envelope.total : undefined;
     super(
-      `pm list-all --json answer was incomplete and was refused: ${signals.join("; ")}; `
+      `pm list --all --json answer was incomplete and was refused: ${signals.join("; ")}; `
         + `count=${count ?? "unknown"} of total=${total ?? "unknown"}. `
         + "A changelog generated from a partial workspace read would silently omit entries; "
         + "make the read complete (for example raise or disable its output budget) and retry.",
@@ -558,21 +565,23 @@ export class IncompleteListAllError extends Error {
   }
 }
 
-/** Collect every receipt signal that makes a `pm list-all --json` answer
+/** Collect every receipt signal that makes a whole-tracker `pm list` answer
  * unsafe to consume.
  *
  * The 2026.8.14 CLI regression returned ten of 682 items with `truncated: true`
  * set, and an output budget can still truncate a read while
  * `completeness.status` reports unreadable items as `partial`. Each of the
- * four signals is an independent way for the CLI to say "this is not the
- * whole workspace", so all four are checked on every read. A missing
+ * receipt signals is an independent way for the CLI to say "this is not the
+ * whole workspace", so all are checked on every read. Counts are validated
+ * against both each other and the returned row array: clean boolean flags do
+ * not make a missing or internally inconsistent corpus complete. A missing
  * `completeness` block counts as incomplete too: an answer that cannot prove
  * its own completeness must not be consumed as if it had. `next_cursor` is
  * deliberately NOT followed - this package has no paging consumer, and
  * refusing loudly beats a hand-rolled resumption loop that can itself
  * half-fail.
  *
- * @param record - The parsed `list-all` envelope.
+ * @param record - The parsed whole-tracker list envelope.
  * @returns The human-readable signals that tripped, empty when the answer is
  * safe to consume. */
 function incompleteListAllSignals(record: Record<string, unknown>): string[] {
@@ -586,10 +595,24 @@ function incompleteListAllSignals(record: Record<string, unknown>): string[] {
   if (isRecord(record.omission_receipt) && record.omission_receipt.has_omissions === true) {
     signals.push("omission_receipt.has_omissions=true");
   }
+  const count = typeof record.count === "number" && Number.isInteger(record.count) && record.count >= 0
+    ? record.count
+    : undefined;
+  const total = typeof record.total === "number" && Number.isInteger(record.total) && record.total >= 0
+    ? record.total
+    : undefined;
+  if (count === undefined) signals.push("count=<missing-or-invalid>");
+  if (total === undefined) signals.push("total=<missing-or-invalid>");
+  if (count !== undefined && total !== undefined && count !== total) {
+    signals.push(`count=${count} differs from total=${total}`);
+  }
+  if (Array.isArray(record.items) && count !== undefined && record.items.length !== count) {
+    signals.push(`items.length=${record.items.length} differs from count=${count}`);
+  }
   return signals;
 }
 
-/** Parse a `pm list-all --json` answer, refusing one whose completeness
+/** Parse a whole-tracker `pm list` answer, refusing one whose completeness
  * receipt does not prove the answer complete.
  *
  * Unlike {@link parsePmItemsJson} this rejects the legacy bare-array answer:
@@ -597,7 +620,7 @@ function incompleteListAllSignals(record: Record<string, unknown>): string[] {
  * it silently is exactly the 2026.8.14 failure mode. This is the parser for
  * live CLI reads; caller-supplied documents keep the permissive one.
  *
- * @param raw - stdout of a successful `pm list-all --json` invocation.
+ * @param raw - stdout of a successful canonical whole-tracker list invocation.
  * @returns The envelope's items, only when every receipt signal is clean.
  * @throws {IncompleteListAllError} when any receipt signal tripped.
  * @throws {SyntaxError} when the answer is not valid JSON, matching
@@ -613,7 +636,7 @@ export function parseListAllItemsJson(raw: string): PmItem[] {
   if (signals.length > 0) throw new IncompleteListAllError(signals, parsed);
   if (!Array.isArray(parsed.items)) {
     throw new Error(
-      "pm list-all --json answer was malformed and was refused: it carried no items array "
+      "pm list --all --json answer was malformed and was refused: it carried no items array "
         + "while claiming to be complete, so its receipt cannot be trusted either.",
     );
   }

@@ -84,7 +84,7 @@ Recommended checks:
 ```bash
 pm health --json
 pm validate --json --check-metadata --check-resolution --check-lifecycle --check-command-references --check-history-drift --strict-exit
-pm list-all --json
+pm --output-budget unbounded --output-limit unbounded list --all --json
 ```
 
 Every release-readiness item should record:

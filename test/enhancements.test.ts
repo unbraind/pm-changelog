@@ -458,7 +458,7 @@ test("breaking detection still flags real signals: word, tag variants, flag (GH 
 // ---------------------------------------------------------------------------
 test("readPmItems requests --include-body only when includeBody is set (GH #27)", () => {
   // Fake pm bin returns a body ONLY when invoked with --include-body, mirroring
-  // how `pm list-all --json` omits bodies unless the flag is passed.
+  // how the canonical whole-tracker list omits bodies unless the flag is passed.
   const dir = mkdtempSync(join(tmpdir(), "pm-changelog-body-"));
   const fakePm = join(dir, "fake-pm.mjs");
   try {

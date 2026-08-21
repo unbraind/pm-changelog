@@ -70,9 +70,21 @@ const items = [
 test("buildPmListArgs centralizes canonical pm runner argument order", () => {
   assert.deepEqual(buildPmListArgs({
     pmRoot: ".agents/pm",
-    pmArgs: ["--profile", "ci"],
+    pmArgs: [
+      "--profile", "ci",
+      "--output-budget", "1",
+      "--output-limit", "1",
+    ],
     includeBody: true,
-  }), ["--pm-path", ".agents/pm", "--profile", "ci", "list-all", "--json", "--include-body"]);
+  }), [
+    "--pm-path", ".agents/pm",
+    "--profile", "ci",
+    "--output-budget", "1",
+    "--output-limit", "1",
+    "--output-budget", "unbounded",
+    "--output-limit", "unbounded",
+    "list", "--all", "--json", "--include-body",
+  ]);
 });
 
 test("createChangelog groups closed items by category", () => {
@@ -1962,8 +1974,8 @@ test("CLI matches zero-padded calendar release tags for npm versions", () => {
 });
 
 
-/** Wrap rows in the complete `list-all` receipt the real CLI emits, so fake
- * runner outputs match the envelope shape the strict list-all read requires. */
+/** Wrap rows in the complete whole-tracker receipt the real CLI emits, so fake
+ * runner outputs match the envelope shape the strict list reader requires. */
 function completeListAllEnvelope(rows: unknown[]): Record<string, unknown> {
   return {
     items: rows,
@@ -1987,7 +1999,7 @@ test("readPmItems supports runner wrappers with custom binaries, args, cwd, and 
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 
-if (process.argv.slice(2).join(" ") !== "--pm-path .agents/pm --profile ci list-all --json") process.exit(2);
+if (process.argv.slice(2).join(" ") !== "--pm-path .agents/pm --profile ci --output-budget unbounded --output-limit unbounded list --all --json") process.exit(2);
 if (process.env.PM_CHANGELOG_TEST !== "1") process.exit(3);
 process.stdout.write(readFileSync(resolve(process.cwd(), "fixture.json"), "utf-8"));
 `,
@@ -2014,7 +2026,7 @@ test("readPmItems supports pm JSON larger than Node's default spawnSync buffer",
   writeFileSync(
     wrapper,
     `#!/usr/bin/env node
-if (process.argv.slice(2).join(" ") !== "list-all --json") process.exit(2);
+if (process.argv.slice(2).join(" ") !== "--output-budget unbounded --output-limit unbounded list --all --json") process.exit(2);
 process.stdout.write(JSON.stringify({ items: [{ id: "pm-large", title: "Large tracker", status: "closed", body: ${JSON.stringify(largeBody)} }], count: 1, total: 1, truncated: false, has_more: false, completeness: { status: "complete", unreadable_item_count: 0, unreadable_directory_count: 0 }, omission_receipt: { has_omissions: false, omitted_field_group_count: 0, omitted_field_groups: [] } }));
 `,
     "utf-8"
@@ -2040,7 +2052,7 @@ test("readPmItems resolves the installed pm-cli executable without PATH", () => 
   assert.ok(result.length > 0, "expected pm items to be returned without PATH");
 });
 
-/** A real `pm list-all --json` envelope captured from the installed CLI
+/** A real canonical `pm list --all --json` envelope captured from the installed CLI
  * against this repository's own tracker, cached so the spawn happens once.
  * Mutating one field of this envelope is how the refusal tests drive each
  * signal from the CLI's real answer shape rather than a hand-written mock. */
@@ -2049,17 +2061,51 @@ let realListAllEnvelope: Record<string, unknown> | undefined;
 function captureRealListAllEnvelope(): Record<string, unknown> {
   if (realListAllEnvelope === undefined) {
     const pmBin = join(process.cwd(), "node_modules", ".bin", "pm");
-    const result = spawnSync(pmBin, ["--pm-path", join(process.cwd(), ".agents", "pm"), "list-all", "--json"], {
+    const result = spawnSync(pmBin, [
+      "--pm-path", join(process.cwd(), ".agents", "pm"),
+      "--output-budget", "unbounded",
+      "--output-limit", "unbounded",
+      "list", "--all", "--json",
+    ], {
       encoding: "utf-8",
       maxBuffer: 64 * 1024 * 1024,
     });
-    assert.equal(result.status, 0, `capturing a real list-all envelope failed: ${result.stderr}`);
+    assert.equal(result.status, 0, `capturing a real canonical list envelope failed: ${result.stderr}`);
+    assert.equal(result.stderr, "", "canonical list argv must not emit alias deprecation diagnostics");
     const parsed = JSON.parse(result.stdout) as Record<string, unknown>;
     assert.ok(Array.isArray(parsed.items) && parsed.items.length > 0, "the real envelope must carry items");
+    assert.equal(parsed.items.length, parsed.count, "the real envelope must return every counted item");
+    assert.equal(parsed.count, parsed.total, "the real unbounded read must return the full tracker");
+    assert.equal(parsed.truncated, false, "the real unbounded read must not be token-truncated");
+    assert.equal(parsed.has_more, false, "the real unbounded read must not require pagination");
+    assert.deepEqual(parsed.completeness, {
+      status: "complete",
+      unreadable_item_count: 0,
+      unreadable_directory_count: 0,
+    });
+    assert.deepEqual(parsed.omission_receipt, {
+      has_omissions: false,
+      omitted_field_group_count: 0,
+      omitted_field_groups: [],
+    });
+    assert.deepEqual(
+      (parsed.read_output as { legacy_aliases_used?: unknown }).legacy_aliases_used,
+      [],
+      "the real receipt must prove no compatibility alias was used",
+    );
     realListAllEnvelope = parsed;
   }
   return realListAllEnvelope;
 }
+
+test("readPmItems host controls override bounded caller output controls", () => {
+  const rows = readPmItems({
+    pmRoot: join(process.cwd(), ".agents", "pm"),
+    pmArgs: ["--output-budget", "1", "--output-limit", "1"],
+  });
+  assert.ok(rows.length > 1, "host-owned unbounded controls must defeat caller-supplied one-item bounds");
+  assert.ok(rows.some((row) => row.id === "pmc-6j4o"), "the complete read must contain the delivery item");
+});
 
 /** Stringify a mutated copy of the real envelope with exactly one receipt
  * field replaced, keeping every other byte the CLI produced. */
@@ -2073,7 +2119,7 @@ for (const [signal, override, expectedDetail] of [
   ["completeness.status", { completeness: { status: "partial", unreadable_item_count: 2, unreadable_directory_count: 0 } }, 'completeness.status="partial"'],
   ["omission_receipt.has_omissions", { omission_receipt: { has_omissions: true, omitted_field_group_count: 1, omitted_field_groups: ["body"] } }, "omission_receipt.has_omissions=true"],
 ] as const) {
-  test(`parseListAllItemsJson refuses a real list-all envelope whose ${signal} signal tripped`, () => {
+  test(`parseListAllItemsJson refuses a real whole-tracker envelope whose ${signal} signal tripped`, () => {
     const envelope = captureRealListAllEnvelope();
     const expectedCounts = `count=${envelope.count} of total=${envelope.total}`;
     assert.throws(
@@ -2112,6 +2158,24 @@ test("parseListAllItemsJson refuses an envelope whose completeness block is abse
     () => parseListAllItemsJson(JSON.stringify(withoutCompleteness)),
     (error: unknown) => error instanceof IncompleteListAllError && /completeness\.status=<missing>/.test(error.message),
   );
+});
+
+test("parseListAllItemsJson refuses unverifiable or inconsistent receipt counts", () => {
+  const envelope = captureRealListAllEnvelope();
+  const items = envelope.items as unknown[];
+  const count = envelope.count as number;
+  for (const [override, expected] of [
+    [{ count: undefined }, "count=<missing-or-invalid>"],
+    [{ total: -1 }, "total=<missing-or-invalid>"],
+    [{ total: count + 1 }, `count=${count} differs from total=${count + 1}`],
+    [{ items: items.slice(1) }, `items.length=${items.length - 1} differs from count=${count}`],
+  ] as const) {
+    assert.throws(
+      () => parseListAllItemsJson(realEnvelopeWith(override)),
+      (error: unknown) => error instanceof IncompleteListAllError && error.message.includes(expected),
+      `expected a refusal naming ${expected}`,
+    );
+  }
 });
 
 test("parseListAllItemsJson names every tripped signal and unknown counts together", () => {
@@ -2170,7 +2234,7 @@ test("CLI can run a custom pm binary", () => {
   writeFileSync(
     wrapper,
     `#!/usr/bin/env node
-if (process.argv.slice(2).join(" ") !== "list-all --json") process.exit(2);
+if (process.argv.slice(2).join(" ") !== "--output-budget unbounded --output-limit unbounded list --all --json") process.exit(2);
 process.stdout.write(${JSON.stringify(JSON.stringify(completeListAllEnvelope(items)))});
 `,
     "utf-8"
@@ -2210,7 +2274,7 @@ test("CLI passes extra pm arguments and cwd to runner wrappers", () => {
 import { existsSync, readFileSync } from "node:fs";
 import { resolve } from "node:path";
 
-if (process.argv.slice(2).join(" ") !== "--profile ci --workspace release list-all --json") process.exit(2);
+if (process.argv.slice(2).join(" ") !== "--profile ci --workspace release --output-budget unbounded --output-limit unbounded list --all --json") process.exit(2);
 if (!existsSync(resolve(process.cwd(), "fixture.json"))) process.exit(3);
 process.stdout.write(readFileSync(resolve(process.cwd(), "fixture.json"), "utf-8"));
 `,
