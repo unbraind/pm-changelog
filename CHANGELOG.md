@@ -1,5 +1,11 @@
 # Changelog
 
+## Unreleased
+
+### Security
+
+- Remove historical host paths and non-public Git identities before release approval ([pmc-t8tj](https://github.com/unbraind/pm-changelog/blob/main/.agents/pm/issues/pmc-t8tj.toon))
+
 ## 2026.8.17 - 2026-08-17
 
 ### Fixed
