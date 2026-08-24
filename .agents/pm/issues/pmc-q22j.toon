@@ -1,0 +1,33 @@
+id: pmc-q22j
+title: This package generates its own changelog without the flag that stops the heading date coming from the clock
+description: "pm-changelog synthesises a pending release window for a version with no matching git tag and stamps it with the current UTC date. Its own changelog scripts and release workflow did not pass the date-from-version flag, the one this package itself ships for exactly that case, so its changelog check regenerates a different heading date every day and fails on any day after the changelog was written. Applied the flag to every invocation of the generator here: two sites in package.json and one in the release workflow."
+type: Issue
+status: open
+priority: 1
+tags[3]: changelog,gates,release
+created_at: "2026-08-24T09:42:16.204Z"
+updated_at: "2026-08-24T09:42:31.009Z"
+deadline: "2026-08-31T00:00:00.000Z"
+assignee: "harness:claude-code"
+author: "harness:claude-code"
+estimated_minutes: 30
+acceptance_criteria: "Every invocation of the generator in this package passes the flag, and changelog check passes on a day other than the version's own calendar date"
+dependencies[1]{id,kind,created_at,author,source_kind,author_source}:
+  pmc-ilrh,related,"2026-08-24T09:42:16.204Z","harness:claude-code","cli:create:dep",detected
+comments[1]{created_at,author,text}:
+  "2026-08-24T09:42:16.204Z","harness:claude-code",Found while rolling this fix across the fleet; this package was exposed to the defect it fixes for everyone else.
+notes[1]{created_at,author,text}:
+  "2026-08-24T09:42:16.204Z","harness:claude-code","Site audit after the change: package.json 2 of 2 flagged, release.yml 1 of 1 flagged."
+learnings[1]{created_at,author,text}:
+  "2026-08-24T09:42:16.204Z","harness:claude-code",A package that ships a remedy is not automatically a package that applies it; the rollout has to include the origin repo.
+files[2]:
+  - path: package.json
+    scope: project
+  - path: .github/workflows/release.yml
+    scope: project
+    note: the release workflow's generator invocation now derives the no-tag date from the calendar version
+tests[1]{command,scope}:
+  "npm run changelog:check",project
+docs[1]{path,scope,note}:
+  "https://github.com/unbraind/pm-changelog/blob/main/README.md",project,flag reference
+body: "The release workflow tags only after npm publish succeeds. Publish has failed fleet wide since 2026-08-21, so this package carries an untagged version and sits on the clock dependent path its own flag exists to remove."
