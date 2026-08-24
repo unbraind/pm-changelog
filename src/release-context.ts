@@ -228,11 +228,19 @@ export function resolveReleaseContext(options: ReleaseContextOptions): ReleaseCo
 }
 
 /** Convert the fleet's calendar-version spelling into an ISO heading date.
- * Invalid dates fail closed: JavaScript's date constructor normalizes values
- * such as February 30, which would turn a typo into a different release day. */
+ *
+ * Accepts an optional `-N` same-day suffix, because that is what the release
+ * workflow actually emits: a second release on one day is tagged
+ * `v2026.8.24-2`. The suffix distinguishes releases, not days, so it is parsed
+ * and discarded rather than rejected -- refusing it would make the generator
+ * fail hard on exactly the day a package released twice.
+ *
+ * Invalid dates still fail closed: JavaScript's date constructor normalizes
+ * values such as February 30, which would turn a typo into a different release
+ * day. */
 function calendarDateFromVersion(version: string | undefined): string {
-  const match = version?.trim().replace(/^v/i, "").match(/^(\d{4})\.(\d{1,2})\.(\d{1,2})$/);
-  const message = `--date-from-version requires a calendar version in YYYY.M.D form; received ${JSON.stringify(version ?? "")}`;
+  const match = version?.trim().replace(/^v/i, "").match(/^(\d{4})\.(\d{1,2})\.(\d{1,2})(?:-(\d+))?$/);
+  const message = `--date-from-version requires a calendar version in YYYY.M.D form, optionally with a same-day -N suffix; received ${JSON.stringify(version ?? "")}`;
   if (!match) throw new Error(message);
   const [, yearText, monthText, dayText] = match;
   const year = Number(yearText);
