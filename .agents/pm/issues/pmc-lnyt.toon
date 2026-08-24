@@ -1,0 +1,33 @@
+id: pmc-lnyt
+title: The version-derived release date refuses the same-day suffix the release workflow actually emits
+description: "The release workflow tags a second release on one day as v2026.8.24-2 and stamps that version into package.json. calendarDateFromVersion required a strict YYYY.M.D and threw on anything else, so the date-from-version flag failed hard on exactly the day a package released twice. That turns a stale heading date, which is what the flag exists to remove, into a broken release. Found by CodeRabbit on the fleet rollout of that flag, on pm-beads pull request 79, before any package could hit it. Verified directly against the published 2026.8.17 binary, where a suffixed release version exits 1 with the parser message rather than producing a heading. The suffix distinguishes releases, not days, so it is parsed and discarded and the date is the calendar day while the suffix survives in the version heading itself. Non-numeric suffixes such as a beta spelling are still refused, because those are prerelease identifiers rather than same-day counters and inventing a date for them would be a guess, and an impossible calendar date is still refused even when it carries a suffix."
+type: Issue
+status: open
+priority: 1
+tags[3]: changelog,regression,release
+created_at: "2026-08-24T10:27:09.257Z"
+updated_at: "2026-08-24T10:27:10.298Z"
+deadline: "2026-08-31T00:00:00.000Z"
+assignee: "harness:claude-code"
+author: "harness:claude-code"
+estimated_minutes: 40
+acceptance_criteria: "A suffixed calendar version derives the calendar day and keeps its suffix in the heading, a non-numeric suffix is still refused, and an impossible date is still refused with or without a suffix"
+dependencies[1]{id,kind,created_at,author,source_kind,author_source}:
+  pmc-q22j,related,"2026-08-24T10:27:09.257Z","harness:claude-code","cli:create:dep",detected
+comments[1]{created_at,author,text}:
+  "2026-08-24T10:27:09.257Z","harness:claude-code","Caught on the fleet rollout before it could break a release, rather than after."
+notes[1]{created_at,author,text}:
+  "2026-08-24T10:27:09.257Z","harness:claude-code",Reverting only the parser while keeping the test fails one test; restoring passes 390.
+learnings[1]{created_at,author,text}:
+  "2026-08-24T10:27:09.257Z","harness:claude-code","A validator written against the version format a package normally has will refuse the format its own release workflow emits in the less common case; check the workflow, not the current version."
+files[2]:
+  - path: src/release-context.ts
+    scope: project
+  - path: test/generator.test.ts
+    scope: project
+    note: regression test for the same-day suffix; fails when the parser change is reverted
+tests[1]{command,scope}:
+  npm test,project
+docs[1]{path,scope,note}:
+  "https://github.com/unbraind/pm-changelog/blob/main/README.md",project,flag reference
+body: "Reachable whenever a package releases twice in one calendar day, which the workflow supports by design through its max-suffix logic."
