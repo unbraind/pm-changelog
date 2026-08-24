@@ -702,7 +702,7 @@ jobs:
             --pm-root .agents/pm \
             --stdout \
             --all-release-tags \
-            --release-version-from-package \
+            --release-version-from-package --date-from-version \
             --item-url-base https://github.com/unbraind/pm-changelog/blob/main/.agents/pm \
             --pm-bin ./node_modules/.bin/pm \
             | awk -v pat="$tag_pattern" '/^## /{p=0} $0 ~ pat {p=1} p' \
