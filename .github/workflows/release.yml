@@ -188,25 +188,21 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
+          # Use the package.json scripts (changelog:full / changelog:check) rather
+          # than hand-rolling `node dist/cli.js` here. The scripts carry
+          # --date-from-version, --respect-item-release and the unbounded
+          # output-budget/limit args; a previous hand-rolled invocation omitted
+          # them, so the release commit wrote a clock-dated CHANGELOG.md while
+          # `npm run changelog:check` (CI, release:check) regenerated with
+          # --date-from-version and could then fail on an unrelated later
+          # commit. The "Update release version" step above has already run
+          # `npm version`, so --release-version-from-package in the scripts
+          # resolves to the release being cut. --github-step-summary is dropped
+          # because changelog:full has no such flag; reintroducing it here would
+          # mean a third hand-rolled invocation and the drift it caused.
           npm run build
-          node dist/cli.js \
-            --pm-root .agents/pm \
-            --mode replace \
-            --output CHANGELOG.md \
-            --all-release-tags \
-            --version "${{ steps.decide.outputs.tag }}" \
-            --item-url-base https://github.com/unbraind/pm-changelog/blob/main/.agents/pm \
-            --pm-bin ./node_modules/.bin/pm \
-            --github-step-summary
-          node dist/cli.js \
-            --pm-root .agents/pm \
-            --mode replace \
-            --output CHANGELOG.md \
-            --all-release-tags \
-            --version "${{ steps.decide.outputs.tag }}" \
-            --item-url-base https://github.com/unbraind/pm-changelog/blob/main/.agents/pm \
-            --pm-bin ./node_modules/.bin/pm \
-            --check
+          npm run changelog:full
+          npm run changelog:check
 
       - name: Commit release files
         if: steps.decide.outputs.should_release == 'true'
@@ -705,6 +701,9 @@ jobs:
             --release-version-from-package --date-from-version \
             --item-url-base https://github.com/unbraind/pm-changelog/blob/main/.agents/pm \
             --pm-bin ./node_modules/.bin/pm \
+            --respect-item-release \
+            --pm-arg=--output-budget --pm-arg=unbounded \
+            --pm-arg=--output-limit --pm-arg=unbounded \
             | awk -v pat="$tag_pattern" '/^## /{p=0} $0 ~ pat {p=1} p' \
             > RELEASE_NOTES.md
           gh release create "$RELEASE_TAG" \

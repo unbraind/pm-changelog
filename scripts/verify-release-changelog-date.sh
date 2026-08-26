@@ -33,6 +33,52 @@ done < <(git ls-files -- package.json '.github/workflows/*.yml' '.github/workflo
 # "every mention is flagged" rule would be a false positive (it is, in
 # pm-changelog's own repository, which documents both spellings on purpose).
 
+# 1b. Workflow direct invocations: every `node dist/cli.js` continuation block
+#     in release.yml must carry --date-from-version. Section 1 above keys on
+#     --release-version-from-package, but the "Build and generate changelog"
+#     step historically hand-rolled its invocation with --version instead, so
+#     section 1 alone would not have caught that omission. This block catches a
+#     direct generator invocation reintroduced without the flag regardless of
+#     which version flag it uses. It also confirms the step delegates to the
+#     package.json scripts (changelog:full / changelog:check) so a future edit
+#     cannot silently swap back to a hand-rolled call that drifts on the other
+#     flags --respect-item-release and the unbounded output-budget/limit args.
+release_yml=".github/workflows/release.yml"
+if [ -f "$release_yml" ]; then
+  awk '
+    /node dist\/cli\.js/ && $0 !~ /^[[:space:]]*#/ { inblock=1; buf=""; hasflag=0 }
+    inblock {
+      buf = buf $0 ORS
+      if (/--date-from-version/) hasflag=1
+      if ($0 !~ /\\$/) {
+        n++
+        if (!hasflag) {
+          print "FAIL: release.yml node dist/cli.js block #" n " omits --date-from-version" > "/dev/stderr"
+          print buf > "/dev/stderr"
+          bad=1
+        } else {
+          print "ok - release.yml node dist/cli.js block #" n " carries --date-from-version"
+        }
+        inblock=0
+      }
+    }
+    END { exit (bad ? 1 : 0) }
+  ' "$release_yml" || status=1
+  # The release workflow must regenerate the changelog through the package.json
+  # scripts, not a hand-rolled `node dist/cli.js`, so generate and check cannot
+  # drift on --date-from-version, --respect-item-release or the output-budget
+  # args. If either script is absent the step was edited back to a hand-rolled
+  # call (which the block check above may or may not catch depending on flags).
+  for script in changelog:full changelog:check; do
+    if ! grep -q -- "npm run $script" "$release_yml"; then
+      echo "FAIL: release.yml no longer runs 'npm run $script'; the changelog step may have reverted to a hand-rolled invocation" >&2
+      status=1
+    else
+      echo "ok - release.yml delegates to 'npm run $script'"
+    fi
+  done
+fi
+
 # 2. Behavioural: the flag is what makes the date version-derived. A probe
 #    version deliberately unequal to today, so a clock-derived heading and a
 #    version-derived heading cannot coincide and the assertion discriminates.
