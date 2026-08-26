@@ -17,8 +17,12 @@ status=0
 #    for the version-derived date. Enumerated rather than assumed, because the
 #    invocation lives in more places than the scripts named changelog*.
 while IFS= read -r file; do
-  sites=$(grep -c -- --release-version-from-package "$file")
-  flagged=$(grep -c -- --date-from-version "$file" || true)
+  # Count OCCURRENCES, not matching lines. `grep -c` reports lines, and a
+  # package.json script is a single line that can carry several invocations --
+  # so a line holding two generator calls where only one is flagged would score
+  # 1 and 1 and pass. Caught in review on #159.
+  sites=$(grep -o -- --release-version-from-package "$file" | wc -l)
+  flagged=$(grep -o -- --date-from-version "$file" | wc -l)
   if [ "$sites" -gt "$flagged" ]; then
     echo "FAIL: $file has $sites generator invocation(s) but only $flagged carry --date-from-version" >&2
     status=1
