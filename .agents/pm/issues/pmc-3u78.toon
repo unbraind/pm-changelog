@@ -1,0 +1,29 @@
+id: pmc-3u78
+title: "A release run bumped and committed a new version every night while publishing was impossible, and the changelog-date verifier no gate ever invoked"
+description: "Two defects in the same release path. Publication is the only step that can fail for a reason outside this repository and it runs last, so ten days of a dead npm credential still advanced main every night and published nothing. Separately, scripts/verify-release-changelog-date.sh proved the untagged-release heading comes from the calendar version rather than the clock, but no package script or workflow ever invoked it, which makes it documentation rather than a gate."
+type: Issue
+status: in_progress
+priority: 0
+tags[4]: changelog,ci,npm,release
+created_at: "2026-08-26T21:29:33.455Z"
+updated_at: "2026-08-26T21:29:33.455Z"
+deadline: "2026-09-02T00:00:00.000Z"
+assignee: claude
+author: claude
+estimated_minutes: 120
+acceptance_criteria: "The release run fails before the version bump when npm will not accept the workflow's OIDC identity; release:check invokes verify-release-changelog-date so a generator regression cannot merge unrun; the package's own six release-transaction tests are preserved alongside the seven OIDC guards"
+dependencies[1]{id,kind,created_at,author,source_kind,author_source}:
+  pmc-4xu9,related,"2026-08-26T21:29:33.455Z",claude,"cli:create:dep",asserted
+comments[1]{created_at,author,text}:
+  "2026-08-26T21:29:33.455Z",claude,The seven canonical OIDC guards were merged into this package's existing suite rather than replacing it. Its six release-transaction tests are unique to pm-changelog and are preserved. Thirteen tests pass.
+notes[1]{created_at,author,text}:
+  "2026-08-26T21:29:33.455Z",claude,"The verifier was run and confirmed passing before being registered,rather than merely wired in and assumed green."
+learnings[1]{created_at,author,text}:
+  "2026-08-26T21:29:33.455Z",claude,"An unwired verifier is indistinguishable from no verifier. This script was correct,hand-tested and committed,and had never once run in CI,so the regression it exists to catch could have merged freely."
+files[1]{path,scope,note}:
+  .github/workflows/release.yml,project,preflight and credential hardening
+tests[1]{command,scope,timeout_seconds}:
+  npx tsx --test test/release-workflow.test.ts,project,240
+docs[1]{path,scope,note}:
+  "https://docs.npmjs.com/trusted-publishers",project,npm trusted publishing setup
+body: "The preflight asks npm's OIDC exchange endpoint for a credential before the version bump and fails the run when npm refuses. The verifier is registered in release:check and was confirmed to pass before being wired in."
