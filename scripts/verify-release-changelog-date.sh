@@ -78,7 +78,6 @@ if [ -f "$release_yml" ]; then
     fi
   done
 fi
-
 # 2. Behavioural: the flag is what makes the date version-derived. A probe
 #    version deliberately unequal to today, so a clock-derived heading and a
 #    version-derived heading cannot coincide and the assertion discriminates.
