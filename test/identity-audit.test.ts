@@ -191,7 +191,6 @@ test("every commit added since the baseline uses an approved identity", () => {
       if (!approved.has(email)) offenders.push(`${sha.slice(0, 8)} ${role} <${email}>`);
     }
   }
-
   assert.deepEqual(
     offenders,
     [],
