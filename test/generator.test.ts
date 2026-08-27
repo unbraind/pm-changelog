@@ -1725,6 +1725,33 @@ test("resolveReleaseContext keeps full-clone and zero-tag first-release behavior
   );
 });
 
+test("resolveReleaseContext derives the date from a same-day release suffix", () => {
+  // The release workflow tags a second release on one day as v2026.8.24-2, so
+  // refusing the suffix would make the generator fail hard on exactly the day a
+  // package released twice -- turning a stale heading date into a broken
+  // release. The suffix distinguishes releases, not days, so the date is the
+  // calendar day and the suffix survives in the version itself.
+  assert.equal(
+    resolveReleaseContext({ version: "2026.8.24-2", dateFromVersion: true }).date,
+    "2026-08-24",
+  );
+  assert.equal(
+    resolveReleaseContext({ version: "v2026.8.24-11", dateFromVersion: true }).date,
+    "2026-08-24",
+  );
+  // A non-numeric suffix is still refused: it is a prerelease spelling, not a
+  // same-day counter, and guessing a date for it would invent one.
+  assert.throws(
+    () => resolveReleaseContext({ version: "2026.8.24-beta.1", dateFromVersion: true }),
+    /--date-from-version requires a calendar version/,
+  );
+  // The suffix must not rescue an impossible calendar date.
+  assert.throws(
+    () => resolveReleaseContext({ version: "2026.2.30-2", dateFromVersion: true }),
+    /--date-from-version requires a calendar version/,
+  );
+});
+
 test("resolveReleaseContext validates version-derived fallback dates", () => {
   for (const version of [undefined, "1.2.3", "2026.13.1", "2026.2.30", "2026.8.8-beta.1"]) {
     assert.throws(

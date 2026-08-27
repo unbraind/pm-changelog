@@ -88,3 +88,6 @@ jobs:
 
       - name: Verify generated changelog is current
         run: npm run changelog:check
+
+      - name: Verify the changelog date is derived from the version
+        run: npm run verify:release-changelog-date

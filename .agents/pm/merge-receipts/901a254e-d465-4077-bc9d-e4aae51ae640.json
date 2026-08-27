@@ -1,0 +1,14 @@
+{
+  "version": 1,
+  "id": "901a254e-d465-4077-bc9d-e4aae51ae640",
+  "item_path": ".agents/pm/issues/pmc-q22j.toon",
+  "item_id": "pmc-q22j",
+  "requested_preference": "ours",
+  "conflict_resolution": "stable_value_order",
+  "fields_from_theirs": [],
+  "union_fields": [],
+  "decisions": [],
+  "state": "pending",
+  "created_at": "2026-08-26T18:42:50.646Z",
+  "value_availability": "hash_only"
+}

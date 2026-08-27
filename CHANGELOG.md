@@ -1,10 +1,23 @@
 # Changelog
 
-## 2026.8.22 - 2026-08-27
+## Unreleased
 
 ### Fixed
 
-- changelog scripts read the pm workspace with default budgets instead of canonical complete reads ([pmc-n07l](https://github.com/unbraind/pm-changelog/blob/main/.agents/pm/issues/pmc-n07l.toon))
+- Read the pm workspace with canonical complete reads instead of default budgets ([pmc-n07l](https://github.com/unbraind/pm-changelog/blob/main/.agents/pm/issues/pmc-n07l.toon))
+
+### Security
+
+- The identity gate deadlocks the one remediation its own failure message prescribes ([pmc-s92t](https://github.com/unbraind/pm-changelog/blob/main/.agents/pm/issues/pmc-s92t.toon))
+
+### Other
+
+- Align CI+release workflows with peer pm-\* packages (Node 22 + Bun) ([pmc-078v](https://github.com/unbraind/pm-changelog/blob/main/.agents/pm/tasks/pmc-078v.toon))
+
+## 2026.8.22 - 2026-08-22
+
+### Fixed
+
 - Raise pm-changelog source coverage gates to 100/100/100 ([pmc-wvnz](https://github.com/unbraind/pm-changelog/blob/main/.agents/pm/issues/pmc-wvnz.toon))
 - Use canonical unbounded list reads with pm CLI 2026.8.20 ([pmc-6j4o](https://github.com/unbraind/pm-changelog/blob/main/.agents/pm/issues/pmc-6j4o.toon))
 
@@ -352,7 +365,6 @@
 ### Other
 
 - Bump @unbrained/pm-cli SDK to \>=2026.5.24 ([pmc-cfhf](https://github.com/unbraind/pm-changelog/blob/main/.agents/pm/tasks/pmc-cfhf.toon))
-- Align CI+release workflows with peer pm-\* packages (Node 22 + Bun) ([pmc-078v](https://github.com/unbraind/pm-changelog/blob/main/.agents/pm/tasks/pmc-078v.toon))
 
 ## 2026.5.26 - 2026-05-25
 
