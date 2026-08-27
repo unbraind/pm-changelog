@@ -1,0 +1,35 @@
+id: pmc-s92t
+title: The identity gate deadlocks the one remediation its own failure message prescribes
+description: "Once the audit controls exist on the base ref, the anchoring test required the working tree to match them byte for byte, so any pull request that approves a new identity or moves the baseline fails the gate it is trying to update."
+type: Issue
+status: closed
+priority: 1
+tags[4]: ci,fleet-wide,identity-gate,security
+created_at: "2026-08-27T16:54:14.728Z"
+updated_at: "2026-08-27T16:54:31.126Z"
+deadline: "2026-08-29T16:54:14.728Z"
+closed_at: "2026-08-27T16:54:31.108Z"
+completed_at: "2026-08-27T16:54:31.108Z"
+claim_principal: claude-agent
+author: claude-agent
+estimated_minutes: 90
+acceptance_criteria: A branch whose only change adds an approved identity passes the gate; A reader regressed to reading the working tree still fails the gate
+resolution: Replaced the equality-with-base assertion with a proposed-but-not-yet-in-force assertion that re-reads the base ref independently of the control reader.
+expected_result: "A pull request that adds an approved identity merges, and a reader that regressed to the working tree still fails the gate."
+actual_result: Both confirmed by execution in a scratch repository; the old assertion fails the same legitimate change.
+dependencies[1]{id,kind,created_at,author,source_kind,author_source}:
+  pmc-6j4o,related,"2026-08-27T16:54:14.728Z",claude-agent,"cli:create:dep",asserted
+comments[1]{created_at,author,text}:
+  "2026-08-27T16:54:14.728Z",claude-agent,"Reproduced in a scratch repository rather than argued: the old assertion fails a branch that only adds a second approved identity."
+notes[1]{created_at,author,text}:
+  "2026-08-27T16:54:14.728Z",claude-agent,"The security property is that the audit evaluates against the base ref,not that the branch cannot edit the controls."
+learnings[1]{created_at,author,text}:
+  "2026-08-27T16:54:14.728Z",claude-agent,"A gate whose failure message prescribes editing a file it forbids editing is not a strict gate,it is an unreachable one. Assert what must be TRUE of the evaluation,not that the inputs never change."
+files[1]{path,scope,note}:
+  test/identity-audit.test.ts,project,The anchoring test that carried the deadlock
+tests[1]{command,scope,timeout_seconds}:
+  node --test --experimental-strip-types test/identity-audit.test.ts,project,120
+docs[1]{path,scope,note}:
+  "https://github.com/unbraind/pm-cli-companion/blob/main/.agents/pm/issues/pm-cli-website-54et.toon",project,Fleet hub item tracking this defect across all seventeen repositories
+close_reason: "Fixed: the anchoring test now asserts that a proposed control change is not yet in force, instead of forbidding the change outright."
+body: "## What was wrong\n\nThe identity gate anchors its two control files to the base ref so a pull request\ncannot approve itself. That part is right, and it stays. What was wrong is how\nthe anchoring was *asserted*: once a control existed on the base ref, the test\nrequired the working tree to be byte-identical to it.\n\nThat makes every control change unmergeable. Approving a new identity is done by\nediting `.github/approved-git-identities.txt`; moving the baseline is done by\nediting `.github/identity-baseline.txt`. The gate runs on the pull request that\nmakes either edit, sees a difference from the base ref, and fails it. The\nremediation the failure message names — \"add the address to\n`.github/approved-git-identities.txt`\" — was the one action the gate forbade.\n\nReproduced in a scratch repository rather than argued: a branch whose only change\nis adding a second approved identity fails the old assertion and passes the new one.\n\n## What replaced it\n\nThe security property is that the audit **evaluates** against the base ref's\ncontrols, not that the branch is forbidden from editing them. A branch may now\npropose a control change; it simply does not take effect on the branch proposing\nit. The test asserts exactly that: any value present in the working tree but not\non the base ref must not already be in force.\n\nThe assertion re-reads the base ref itself rather than trusting the reader's\noutput. Without that, a reader that regressed to preferring the working tree\nwould be compared against itself, find nothing proposed, and pass while\nvalidating nothing.\n\n## Proof it is not decorative\n\nBoth directions were executed, not reasoned about:\n\n- Old assertion + legitimate maintainer change → **fails** (the deadlock).\n- New assertion + legitimate maintainer change → **passes**.\n- New assertion + a reader regressed to the working tree, on a branch that adds\n  its own unapproved identity → **fails** (the self-approval bypass stays closed).\n\n## Credit\n\nFound by Greptile on the pm-context pull request, filed as P1 \"Control updates\nalways fail\". The defect was in the gate rather than in the code the gate\nmeasures, and it was identical in every repository that had adopted the gate —\nso it was fixed across all of them, not only where it was reported."

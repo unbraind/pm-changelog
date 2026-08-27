@@ -6,6 +6,10 @@
 
 - Read the pm workspace with canonical complete reads instead of default budgets ([pmc-n07l](https://github.com/unbraind/pm-changelog/blob/main/.agents/pm/issues/pmc-n07l.toon))
 
+### Security
+
+- The identity gate deadlocks the one remediation its own failure message prescribes ([pmc-s92t](https://github.com/unbraind/pm-changelog/blob/main/.agents/pm/issues/pmc-s92t.toon))
+
 ## 2026.8.22 - 2026-08-22
 
 ### Fixed
