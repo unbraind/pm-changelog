@@ -10,6 +10,10 @@
 
 - The identity gate deadlocks the one remediation its own failure message prescribes ([pmc-s92t](https://github.com/unbraind/pm-changelog/blob/main/.agents/pm/issues/pmc-s92t.toon))
 
+### Other
+
+- Align CI+release workflows with peer pm-\* packages (Node 22 + Bun) ([pmc-078v](https://github.com/unbraind/pm-changelog/blob/main/.agents/pm/tasks/pmc-078v.toon))
+
 ## 2026.8.22 - 2026-08-22
 
 ### Fixed
@@ -361,7 +365,6 @@
 ### Other
 
 - Bump @unbrained/pm-cli SDK to \>=2026.5.24 ([pmc-cfhf](https://github.com/unbraind/pm-changelog/blob/main/.agents/pm/tasks/pmc-cfhf.toon))
-- Align CI+release workflows with peer pm-\* packages (Node 22 + Bun) ([pmc-078v](https://github.com/unbraind/pm-changelog/blob/main/.agents/pm/tasks/pmc-078v.toon))
 
 ## 2026.5.26 - 2026-05-25
 
