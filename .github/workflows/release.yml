@@ -230,7 +230,11 @@ jobs:
           # the raw name instead addresses a different path entirely. Unscoped
           # names encode to themselves, so this is not a no-op only for scoped
           # packages - it is simply correct for both.
-          pkg_path="$(PKG="${pkg_name}" node -p "encodeURIComponent(process.env.PKG)")"
+          # npm's escapedName contract is NOT encodeURIComponent: the registry
+          # preserves the leading `@` and encodes only the separator, so
+          # @unbrained/pm-web addresses @unbrained%2fpm-web. Percent-encoding the
+          # `@` as well produces a path the registry does not recognise.
+          pkg_path="$(PKG="${pkg_name}" node -p "process.env.PKG.replace('/', '%2f')")"
           # Read defensively: under `set -u` an unset ACTIONS_ID_TOKEN_* aborts the
           # step with a raw shell error before the diagnosis below can print, so
           # the operator sees "unbound variable" instead of "the job needs
@@ -286,7 +290,10 @@ jobs:
           # configure a trusted publisher they already configured would send them
           # somewhere useless. Fail either way - a release must not proceed on an
           # unverified identity - but say which failure it was.
-          if [ "${status}" = "000" ] || [ "${status}" -ge 500 ]; then
+          # 429 belongs here too: the registry is rate-limiting this caller, which
+          # says nothing about whether a trusted publisher is bound. Sending a
+          # maintainer to reconfigure a correct publisher is the wrong answer.
+          if [ "${status}" = "000" ] || [ "${status}" = "429" ] || [ "${status}" -ge 500 ]; then
             echo "::error::Could not reach npm to verify this workflow's identity for ${pkg_name} (HTTP ${status}${reason:+: ${reason}})."
             echo "::error::This is a registry or network failure, NOT a trusted-publisher problem. Nothing was bumped, committed or tagged; re-run when the registry is reachable."
             exit 1
@@ -302,7 +309,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          npm version "${{ steps.decide.outputs.npm_version }}" --no-git-tag-version --allow-same-version
+          npm version "${NPM_VERSION}" --no-git-tag-version --allow-same-version
           # Clean before building, for the same reason CI does: tsc never removes
           # output for a source that was deleted or renamed, so an orphaned artifact
           # survives a plain rebuild. This package stages dist/ in the release commit,
@@ -311,7 +318,7 @@ jobs:
           # review on pm-graph#48.
           rm -rf dist
           npm run build
-          node scripts/sync-version.ts "${{ steps.decide.outputs.npm_version }}"
+          node scripts/sync-version.ts "${NPM_VERSION}"
         env:
           NPM_VERSION: ${{ steps.decide.outputs.npm_version }}
 
@@ -348,6 +355,9 @@ jobs:
 
       - name: Commit release files
         if: steps.decide.outputs.should_release == 'true'
+        env:
+          REPO_NAME: ${{ github.event.repository.name }}
+          RELEASE_TAG: ${{ steps.decide.outputs.tag }}
         shell: bash
         run: |
           set -euo pipefail
@@ -357,7 +367,7 @@ jobs:
           if git diff --cached --quiet; then
             echo "Release files are already current; creating tag without an extra commit."
           else
-            git commit -m "Release pm-changelog ${{ steps.decide.outputs.tag }}"
+            git commit -m "Release ${REPO_NAME} ${RELEASE_TAG}"
           fi
 
       - name: Merge release metadata through protected PR
@@ -777,11 +787,13 @@ jobs:
 
       - name: Verify bun install of published package
         if: steps.decide.outputs.should_release == 'true'
+        env:
+          NPM_VERSION: ${{ steps.decide.outputs.npm_version }}
         shell: bash
         run: |
           set -euo pipefail
           pkg_name="$(node -p "require('./package.json').name")"
-          pkg_version="${{ steps.decide.outputs.npm_version }}"
+          pkg_version="${NPM_VERSION}"
           mkdir -p /tmp/bun-verify
           cd /tmp/bun-verify
           rm -rf node_modules bun.lockb package.json
@@ -813,6 +825,7 @@ jobs:
         if: steps.decide.outputs.should_release == 'true' || steps.decide.outputs.should_recover_release == 'true'
         shell: bash
         env:
+          REPO_NAME: ${{ github.event.repository.name }}
           GH_TOKEN: ${{ github.token }}
           RELEASE_TAG: ${{ steps.decide.outputs.tag }}
           NPM_VERSION: ${{ steps.decide.outputs.npm_version }}
