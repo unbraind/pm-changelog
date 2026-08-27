@@ -6,12 +6,12 @@ status: in_progress
 priority: 0
 tags[4]: changelog,ci,npm,release
 created_at: "2026-08-26T21:29:33.455Z"
-updated_at: "2026-08-27T10:30:28.059Z"
+updated_at: "2026-08-27T18:53:14.183Z"
 deadline: "2026-09-02T00:00:00.000Z"
 assignee: claude
 author: claude
 estimated_minutes: 120
-acceptance_criteria: "The release job is gated by ref at the job level so no repository-controlled code runs with id-token write from a non-main ref; the run fails before the version bump when npm will not accept the workflow's OIDC identity, naming the package, organization, repository and workflow to configure; a registry outage or rate limit is reported as such rather than as an identity refusal; no registry credential reaches the publish step under any name or mechanism; every credential the scrub claims to remove is removed, asserted in the delimited form so no key's expression can satisfy another's; the effective npm is verified at install time and again immediately before publication; no run script in the release job interpolates workflow context; and all forty-eight enumerated mutations fail the guard suite."
+acceptance_criteria: "The release job is gated by ref at the job level so no repository-controlled code runs with id-token write from a non-main ref; the run fails before the version bump when npm will not accept the workflow's OIDC identity, naming the package, organization, repository and workflow to configure; a registry outage or rate limit is reported as such rather than as an identity refusal; no registry credential reaches the publish step under any name or mechanism; every credential the scrub claims to remove is removed, asserted in the delimited form so no key's expression can satisfy another's; the effective npm is verified at install time and again immediately before publication; no run script in the release job interpolates workflow context; and every enumerated mutation fails the guard suite, with the verified count recorded on the run that produced it rather than fixed in this criterion."
 dependencies[1]{id,kind,created_at,author,source_kind,author_source}:
   pmc-4xu9,related,"2026-08-26T21:29:33.455Z",claude,"cli:create:dep",asserted
 comments[13]{created_at,author,text}:
