@@ -555,6 +555,26 @@ describe("generator: bracketed and Unreleased heading insertion", () => {
     ok(merged.markdown.includes("## 1.2.0"));
     ok(merged.markdown.includes("Some intro prose."));
   });
+
+  it("falls back safely for malformed bracketed headings and CRLF input", () => {
+    // Exercise every malformed branch of the linear bracket parser: empty
+    // labels, empty URLs, missing separator spacing, missing date text, and a
+    // line terminator in the date suffix. CRLF also exercises line-end removal.
+    for (const heading of [
+      "[]",
+      "[1.0.0]()",
+      "[1.0.0] trailing",
+      "[1.0.0]-date",
+      "[1.0.0] -",
+      "[1.0.0] - ",
+      "[1.0.0] - date\u2028x",
+    ]) {
+      const existing = `# Changelog\r\n\r\n## ${heading}\r\n\r\n### Fixed\r\n\r\n- Old\r\n`;
+      const generated = "# Changelog\n\n## 1.0.0 - 2026-01-01\n\n### Fixed\n\n- New\n";
+      const merged = mergeChangelog(existing, generated);
+      ok(merged.markdown.includes("- New"), `malformed heading was not safely bypassed: ${heading}`);
+    }
+  });
 });
 
 describe("generator: item metadata and completion edges", () => {

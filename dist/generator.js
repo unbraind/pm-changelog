@@ -117,8 +117,11 @@ function limitSections(sections, options) {
     }
     return result;
 }
+/** Return the normalized version portion of a release heading, or undefined
+ * for the special `Unreleased` heading. */
 function sectionVersionKey(heading) {
-    const version = heading.split(/\s+-\s+/, 1)[0].trim();
+    const separatorStart = findReleaseSeparatorStart(heading);
+    const version = heading.slice(0, separatorStart ?? heading.length).trim();
     if (!version || version.toLowerCase() === "unreleased")
         return undefined;
     return normalizeReleaseKey(version);
@@ -229,7 +232,8 @@ export function createChangelogSummary(options) {
  * `[version] category: title (id)`.
  */
 export function formatSummaryLine(entry) {
-    const versionLabel = entry.version ?? entry.heading.replace(/\s+-\s+.*$/, "");
+    const separatorStart = findReleaseSeparatorStart(entry.heading);
+    const versionLabel = entry.version ?? entry.heading.slice(0, separatorStart ?? entry.heading.length);
     const idSuffix = entry.id ? ` (${entry.id})` : "";
     return `[${versionLabel}] ${entry.category}: ${entry.title}${idSuffix}`;
 }
@@ -844,18 +848,74 @@ function buildVersionHeading(version, date) {
     const stamp = date?.trim() || new Date().toISOString().slice(0, 10);
     return `${heading} - ${stamp}`;
 }
+/** True for one code unit that JavaScript's `\\s` and `String#trim` treat as
+ * whitespace. Keeping this predicate outside a regular expression makes the
+ * heading scanners linear even when a caller supplies a very long whitespace
+ * run. */
+function isWhitespaceCharacter(character) {
+    return character.trim() === "";
+}
+/** Return the start of the first `\\s+-\\s+` release separator, or undefined
+ * when the value has no separator. The scan remembers the current whitespace
+ * run rather than asking a backtracking regular expression to rediscover it at
+ * every position. */
+function findReleaseSeparatorStart(value) {
+    let whitespaceStart;
+    for (let index = 0; index < value.length; index++) {
+        const character = value[index];
+        if (isWhitespaceCharacter(character)) {
+            whitespaceStart ??= index;
+            continue;
+        }
+        if (character === "-" && whitespaceStart !== undefined && index + 1 < value.length && isWhitespaceCharacter(value[index + 1])) {
+            return whitespaceStart;
+        }
+        whitespaceStart = undefined;
+    }
+    return undefined;
+}
+/** Find line-oriented Markdown headings with the requested marker. This is the
+ * linear replacement for the old `^#\\s+.+$` / `^##\\s+.+$` expressions. A
+ * heading must have the marker, at least one whitespace code unit, and at least
+ * one code unit of heading text on the same line. */
+function findMarkdownHeadings(markdown, marker) {
+    const matches = [];
+    let lineStart = 0;
+    while (lineStart <= markdown.length) {
+        const newline = markdown.indexOf("\n", lineStart);
+        const lineEnd = newline === -1 ? markdown.length : newline;
+        const contentEnd = lineEnd > lineStart && markdown[lineEnd - 1] === "\r" ? lineEnd - 1 : lineEnd;
+        if (markdown.startsWith(marker, lineStart)) {
+            const prefixEnd = lineStart + marker.length;
+            if (contentEnd - prefixEnd >= 2 && isWhitespaceCharacter(markdown[prefixEnd])) {
+                let headingStart = prefixEnd;
+                while (headingStart + 1 < contentEnd && isWhitespaceCharacter(markdown[headingStart]))
+                    headingStart++;
+                if (headingStart < contentEnd) {
+                    matches.push({
+                        index: lineStart,
+                        end: contentEnd,
+                        heading: markdown.slice(headingStart, contentEnd),
+                    });
+                }
+            }
+        }
+        if (newline === -1)
+            break;
+        lineStart = newline + 1;
+    }
+    return matches;
+}
 /** Split existing changelog markdown into its `##` release sections, each
  * spanning from its own heading to the next one. */
 function extractReleaseSections(markdown) {
-    const releaseHeading = /^##\s+(.+)$/gm;
-    const matches = Array.from(markdown.matchAll(releaseHeading));
+    const matches = findMarkdownHeadings(markdown, "##");
     return matches.map((match, index) => {
-        const start = match.index;
         const next = matches[index + 1];
         const end = next?.index ?? markdown.length;
         return {
-            heading: match[1].trim(),
-            markdown: markdown.slice(start, end).trimEnd(),
+            heading: match.heading.trim(),
+            markdown: markdown.slice(match.index, end).trimEnd(),
         };
     });
 }
@@ -864,10 +924,9 @@ function extractReleaseSections(markdown) {
  * `replaced: false` when the release is not present, leaving the input
  * untouched for the caller to insert instead. */
 function replaceReleaseSection(markdown, heading, replacement) {
-    const releaseHeading = /^##\s+(.+)$/gm;
-    const matches = Array.from(markdown.matchAll(releaseHeading));
+    const matches = findMarkdownHeadings(markdown, "##");
     const targetHeadingKey = normalizeReleaseHeadingKey(heading);
-    const matchIndex = matches.findIndex((match) => normalizeReleaseHeadingKey(match[1].trim()) === targetHeadingKey);
+    const matchIndex = matches.findIndex((match) => normalizeReleaseHeadingKey(match.heading.trim()) === targetHeadingKey);
     if (matchIndex === -1)
         return { markdown, replaced: false };
     const match = matches[matchIndex];
@@ -881,21 +940,56 @@ function replaceReleaseSection(markdown, heading, replacement) {
 }
 /** Normalized heading key for the pending `Unreleased` section. */
 const UNRELEASED_HEADING_KEY = "unreleased";
-/** Reduce a release heading to a stable identity key, so the same release is
- * recognized across the spellings a changelog accumulates over time. Strips the
- * keep-a-changelog link brackets and any trailing ` - <date>`, drops a leading
- * `v`, and lowercases the result — so `## [v1.2.0](url) - 2026-01-01`,
- * `## 1.2.0 - 2026-01-01` and `## V1.2.0` all key as `1.2.0`. Section matching
- * depends on this: a heading whose key differs is treated as a *different*
- * release and duplicated rather than replaced. */
+/** Extract the version from a complete bracketed release heading without
+ * using nested optional regular-expression groups. Returns undefined so the
+ * caller can apply the ordinary separator fallback to malformed headings. */
+function parseBracketedReleaseVersion(heading) {
+    if (!heading.startsWith("["))
+        return undefined;
+    const closeBracket = heading.indexOf("]", 1);
+    if (closeBracket <= 1)
+        return undefined;
+    let cursor = closeBracket + 1;
+    if (heading[cursor] === "(") {
+        const closeUrl = heading.indexOf(")", cursor + 1);
+        if (closeUrl <= cursor + 1)
+            return undefined;
+        cursor = closeUrl + 1;
+    }
+    if (cursor === heading.length)
+        return heading.slice(1, closeBracket);
+    const separatorStart = cursor;
+    while (cursor < heading.length && isWhitespaceCharacter(heading[cursor]))
+        cursor++;
+    if (cursor === separatorStart || heading[cursor] !== "-")
+        return undefined;
+    cursor++;
+    const dateStart = cursor;
+    while (cursor < heading.length && isWhitespaceCharacter(heading[cursor]))
+        cursor++;
+    if (cursor === dateStart || cursor === heading.length)
+        return undefined;
+    for (; cursor < heading.length; cursor++) {
+        if (isLineTerminator(heading[cursor]))
+            return undefined;
+    }
+    return heading.slice(1, closeBracket);
+}
+/** Return whether a code unit is one of the four ECMAScript line terminators
+ * that `.` does not match in a regular expression without the `s` flag. */
+function isLineTerminator(character) {
+    return "\n\r\u2028\u2029".includes(character);
+}
+/** Reduce a heading to the same version key used by the historical heading
+ * regex, while keeping malformed caller input on a bounded linear path. */
 function normalizeReleaseHeadingKey(heading) {
     const trimmed = heading.trim();
-    const bracketed = trimmed.match(/^\[([^\]]+)\](?:\([^)]+\))?(?:\s+-\s+.+)?$/);
-    const version = bracketed?.[1] ?? trimmed.split(/\s+-\s+/, 1)[0];
-    return version.trim().replace(/^v/i, "").toLowerCase();
+    const version = parseBracketedReleaseVersion(trimmed);
+    const fallback = version ?? trimmed.slice(0, findReleaseSeparatorStart(trimmed) ?? trimmed.length);
+    return fallback.trim().replace(/^v/i, "").toLowerCase();
 }
 function ensureTitle(markdown, title) {
-    if (/^#\s+.+$/m.test(markdown))
+    if (findMarkdownHeadings(markdown, "#").length > 0)
         return markdown;
     return `# ${title ?? DEFAULT_TITLE}\n\n${markdown.trimStart()}`;
 }
@@ -907,12 +1001,12 @@ function ensureTitle(markdown, title) {
  * `## Unreleased` section (GH #48 review).
  */
 function insertReleaseSection(markdown, heading, replacement) {
-    const matches = Array.from(markdown.matchAll(/^##\s+(.+)$/gm));
+    const matches = findMarkdownHeadings(markdown, "##");
     if (matches.length === 0)
         return insertAfterTitle(markdown, replacement);
     const newKey = normalizeReleaseHeadingKey(heading);
     const insertBefore = matches.find((match) => {
-        const key = normalizeReleaseHeadingKey(match[1].trim());
+        const key = normalizeReleaseHeadingKey(match.heading.trim());
         if (key === UNRELEASED_HEADING_KEY)
             return false; // never displace the pending section
         if (newKey === UNRELEASED_HEADING_KEY)
@@ -937,8 +1031,8 @@ function insertReleaseSection(markdown, heading, replacement) {
  * is guaranteed present rather than merely likely. Calling it on untitled
  * markdown is a programming error and throws instead of silently prepending. */
 function insertAfterTitle(markdown, releaseSection) {
-    const titleMatch = markdown.match(/^#\s+.+$/m);
-    const titleEnd = titleMatch.index + titleMatch[0].length;
+    const titleMatch = findMarkdownHeadings(markdown, "#")[0];
+    const titleEnd = titleMatch.end;
     const before = markdown.slice(0, titleEnd).trimEnd();
     const after = markdown.slice(titleEnd).trim();
     if (!after)
