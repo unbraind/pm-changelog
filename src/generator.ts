@@ -1009,14 +1009,16 @@ interface MarkdownHeadingMatch {
 /** Find line-oriented Markdown headings with the requested marker. This is the
  * linear replacement for the old `^#\\s+.+$` / `^##\\s+.+$` expressions. A
  * heading must have the marker, at least one whitespace code unit, and at least
- * one code unit of heading text on the same line. */
+ * one code unit of heading text on the same line. Every ECMAScript line
+ * terminator (`\n`, `\r`, `\r\n`, `\u2028`, `\u2029`) ends a line; `\r\n` is
+ * one break, not two, so it never creates a spurious empty line. */
 function findMarkdownHeadings(markdown: string, marker: "#" | "##"): MarkdownHeadingMatch[] {
   const matches: MarkdownHeadingMatch[] = [];
   let lineStart = 0;
   while (lineStart <= markdown.length) {
-    const newline = markdown.indexOf("\n", lineStart);
-    const lineEnd = newline === -1 ? markdown.length : newline;
-    const contentEnd = lineEnd > lineStart && markdown[lineEnd - 1] === "\r" ? lineEnd - 1 : lineEnd;
+    let lineEnd = lineStart;
+    while (lineEnd < markdown.length && !isLineTerminator(markdown[lineEnd]!)) lineEnd++;
+    const contentEnd = lineEnd;
 
     if (markdown.startsWith(marker, lineStart)) {
       const prefixEnd = lineStart + marker.length;
@@ -1033,8 +1035,9 @@ function findMarkdownHeadings(markdown: string, marker: "#" | "##"): MarkdownHea
       }
     }
 
-    if (newline === -1) break;
-    lineStart = newline + 1;
+    if (lineEnd === markdown.length) break;
+    lineStart = lineEnd + 1;
+    if (markdown[lineEnd] === "\r" && lineStart < markdown.length && markdown[lineStart] === "\n") lineStart++;
   }
   return matches;
 }
@@ -1105,9 +1108,6 @@ function parseBracketedReleaseVersion(heading: string): string | undefined {
   const dateStart = cursor;
   while (cursor < heading.length && isWhitespaceCharacter(heading[cursor]!)) cursor++;
   if (cursor === dateStart || cursor === heading.length) return undefined;
-  for (; cursor < heading.length; cursor++) {
-    if (isLineTerminator(heading[cursor]!)) return undefined;
-  }
   return heading.slice(1, closeBracket);
 }
 
