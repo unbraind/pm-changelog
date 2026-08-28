@@ -555,6 +555,48 @@ describe("generator: bracketed and Unreleased heading insertion", () => {
     ok(merged.markdown.includes("## 1.2.0"));
     ok(merged.markdown.includes("Some intro prose."));
   });
+
+  it("falls back safely for malformed bracketed headings and CRLF input", () => {
+    // Exercise every malformed branch of the linear bracket parser: empty
+    // labels, empty URLs, missing separator spacing, missing date text, and a
+    // line terminator in the date suffix. CRLF also exercises line-end removal.
+    for (const heading of [
+      "[]",
+      "[1.0.0]()",
+      "[1.0.0] trailing",
+      "[1.0.0]-date",
+      "[1.0.0] -",
+      "[1.0.0] - ",
+      "[1.0.0] - date\u2028x",
+    ]) {
+      const existing = `# Changelog\r\n\r\n## ${heading}\r\n\r\n### Fixed\r\n\r\n- Old\r\n`;
+      const generated = "# Changelog\n\n## 1.0.0 - 2026-01-01\n\n### Fixed\n\n- New\n";
+      const merged = mergeChangelog(existing, generated);
+      ok(merged.markdown.includes("- New"), `malformed heading was not safely bypassed: ${heading}`);
+    }
+  });
+
+  it("matches release headings across CR-only and Unicode line terminators", () => {
+    // findMarkdownHeadings must treat every ECMAScript line terminator as a
+    // boundary, not only \n. A CR-only document and \u2028 separators exercise
+    // the general terminator path; the old \n-only scan saw the whole document
+    // as one line and never matched the existing release, so replace would
+    // duplicate instead of merging.
+    for (const terminator of ["\r", "\u2028", "\u2029"]) {
+      const existing = [`# Changelog`, ``, `## 1.0.0 - 2026-01-01`, ``, `### Fixed`, ``, `- Old`].join(terminator);
+      const generated = "# Changelog\n\n## 1.0.0 - 2026-01-01\n\n### Fixed\n\n- New\n";
+      const merged = mergeChangelog(existing, generated);
+      ok(merged.markdown.includes("- New"), `CR/Unicode terminator did not merge: ${JSON.stringify(terminator)}`);
+      ok(!merged.markdown.includes("- Old"), `CR/Unicode terminator left the old entry: ${JSON.stringify(terminator)}`);
+    }
+    // A bare CR at the very end (no following code unit) exercises the
+    // lineStart < markdown.length guard in the \r\n advance, where the
+    // short-circuit must stop without indexing past the end.
+    const trailingCr = "# Changelog\r\r## 1.0.0 - 2026-01-01\r\r### Fixed\r\r- Old\r";
+    const trailingMerged = mergeChangelog(trailingCr, "# Changelog\n\n## 1.0.0 - 2026-01-01\n\n### Fixed\n\n- New\n");
+    ok(trailingMerged.markdown.includes("- New"), "trailing bare CR did not merge");
+    ok(!trailingMerged.markdown.includes("- Old"), "trailing bare CR left the old entry");
+  });
 });
 
 describe("generator: item metadata and completion edges", () => {

@@ -6,13 +6,37 @@ status: in_progress
 priority: 2
 tags: []
 created_at: "2026-08-22T17:18:06.707Z"
-updated_at: "2026-08-22T17:59:52.237Z"
+updated_at: "2026-08-28T21:44:12.066Z"
+assignee: pi-agent
+claim_principal: pi-agent
 author: "harness:ox-alpha"
-notes[1]{created_at,author,text}:
+notes[7]{created_at,author,text}:
   "2026-08-22T17:18:37.209Z","harness:ox-alpha","Verified 2026-08-22: gh api repos/unbraind/pm-changelog/code-scanning/alerts -> 404 'no analysis found'. Workflow pins github/codeql-action v4 (fleet major-tag convention), permissions limited to security-events:write/actions:read/contents:read."
-files[1]{path,scope,note}:
-  .github/workflows/codeql.yml,project,CodeQL scanning workflow - javascript-typescript build-mode none weekly staggered cron
-tests[2]:
+  "2026-08-28T20:23:35.852Z",pi-agent,"Triage 2026-08-28: read all eight open CodeQL alerts. Alerts 1-7 are polynomial-redos on seven regexes in src/generator.ts (two release-separator patterns, three release-heading/title scanners, and the bracketed-heading parser); alert 8 is only test/generator-coverage.test.ts:255 asserting a URL substring and carries no production risk. Plan is linear scans plus timeout regression coverage for every flagged operation, dismissing only alert 8 with a written test-only justification."
+  "2026-08-28T20:47:49.356Z",pi-agent,"Dismissed CodeQL alert 8 (js/incomplete-url-substring-sanitization) as won't fix via GitHub API after reading test/generator-coverage.test.ts:255. The line is a negative assertion on the neutral github-reference fallback, not production URL sanitization or URL handling; dismissal comment records that judgment."
+  "2026-08-28T20:51:21.837Z",pi-agent,"Implemented linear whitespace/separator and Markdown heading scanners in src/generator.ts, replacing all seven flagged regex call sites without removing their behavior. Added isolated-child timeout regressions for alerts 1-7 and malformed-heading coverage; npm run coverage reports 100/100/100/100."
+  "2026-08-28T20:51:37.573Z",pi-agent,Linked npm test as the repository-safe command for the complete regression suite; targeted redos timing was run separately as node --test test/generator-redos.test.ts.
+  "2026-08-28T21:22:55.787Z",pi-agent,"Final triage 2026-08-28: Alerts 1-7 (js/polynomial-redos at src/generator.ts lines 162,295,997,1026,1027,1044,1074) fixed by replacing every flagged regex with a linear character scanner (findReleaseSeparatorStart, findMarkdownHeadings, parseBracketedReleaseVersion). Alert 8 (js/incomplete-url-substring-sanitization at test/generator-coverage.test.ts:255) reclassified from won't fix to false positive: the flagged .includes(github.com) is a negative test assertion, not production URL sanitization. Revert-proof check: restoring the vulnerable split regex in sectionVersionKey makes the section-version redos regression fail (exceeded 250ms); restoring the linear parser passes it. All gates green: build, test 434 pass, typecheck, docstring 150 declarations, coverage 100/100/100/100, changelog:check up to date, release:check, pm health --strict-exit exit 0."
+  "2026-08-28T21:44:12.066Z",pi-agent,"Greptile review round 1 (P1 CR-only headings): findMarkdownHeadings now treats every ECMAScript line terminator (\\r, \\r\\n, \\n, \\u2028, \\u2029) as a line boundary, not only \\n; \\r\\n is one break so it never creates a spurious empty line. This is a pre-existing limitation in the old /^##\\s+.+$/gm regex (JS ^/$ with m split only on \\n), not a regression, but the linear parser is now strictly better. Added regression test covering CR-only, \\u2028, \\u2029, and trailing bare CR; verified it fails on the \\n-only version. Removed the now-dead isLineTerminator guard in parseBracketedReleaseVersion since findMarkdownHeadings strips line terminators before headings reach it. Coverage stays 100/100/100/100."
+files[8]:
+  - path: .github/workflows/codeql.yml
+    scope: project
+    note: CodeQL scanning workflow - javascript-typescript build-mode none weekly staggered cron
+  - path: dist/generator.d.ts.map
+    scope: project
+  - path: dist/generator.js
+    scope: project
+  - path: dist/generator.js.map
+    scope: project
+  - path: src/generator.ts
+    scope: project
+  - path: test/generator-coverage.test.ts
+    scope: project
+  - path: test/generator-redos-worker.ts
+    scope: project
+  - path: test/generator-redos.test.ts
+    scope: project
+tests[3]:
   - command: "gh run list -R unbraind/pm-changelog --workflow codeql.yml --branch ci/enable-codeql-scanning --limit 1 --json conclusion --jq '.[0].conclusion'"
     scope: project
     assert_stdout_regex[1]: ^success$
@@ -21,4 +45,6 @@ tests[2]:
     scope: project
     assert_stdout_regex[1]: "^[1-9][0-9]*$"
     note: "At least one CodeQL analysis must exist. Deliberately queries /analyses, not /alerts: an empty /alerts array is ambiguous between analysed-and-clean and never-analysed, and that ambiguity is the exact defect this change removes. /analyses answers did-a-scan-run directly, so a clean repo passes and an unscanned one fails closed with HTTP 404."
+  - command: npm test
+    scope: project
 body: ""
