@@ -1,5 +1,11 @@
 # Changelog
 
+## Unreleased
+
+### Other
+
+- Enable GitHub CodeQL code scanning ([pmc-n72l](https://github.com/unbraind/pm-changelog/blob/main/.agents/pm/chores/pmc-n72l.toon))
+
 ## 2026.8.22 - 2026-08-27
 
 ### Fixed
