@@ -250,8 +250,9 @@ export function publishInvocationsIn(source: SourceFile): PublishInvocation[] {
   const text = /(^|\/)Dockerfile(?:[.-][^/]*)?$/.test(source.file)
     ? joined.split("\n").map((line) => /^\s*RUN\s+/i.test(line) ? line.replace(/^\s*RUN\s+/i, "") : "").join("\n")
     : joined;
-  let prior = "";
+  const arrays = new Map<string, string>();
   const scalars = new Map<string, string>();
+  let pendingArrays = new Map<string, string>();
   let pendingAssignments = new Map<string, string>();
   let assignmentEligible = true;
   let controlDepth = 0;
@@ -259,30 +260,45 @@ export function publishInvocationsIn(source: SourceFile): PublishInvocation[] {
     const segment = part.text;
     if (/^(?:\n|;|&&?|\|\|?)$/.test(segment)) {
       if ((segment === ";" || segment === "\n") && !part.childScoped) {
+        for (const [name, value] of pendingArrays) arrays.set(name, value);
         for (const [name, value] of pendingAssignments) scalars.set(name, value);
       }
+      pendingArrays = new Map();
       pendingAssignments = new Map();
       assignmentEligible = (segment === ";" || segment === "\n") && !part.childScoped;
-      prior += segment;
       return segment;
     }
-    const resolved = expandScalars(expandArrays(segment, bashArrays(prior)), scalars);
+    const resolved = expandScalars(expandArrays(segment, arrays), scalars);
     const trimmed = segment.trim();
     const unset = /^unset(?:\s+-v)?\s+([A-Za-z_][A-Za-z0-9_]*(?:\s+[A-Za-z_][A-Za-z0-9_]*)*)$/.exec(trimmed);
     if (unset !== null) {
-      for (const name of unset[1]!.split(/\s+/)) scalars.delete(name);
+      for (const name of unset[1]!.split(/\s+/)) {
+        arrays.delete(name);
+        scalars.delete(name);
+      }
     }
     if (/^(?:fi|done|esac)\b/.test(trimmed)) controlDepth = Math.max(0, controlDepth - 1);
     const insideControl = controlDepth > 0;
     if (/^(?:if|while|until|for|case)\b/.test(trimmed)) controlDepth += 1;
+    const segmentArrays = /^(?:export\s+)?[A-Za-z_][A-Za-z0-9_]*=\(/.test(trimmed)
+      ? bashArrays(segment)
+      : new Map<string, string>();
+    const segmentScalars = shellScalars(`${segment};`);
+    const reliableAssignment = assignmentEligible && !insideControl && controlDepth === 0 && !part.childScoped;
+    // An assignment in uncertain control flow cannot provide evidence, and it
+    // also invalidates an older value: the branch may execute and replace a
+    // previously attested value with `--no-provenance`. Retaining that stale
+    // value is a false pass, while deleting it can only fail closed.
+    if (!reliableAssignment) {
+      for (const name of segmentArrays.keys()) arrays.delete(name);
+      for (const name of segmentScalars.keys()) scalars.delete(name);
+    }
     // Defer persistence until the following separator is known: assignments
     // in conditional/loop blocks, child scopes, or before `&`, `&&`, `||`, or
     // a pipe may not affect the later command at all, so they cannot supply
     // audit evidence.
-    pendingAssignments = assignmentEligible && !insideControl && controlDepth === 0 && !part.childScoped
-      ? shellScalars(`${segment};`)
-      : new Map();
-    prior += segment;
+    pendingArrays = reliableAssignment ? segmentArrays : new Map();
+    pendingAssignments = reliableAssignment ? segmentScalars : new Map();
     return resolved;
   }).join("");
   const found: PublishInvocation[] = [];
