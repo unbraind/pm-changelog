@@ -265,8 +265,8 @@ function calendarDateFromVersion(version: string | undefined): string {
  * Each tagged window runs from the previous tag (exclusive, so a tag's own
  * commit is not claimed by both neighbours) to its own tag, and an open-ended
  * `Unreleased` window leads unless suppressed. A pending version with no tag
- * yet is folded in at its sorted position, but its upper bound remains open so
- * the release being cut owns work completed after its stable display date.
+ * yet always leads regardless of its display timestamp, and its upper bound
+ * remains open so the release being cut owns all work after the previous tag.
  */
 export function resolveReleaseTagWindows(options: ReleaseTagHistoryOptions = {}): ChangelogReleaseWindow[] {
   const cwd = resolve(options.cwd ?? process.cwd());
@@ -274,7 +274,7 @@ export function resolveReleaseTagWindows(options: ReleaseTagHistoryOptions = {})
   const tags = listReleaseTags(cwd, options.tagPattern ?? "v*", options.includeOrphaned);
   const pending = resolvePendingReleaseTag(options, tags);
   const orderedTags = pending
-    ? [...tags, pending].sort(compareReleaseTags)
+    ? [pending, ...tags]
     : tags;
   if (orderedTags.length === 0) return [];
 
