@@ -35,10 +35,12 @@ export interface ReleaseTagHistoryOptions {
     pendingVersion?: string;
     pendingTimestamp?: string;
 }
-/** A release tag and the timestamp of the commit it points at. */
+/** A release tag and the timestamp used to order and date its window. */
 export interface ReleaseTag {
     name: string;
     timestamp: string;
+    /** Whether this entry represents the release being cut before its tag exists. */
+    pending?: boolean;
 }
 /** Stable identifier for the incomplete-tag-history failure. Callers match on
  * this rather than on message text, so the wording stays free to change. */
@@ -119,11 +121,11 @@ export declare function resolveReleaseContext(options: ReleaseContextOptions): R
 /**
  * Turn a repo's release tags into contiguous, newest-first release windows.
  *
- * Each window runs from the previous tag (exclusive, so a tag's own commit is
- * not claimed by both neighbours) to its own tag, and an open-ended
+ * Each tagged window runs from the previous tag (exclusive, so a tag's own
+ * commit is not claimed by both neighbours) to its own tag, and an open-ended
  * `Unreleased` window leads unless suppressed. A pending version with no tag
- * yet is folded in at its sorted position, which is what lets the release being
- * cut appear in the changelog before its tag exists.
+ * yet always leads regardless of its display timestamp, and its upper bound
+ * remains open so the release being cut owns all work after the previous tag.
  */
 export declare function resolveReleaseTagWindows(options?: ReleaseTagHistoryOptions): ChangelogReleaseWindow[];
 /**

@@ -1,5 +1,11 @@
 # Changelog
 
+## Unreleased
+
+### Fixed
+
+- Pending release windows clamp work to the display date ([pmc-n7fl](https://github.com/unbraind/pm-changelog/blob/main/.agents/pm/issues/pmc-n7fl.toon))
+
 ## 2026.8.29 - 2026-08-29
 
 ### Other

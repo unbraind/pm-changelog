@@ -1,0 +1,22 @@
+id: pmc-n7fl
+title: Pending release windows clamp work to the display date
+description: Separate a pending release heading date from its open-ended attribution boundary so pre-tag and post-tag changelogs are byte-identical.
+type: Issue
+status: closed
+priority: 2
+tags: []
+created_at: "2026-08-30T14:47:52.772Z"
+updated_at: "2026-08-30T15:12:44.500Z"
+closed_at: "2026-08-30T14:53:12.292Z"
+completed_at: "2026-08-30T14:53:12.292Z"
+author: pi-agent
+comments[2]{created_at,author,text}:
+  "2026-08-30T14:52:15.359Z",pi-agent,"Implemented an open-ended upper bound for synthesized pending release windows while preserving the derived heading date and suppressing a competing leading Unreleased window. npm run build && npm test: 436 passed, 0 failed. npm run coverage: 100.00% lines, branches, and functions. npm run docstring: 12 files and 150 declarations documented. Revert proof: targeted regression exited 1 and placed the release-day item under Unreleased instead of the 2026.8.30 heading. Pre-tag and post-tag generation diff was empty."
+  "2026-08-30T15:12:44.500Z",pi-agent,Bot review findings were addressed by making the pending release structurally leading rather than sorting it by its display timestamp. Added regression coverage for a stale timestamp proving the open pending window starts after the newest real tag and cannot overlap. Full npm test remains 436 passed; coverage and docstrings remain 100%.
+files[2]{path,scope}:
+  src/release-context.ts,project
+  test/generator.test.ts,project
+tests[1]{command,scope}:
+  npm run build && npm test,project
+close_reason: "Pending releases now retain release-day work and regenerate identically after tagging; full tests, coverage, docstrings, and revert proof passed."
+body: ""
