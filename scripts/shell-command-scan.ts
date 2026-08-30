@@ -327,14 +327,18 @@ export function tokenizeCommands(text: string, depth = 0): ShellCommand[] {
   for (const found of [...commands]) {
     const name = commandName(found);
     if (name === undefined || !SHELL_EVALUATORS.has(name)) continue;
-    // The shell joins an evaluator's words with a space and evaluates the
-    // result, so `eval "npm pub" "lish"` runs a publish that scanning each
-    // argument on its own never sees.
-    const payload = found.slice(1)
-      .filter((argument) => !argument.value.startsWith("-"))
-      .map((argument) => argument.value);
-    for (const body of new Set([...payload, payload.join(" ")])) {
-      commands.push(...tokenizeCommands(body, depth + 1));
+    const args = commandArguments(found);
+    if (name === "eval") {
+      // Eval joins all of its words with spaces and evaluates the result.
+      commands.push(...tokenizeCommands(args.map((argument) => argument.value).join(" "), depth + 1));
+      continue;
+    }
+    // A shell evaluates only the word selected by `-c`; later words become $0
+    // and positional parameters. Scanning all of them invents publish paths.
+    const commandOption = args.findIndex((argument) => /^-[^-]*c/.test(argument.value));
+    const body = args[commandOption + 1];
+    if (commandOption >= 0 && body !== undefined) {
+      commands.push(...tokenizeCommands(body.value, depth + 1));
     }
   }
   return commands;
@@ -627,6 +631,30 @@ export function shellScalars(text: string): Map<string, string> {
 }
 
 /**
+ * Apply a replacement only where the shell permits expansion.
+ *
+ * @param line - Shell text to transform.
+ * @param replace - Replacement applied to spans outside single quotes.
+ * @returns Transformed text with single-quoted spans unchanged.
+ */
+function replaceOutsideSingleQuotes(line: string, replace: (text: string) => string): string {
+  let result = "";
+  let span = "";
+  let singleQuoted = false;
+  for (const character of line) {
+    if (character !== "'") {
+      span += character;
+      continue;
+    }
+    result += singleQuoted ? span : replace(span);
+    result += character;
+    span = "";
+    singleQuoted = !singleQuoted;
+  }
+  return result + (singleQuoted ? span : replace(span));
+}
+
+/**
  * Expand `$name` and `${name}` references against the file's scalar assignments.
  *
  * An unknown name is left in place for the same reason an unknown array is:
@@ -640,7 +668,9 @@ export function shellScalars(text: string): Map<string, string> {
 export function expandScalars(line: string, scalars: Map<string, string>): string {
   // One of the two alternatives always captures the name, so there is no
   // nameless match to guard against.
-  return line.replace(/\$\{([A-Za-z_][A-Za-z0-9_]*)\}|\$([A-Za-z_][A-Za-z0-9_]*)/g, (whole, braced?: string, bare?: string) => scalars.get(braced ?? bare!) ?? whole);
+  return replaceOutsideSingleQuotes(line, (text) =>
+    text.replace(/\$\{([A-Za-z_][A-Za-z0-9_]*)\}|\$([A-Za-z_][A-Za-z0-9_]*)/g,
+      (whole, braced?: string, bare?: string) => scalars.get(braced ?? bare!) ?? whole));
 }
 
 /**
@@ -655,8 +685,9 @@ export function expandScalars(line: string, scalars: Map<string, string>): strin
  * @returns The command with referenced array contents inlined.
  */
 export function expandArrays(line: string, arrays: Map<string, string>): string {
-  return line.replace(/"?\$\{([A-Za-z_][A-Za-z0-9_]*)\[@\]\}"?/g, (whole, name: string) =>
-    arrays.get(name) ?? whole);
+  return replaceOutsideSingleQuotes(line, (text) =>
+    text.replace(/"?\$\{([A-Za-z_][A-Za-z0-9_]*)\[@\]\}"?/g, (whole, name: string) =>
+      arrays.get(name) ?? whole));
 }
 
 /** The outcome of one verifier run. */

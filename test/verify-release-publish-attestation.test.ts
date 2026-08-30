@@ -156,6 +156,14 @@ test("a publish hidden in an npm script is found, because a manifest is JSON and
   assert.deepEqual(auditPublishAttestation([{ file: "package.json", text: attested }]).failures, []);
 });
 
+test("a shebang executable whose name only ends in package.json is scanned as shell", () => {
+  const result = auditPublishAttestation([{
+    file: "tools/run-package.json",
+    text: "#!/bin/sh\nnpm publish --access public",
+  }]);
+  assert.equal(result.failures.length, 1);
+});
+
 test("manifestCommandLines survives a manifest that is malformed, empty, or has no scripts", () => {
   // A malformed sibling manifest must not take the gate down; its own tooling
   // reports that far better than a publish audit can.
@@ -248,6 +256,20 @@ test("an unattested publish smuggled through an interpreter or a substitution is
     ]).failures;
     assert.equal(failures.length, 1, `${smuggled} -> ${JSON.stringify(failures)}`);
   }
+});
+
+test("shell evaluators scan only the command selected by -c", () => {
+  assert.equal(
+    publishInvocationsIn({ file: "release.yml", text: "bash -c 'true' 'npm publish'" }).length,
+    0,
+    "the word after the command string is $0, not shell source",
+  );
+  assert.equal(publishInvocationsIn({ file: "release.yml", text: "bash script.sh" }).length, 0);
+  assert.equal(publishInvocationsIn({ file: "release.yml", text: "bash -c" }).length, 0);
+  assert.equal(
+    publishInvocationsIn({ file: "release.yml", text: "bash -lc 'npm publish' ignored" }).length,
+    1,
+  );
 });
 
 test("every shell separator ends a command, so a flagged publish cannot cover an unflagged neighbour", () => {
@@ -377,9 +399,11 @@ test("a tracked path that cannot be opened is skipped rather than taking the gat
   });
   try {
     symlinkSync("nowhere-at-all", join(root, "dangling"));
-    execFileSync("git", ["add", "dangling"], { cwd: root });
-    assert.ok(!trackedPublishSources(root).includes("dangling"), "an unreadable tracked file is not a publish source");
-    assert.deepEqual(verify(root).failures, [], "and it does not fail the gate either");
+    symlinkSync("nowhere-at-all", join(root, "release.sh"));
+    execFileSync("git", ["add", "dangling", "release.sh"], { cwd: root });
+    assert.ok(!trackedPublishSources(root).includes("dangling"), "an unreadable unknown path is not a source");
+    assert.ok(trackedPublishSources(root).includes("release.sh"), "an executable-shaped path still enters the read set");
+    assert.deepEqual(verify(root).failures, [], "its failed text read does not take down the gate");
   } finally {
     rmSync(root, { recursive: true, force: true });
   }
@@ -893,6 +917,18 @@ test("a trailing escape cannot make shell segmentation read past the source", ()
   assert.deepEqual(result.failures, []);
 });
 
+test("single-quoted references cannot expand into provenance", () => {
+  for (const text of [
+    "FLAG=--provenance\nnpm publish '$FLAG'",
+    "flags=(--provenance)\nnpm publish '${flags[@]}'",
+  ]) {
+    const result = auditPublishAttestation([{ file: "release.yml", text }]);
+    assert.equal(result.failures.length, 1);
+    assert.match(result.failures[0]!, /does not enable --provenance/);
+  }
+  assert.equal(expandScalars("'$FLAG' $FLAG", new Map([["FLAG", "value"]])), "'$FLAG' value");
+});
+
 test("conditional and background assignments do not leak", () => {
   for (const text of [
     "npm publish --provenance\nFLAG=--provenance & npm publish $FLAG",
@@ -996,12 +1032,19 @@ test("an unattested publish inside a heredoc body fails the audit", () => {
 });
 
 test("a publish cannot borrow provenance from a discarded shell binding", () => {
-  const result = auditPublishAttestation([{
+  for (const unset of ["unset FLAG", "unset -v FLAG", 'unset "FLAG"', "unset FLAG # explanation"]) {
+    const result = auditPublishAttestation([{
+      file: "release.yml",
+      text: ["FLAG=--provenance", unset, "npm publish --access public $FLAG"].join("\n"),
+    }]);
+    assert.equal(result.failures.length, 1, unset);
+    assert.match(result.failures[0]!, /does not enable --provenance/);
+  }
+  const functionOnly = auditPublishAttestation([{
     file: "release.yml",
-    text: ["FLAG=--provenance", "unset FLAG", "npm publish --access public $FLAG"].join("\n"),
+    text: ["FLAG=--provenance", "unset -f FLAG", "npm publish $FLAG"].join("\n"),
   }]);
-  assert.equal(result.failures.length, 1);
-  assert.match(result.failures[0]!, /does not enable --provenance/);
+  assert.deepEqual(functionOnly.failures, []);
 });
 
 test("an unattested multiline continuation is joined before tokenising", () => {

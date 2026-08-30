@@ -260,7 +260,7 @@ function shellSegments(text: string): Array<{ text: string; childScoped: boolean
  * @returns The publish invocations found, in file order.
  */
 export function publishInvocationsIn(source: SourceFile): PublishInvocation[] {
-  const raw = source.file.endsWith("package.json") ? manifestCommandLines(source.text) : source.text;
+  const raw = /(^|\/)package\.json$/.test(source.file) ? manifestCommandLines(source.text) : source.text;
   const joined = joinContinuations(raw);
   const text = /(^|\/)Dockerfile(?:[.-][^/]*)?$/.test(source.file)
     ? joined.split("\n").map((line) => /^\s*RUN\s+/i.test(line) ? line.replace(/^\s*RUN\s+/i, "") : "").join("\n")
@@ -285,13 +285,6 @@ export function publishInvocationsIn(source: SourceFile): PublishInvocation[] {
     }
     const resolved = expandScalars(expandArrays(segment, arrays), scalars);
     const trimmed = segment.trim();
-    const unset = /^unset(?:\s+-v)?\s+([A-Za-z_][A-Za-z0-9_]*(?:\s+[A-Za-z_][A-Za-z0-9_]*)*)$/.exec(trimmed);
-    if (unset !== null) {
-      for (const name of unset[1]!.split(/\s+/)) {
-        arrays.delete(name);
-        scalars.delete(name);
-      }
-    }
     if (/^(?:fi|done|esac)\b/.test(trimmed)) controlDepth = Math.max(0, controlDepth - 1);
     const insideControl = controlDepth > 0;
     if (/^(?:if|while|until|for|case)\b/.test(trimmed)) controlDepth += 1;
@@ -314,6 +307,10 @@ export function publishInvocationsIn(source: SourceFile): PublishInvocation[] {
         if (/^[A-Za-z_][A-Za-z0-9_]*$/.test(token.value)) mentionedUnsets.add(token.value);
       }
     }
+    for (const name of mentionedUnsets) {
+      arrays.delete(name);
+      scalars.delete(name);
+    }
     const reliableAssignment = assignmentEligible && !insideControl && controlDepth === 0 && !part.childScoped;
     // An assignment in uncertain control flow cannot provide evidence, and it
     // also invalidates an older value: the branch may execute and replace a
@@ -324,7 +321,6 @@ export function publishInvocationsIn(source: SourceFile): PublishInvocation[] {
         ...segmentArrays.keys(),
         ...segmentScalars.keys(),
         ...mentionedAssignments,
-        ...mentionedUnsets,
       ])) {
         arrays.delete(name);
         scalars.delete(name);
@@ -501,10 +497,16 @@ export function trackedPublishSources(root: string): string[] {
  * @returns Failures and notes for the whole repository.
  */
 export function verify(root: string): VerifierResult {
-  const sources: SourceFile[] = trackedPublishSources(root).map((file) => ({
-    file,
-    text: readFileSync(resolve(root, file), "utf8"),
-  }));
+  const sources: SourceFile[] = trackedPublishSources(root).map((file) => {
+    let text = "";
+    try {
+      text = readFileSync(resolve(root, file), "utf8");
+    } catch {
+      // Discovery already treats an unreadable path as command-free. Preserve
+      // that contract if the path disappears between discovery and this read.
+    }
+    return { file, text };
+  });
   return auditPublishAttestation(sources);
 }
 
