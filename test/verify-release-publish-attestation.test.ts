@@ -970,7 +970,9 @@ test("an uncertain control-flow assignment invalidates stale provenance", () => 
 test("loop mutations invalidate stale provenance", () => {
   for (const loop of [
     "for FLAG in --no-provenance; do :; done",
-    "for ((FLAG=0; FLAG<1; FLAG++)); do :; done",
+    "for ((i=0; i<1; FLAG++)); do :; done",
+    "for ((i=0; i<1; ++FLAG)); do :; done",
+    "for ((i=0; i<1; FLAG+=1)); do :; done",
   ]) {
     const result = auditPublishAttestation([{
       file: "release.yml",
