@@ -827,6 +827,17 @@ test("scalar expansion follows execution order", () => {
   assert.equal(result.failures.length, 1);
 });
 
+test("assignment builtins replace reliable scalar and array provenance", () => {
+  for (const text of [
+    "FLAG=--provenance; declare -x FLAG=--no-provenance; npm publish $FLAG",
+    'flags=(--provenance); declare -a flags=(--no-provenance); npm publish "${flags[@]}"',
+  ]) {
+    const result = auditPublishAttestation([{ file: "release.yml", text }]);
+    assert.equal(result.failures.length, 1);
+    assert.match(result.failures[0]!, /does not enable --provenance/);
+  }
+});
+
 test("an assignment the shell never makes is not indexed", () => {
   // Scalars used to be read straight out of the raw text, which indexed three
   // things the shell does not assign. The middle one is a gate bypass: a name
@@ -865,6 +876,8 @@ test("a scalar is taken only from a line that is exactly one literal assignment"
     "a semicolon ends the assignment, and the shell keeps the binding after it");
   assert.equal(shellScalars("export NPM=npm\n").get("NPM"), "npm",
     "export still declares a persistent binding");
+  assert.equal(shellScalars("declare -x NPM=npm\n").get("NPM"), "npm",
+    "a builtin declaration with options still creates a persistent binding");
   assert.equal(shellScalars("NPM=npm # explanation\n").get("NPM"), "npm",
     "a trailing comment does not stop the line being an assignment");
   assert.equal(shellScalars("NPM=npm\r\n").get("NPM"), "npm",

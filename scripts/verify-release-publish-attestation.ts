@@ -288,7 +288,7 @@ export function publishInvocationsIn(source: SourceFile): PublishInvocation[] {
     if (/^(?:fi|done|esac)\b/.test(trimmed)) controlDepth = Math.max(0, controlDepth - 1);
     const insideControl = controlDepth > 0;
     if (/^(?:if|while|until|for|case)\b/.test(trimmed)) controlDepth += 1;
-    const segmentArrays = /^(?:export\s+)?[A-Za-z_][A-Za-z0-9_]*=\(/.test(trimmed)
+    const segmentArrays = /^(?:(?:export|readonly|declare|typeset|local)(?:\s+-[A-Za-z]+)*\s+)?[A-Za-z_][A-Za-z0-9_]*=\(/.test(trimmed)
       ? bashArrays(segment)
       : new Map<string, string>();
     const segmentScalars = shellScalars(`${segment};`);
