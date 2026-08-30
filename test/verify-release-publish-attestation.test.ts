@@ -905,6 +905,7 @@ test("arrays declared in non-executed scopes cannot attest a later publish", () 
     ["comment", "# flags=(--provenance)"],
     ["skipped branch", "if false; then\nflags=(--provenance)\nfi"],
     ["subshell", "(\nflags=(--provenance)\n)"],
+    ["single-line subshell", "( flags=(--provenance) )"],
     ["uninvoked function", "release() {\nflags=(--provenance)\n}"],
   ]);
   for (const [name, declaration] of declarations) {
@@ -917,18 +918,17 @@ test("arrays declared in non-executed scopes cannot attest a later publish", () 
 });
 
 test("an uncertain control-flow assignment invalidates stale provenance", () => {
-  const result = auditPublishAttestation([{
-    file: "release.yml",
-    text: [
-      "FLAG=--provenance",
-      "if true; then",
-      "FLAG=--no-provenance",
-      "fi",
-      "npm publish $FLAG",
-    ].join("\n"),
-  }]);
-  assert.equal(result.failures.length, 1);
-  assert.match(result.failures[0]!, /does not enable --provenance/);
+  for (const control of [
+    ["if true; then", "FLAG=--no-provenance", "fi"].join("\n"),
+    "if true; then FLAG=--no-provenance; fi",
+  ]) {
+    const result = auditPublishAttestation([{
+      file: "release.yml",
+      text: ["FLAG=--provenance", control, "npm publish $FLAG"].join("\n"),
+    }]);
+    assert.equal(result.failures.length, 1);
+    assert.match(result.failures[0]!, /does not enable --provenance/);
+  }
 });
 
 test("assignments in skipped multiline control blocks do not leak", () => {

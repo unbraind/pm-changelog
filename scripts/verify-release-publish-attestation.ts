@@ -203,7 +203,9 @@ function shellSegments(text: string): Array<{ text: string; childScoped: boolean
   const parts: Array<{ text: string; childScoped: boolean }> = [];
   let value = "";
   let quote: "'" | '"' | undefined;
+  let arrayDepth = 0;
   let childDepth = 0;
+  let enteredChildScope = false;
   let startedInChildScope = false;
   for (let index = 0; index < text.length; index += 1) {
     const character = text[index]!;
@@ -218,19 +220,32 @@ function shellSegments(text: string): Array<{ text: string; childScoped: boolean
       continue;
     }
     if (quote === undefined && (character === ";" || character === "&" || character === "|" || character === "\n")) {
-      if (value !== "") parts.push({ text: value, childScoped: startedInChildScope || childDepth > 0 });
+      if (value !== "") {
+        parts.push({ text: value, childScoped: startedInChildScope || enteredChildScope || childDepth > 0 });
+      }
       const doubled = text[index + 1] === character && (character === "&" || character === "|");
       parts.push({ text: doubled ? character + character : character, childScoped: childDepth > 0 });
       if (doubled) index += 1;
       value = "";
+      enteredChildScope = childDepth > 0;
       startedInChildScope = childDepth > 0;
       continue;
     }
-    if (quote === undefined && (character === "(" || character === "{")) childDepth += 1;
-    if (quote === undefined && (character === ")" || character === "}")) childDepth = Math.max(0, childDepth - 1);
+    const arrayLiteral = character === "(" && /(?:^|\s)[A-Za-z_][A-Za-z0-9_]*=$/.test(value);
+    if (quote === undefined && arrayLiteral) arrayDepth += 1;
+    if (quote === undefined && !arrayLiteral && (character === "(" || character === "{")) {
+      childDepth += 1;
+      enteredChildScope = true;
+    }
+    if (quote === undefined && character === ")" && arrayDepth > 0) arrayDepth -= 1;
+    else if (quote === undefined && (character === ")" || character === "}")) {
+      childDepth = Math.max(0, childDepth - 1);
+    }
     value += character;
   }
-  if (value !== "") parts.push({ text: value, childScoped: startedInChildScope || childDepth > 0 });
+  if (value !== "") {
+    parts.push({ text: value, childScoped: startedInChildScope || enteredChildScope || childDepth > 0 });
+  }
   return parts;
 }
 
@@ -284,14 +299,22 @@ export function publishInvocationsIn(source: SourceFile): PublishInvocation[] {
       ? bashArrays(segment)
       : new Map<string, string>();
     const segmentScalars = shellScalars(`${segment};`);
+    const mentionedAssignments = new Set(
+      tokenizeCommands(segment)
+        .flat()
+        .filter((token) => !token.startsQuoted && /^[A-Za-z_][A-Za-z0-9_]*=/.test(token.value))
+        .map((token) => token.value.slice(0, token.value.indexOf("="))),
+    );
     const reliableAssignment = assignmentEligible && !insideControl && controlDepth === 0 && !part.childScoped;
     // An assignment in uncertain control flow cannot provide evidence, and it
     // also invalidates an older value: the branch may execute and replace a
     // previously attested value with `--no-provenance`. Retaining that stale
     // value is a false pass, while deleting it can only fail closed.
     if (!reliableAssignment) {
-      for (const name of segmentArrays.keys()) arrays.delete(name);
-      for (const name of segmentScalars.keys()) scalars.delete(name);
+      for (const name of new Set([...segmentArrays.keys(), ...segmentScalars.keys(), ...mentionedAssignments])) {
+        arrays.delete(name);
+        scalars.delete(name);
+      }
     }
     // Defer persistence until the following separator is known: assignments
     // in conditional/loop blocks, child scopes, or before `&`, `&&`, `||`, or
