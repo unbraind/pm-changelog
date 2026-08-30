@@ -299,6 +299,8 @@ export function publishInvocationsIn(source: SourceFile): PublishInvocation[] {
         .filter((token) => !token.startsQuoted && /^[A-Za-z_][A-Za-z0-9_]*=/.test(token.value))
         .map((token) => token.value.slice(0, token.value.indexOf("="))),
     );
+    const loopVariable = /^for\s+([A-Za-z_][A-Za-z0-9_]*)\b/.exec(trimmed)?.[1];
+    if (loopVariable) mentionedAssignments.add(loopVariable);
     const mentionedUnsets = new Set<string>();
     for (const command of segmentCommands) {
       const unsetIndex = command.findIndex((token) => !token.startsQuoted && token.value === "unset");
