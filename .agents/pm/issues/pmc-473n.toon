@@ -1,0 +1,31 @@
+id: pmc-473n
+title: Every release publish invocation must retain provenance attestation
+description: "Add the fleet publish-attestation regression gate, test known shell-scope and parsing bypasses, and wire it through CI and release checks so future workflow edits cannot introduce an unattested publish path."
+type: Issue
+status: closed
+priority: 2
+tags: []
+created_at: "2026-08-30T15:33:58.682Z"
+updated_at: "2026-08-30T16:22:51.774Z"
+closed_at: "2026-08-30T16:22:51.761Z"
+completed_at: "2026-08-30T16:22:51.761Z"
+claim_principal: pi-agent
+author: pi-agent
+resolution: "Ported the hardened verifier, closed child-scope and discarded-binding false passes, and wired the gate into CI and release checks."
+expected_result: Every tracked publish invocation is rejected unless provenance attestation remains enabled.
+actual_result: "All required bypass fixtures fail closed, the real repository passes, and release:check reports 100% quality coverage."
+comments[2]{created_at,author,text}:
+  "2026-08-30T16:17:57.418Z",pi-agent,"Implemented the attestation scanner and CI/release wiring. Required bypass fixtures cover heredoc bodies, discarded bindings, multiline continuations, subshells, uninvoked functions, and child-scope assignment leakage. Non-vacuity probe failed with status 1 on an inserted unattested publish and passed after removal. Reverting the child-scope source fix made its regression test fail (0 !== 1); restoring it passed."
+  "2026-08-30T16:22:38.309Z",pi-agent,"Final npm run release:check passed: typecheck, docstring coverage (100%), 511 tests, aggregate lines/branches/functions 100%, production audit (0 vulnerabilities), package dry run, changelog check, release-date verifier, and publish-attestation verifier all passed. The pinned pm linked-test runner timed out under its default limit, so the same linked command was rerun directly with a 20-minute allowance and passed."
+files[7]{path,scope}:
+  .github/workflows/ci.yml,project
+  package.json,project
+  scripts/main-invocation.ts,project
+  scripts/shell-command-scan.ts,project
+  scripts/verify-release-publish-attestation.ts,project
+  test/shell-command-scan.test.ts,project
+  test/verify-release-publish-attestation.test.ts,project
+tests[1]{command,scope}:
+  "npm run release:check",project
+close_reason: "Added and proved the publish-attestation regression gate across CI and release checks, including all required shell bypass cases and 100% quality gates."
+body: ""

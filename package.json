@@ -50,7 +50,7 @@
     "audit:prod": "node --input-type=module -e \"import { spawnSync } from 'node:child_process'; import { devNull } from 'node:os'; const env = { ...process.env, npm_config_userconfig: devNull, NPM_CONFIG_USERCONFIG: devNull }; for (const key of Object.keys(env)) if (key.toLowerCase() === 'npm_config_allow_scripts') delete env[key]; const win = process.platform === 'win32'; const r = spawnSync(win ? 'npm.cmd' : 'npm', ['audit', '--omit=dev', '--ignore-scripts'], { stdio: 'inherit', env, shell: win }); process.exit(r.status ?? 1);\"",
     "pack:dry-run": "npm pack --dry-run",
     "prepack": "npm run build",
-    "release:check": "npm run check && npm run docstring && npm run coverage && npm run audit:prod && npm run pack:dry-run && npm run changelog:check && npm run verify:release-changelog-date",
+    "release:check": "npm run check && npm run docstring && npm run coverage && npm run audit:prod && npm run pack:dry-run && npm run changelog:check && npm run verify:release-changelog-date && npm run verify:release-publish-attestation",
     "test": "npm run build && npm run build:test && node --test test/*.test.ts",
     "typecheck": "tsc --noEmit",
     "prepublishOnly": "npm run release:check",
@@ -59,7 +59,8 @@
     "merge:install": "pm merge install",
     "coverage": "npm run build && npm run build:test && node scripts/coverage-gate.ts",
     "docstring": "node scripts/docstring-gate.ts",
-    "verify:release-changelog-date": "node scripts/verify-release-changelog-date.ts"
+    "verify:release-changelog-date": "node scripts/verify-release-changelog-date.ts",
+    "verify:release-publish-attestation": "node scripts/verify-release-publish-attestation.ts"
   },
   "pm": {
     "aliases": [
@@ -128,7 +129,10 @@
       "src",
       "scripts/docstring-gate.ts",
       "scripts/prepare-merge-driver.ts",
-      "scripts/sync-version.ts"
+      "scripts/sync-version.ts",
+      "scripts/main-invocation.ts",
+      "scripts/shell-command-scan.ts",
+      "scripts/verify-release-publish-attestation.ts"
     ],
     "tests": [
       "test/*.test.ts"

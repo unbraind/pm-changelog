@@ -1,5 +1,11 @@
 # Changelog
 
+## Unreleased
+
+### Fixed
+
+- Every release publish invocation must retain provenance attestation ([pmc-473n](https://github.com/unbraind/pm-changelog/blob/main/.agents/pm/issues/pmc-473n.toon))
+
 ## 2026.8.30 - 2026-08-30
 
 ### Fixed
