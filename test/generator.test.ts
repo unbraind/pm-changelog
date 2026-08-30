@@ -561,16 +561,14 @@ test("resolveReleaseTagWindows derives newest-first git tag windows", () => {
     pendingTimestamp: "2026-05-20 12:00:00 +0000",
   });
 
-  assert.equal(windows.length, 4);
-  assert.equal(windows[0].heading, "Unreleased");
-  assert.equal(windows[0].since, "2026-05-20T12:00:00.000Z");
-  assert.equal(windows[1].heading, "1.3.0 - 2026-05-20");
-  assert.equal(windows[1].since, "2026-05-17T12:00:00.000Z");
-  assert.equal(windows[1].until, "2026-05-20T12:00:00.000Z");
-  assert.equal(windows[2].heading, "1.2.0 - 2026-05-17");
-  assert.equal(windows[2].since, "2026-05-10T12:00:00.000Z");
-  assert.equal(windows[2].until, "2026-05-17T12:00:00.000Z");
-  assert.equal(windows[3].heading, "1.1.0 - 2026-05-10");
+  assert.equal(windows.length, 3);
+  assert.equal(windows[0].heading, "1.3.0 - 2026-05-20");
+  assert.equal(windows[0].since, "2026-05-17T12:00:00.000Z");
+  assert.equal(windows[0].until, undefined);
+  assert.equal(windows[1].heading, "1.2.0 - 2026-05-17");
+  assert.equal(windows[1].since, "2026-05-10T12:00:00.000Z");
+  assert.equal(windows[1].until, "2026-05-17T12:00:00.000Z");
+  assert.equal(windows[2].heading, "1.1.0 - 2026-05-10");
   assert.ok(windows.every((window) => !window.heading.startsWith("9.9.9")));
 });
 
@@ -637,15 +635,17 @@ test("resolveReleaseTagWindows keeps unpadded calendar pending headings", () => 
     pendingTimestamp: "2026-05-27 12:00:00 +0000",
   });
 
-  assert.equal(windows.length, 3);
-  assert.equal(windows[0].heading, "Unreleased");
+  assert.equal(windows.length, 2);
   // The pending heading must echo the caller's unpadded YYYY.M.D version so the
   // pm-cli release pipeline can locate the `## 2026.5.27` section it asked for.
-  assert.equal(windows[1].heading, "2026.5.27 - 2026-05-27");
-  assert.doesNotMatch(windows[1].heading, /2026\.05\.27/);
+  assert.equal(windows[0].heading, "2026.5.27 - 2026-05-27");
+  assert.doesNotMatch(windows[0].heading, /2026\.05\.27/);
+  // A leading open-ended pending window replaces Unreleased so an item cannot
+  // be claimed by both sections.
+  assert.equal(windows[0].until, undefined);
   // Padded calendar tags render unpadded headings too, so the post-tag heading
   // matches the pre-tag pending heading and the committed CHANGELOG (issue #41).
-  assert.equal(windows[2].heading, "2026.5.24 - 2026-05-24");
+  assert.equal(windows[1].heading, "2026.5.24 - 2026-05-24");
 });
 
 test("resolveReleaseTagWindows dedupes a pending version against a padded tag", () => {
@@ -1802,6 +1802,56 @@ test("CLI exposes stable no-tag fallback dates without weakening explicit date p
   assert.match(conflicting.stderr, /mutually exclusive/);
 });
 
+test("pending all-release-tags output is byte-identical after tagging the release commit", (t) => {
+  const directory = mkdtempSync(join(tmpdir(), "pm-changelog-pending-release-"));
+  t.after(() => rmSync(directory, { recursive: true, force: true }));
+  execFileSync("git", ["init"], { cwd: directory, encoding: "utf-8" });
+  execFileSync("git", ["config", "user.name", "pm changelog test"], { cwd: directory, encoding: "utf-8" });
+  execFileSync("git", ["config", "user.email", "pm-changelog@example.com"], { cwd: directory, encoding: "utf-8" });
+  writeFileSync(join(directory, "release.txt"), "release\n", "utf-8");
+  execFileSync("git", ["add", "release.txt"], { cwd: directory, encoding: "utf-8" });
+  execFileSync("git", ["commit", "-m", "release"], {
+    cwd: directory,
+    encoding: "utf-8",
+    env: {
+      ...process.env,
+      GIT_AUTHOR_DATE: "2026-08-30T12:00:00Z",
+      GIT_COMMITTER_DATE: "2026-08-30T12:00:00Z",
+    },
+  });
+
+  const input = join(directory, "items.json");
+  writeFileSync(input, JSON.stringify([{
+    id: "pm-release-day",
+    title: "Keep release-day work in the pending release",
+    status: "closed",
+    type: "bug",
+    closed_at: "2026-08-30T09:00:00Z",
+  }]), "utf-8");
+  const cli = join(process.cwd(), "src", "cli.ts");
+  const command = [
+    cli,
+    "--input", input,
+    "--stdout",
+    "--all-release-tags",
+    "--version", "2026.8.30",
+    "--date-from-version",
+  ];
+  const generate = (): string => execFileSync(process.execPath, command, {
+    cwd: directory,
+    encoding: "utf-8",
+    env: { ...process.env, TZ: "UTC" },
+  });
+
+  const beforeTag = generate();
+  assert.match(beforeTag, /## 2026\.8\.30 - 2026-08-30[\s\S]*pm-release-day/);
+  assert.doesNotMatch(beforeTag, /## Unreleased/);
+
+  execFileSync("git", ["tag", "v2026.8.30"], { cwd: directory, encoding: "utf-8" });
+  const afterTag = generate();
+  assert.equal(afterTag, beforeTag);
+});
+
 test("resolveReleaseTagWindows rejects shallow clones but preserves zero-tag pending windows", (t) => {
   const { cloneDir } = createShallowClone(t, []);
 
@@ -1833,9 +1883,9 @@ test("resolveReleaseTagWindows rejects shallow clones but preserves zero-tag pen
     pendingVersion: "1.0.0",
     pendingTimestamp: "2026-05-01T00:00:00Z",
   });
-  assert.equal(windows.length, 2);
-  assert.equal(windows[0].heading, "Unreleased");
-  assert.equal(windows[1].heading, "1.0.0 - 2026-05-01");
+  assert.equal(windows.length, 1);
+  assert.equal(windows[0].heading, "1.0.0 - 2026-05-01");
+  assert.equal(windows[0].until, undefined);
 });
 
 test("CLI reports missing tag history instead of a stale changelog in a shallow tagless clone", (t) => {

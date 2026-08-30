@@ -175,11 +175,11 @@ function calendarDateFromVersion(version) {
 /**
  * Turn a repo's release tags into contiguous, newest-first release windows.
  *
- * Each window runs from the previous tag (exclusive, so a tag's own commit is
- * not claimed by both neighbours) to its own tag, and an open-ended
+ * Each tagged window runs from the previous tag (exclusive, so a tag's own
+ * commit is not claimed by both neighbours) to its own tag, and an open-ended
  * `Unreleased` window leads unless suppressed. A pending version with no tag
- * yet is folded in at its sorted position, which is what lets the release being
- * cut appear in the changelog before its tag exists.
+ * yet is folded in at its sorted position, but its upper bound remains open so
+ * the release being cut owns work completed after its stable display date.
  */
 export function resolveReleaseTagWindows(options = {}) {
     const cwd = resolve(options.cwd ?? process.cwd());
@@ -192,10 +192,11 @@ export function resolveReleaseTagWindows(options = {}) {
     if (orderedTags.length === 0)
         return [];
     const windows = [];
-    if (options.includeUnreleased !== false) {
+    const leadingTag = orderedTags[0];
+    if (options.includeUnreleased !== false && !leadingTag.pending) {
         windows.push({
             heading: "Unreleased",
-            since: orderedTags[0].timestamp,
+            since: leadingTag.timestamp,
             sinceExclusive: true,
         });
     }
@@ -207,7 +208,7 @@ export function resolveReleaseTagWindows(options = {}) {
             releaseTag: tag.name,
             since: previous?.timestamp,
             sinceExclusive: Boolean(previous),
-            until: tag.timestamp,
+            until: tag.pending ? undefined : tag.timestamp,
         });
     }
     return windows;
@@ -235,7 +236,7 @@ function resolvePendingReleaseTag(options, existingTags) {
     // guaranteed present by releaseTagCandidates.
     const canonical = candidates.find((candidate) => candidate.startsWith("v"));
     const timestamp = normalizeTimestamp(options.pendingTimestamp ?? new Date().toISOString());
-    return { name: canonical, timestamp };
+    return { name: canonical, timestamp, pending: true };
 }
 /** Read the nearest package.json's version, throwing when absent or blank so a
  * release never silently generates an unversioned section. */
