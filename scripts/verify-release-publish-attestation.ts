@@ -302,7 +302,9 @@ export function publishInvocationsIn(source: SourceFile): PublishInvocation[] {
           mentionedAssignments.add(mutation[1] ?? mutation[2]!);
           continue;
         }
-        if (!/^(?:if|then|elif|else|do|for|while|until|case|in)$/.test(token.value)) sawProgram = true;
+        const assignmentPrefix = /^(?:if|then|elif|else|do|for|while|until|case|in|export|readonly|declare|typeset|local)$/.test(token.value)
+          || (!sawProgram && token.value.startsWith("-"));
+        if (!assignmentPrefix) sawProgram = true;
       }
     }
     const loopVariable = /^for\s+([A-Za-z_][A-Za-z0-9_]*)\b/.exec(trimmed)?.[1];

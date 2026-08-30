@@ -957,6 +957,8 @@ test("an uncertain control-flow assignment invalidates stale provenance", () => 
   for (const control of [
     ["if true; then", "FLAG=--no-provenance", "fi"].join("\n"),
     "if true; then FLAG=--no-provenance; fi",
+    "if true; then export FLAG=--no-provenance; fi",
+    "if true; then declare -x FLAG=--no-provenance; fi",
   ]) {
     const result = auditPublishAttestation([{
       file: "release.yml",
