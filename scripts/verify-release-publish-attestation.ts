@@ -299,19 +299,33 @@ export function publishInvocationsIn(source: SourceFile): PublishInvocation[] {
       ? bashArrays(segment)
       : new Map<string, string>();
     const segmentScalars = shellScalars(`${segment};`);
+    const segmentCommands = tokenizeCommands(segment);
     const mentionedAssignments = new Set(
-      tokenizeCommands(segment)
+      segmentCommands
         .flat()
         .filter((token) => !token.startsQuoted && /^[A-Za-z_][A-Za-z0-9_]*=/.test(token.value))
         .map((token) => token.value.slice(0, token.value.indexOf("="))),
     );
+    const mentionedUnsets = new Set<string>();
+    for (const command of segmentCommands) {
+      const unsetIndex = command.findIndex((token) => !token.startsQuoted && token.value === "unset");
+      if (unsetIndex < 0 || command[unsetIndex + 1]?.value === "-f") continue;
+      for (const token of command.slice(unsetIndex + 1)) {
+        if (/^[A-Za-z_][A-Za-z0-9_]*$/.test(token.value)) mentionedUnsets.add(token.value);
+      }
+    }
     const reliableAssignment = assignmentEligible && !insideControl && controlDepth === 0 && !part.childScoped;
     // An assignment in uncertain control flow cannot provide evidence, and it
     // also invalidates an older value: the branch may execute and replace a
     // previously attested value with `--no-provenance`. Retaining that stale
     // value is a false pass, while deleting it can only fail closed.
     if (!reliableAssignment) {
-      for (const name of new Set([...segmentArrays.keys(), ...segmentScalars.keys(), ...mentionedAssignments])) {
+      for (const name of new Set([
+        ...segmentArrays.keys(),
+        ...segmentScalars.keys(),
+        ...mentionedAssignments,
+        ...mentionedUnsets,
+      ])) {
         arrays.delete(name);
         scalars.delete(name);
       }

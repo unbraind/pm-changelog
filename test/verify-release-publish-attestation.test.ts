@@ -931,6 +931,20 @@ test("an uncertain control-flow assignment invalidates stale provenance", () => 
   }
 });
 
+test("an uncertain control-flow unset invalidates stale provenance", () => {
+  for (const [assignment, invocation] of [
+    ["FLAG=--provenance", "npm publish $FLAG"],
+    ["flags=(--provenance)", 'npm publish "${flags[@]}"'],
+  ]) {
+    const result = auditPublishAttestation([{
+      file: "release.yml",
+      text: [assignment, "if true; then unset FLAG flags; fi", invocation].join("\n"),
+    }]);
+    assert.equal(result.failures.length, 1);
+    assert.match(result.failures[0]!, /does not enable --provenance/);
+  }
+});
+
 test("assignments in skipped multiline control blocks do not leak", () => {
   const result = auditPublishAttestation([{ file: "release.yml", text: [
     `npm publish --provenance`,
