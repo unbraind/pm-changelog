@@ -298,7 +298,8 @@ export function publishInvocationsIn(source: SourceFile): PublishInvocation[] {
       let sawProgram = false;
       let letArguments = false;
       for (const token of command) {
-        const mutation = /^(?:(?:\+\+|--)([A-Za-z_][A-Za-z0-9_]*)|([A-Za-z_][A-Za-z0-9_]*)(?:\+\+|--|(?:<<|>>|[-+*/%&|^])?=))/.exec(token.value);
+        const mutationText = letArguments ? token.value.replace(/\s+/g, "") : token.value;
+        const mutation = /^(?:(?:\+\+|--)([A-Za-z_][A-Za-z0-9_]*)|([A-Za-z_][A-Za-z0-9_]*)(?:\+\+|--|(?:<<|>>|[-+*/%&|^])?=))/.exec(mutationText);
         if (!sawProgram && (!token.startsQuoted || letArguments) && mutation) {
           mentionedAssignments.add(mutation[1] ?? mutation[2]!);
           continue;

@@ -942,6 +942,18 @@ test("single-quoted references cannot expand into provenance", () => {
   assert.equal(expandScalars("'$FLAG' $FLAG", new Map([["FLAG", "value"]])), "'$FLAG' value");
 });
 
+test("escaped references cannot expand into provenance", () => {
+  for (const text of [
+    "FLAG=--provenance\nnpm publish \\$FLAG",
+    "flags=(--provenance)\nnpm publish \\${flags[@]}",
+  ]) {
+    const result = auditPublishAttestation([{ file: "release.yml", text }]);
+    assert.equal(result.failures.length, 1);
+    assert.match(result.failures[0]!, /does not enable --provenance/);
+  }
+  assert.equal(expandScalars("\\\\$FLAG", new Map([["FLAG", "value"]])), "\\\\value");
+});
+
 test("conditional and background assignments do not leak", () => {
   for (const text of [
     "npm publish --provenance\nFLAG=--provenance & npm publish $FLAG",
@@ -974,6 +986,7 @@ test("an uncertain control-flow assignment invalidates stale provenance", () => 
     "if true; then declare -x FLAG=--no-provenance; fi",
     "if true; then let FLAG++; fi",
     'if true; then let "FLAG++"; fi',
+    'if true; then let "FLAG = 0"; fi',
   ]) {
     const result = auditPublishAttestation([{
       file: "release.yml",

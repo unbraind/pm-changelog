@@ -655,6 +655,19 @@ function replaceOutsideSingleQuotes(line: string, replace: (text: string) => str
 }
 
 /**
+ * Tell whether a shell reference at an offset is escaped.
+ *
+ * @param text - Unquoted shell span containing the reference.
+ * @param offset - Offset of the reference's dollar sign.
+ * @returns True when an odd run of backslashes escapes the dollar sign.
+ */
+function escapedReference(text: string, offset: number): boolean {
+  let backslashes = 0;
+  for (let index = offset - 1; index >= 0 && text[index] === "\\"; index -= 1) backslashes += 1;
+  return backslashes % 2 === 1;
+}
+
+/**
  * Expand `$name` and `${name}` references against the file's scalar assignments.
  *
  * An unknown name is left in place for the same reason an unknown array is:
@@ -670,7 +683,8 @@ export function expandScalars(line: string, scalars: Map<string, string>): strin
   // nameless match to guard against.
   return replaceOutsideSingleQuotes(line, (text) =>
     text.replace(/\$\{([A-Za-z_][A-Za-z0-9_]*)\}|\$([A-Za-z_][A-Za-z0-9_]*)/g,
-      (whole, braced?: string, bare?: string) => scalars.get(braced ?? bare!) ?? whole));
+      (whole, braced: string | undefined, bare: string | undefined, offset: number) =>
+        escapedReference(text, offset) ? whole : (scalars.get(braced ?? bare!) ?? whole)));
 }
 
 /**
@@ -686,8 +700,9 @@ export function expandScalars(line: string, scalars: Map<string, string>): strin
  */
 export function expandArrays(line: string, arrays: Map<string, string>): string {
   return replaceOutsideSingleQuotes(line, (text) =>
-    text.replace(/"?\$\{([A-Za-z_][A-Za-z0-9_]*)\[@\]\}"?/g, (whole, name: string) =>
-      arrays.get(name) ?? whole));
+    text.replace(/"?\$\{([A-Za-z_][A-Za-z0-9_]*)\[@\]\}"?/g,
+      (whole, name: string, offset: number) =>
+        escapedReference(text, offset + (whole.startsWith('"') ? 1 : 0)) ? whole : (arrays.get(name) ?? whole)));
 }
 
 /** The outcome of one verifier run. */
