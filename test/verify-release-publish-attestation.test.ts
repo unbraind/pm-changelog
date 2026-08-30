@@ -978,8 +978,22 @@ test("loop mutations invalidate stale provenance", () => {
       file: "release.yml",
       text: ["FLAG=--provenance", loop, "npm publish $FLAG"].join("\n"),
     }]);
-    assert.equal(result.failures.length, 1);
+    assert.equal(result.failures.length, 1, loop);
     assert.match(result.failures[0]!, /does not enable --provenance/);
+  }
+});
+
+test("diagnostic assignment text does not erase valid provenance", () => {
+  for (const diagnostic of ['echo "FLAG=$FLAG"', "echo FLAG=diagnostic"]) {
+    const result = auditPublishAttestation([{
+      file: "release.yml",
+      text: [
+        "FLAG=--provenance",
+        `if true; then ${diagnostic}; fi`,
+        "npm publish $FLAG",
+      ].join("\n"),
+    }]);
+    assert.equal(result.failures.length, 0);
   }
 });
 

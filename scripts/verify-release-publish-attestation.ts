@@ -293,20 +293,20 @@ export function publishInvocationsIn(source: SourceFile): PublishInvocation[] {
       : new Map<string, string>();
     const segmentScalars = shellScalars(`${segment};`);
     const segmentCommands = tokenizeCommands(segment);
-    const mentionedAssignments = new Set(
-      segmentCommands
-        .flat()
-        .filter((token) => !token.startsQuoted && /^[A-Za-z_][A-Za-z0-9_]*=/.test(token.value))
-        .map((token) => token.value.slice(0, token.value.indexOf("="))),
-    );
+    const mentionedAssignments = new Set<string>();
+    for (const command of segmentCommands) {
+      let sawProgram = false;
+      for (const token of command) {
+        const mutation = /^(?:(?:\+\+|--)([A-Za-z_][A-Za-z0-9_]*)|([A-Za-z_][A-Za-z0-9_]*)(?:\+\+|--|(?:<<|>>|[-+*/%&|^])?=))/.exec(token.value);
+        if (!sawProgram && !token.startsQuoted && mutation) {
+          mentionedAssignments.add(mutation[1] ?? mutation[2]!);
+          continue;
+        }
+        if (!/^(?:if|then|elif|else|do|for|while|until|case|in)$/.test(token.value)) sawProgram = true;
+      }
+    }
     const loopVariable = /^for\s+([A-Za-z_][A-Za-z0-9_]*)\b/.exec(trimmed)?.[1];
     if (loopVariable) mentionedAssignments.add(loopVariable);
-    for (const pattern of [
-      /\b([A-Za-z_][A-Za-z0-9_]*)\b\s*(?:\+\+|--|(?:<<|>>|[-+*/%&|^])?=)/g,
-      /(?:\+\+|--)\s*\b([A-Za-z_][A-Za-z0-9_]*)\b/g,
-    ]) {
-      for (const match of trimmed.matchAll(pattern)) mentionedAssignments.add(match[1]!);
-    }
     const mentionedUnsets = new Set<string>();
     for (const command of segmentCommands) {
       const unsetIndex = command.findIndex((token) => !token.startsQuoted && token.value === "unset");
