@@ -301,6 +301,10 @@ export function publishInvocationsIn(source: SourceFile): PublishInvocation[] {
     );
     const loopVariable = /^for\s+([A-Za-z_][A-Za-z0-9_]*)\b/.exec(trimmed)?.[1];
     if (loopVariable) mentionedAssignments.add(loopVariable);
+    const arithmeticLoop = /^for\s+\(\((.*?)\)\)/.exec(trimmed)?.[1] ?? "";
+    for (const match of arithmeticLoop.matchAll(/\b[A-Za-z_][A-Za-z0-9_]*\b/g)) {
+      mentionedAssignments.add(match[0]);
+    }
     const mentionedUnsets = new Set<string>();
     for (const command of segmentCommands) {
       const unsetIndex = command.findIndex((token) => !token.startsQuoted && token.value === "unset");

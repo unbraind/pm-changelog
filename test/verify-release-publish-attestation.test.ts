@@ -967,17 +967,18 @@ test("an uncertain control-flow assignment invalidates stale provenance", () => 
   }
 });
 
-test("a loop variable invalidates stale provenance", () => {
-  const result = auditPublishAttestation([{
-    file: "release.yml",
-    text: [
-      "FLAG=--provenance",
-      "for FLAG in --no-provenance; do :; done",
-      "npm publish $FLAG",
-    ].join("\n"),
-  }]);
-  assert.equal(result.failures.length, 1);
-  assert.match(result.failures[0]!, /does not enable --provenance/);
+test("loop mutations invalidate stale provenance", () => {
+  for (const loop of [
+    "for FLAG in --no-provenance; do :; done",
+    "for ((FLAG=0; FLAG<1; FLAG++)); do :; done",
+  ]) {
+    const result = auditPublishAttestation([{
+      file: "release.yml",
+      text: ["FLAG=--provenance", loop, "npm publish $FLAG"].join("\n"),
+    }]);
+    assert.equal(result.failures.length, 1);
+    assert.match(result.failures[0]!, /does not enable --provenance/);
+  }
 });
 
 test("an uncertain control-flow unset invalidates stale provenance", () => {
