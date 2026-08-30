@@ -296,10 +296,15 @@ export function publishInvocationsIn(source: SourceFile): PublishInvocation[] {
     const mentionedAssignments = new Set<string>();
     for (const command of segmentCommands) {
       let sawProgram = false;
+      let letArguments = false;
       for (const token of command) {
         const mutation = /^(?:(?:\+\+|--)([A-Za-z_][A-Za-z0-9_]*)|([A-Za-z_][A-Za-z0-9_]*)(?:\+\+|--|(?:<<|>>|[-+*/%&|^])?=))/.exec(token.value);
-        if (!sawProgram && !token.startsQuoted && mutation) {
+        if (!sawProgram && (!token.startsQuoted || letArguments) && mutation) {
           mentionedAssignments.add(mutation[1] ?? mutation[2]!);
+          continue;
+        }
+        if (!sawProgram && token.value === "let") {
+          letArguments = true;
           continue;
         }
         const assignmentPrefix = /^(?:if|then|elif|else|do|for|while|until|case|in|export|readonly|declare|typeset|local)$/.test(token.value)
