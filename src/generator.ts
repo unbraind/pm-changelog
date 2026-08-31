@@ -796,6 +796,14 @@ function buildSections(items: PmItem[], options: GenerateChangelogOptions): Chan
  * keeps a tracker closed long after its fix shipped in the release it actually
  * landed in, and it also stops `pm update --release` - which bumps
  * `updated_at` - from duplicating an item into a later window.
+ *
+ * An item declaring a release that no window represents (e.g. a suppressed
+ * pending version) is routed to the `Unreleased` window rather than placed by
+ * time. Without this, suppressing a phantom pending release could silently
+ * attribute the item to an unrelated older release whose time window it
+ * happens to fall in, or drop it entirely when its timestamp falls outside all
+ * windows. Items without a declared release keep their timestamp-based
+ * placement.
  */
 function assignItemsToReleaseWindows(
   items: PmItem[],
@@ -812,6 +820,7 @@ function assignItemsToReleaseWindows(
     releaseIndex.set(key, window.heading);
   }
 
+  const unreleasedHeading = windows.find((window) => !window.releaseTag)?.heading;
   const remaining: PmItem[] = [];
   for (const item of items) {
     const releaseField = getStringField(item, "release");
@@ -819,6 +828,10 @@ function assignItemsToReleaseWindows(
     const heading = key ? releaseIndex.get(key) : undefined;
     if (heading) {
       buckets.get(heading)!.push(item);
+      continue;
+    }
+    if (key && unreleasedHeading) {
+      buckets.get(unreleasedHeading)!.push(item);
       continue;
     }
     remaining.push(item);

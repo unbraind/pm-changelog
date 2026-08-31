@@ -1,0 +1,24 @@
+id: pmc-zj2w
+title: "Extension surface has no --no-pending-release equivalent (Greptile issue 1, PR #174)"
+description: "Greptile review on PR #174 (confidence 3/5): When pm changelog generate --all-release-tags --release-version-from-package runs in a never-tagged package, the extension passes the package version as pending but exposes no suppression flag and never forwards pendingRelease: false. So the extension keeps producing the fabricated dated heading that the standalone CLI now avoids. Two surfaces, same intent, divergent behaviour."
+type: Issue
+status: closed
+priority: 2
+tags[3]: bug,greptile,pr-174
+created_at: "2026-08-31T11:19:44.449Z"
+updated_at: "2026-08-31T11:24:19.288Z"
+closed_at: "2026-08-31T11:24:19.246Z"
+completed_at: "2026-08-31T11:24:19.246Z"
+author: pi-agent
+resolution: fixed
+expected_result: "Extension forwards pendingRelease to resolveReleaseTagWindows, matching CLI behaviour"
+actual_result: Added --no-pending-release flag and pendingRelease forwarding; equivalence test passes
+comments[1]{created_at,author,text}:
+  "2026-08-31T11:23:26.796Z",pi-agent,"Fixed: added --no-pending-release flag to extension changelog generate command and forwarded pendingRelease through resolveReleaseTagWindows. Equivalence test asserts CLI and extension produce byte-identical output with and without the flag. Revert-proof: test fails when the pendingRelease forwarding is removed."
+files[2]{path,scope,note}:
+  src/extension.ts,project,Added --no-pending-release flag and forwarded pendingRelease
+  test/extension.test.ts,project,Added --no-pending-release to flag contract list and byte-identical equivalence test
+tests[1]{command,scope,note}:
+  npx tsx --test test/extension.test.ts,project,CLI and extension produce byte-identical output with and without --no-pending-release
+close_reason: Fixed and verified
+body: ""

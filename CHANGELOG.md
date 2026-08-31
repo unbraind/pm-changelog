@@ -4,7 +4,18 @@
 
 ### Fixed
 
+- Raise pm-changelog source coverage gates to 100/100/100 ([pmc-wvnz](https://github.com/unbraind/pm-changelog/blob/main/.agents/pm/issues/pmc-wvnz.toon))
+- Detect missing git tag history before release-window changelog checks ([pmc-yzho](https://github.com/unbraind/pm-changelog/blob/main/.agents/pm/issues/pmc-yzho.toon))
+- pm install npm:pm-changelog fails due to missing SDK dependency (upstream pm-cli\#53) ([pmc-dcji](https://github.com/unbraind/pm-changelog/blob/main/.agents/pm/issues/pmc-dcji.toon))
+- Isolate package-install integration tests from the user's pm home ([pmc-09bu](https://github.com/unbraind/pm-changelog/blob/main/.agents/pm/issues/pmc-09bu.toon))
+- Fix large tracker generation buffer limit ([pmc-2lzr](https://github.com/unbraind/pm-changelog/blob/main/.agents/pm/issues/pmc-2lzr.toon))
+- Suppressed pending release can relocate or drop an item (Greptile issue 2, PR \#174) ([pmc-hox8](https://github.com/unbraind/pm-changelog/blob/main/.agents/pm/issues/pmc-hox8.toon))
+- Extension surface has no --no-pending-release equivalent (Greptile issue 1, PR \#174) ([pmc-zj2w](https://github.com/unbraind/pm-changelog/blob/main/.agents/pm/issues/pmc-zj2w.toon))
 - Pending release windows must not claim a never-released package version ([pmc-1vma](https://github.com/unbraind/pm-changelog/blob/main/.agents/pm/issues/pmc-1vma.toon))
+
+### Security
+
+- Remove historical host paths and non-public Git identities before release approval ([pmc-t8tj](https://github.com/unbraind/pm-changelog/blob/main/.agents/pm/issues/pmc-t8tj.toon))
 
 ### Other
 
@@ -33,13 +44,11 @@
 ### Fixed
 
 - Read the pm workspace with canonical complete reads instead of default budgets ([pmc-n07l](https://github.com/unbraind/pm-changelog/blob/main/.agents/pm/issues/pmc-n07l.toon))
-- Raise pm-changelog source coverage gates to 100/100/100 ([pmc-wvnz](https://github.com/unbraind/pm-changelog/blob/main/.agents/pm/issues/pmc-wvnz.toon))
 - Use canonical unbounded list reads with pm CLI 2026.8.20 ([pmc-6j4o](https://github.com/unbraind/pm-changelog/blob/main/.agents/pm/issues/pmc-6j4o.toon))
 
 ### Security
 
 - The identity gate deadlocks the one remediation its own failure message prescribes ([pmc-s92t](https://github.com/unbraind/pm-changelog/blob/main/.agents/pm/issues/pmc-s92t.toon))
-- Remove historical host paths and non-public Git identities before release approval ([pmc-t8tj](https://github.com/unbraind/pm-changelog/blob/main/.agents/pm/issues/pmc-t8tj.toon))
 
 ### Other
 
@@ -190,11 +199,6 @@
 
 ## 2026.7.18 - 2026-07-18
 
-### Fixed
-
-- Detect missing git tag history before release-window changelog checks ([pmc-yzho](https://github.com/unbraind/pm-changelog/blob/main/.agents/pm/issues/pmc-yzho.toon))
-- pm install npm:pm-changelog fails due to missing SDK dependency (upstream pm-cli\#53) ([pmc-dcji](https://github.com/unbraind/pm-changelog/blob/main/.agents/pm/issues/pmc-dcji.toon))
-
 ### Other
 
 - Daily Release publish step runs prepublishOnly post-tag: align npm publish with --ignore-scripts ([pmc-xioo](https://github.com/unbraind/pm-changelog/blob/main/.agents/pm/tasks/pmc-xioo.toon))
@@ -229,7 +233,6 @@
 ### Fixed
 
 - Merge release metadata before npm publication ([pmc-84ow](https://github.com/unbraind/pm-changelog/blob/main/.agents/pm/issues/pmc-84ow.toon))
-- Isolate package-install integration tests from the user's pm home ([pmc-09bu](https://github.com/unbraind/pm-changelog/blob/main/.agents/pm/issues/pmc-09bu.toon))
 
 ## 2026.7.13 - 2026-07-13
 
@@ -461,7 +464,6 @@
 
 - Expose item-url-base through pm changelog extension command ([pmc-f4yg](https://github.com/unbraind/pm-changelog/blob/main/.agents/pm/issues/pmc-f4yg.toon))
 - Fix stale file path references in pm items (mjs → ts, dist → dist/cli.js) ([pmc-gn92](https://github.com/unbraind/pm-changelog/blob/main/.agents/pm/chores/pmc-gn92.toon))
-- Fix large tracker generation buffer limit ([pmc-2lzr](https://github.com/unbraind/pm-changelog/blob/main/.agents/pm/issues/pmc-2lzr.toon))
 
 ## 2026.5.24-6 - 2026-05-24
 

@@ -90,6 +90,7 @@ export default defineExtension({
                 { long: "--item-ref-style", value_name: "style", description: "How item IDs render: auto (default), label (neutral/public-safe), toon (force blob link), github (public issue/PR link from gh:owner/repo#N provenance tag)" },
                 { long: "--exclude-tag", value_name: "list", description: "Omit items carrying any of these comma-separated tags (ignore convention, e.g. changelog:ignore)" },
                 { long: "--respect-item-release", description: "Treat an item release field as the authority for its single version window: keep it when it matches the release version regardless of timestamps, drop it otherwise (--all-release-tags always honors the field)" },
+                { long: "--no-pending-release", description: "Nothing is being released right now: suppress the pending release window for an untagged package version" },
                 { long: "--check", description: "Do not write; report whether the changelog would change" },
             ],
             async run(ctx) {
@@ -153,6 +154,7 @@ export default defineExtension({
                         includeOrphaned: true,
                         pendingVersion: releaseContext.version,
                         pendingTimestamp: untilOption ?? dateOption ?? releaseContext.date,
+                        pendingRelease: booleanOption(ctx.options, "no-pending-release", "noPendingRelease") ? false : undefined,
                     }))
                     : undefined;
                 const items = await listAllItemMetadata(ctx.pm_root);

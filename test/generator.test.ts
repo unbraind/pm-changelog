@@ -3818,3 +3818,116 @@ test("explainChangelogSelection treats a release declaration matching no window 
   assert.equal(provenance.inferred, 1);
   assert.deepEqual(provenance.inferred_sample, ["pm-unmatched: Declares an unknown release"]);
 });
+
+// ---------------------------------------------------------------------------
+// Issue 2 (Greptile on PR #174): suppressing a phantom pending release must not
+// relocate an item into an older real release or drop it entirely. An item
+// whose declared `release` matches no window (because the pending version was
+// suppressed by `pendingRelease: false`) must land under `Unreleased`.
+// ---------------------------------------------------------------------------
+
+/**
+ * Release windows simulating `resolveReleaseTagWindows` with
+ * `pendingRelease: false` for a never-tagged placeholder version: the pending
+ * window is gone, a leading `Unreleased` window owns post-tag work, and two
+ * tagged releases follow.
+ */
+const SUPPRESSED_PENDING_WINDOWS = [
+  { heading: "Unreleased", since: "2026-06-01T12:00:00Z", sinceExclusive: true },
+  { heading: "2026.6.1 - 2026-06-01", releaseTag: "v2026.6.1", since: "2026-05-01T12:00:00Z", sinceExclusive: true, until: "2026-06-01T12:00:00Z" },
+  { heading: "2026.5.1 - 2026-05-01", releaseTag: "v2026.5.1", until: "2026-05-01T12:00:00Z" },
+] as const;
+
+test("suppressed pending release does not relocate a declared item into an older real release", () => {
+  // Shape: an item declares the suppressed placeholder version (2026.7.1) and
+  // its completion timestamp falls squarely inside the 2026.6.1 window. Before
+  // the fix the item was placed by time into `## 2026.6.1`, silently crediting
+  // work to a real release that never shipped it. After the fix the item lands
+  // under `## Unreleased` because its declared release does not exist.
+  const result = createChangelog({
+    items: [
+      {
+        id: "pm-relocated",
+        title: "Work attributed to a phantom release",
+        status: "closed",
+        type: "feature",
+        release: "2026.7.1",
+        completed_at: "2026-05-15T12:00:00Z",
+      },
+    ],
+    releaseWindows: [...SUPPRESSED_PENDING_WINDOWS],
+  });
+  assert.match(result.markdown, /## Unreleased[\s\S]*pm-relocated/);
+  assert.doesNotMatch(
+    result.markdown.match(/## 2026\.6\.1[\s\S]*?(?=## 2026\.5\.1|$)/)?.[0] ?? "",
+    /pm-relocated/,
+  );
+  assert.equal(result.itemCount, 1, "the item must not be dropped");
+});
+
+test("suppressed pending release does not drop a declared item narrowed out of an older release section", () => {
+  // Shape: an item declares the suppressed placeholder version (2026.7.1) and
+  // its completion timestamp falls inside the oldest tagged window (2026.5.1).
+  // `--since-version 2026.6.1` narrows the visible sections to Unreleased +
+  // 2026.6.1, dropping the 2026.5.1 section. Before the fix the item was placed
+  // by time into `## 2026.5.1`, which was then dropped by section narrowing —
+  // the item silently disappeared. After the fix it lands under `## Unreleased`
+  // (which section narrowing always keeps), so it survives.
+  const result = createChangelog({
+    items: [
+      {
+        id: "pm-omitted",
+        title: "Work that would have been lost",
+        status: "closed",
+        type: "bug",
+        release: "2026.7.1",
+        completed_at: "2026-04-15T12:00:00Z",
+      },
+    ],
+    releaseWindows: [...SUPPRESSED_PENDING_WINDOWS],
+    sinceVersion: "2026.6.1",
+  });
+  assert.match(result.markdown, /## Unreleased[\s\S]*pm-omitted/);
+  assert.equal(result.itemCount, 1, "the item must not be dropped by section narrowing");
+});
+
+test("an item declaring a non-existent release lands under Unreleased, not an older release", () => {
+  // The correct behaviour: an item whose declared release does not exist in the
+  // window set is routed to Unreleased. This combines both failure shapes — a
+  // timestamp inside an older window and one outside all windows — and asserts
+  // both land under Unreleased alongside ordinary timestamp-placed work.
+  const result = createChangelog({
+    items: [
+      {
+        id: "pm-in-window",
+        title: "Timestamp falls in an older release",
+        status: "closed",
+        type: "feature",
+        release: "2026.7.1",
+        completed_at: "2026-05-15T12:00:00Z",
+      },
+      {
+        id: "pm-before-all",
+        title: "Timestamp before the oldest tag",
+        status: "closed",
+        type: "bug",
+        release: "2026.7.1",
+        completed_at: "2026-04-01T12:00:00Z",
+      },
+      {
+        id: "pm-ordinary",
+        title: "Ordinary post-tag work",
+        status: "closed",
+        type: "task",
+        completed_at: "2026-06-15T12:00:00Z",
+      },
+    ],
+    releaseWindows: [...SUPPRESSED_PENDING_WINDOWS],
+  });
+  // Both declared items land under Unreleased alongside the ordinary item.
+  const unreleasedSection = result.markdown.match(/## Unreleased[\s\S]*?(?=## 2026\.6\.1|$)/)?.[0] ?? "";
+  assert.match(unreleasedSection, /pm-in-window/);
+  assert.match(unreleasedSection, /pm-before-all/);
+  assert.match(unreleasedSection, /pm-ordinary/);
+  assert.equal(result.itemCount, 3, "all three items must appear");
+});
