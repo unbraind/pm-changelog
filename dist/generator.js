@@ -29,7 +29,10 @@ export function createChangelog(options) {
     const { items, sections, visibleSections, sectionBy } = selectChangelogSections(options);
     const lines = [`# ${title}`, ""];
     if (sections.length === 0) {
-        if (options.includeEmpty) {
+        // A supplied-but-empty `releaseWindows` list is deliberate: every section
+        // was suppressed, so even `--include-empty` must not resurrect a heading
+        // for the placeholder version the caller suppressed.
+        if (options.includeEmpty && !hasExplicitlyEmptyReleaseWindows(options.releaseWindows)) {
             const heading = buildVersionHeading(options.version, options.date);
             lines.push(`## ${heading}`, "", "No changes.", "");
         }
@@ -567,10 +570,25 @@ function replaceChangelog(existingMarkdown, generatedMarkdown) {
         changed,
     };
 }
+/** True when the caller supplied a release-window list that contains no
+ * windows. This is the spelling that distinguishes deliberate emptiness —
+ * every window was suppressed, e.g. `pendingRelease: false` with
+ * `includeUnreleased: false` in a zero-tag repository — from absent history
+ * (`undefined`), which keeps the single-version section fallback. Rendering
+ * and selection honour the distinction so an explicit suppression survives
+ * the whole pipeline instead of being undone by a fabricated heading. */
+function hasExplicitlyEmptyReleaseWindows(windows) {
+    return windows != null && windows.length === 0;
+}
 /** Select the items a single-window generation should render. Time filtering is
  * skipped entirely under `releaseWindows`, where each window does its own
- * bucketing. */
+ * bucketing. A supplied-but-empty window list places nothing at all: no item
+ * can belong to a window that does not exist, and falling through to the
+ * single-version time window would be exactly the absent-history treatment
+ * the empty list exists to differ from. */
 function filterItems(options) {
+    if (hasExplicitlyEmptyReleaseWindows(options.releaseWindows))
+        return [];
     const items = filterItemsByStatus(options);
     if (options.releaseWindows && options.releaseWindows.length > 0)
         return items;
@@ -645,20 +663,24 @@ function applyItemReleaseAttribution(statusFiltered, withinWindow, options) {
 /** Whether `buildSections` will emit a single `## version - date` section, as
  * opposed to `releaseWindows` history or `groupBy` release/milestone grouping.
  * Release attribution only applies to that single-window shape; the grouped
- * modes key their headings off the same field and must not have items removed. */
+ * modes key their headings off the same field and must not have items removed.
+ * Any supplied window list — even an empty one — is window mode, so an
+ * explicitly empty list never falls back into single-version attribution. */
 function usesSingleVersionSection(options) {
-    if (options.releaseWindows && options.releaseWindows.length > 0)
+    if (options.releaseWindows != null)
         return false;
     if (options.version)
         return true;
     return options.groupBy !== "release" && options.groupBy !== "milestone";
 }
 /** Split selected items into top-level sections. Release windows win when
- * present; otherwise a version-less `release`/`milestone` grouping applies, and
- * everything else collapses to one version section. */
+ * present — including a supplied-but-empty list, which yields no sections at
+ * all rather than falling back to a single version section; otherwise a
+ * version-less `release`/`milestone` grouping applies, and everything else
+ * collapses to one version section. */
 function buildSections(items, options) {
-    if (options.releaseWindows && options.releaseWindows.length > 0) {
-        return assignItemsToReleaseWindows(items, options.releaseWindows);
+    if (options.releaseWindows != null) {
+        return assignItemsToReleaseWindows(items, options.releaseWindows, options.suppressedPendingRelease);
     }
     if (options.groupBy === "release" && !options.version) {
         return groupSectionsByMetadata(items, "release", "Unreleased");
@@ -682,15 +704,24 @@ function buildSections(items, options) {
  * landed in, and it also stops `pm update --release` - which bumps
  * `updated_at` - from duplicating an item into a later window.
  *
- * An item declaring a release that no window represents (e.g. a suppressed
- * pending version) is routed to the `Unreleased` window rather than placed by
- * time. Without this, suppressing a phantom pending release could silently
- * attribute the item to an unrelated older release whose time window it
- * happens to fall in, or drop it entirely when its timestamp falls outside all
- * windows. Items without a declared release keep their timestamp-based
- * placement.
+ * An item declaring the release the caller SUPPRESSED
+ * (`suppressedPendingRelease`, the pending version removed from the window
+ * list by `pendingRelease: false`) is routed to the `Unreleased` window
+ * rather than placed by time. Without this, suppressing a phantom pending
+ * release could silently attribute the item to an unrelated older release
+ * whose time window it happens to fall in, or drop it entirely when its
+ * timestamp falls outside all windows. When no `Unreleased` window exists the
+ * item falls through to time placement, preserving the caller's explicit
+ * `includeUnreleased: false` opt-out.
+ *
+ * Every OTHER unmatched declaration — stale, misspelled, or naming a tag the
+ * window list excludes — keeps its historical timestamp-based placement.
+ * Routing those to `Unreleased` as well would pull real shipped work out of
+ * the release its timestamps place it in, on every ordinary `--all-release-tags`
+ * run, while the attribution provenance still classified the item as placed by
+ * timestamp (Greptile, PR #174).
  */
-function assignItemsToReleaseWindows(items, windows) {
+function assignItemsToReleaseWindows(items, windows, suppressedPendingRelease) {
     const buckets = new Map();
     for (const window of windows)
         buckets.set(window.heading, []);
@@ -704,6 +735,7 @@ function assignItemsToReleaseWindows(items, windows) {
         releaseIndex.set(key, window.heading);
     }
     const unreleasedHeading = windows.find((window) => !window.releaseTag)?.heading;
+    const suppressedKey = normalizeSuppressedReleaseKey(suppressedPendingRelease);
     const remaining = [];
     for (const item of items) {
         const releaseField = getStringField(item, "release");
@@ -713,7 +745,10 @@ function assignItemsToReleaseWindows(items, windows) {
             buckets.get(heading).push(item);
             continue;
         }
-        if (key && unreleasedHeading) {
+        // Only a declaration naming the suppressed pending release is re-routed:
+        // the caller removed that window deliberately, so the declaration must
+        // not fall into an older release its timestamp happens to intersect.
+        if (key && suppressedKey && key === suppressedKey && unreleasedHeading) {
             buckets.get(unreleasedHeading).push(item);
             continue;
         }
@@ -727,6 +762,13 @@ function assignItemsToReleaseWindows(items, windows) {
         heading: window.heading,
         items: buckets.get(window.heading),
     }));
+}
+/** Normalized release identity of a suppressed pending release, or `""` when
+ * the value is absent or blank. Shared by window placement and attribution
+ * provenance so the two can never disagree about which declarations were
+ * deliberately orphaned by suppression. */
+function normalizeSuppressedReleaseKey(suppressed) {
+    return suppressed ? normalizeReleaseKey(suppressed) : "";
 }
 /**
  * Canonical key for release *identity* comparisons (window tag vs item
@@ -856,10 +898,23 @@ export function compareVersionStrings(a, b) {
     }
     return 0;
 }
+/** Build the single-version section heading from a version and date.
+ *
+ * A versioned release always carries a date: an explicit one when supplied,
+ * otherwise today's (the historical default a release run reproduces). An
+ * `Unreleased` heading has no release date to fabricate, so it is stamped
+ * only when the caller supplied one explicitly — matching the dateless
+ * `Unreleased` window the resolver restores under `pendingRelease: false`,
+ * instead of inventing today's date for a release that has not happened
+ * (the same fabrication this branch suppresses for placeholder versions).
+ */
 function buildVersionHeading(version, date) {
     const heading = version?.trim() || "Unreleased";
-    const stamp = date?.trim() || new Date().toISOString().slice(0, 10);
-    return `${heading} - ${stamp}`;
+    const explicitStamp = date?.trim();
+    if (version?.trim()) {
+        return `${heading} - ${explicitStamp ?? new Date().toISOString().slice(0, 10)}`;
+    }
+    return explicitStamp ? `${heading} - ${explicitStamp}` : heading;
 }
 /** True for one code unit that JavaScript's `\\s` and `String#trim` treat as
  * whitespace. Keeping this predicate outside a regular expression makes the
@@ -1289,14 +1344,17 @@ export function formatInferredSources(sources) {
  * Whether this item's release placement came from its own declared `release`
  * rather than from any timestamp.
  *
- * Both placement paths honour a declaration, so both must be recognised here or
- * the `release_pinned` bucket leaks items back into the timestamp counts:
+ * Both placement paths honour a declaration, so every declaration-honouring
+ * placement must be recognised here or the `release_pinned` bucket leaks
+ * items back into the timestamp counts:
  *
  * - Multi-window (`--all-release-tags`): {@link assignItemsToReleaseWindows}
  *   buckets an item by a declaration whose normalized key matches a release-tag
- *   window, consulting no timestamp. A declaration matching NO window is not a
- *   pin - that item falls through to time filtering, so it stays a timestamp
- *   attribution.
+ *   window, consulting no timestamp, and routes a declaration naming the
+ *   suppressed pending release (`suppressedPendingRelease`) to `Unreleased`
+ *   without consulting a timestamp either — both are pins. Any OTHER
+ *   declaration matching no window is not a pin - that item falls through to
+ *   time filtering, so it stays a timestamp attribution.
  * - Single-version (`--respect-item-release`): {@link
  *   applyItemReleaseAttribution} keeps a declared item when it matches
  *   `options.version` and drops it otherwise, so any surviving declared item
@@ -1312,7 +1370,13 @@ function isPlacedByReleaseDeclaration(item, options) {
         return false;
     const windows = options.releaseWindows;
     if (windows && windows.length > 0) {
-        return windows.some((window) => window.releaseTag && normalizeReleaseKey(window.releaseTag) === declaredKey);
+        if (windows.some((window) => window.releaseTag && normalizeReleaseKey(window.releaseTag) === declaredKey)) {
+            return true;
+        }
+        // A declaration naming the suppressed pending release was routed to
+        // `Unreleased` by that declaration, not by any timestamp.
+        const suppressedKey = normalizeSuppressedReleaseKey(options.suppressedPendingRelease);
+        return suppressedKey !== "" && declaredKey === suppressedKey;
     }
     return Boolean(options.respectItemRelease) && usesSingleVersionSection(options);
 }
@@ -1583,7 +1647,10 @@ export function visibleChangelogItems(options) {
  */
 export function explainChangelogSelection(options) {
     const statuses = new Set((options.includeStatuses ?? DEFAULT_STATUSES).map((status) => status.toLowerCase()));
-    const hasReleaseWindows = Boolean(options.releaseWindows && options.releaseWindows.length > 0);
+    // Any supplied window list is window mode — including an explicitly empty
+    // one, which places nothing and reports every surviving item as excluded by
+    // the release windows rather than falling back to the single-version shape.
+    const hasReleaseWindows = options.releaseWindows != null;
     const withTitle = [];
     const missingTitle = [];
     for (const item of options.items) {

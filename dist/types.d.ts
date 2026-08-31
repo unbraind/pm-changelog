@@ -101,7 +101,26 @@ export interface GenerateChangelogOptions {
     until?: string;
     includeStatuses?: string[];
     groupBy?: ChangelogGroupBy;
+    /** Ordered release windows (`--all-release-tags`), newest first. Two
+     * spellings are deliberately distinct: `undefined` (or omitted) means no
+     * window history was supplied, so generation falls back to the single
+     * version section; a supplied-but-empty list means the caller resolved the
+     * windows and none exist — every section was suppressed (e.g.
+     * `pendingRelease: false` with `includeUnreleased: false` in a zero-tag
+     * repository) — so no release heading is rendered at all and the
+     * single-version fallback is skipped, keeping an explicit suppression
+     * intact through the whole pipeline. */
     releaseWindows?: ChangelogReleaseWindow[];
+    /** OPT-IN: the pending release tag whose window was suppressed from
+     * `releaseWindows` — what `resolveReleaseTagWindowResolution` reports for
+     * `pendingRelease: false`, forwarded by the CLI and extension. An item
+     * whose `release` field declares this release is routed to the
+     * `Unreleased` window instead of being placed by timestamp into an
+     * unrelated older release. Unmatched declarations that were NOT suppressed
+     * keep their historical timestamp-based placement, so stale or misspelled
+     * declarations in ordinary repositories are unaffected. Absent → no
+     * declaration is treated as suppressed. */
+    suppressedPendingRelease?: string;
     includeEmpty?: boolean;
     includeLinks?: boolean;
     /** Base URL used to construct clickable links for pm item IDs.

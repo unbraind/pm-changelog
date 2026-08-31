@@ -19,7 +19,11 @@ import {
   suggestSemver,
   writeChangelog,
 } from "./generator.ts";
-import { resolveReleaseContext, resolveReleaseTagWindows } from "./release-context.ts";
+import {
+  resolveGenerationReleaseWindows,
+  resolveReleaseContext,
+  resolveReleaseTagWindowResolution,
+} from "./release-context.ts";
 import type {
   ChangelogGroupBy,
   ChangelogItemRefStyle,
@@ -68,6 +72,7 @@ interface CliOptions {
   includeMetadata: boolean;
   changelogJson: boolean;
   releaseWindows?: ChangelogReleaseWindow[];
+  suppressedPendingRelease?: string;
   includeEmpty: boolean;
   includeLinks: boolean;
   itemUrlBase?: string;
@@ -635,7 +640,7 @@ function applyReleaseContext(options: CliOptions): void {
       dateFromVersion: options.dateFromVersion,
     });
     options.version = context.version;
-    options.releaseWindows = resolveReleaseTagWindows({
+    const resolution = resolveReleaseTagWindowResolution({
       cwd,
       tagPattern: options.releaseTagPattern,
       includeOrphaned: true,
@@ -643,6 +648,17 @@ function applyReleaseContext(options: CliOptions): void {
       pendingTimestamp: options.until ?? options.date ?? context.date,
       pendingRelease: options.pendingRelease,
     });
+    // An empty resolution here means the repository has no tag history at
+    // all (zero tags, nothing to resolve a version from), which the CLI and
+    // extension spell as absent history so the generator keeps its
+    // single-section `## Unreleased` fallback for pre-first-release repos;
+    // deliberate emptiness (a suppressed pending release with no Unreleased
+    // window) is a library-only shape this surface never requests. The
+    // suppressed pending release is forwarded so items declaring that version
+    // land under `Unreleased` instead of an older real release.
+    const { releaseWindows, suppressedPendingRelease } = resolveGenerationReleaseWindows(resolution);
+    options.releaseWindows = releaseWindows;
+    options.suppressedPendingRelease = suppressedPendingRelease;
     return;
   }
 
@@ -775,6 +791,7 @@ function buildGenerationOptions(options: CliOptions, items: PmItem[]) {
     since: options.since,
     until: options.until,
     releaseWindows: options.releaseWindows,
+    suppressedPendingRelease: options.suppressedPendingRelease,
     includeStatuses: options.statuses,
     groupBy: options.groupBy,
     sectionBy: options.sectionBy,

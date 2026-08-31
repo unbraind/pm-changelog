@@ -1,5 +1,5 @@
 export { buildChangelogDocument, buildPmListArgs, createChangelog, createChangelogSummary, explainChangelogSelection, formatSummaryLine, generateChangelog, IncompleteListAllError, mergeChangelog, parseListAllItemsJson, parsePmItemsJson, readPmItems, suggestSemver, writeChangelog, } from "./generator.ts";
-export { assertReleaseTagHistory, MISSING_TAG_HISTORY_ERROR_CODE, MissingTagHistoryError, resolveReleaseContext, resolveReleaseTagWindows, } from "./release-context.ts";
-export type { AssertReleaseTagHistoryOptions } from "./release-context.ts";
+export { assertReleaseTagHistory, MISSING_TAG_HISTORY_ERROR_CODE, MissingTagHistoryError, resolveGenerationReleaseWindows, resolveReleaseContext, resolveReleaseTagWindowResolution, resolveReleaseTagWindows, } from "./release-context.ts";
+export type { AssertReleaseTagHistoryOptions, ReleaseTagWindowResolution, } from "./release-context.ts";
 export type { ChangelogAttributionProvenance, ChangelogDocument, ChangelogDocumentItem, ChangelogDocumentRelease, ChangelogDocumentSection, ChangelogGroupBy, ChangelogReleaseWindow, ChangelogSelectionReport, ChangelogSection, ChangelogSectionBy, ChangelogSummaryEntry, ChangelogMergeAction, ChangelogOutputMode, GeneratedChangelog, GenerateChangelogOptions, MergeChangelogOptions, MergeChangelogResult, PmItem, PmItemStatus, ReadPmItemsOptions, SemverBump, SemverSuggestion, WriteChangelogOptions, WriteChangelogResult, } from "./types.ts";
 //# sourceMappingURL=index.d.ts.map

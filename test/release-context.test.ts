@@ -27,7 +27,9 @@ import {
   formatDate,
   formatLocalTimestampDate,
   parseTagLine,
+  resolveGenerationReleaseWindows,
   resolveReleaseContext,
+  resolveReleaseTagWindowResolution,
   resolveReleaseTagWindows,
 } from "../src/release-context.ts";
 import type { ReleaseTag } from "../src/release-context.ts";
@@ -363,18 +365,95 @@ describe("release-context: pendingRelease suppression", () => {
     try {
       // The caller both suppressed the pending release and asked for no
       // Unreleased window: zero tags leave nothing to render, and the empty
-      // list is the honest answer rather than a fabricated heading.
-      const windows = resolveReleaseTagWindows({
+      // list is the honest answer rather than a fabricated heading. The
+      // resolution still reports WHICH release was suppressed, and the
+      // explicitly empty list keeps its meaning through createChangelog (the
+      // handover test in test/generator.test.ts) instead of being read as
+      // absent history.
+      const options = {
         cwd: dir,
         pendingVersion: "2026.7.30",
         pendingTimestamp: "2026-07-30T00:00:00Z",
         pendingRelease: false,
         includeUnreleased: false,
-      });
-      equal(windows.length, 0);
+      } as const;
+      equal(resolveReleaseTagWindows(options).length, 0);
+      const resolution = resolveReleaseTagWindowResolution(options);
+      equal(resolution.windows.length, 0);
+      equal(resolution.suppressedPendingRelease, "v2026.7.30");
     } finally {
       rmSync(dir, { recursive: true, force: true });
     }
+  });
+
+  it("resolveReleaseTagWindowResolution reports the suppressed pending release tag alongside unchanged windows", () => {
+    const dir = gitRepoAtDate("2026-05-01T12:00:00Z");
+    try {
+      gitIn(dir, ["tag", "v2026.5.1"]);
+      commitDated(dir, "2026-06-01T12:00:00Z");
+      gitIn(dir, ["tag", "v2026.6.1"]);
+      const options = {
+        cwd: dir,
+        pendingVersion: "2026.7.1",
+        pendingTimestamp: "2026-07-01T12:00:00Z",
+        pendingRelease: false,
+      } as const;
+      const resolution = resolveReleaseTagWindowResolution(options);
+      // The windows are exactly what the plain resolver returns for the same
+      // options — the detailed form adds information, it changes nothing.
+      deepEqual(resolution.windows, resolveReleaseTagWindows(options));
+      equal(resolution.windows[0]?.heading, "Unreleased");
+      // Plus the identity of the suppressed pending release, so callers can
+      // forward it and keep declaration routing honest end to end.
+      equal(resolution.suppressedPendingRelease, "v2026.7.1");
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
+  it("resolveReleaseTagWindowResolution reports no suppression when nothing was suppressed", () => {
+    const dir = gitRepoAtDate("2026-06-01T12:00:00Z");
+    try {
+      gitIn(dir, ["tag", "v2026.6.1"]);
+      // No flag: the pending release leads, nothing was suppressed.
+      const cutting = resolveReleaseTagWindowResolution({
+        cwd: dir,
+        pendingVersion: "2026.7.1",
+        pendingTimestamp: "2026-07-01T12:00:00Z",
+      });
+      equal(cutting.windows[0]?.heading, "2026.7.1 - 2026-07-01");
+      equal(cutting.suppressedPendingRelease, undefined);
+      // Flag set, but the version is already tagged: suppression is a no-op,
+      // so there is still nothing to report.
+      const noop = resolveReleaseTagWindowResolution({
+        cwd: dir,
+        pendingVersion: "2026.6.1",
+        pendingTimestamp: "2026-06-01T12:00:00Z",
+        pendingRelease: false,
+      });
+      equal(noop.suppressedPendingRelease, undefined);
+      deepEqual(noop.windows, resolveReleaseTagWindows({ cwd: dir }));
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
+  it("resolveGenerationReleaseWindows forwards non-empty windows and spells empty ones as absent history", () => {
+    // The CLI/extension policy: a repository with no tag history at all keeps
+    // the generator's single-version fallback (## Unreleased), while any real
+    // window list is forwarded verbatim together with the suppressed pending
+    // release.
+    deepEqual(resolveGenerationReleaseWindows({ windows: [] }), {});
+    deepEqual(
+      resolveGenerationReleaseWindows({
+        windows: [{ heading: "Unreleased" }],
+        suppressedPendingRelease: "v2026.7.1",
+      }),
+      {
+        releaseWindows: [{ heading: "Unreleased" }],
+        suppressedPendingRelease: "v2026.7.1",
+      },
+    );
   });
 });
 

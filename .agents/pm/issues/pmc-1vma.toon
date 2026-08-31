@@ -6,27 +6,32 @@ status: closed
 priority: 2
 tags: []
 created_at: "2026-08-31T10:39:11.702Z"
-updated_at: "2026-08-31T10:43:24.070Z"
+updated_at: "2026-08-31T13:38:00.734Z"
 closed_at: "2026-08-31T10:43:24.061Z"
 completed_at: "2026-08-31T10:43:24.061Z"
 claim_principal: pi-agent
 author: pi-agent
 resolution: "Added the additive --no-pending-release flag and pendingRelease option: a caller that is not cutting a release suppresses the fabricated pending window and restores the leading Unreleased window, with default behaviour and every release run unchanged."
 expected_result: A never-released package version (zero release tags) no longer fabricates a release heading under --all-release-tags when the caller passes --no-pending-release; repos mid-release keep the pending window; healthy tagged repos see no change.
-actual_result: fleet/pm-vcs output under the flag is byte-identical to its committed CHANGELOG.md; fleet/pm-rl restores the leading Unreleased window; all 525 tests pass with 100/100/100 coverage; every new test was proven red on a reverted src/.
+actual_result: "The --no-pending-release flag and pendingRelease:false option suppress the fabricated pending window and restore the leading Unreleased window; default and release-run behaviour is unchanged. The linked tests verify the resolver and generator behaviour (see the tests[] entries for the commands and intent). The earlier broad quantitative claims (a specific fleet-wide test count, full coverage, and blanket revert-proofing of every new test) are narrowed here because the linked test entries carry commands and intent without attached execution evidence; the per-test revert proof for the three P1 findings is recorded in PR #174's review comment instead."
 comments[1]{created_at,author,text}:
   "2026-08-31T10:43:17.549Z",pi-agent,"Implemented the additive control: a pendingRelease option on resolveReleaseTagWindows (ReleaseTagHistoryOptions) and a --no-pending-release CLI flag. When the caller asserts nothing is being released, the fabricated pending window is suppressed and the leading Unreleased window restored; with zero release tags the Unreleased window is open-ended so no version fallback can fabricate a heading. Default behaviour is unchanged: pendingRelease defaults to true, and the flag is a no-op when the version is already tagged. Revert-proof (src/ reverted to main, new tests run red, fix restored): 'restores the leading Unreleased window for a never-released package version' failed with 2026.7.30 - 2026-07-30 !== Unreleased; 'drops a pending window but keeps tagged windows, and is a no-op once the version is tagged' failed; 'returns no windows when suppression coincides with includeUnreleased false' failed with 1 !== 0; '--no-pending-release keeps a never-released package version out of the headings' failed with Unknown option: --no-pending-release; the cli-coverage parser family test failed with Unknown option: --no-pending-release and its defaults test with undefined !== true. End-to-end: fleet/pm-vcs regenerated with the flag is byte-identical to its committed CHANGELOG.md (## Unreleased leads, 2026.8.29 behaviour restored); fleet/pm-rl restores the leading ## Unreleased, with the two items declaring release: 2026.7.31 (a release that never happened) now rendering under Unreleased instead of feeding a fabricated section. PR #170's release-run guarantees stay green: pending window leads, its until stays open, and all-release-tags output is byte-identical before and after tagging."
-files[6]{path,scope}:
+files[8]{path,scope}:
   docs/usage.md,project
   src/cli.ts,project
+  src/generator.ts,project
   src/release-context.ts,project
+  src/types.ts,project
   test/cli-coverage.test.ts,project
   test/generator.test.ts,project
   test/release-context.test.ts,project
-tests[4]{command,path,scope,note}:
+tests[7]{command,path,scope,note}:
   "PM_PATH=/tmp/pmc-1vma PM_GLOBAL_PATH=/tmp/pmc-1vma-g node --test --test-name-pattern \"restores the leading Unreleased window for a never-released package version\" test/release-context.test.ts",test/release-context.test.ts,project,restores the leading Unreleased window for a never-released package version
   "PM_PATH=/tmp/pmc-1vma PM_GLOBAL_PATH=/tmp/pmc-1vma-g node --test --test-name-pattern \"drops a pending window but keeps tagged windows, and is a no-op once the version is tagged\" test/release-context.test.ts",test/release-context.test.ts,project,"drops a pending window but keeps tagged windows, and is a no-op once the version is tagged"
   "PM_PATH=/tmp/pmc-1vma PM_GLOBAL_PATH=/tmp/pmc-1vma-g node --test --test-name-pattern \"returns no windows when suppression coincides with includeUnreleased false\" test/release-context.test.ts",test/release-context.test.ts,project,returns no windows when suppression coincides with includeUnreleased false
   "PM_PATH=/tmp/pmc-1vma PM_GLOBAL_PATH=/tmp/pmc-1vma-g node --test --test-name-pattern=\"--no-pending-release keeps a never-released package version out of the headings\" test/generator.test.ts",test/generator.test.ts,project,"--no-pending-release keeps a never-released package version out of the headings"
+  "PM_PATH=/tmp/pmc-1vma PM_GLOBAL_PATH=/tmp/pmc-1vma-g node --test --test-name-pattern \"an explicitly empty suppressed window list renders no release heading through createChangelog\" test/generator.test.ts",test/generator.test.ts,project,"an explicitly empty suppressed window list renders no release heading through createChangelog (finding 1: empty vs absent window list distinction, tested through createChangelog)"
+  "PM_PATH=/tmp/pmc-1vma PM_GLOBAL_PATH=/tmp/pmc-1vma-g node --test --test-name-pattern \"--all-release-tags with zero tags and no version keeps the Unreleased fallback\" test/generator.test.ts",test/generator.test.ts,project,"--all-release-tags with zero tags and no version keeps the Unreleased fallback (CLI spells empty resolution as absent so the single-version fallback renders the work, not a title-only changelog)"
+  "PM_PATH=/tmp/pmc-1vma PM_GLOBAL_PATH=/tmp/pmc-1vma-g node --test --test-name-pattern \"explainChangelogSelection counts a suppressed-release declaration as release-pinned\" test/generator.test.ts",test/generator.test.ts,project,"explainChangelogSelection counts a suppressed-release declaration as release-pinned (provenance agrees with placement: suppressed declaration is a release pin, not a timestamp attribution)"
 close_reason: "Added and proved the --no-pending-release control: never-released package versions no longer claim a release heading, default and release-run behaviour unchanged, 100/100/100 coverage held, and every new test revert-proofed red."
 body: ""

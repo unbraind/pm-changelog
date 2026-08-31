@@ -40,6 +40,7 @@ interface CliOptions {
     includeMetadata: boolean;
     changelogJson: boolean;
     releaseWindows?: ChangelogReleaseWindow[];
+    suppressedPendingRelease?: string;
     includeEmpty: boolean;
     includeLinks: boolean;
     itemUrlBase?: string;
@@ -116,6 +117,7 @@ declare function buildGenerationOptions(options: CliOptions, items: PmItem[]): {
     since: string | undefined;
     until: string | undefined;
     releaseWindows: ChangelogReleaseWindow[] | undefined;
+    suppressedPendingRelease: string | undefined;
     includeStatuses: string[] | undefined;
     groupBy: ChangelogGroupBy;
     sectionBy: ChangelogSectionBy;
