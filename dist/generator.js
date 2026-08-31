@@ -1374,9 +1374,14 @@ function isPlacedByReleaseDeclaration(item, options) {
             return true;
         }
         // A declaration naming the suppressed pending release was routed to
-        // `Unreleased` by that declaration, not by any timestamp.
+        // `Unreleased` by that declaration, not by any timestamp. When no
+        // `Unreleased` window exists (includeUnreleased: false) the item falls
+        // through to timestamp placement, so it must not be classified as
+        // release-pinned.
         const suppressedKey = normalizeSuppressedReleaseKey(options.suppressedPendingRelease);
-        return suppressedKey !== "" && declaredKey === suppressedKey;
+        return suppressedKey !== ""
+            && declaredKey === suppressedKey
+            && windows.some((window) => !window.releaseTag);
     }
     return Boolean(options.respectItemRelease) && usesSingleVersionSection(options);
 }

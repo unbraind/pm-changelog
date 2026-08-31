@@ -4055,6 +4055,35 @@ test("a suppressed declaration keeps timestamp placement when no Unreleased wind
   assert.doesNotMatch(result.markdown, /## Unreleased/);
 });
 
+test("explainChangelogSelection counts a suppressed declaration as timestamp attribution when no Unreleased window exists", () => {
+  // When includeUnreleased is false and pendingRelease is false, there is no
+  // Unreleased window to route to: the suppressed declaration falls through to
+  // timestamp placement. The provenance must classify it as timestamp
+  // attribution, not release-pinned, so the --explain report does not hide it
+  // from the diagnostics used to identify potentially misplaced work.
+  const report = explainChangelogSelection({
+    items: [
+      {
+        id: "pm-suppressed-no-unreleased",
+        title: "Declares the suppressed version with no Unreleased window",
+        status: "closed",
+        type: "feature",
+        release: "2026.7.1",
+        closed_at: "2026-05-15T12:00:00Z",
+      },
+    ],
+    releaseWindows: [
+      { heading: "2026.6.1 - 2026-06-01", releaseTag: "v2026.6.1", since: "2026-05-01T12:00:00Z", sinceExclusive: true, until: "2026-06-01T12:00:00Z" },
+      { heading: "2026.5.1 - 2026-05-01", releaseTag: "v2026.5.1", until: "2026-05-01T12:00:00Z" },
+    ],
+    suppressedPendingRelease: "v2026.7.1",
+  });
+  const provenance = report.attribution_provenance;
+  assert.ok(provenance);
+  assert.equal(provenance.release_pinned, 0);
+  assert.equal(provenance.inferred, 1);
+});
+
 // ---------------------------------------------------------------------------
 // Round 3, Greptile issue 1 (reported twice) on PR #174: an explicit
 // suppression must survive into createChangelog. The resolver's empty list
