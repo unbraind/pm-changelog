@@ -6,7 +6,7 @@ status: closed
 priority: 2
 tags: []
 created_at: "2026-08-31T10:39:11.702Z"
-updated_at: "2026-08-31T13:38:00.734Z"
+updated_at: "2026-08-31T18:46:46.182Z"
 closed_at: "2026-08-31T10:43:24.061Z"
 completed_at: "2026-08-31T10:43:24.061Z"
 claim_principal: pi-agent
@@ -33,5 +33,5 @@ tests[7]{command,path,scope,note}:
   "PM_PATH=/tmp/pmc-1vma PM_GLOBAL_PATH=/tmp/pmc-1vma-g node --test --test-name-pattern \"an explicitly empty suppressed window list renders no release heading through createChangelog\" test/generator.test.ts",test/generator.test.ts,project,"an explicitly empty suppressed window list renders no release heading through createChangelog (finding 1: empty vs absent window list distinction, tested through createChangelog)"
   "PM_PATH=/tmp/pmc-1vma PM_GLOBAL_PATH=/tmp/pmc-1vma-g node --test --test-name-pattern \"--all-release-tags with zero tags and no version keeps the Unreleased fallback\" test/generator.test.ts",test/generator.test.ts,project,"--all-release-tags with zero tags and no version keeps the Unreleased fallback (CLI spells empty resolution as absent so the single-version fallback renders the work, not a title-only changelog)"
   "PM_PATH=/tmp/pmc-1vma PM_GLOBAL_PATH=/tmp/pmc-1vma-g node --test --test-name-pattern \"explainChangelogSelection counts a suppressed-release declaration as release-pinned\" test/generator.test.ts",test/generator.test.ts,project,"explainChangelogSelection counts a suppressed-release declaration as release-pinned (provenance agrees with placement: suppressed declaration is a release pin, not a timestamp attribution)"
-close_reason: "Added and proved the --no-pending-release control: never-released package versions no longer claim a release heading, default and release-run behaviour unchanged, 100/100/100 coverage held, and every new test revert-proofed red."
+close_reason: "Added the --no-pending-release control: never-released package versions no longer claim a release heading, default and release-run behaviour unchanged. Per-test revert proofs for the P1 findings are recorded in the PR #174 review thread; the test entries record commands and intent."
 body: ""

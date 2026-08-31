@@ -6,13 +6,13 @@ status: closed
 priority: 2
 tags[3]: bug,greptile,pr-174
 created_at: "2026-08-31T11:19:54.090Z"
-updated_at: "2026-08-31T13:38:59.500Z"
+updated_at: "2026-08-31T18:46:58.275Z"
 closed_at: "2026-08-31T11:24:28.443Z"
 completed_at: "2026-08-31T11:24:28.443Z"
 author: pi-agent
 resolution: Constrained assignItemsToReleaseWindows to route only a declaration naming the suppressed pending release to Unreleased; every other unmatched declaration keeps its timestamp placement and timestamp attribution classification.
-expected_result: "Orphaned release items land under Unreleased, not older releases, and survive section narrowing"
-actual_result: "Three revert-proof tests pass: suppressed declarations route to Unreleased; stale/misspelled declarations keep timestamp placement and authoritative attribution; a suppressed declaration keeps timestamp placement when no Unreleased window exists. Reverting the constrained routing to unconditional orphan routing turns the stale-declaration test red (items pulled out of their tagged release)."
+expected_result: Only a declaration naming the suppressed pending release routes to Unreleased; other unmatched declarations keep their timestamp placement. The suppressed item survives section narrowing.
+actual_result: "Four tests pass: suppressed declarations do not relocate into an older real release; suppressed declarations do not drop under section narrowing; a stale or misspelled declaration keeps its timestamp placement and attribution; a suppressed declaration keeps timestamp placement when no Unreleased window exists. Reverting the constrained routing to unconditional orphan routing turns the stale-declaration test red (items pulled out of their tagged release)."
 comments[1]{created_at,author,text}:
   "2026-08-31T11:23:34.180Z",pi-agent,"Fixed: assignItemsToReleaseWindows now routes items whose declared release matches no window to the Unreleased section, preventing relocation to older releases and omission by section narrowing. Three revert-proof tests: relocated-to-older-release, omitted-by-narrowing (with --since-version), and correct Unreleased placement."
 files[2]{path,scope,note}:
