@@ -1,5 +1,11 @@
 # Changelog
 
+## Unreleased
+
+### Other
+
+- Converge the pinned pm-cli on 2026.8.31 and repair history hashes ([pmc-y7al](https://github.com/unbraind/pm-changelog/blob/main/.agents/pm/chores/pmc-y7al.toon))
+
 ## 2026.8.31 - 2026-08-31
 
 ### Fixed
