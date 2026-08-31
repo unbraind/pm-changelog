@@ -14,3 +14,11 @@ coverage/
 # one turns the health gate red; the journal has no value once the transaction
 # has landed. Deliberately outside any `pm-cli:` fence, which the CLI rewrites.
 .agents/pm/transactions/
+
+# Lossless merge receipts are clone-local evidence (pm merge report lists
+# evidence_source: clone_local). Committing them leaves stale hash-only stubs
+# that the newer pm binary flags as merge_receipts_pending (gate_failing), and
+# `pm merge reconcile` cannot prove them (value_availability: hash_only). They
+# have no value once the merge has landed. Deliberately outside any `pm-cli:`
+# fence, which the CLI rewrites.
+.agents/pm/merge-receipts/
