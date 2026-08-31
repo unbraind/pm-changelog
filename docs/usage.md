@@ -140,6 +140,8 @@ npx pm-changelog --all-release-tags --mode replace --output CHANGELOG.md \
 
 Pair `--all-release-tags` with `--release-version-from-package` (or `--version v<x>`) to insert a section for the pending release before the tag is created — for example during CI when bumping `package.json` ahead of `git tag`.
 
+The pending-release section is only correct when a release is actually being cut. In a package whose `package.json` version has never been released or tagged, that version is a placeholder, not a release — the generator would otherwise emit a heading that asserts a release that never happened. Pass `--no-pending-release` to say "nothing is being released right now": the pending window is suppressed and the leading `Unreleased` window is kept instead.
+
 Each item entry becomes a link: `- Fix something ([pmc-abc](https://github.com/owner/repo/blob/main/.agents/pm/issues/pmc-abc.toon))`. The type subdirectory (`issues/`, `tasks/`, `chores/`, `features/`, `epics/`) is resolved automatically from the item's type.
 
 ## Opt-in enhancements
@@ -295,6 +297,7 @@ and its history untouched in the tracker. Both flags are reported by `--explain`
 | `--until-release-tag` | false | Derive `--until` from the current release tag when it exists (`v<version>` or `<version>`). Useful after a release tag has been created so post-release tracker changes do not move the published section. Fails with an `E_MISSING_TAG_HISTORY` diagnostic when tag history is incomplete — a shallow clone, or a `--no-tags` clone regardless of local tag count — naming the exact recovery for the detected state (e.g. `git fetch --tags --unshallow`, or `git config --unset remote.origin.tagOpt && git fetch --tags` for `--no-tags`). |
 | `--all-release-tags` | false | Rebuild full changelog history from git release tag windows, including an `Unreleased` section for post-latest-tag closed items. Fails with an `E_MISSING_TAG_HISTORY` diagnostic when tag history is incomplete — a shallow clone, or a `--no-tags` clone regardless of local tag count — naming the exact recovery for the detected state (e.g. `git fetch --tags --unshallow`, or `git config --unset remote.origin.tagOpt && git fetch --tags` for `--no-tags`). |
 | `--release-tag-pattern <glob>` | `v*` | Git tag glob used by `--all-release-tags`. |
+| `--no-pending-release` | false | Suppress the pending-release window `--all-release-tags` derives from an untagged `--version` / `--release-version-from-package`. Pass it when nothing is being released right now — a `package.json` version that has never been released or tagged is a placeholder, not a release — so the leading `Unreleased` window is kept instead of a heading that asserts a release that never happened. No-op when the version is already tagged, so release runs and healthy repos are unaffected |
 | `--status <list>` | `closed` | Comma-separated statuses |
 | `--group-by <mode>` | `version` | `version`, `release`, or `milestone` (controls how release sections are bucketed) |
 | `--section-by <mode>` | `category` | Within-release grouping: `category` (default, keep-a-changelog), `type`, `status`, or `label` |

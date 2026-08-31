@@ -13,7 +13,7 @@
  * version paths are all hit against actual filesystem state.
  */
 import { describe, it } from "node:test";
-import { equal, ok, throws } from "node:assert/strict";
+import { deepEqual, equal, ok, throws } from "node:assert/strict";
 import { execFileSync } from "node:child_process";
 import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
@@ -50,6 +50,30 @@ function gitRepo(): string {
 /** Run git in a fixture repo. */
 function gitIn(dir: string, args: string[]): string {
   return execFileSync("git", args, { cwd: dir, encoding: "utf-8", stdio: ["ignore", "pipe", "ignore"] }).trim();
+}
+
+/** Create a throwaway git repo whose single commit carries a fixed date, so a
+ * tag placed on it renders a deterministic heading date. */
+function gitRepoAtDate(date: string): string {
+  const dir = mkdtempSync(join(tmpdir(), "pm-changelog-rc-date-"));
+  gitIn(dir, ["init", "--quiet"]);
+  gitIn(dir, ["config", "user.email", "test@example.com"]);
+  gitIn(dir, ["config", "user.name", "Test"]);
+  commitDated(dir, date);
+  return dir;
+}
+
+/** Commit the working tree with a fixed author/committer date so tags placed
+ * on the commit render deterministic heading dates. */
+function commitDated(dir: string, date: string): void {
+  writeFileSync(join(dir, "file.txt"), `${date}\n`, "utf-8");
+  gitIn(dir, ["add", "."]);
+  execFileSync("git", ["commit", "--quiet", "-m", "dated"], {
+    cwd: dir,
+    encoding: "utf-8",
+    stdio: ["ignore", "ignore", "ignore"],
+    env: { ...process.env, GIT_AUTHOR_DATE: date, GIT_COMMITTER_DATE: date },
+  });
 }
 
 describe("release-context: assertReleaseTagHistory", () => {
@@ -250,6 +274,104 @@ describe("release-context: pending tag spelling", () => {
       const windows = resolveReleaseTagWindows({ cwd: dir, pendingVersion: "2026.9.9" });
       ok(windows.length > 0, "a pending version produces a window");
       equal(windows[windows.length - 1]?.releaseTag, "v2026.9.9");
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+});
+
+describe("release-context: pendingRelease suppression", () => {
+  it("restores the leading Unreleased window for a never-released package version", () => {
+    // The pm-vcs/pm-rl shape: zero release tags and a package.json version that
+    // has never been released or tagged. The version is a placeholder, not a
+    // release being cut, so `pendingRelease: false` must suppress the pending
+    // window and keep the leading Unreleased window instead of a heading that
+    // asserts a release that never happened (the 2026.8.30 regression).
+    const dir = gitRepo();
+    try {
+      writeFileSync(
+        join(dir, "package.json"),
+        `${JSON.stringify({ name: "pm-vcs-fixture", version: "2026.7.30" }, null, 2)}\n`,
+        "utf-8",
+      );
+      const version = resolveReleaseContext({ cwd: dir, versionFromPackage: true }).version;
+      equal(version, "2026.7.30");
+      // Without the flag the pending window leads — the release-run shape that
+      // PR #170 established and that must keep holding for real release jobs.
+      const cutting = resolveReleaseTagWindows({
+        cwd: dir,
+        pendingVersion: version,
+        pendingTimestamp: "2026-07-30T00:00:00Z",
+      });
+      equal(cutting.length, 1);
+      equal(cutting[0]?.heading, "2026.7.30 - 2026-07-30");
+      equal(cutting[0]?.until, undefined, "the pending window stays open through its release commit");
+      // With the flag the placeholder version claims nothing: one open-ended
+      // Unreleased window owns all work, exactly as before 2026.8.30.
+      const suppressed = resolveReleaseTagWindows({
+        cwd: dir,
+        pendingVersion: version,
+        pendingTimestamp: "2026-07-30T00:00:00Z",
+        pendingRelease: false,
+      });
+      equal(suppressed.length, 1);
+      equal(suppressed[0]?.heading, "Unreleased");
+      equal(suppressed[0]?.since, undefined, "nothing was ever released, so Unreleased is unbounded");
+      equal(suppressed[0]?.until, undefined);
+      equal(suppressed[0]?.releaseTag, undefined, "no fabricated release tag survives suppression");
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
+  it("drops a pending window but keeps tagged windows, and is a no-op once the version is tagged", () => {
+    const dir = gitRepoAtDate("2026-05-01T12:00:00Z");
+    try {
+      gitIn(dir, ["tag", "v2026.5.1"]);
+      const base = { cwd: dir, pendingVersion: "2026.6.1", pendingTimestamp: "2026-06-01T12:00:00Z" } as const;
+      // Without the flag the pending release leads and Unreleased is suppressed
+      // (PR #170: the release being cut owns all work after the previous tag).
+      const cutting = resolveReleaseTagWindows(base);
+      equal(cutting[0]?.heading, "2026.6.1 - 2026-06-01");
+      ok(!cutting.some((window) => window.heading === "Unreleased"));
+      // With the flag the pending window disappears and the ordinary tagged
+      // history returns, Unreleased leading — the pre-pending shape.
+      const suppressed = resolveReleaseTagWindows({ ...base, pendingRelease: false });
+      equal(suppressed.length, 2);
+      equal(suppressed[0]?.heading, "Unreleased");
+      equal(suppressed[1]?.heading, "2026.5.1 - 2026-05-01");
+      ok(!suppressed.some((window) => window.heading.startsWith("2026.6.1")));
+
+      // Once the version is tagged no pending release exists to suppress, so
+      // the flag must be a byte-identical no-op — the healthy-repo guarantee
+      // that the 19 released fleet packages see no change from this flag.
+      commitDated(dir, "2026-06-01T12:00:00Z");
+      gitIn(dir, ["tag", "v2026.6.1"]);
+      const released = resolveReleaseTagWindows(base);
+      deepEqual(resolveReleaseTagWindows({ ...base, pendingRelease: false }), released);
+      equal(released.length, 3);
+      equal(released[0]?.heading, "Unreleased");
+      equal(released[1]?.heading, "2026.6.1 - 2026-06-01");
+      equal(released[2]?.heading, "2026.5.1 - 2026-05-01");
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
+  it("returns no windows when suppression coincides with includeUnreleased false", () => {
+    const dir = gitRepo();
+    try {
+      // The caller both suppressed the pending release and asked for no
+      // Unreleased window: zero tags leave nothing to render, and the empty
+      // list is the honest answer rather than a fabricated heading.
+      const windows = resolveReleaseTagWindows({
+        cwd: dir,
+        pendingVersion: "2026.7.30",
+        pendingTimestamp: "2026-07-30T00:00:00Z",
+        pendingRelease: false,
+        includeUnreleased: false,
+      });
+      equal(windows.length, 0);
     } finally {
       rmSync(dir, { recursive: true, force: true });
     }

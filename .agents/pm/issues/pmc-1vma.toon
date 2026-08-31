@@ -1,0 +1,32 @@
+id: pmc-1vma
+title: Pending release windows must not claim a never-released package version
+description: "Since 2026.8.30 (PR #170), --all-release-tags treats an untagged package.json version as a pending release, puts its window first, and suppresses the leading Unreleased window. That is correct only when a release is actually being cut; resolvePendingReleaseTag derives pending purely from package.json, so in a repo whose version has never been released or tagged the version is a placeholder and the changelog fabricates a heading asserting a release that never happened. Measured: fleet/pm-vcs (version 2026.7.30, zero release tags, never published) and fleet/pm-rl (2026.7.31, same) both regenerate '## Unreleased' as '## 2026.7.30 - 2026-07-30' / '## 2026.7.31 - 2026-07-31'; their Dependency Refresh workflow fails on it (unbraind/pm-vcs run 33379641902). Bisected with the pm CLI held constant: 2026.8.29 good, 2026.8.30/31 bad; the 19 fleet repos whose package version matches a real tag are unaffected. Fix: add an additive --no-pending-release CLI flag and a pendingRelease option on resolveReleaseTagWindows that suppress the fabricated pending window and restore the leading Unreleased window, with default behaviour unchanged."
+type: Issue
+status: closed
+priority: 2
+tags: []
+created_at: "2026-08-31T10:39:11.702Z"
+updated_at: "2026-08-31T10:43:24.070Z"
+closed_at: "2026-08-31T10:43:24.061Z"
+completed_at: "2026-08-31T10:43:24.061Z"
+claim_principal: pi-agent
+author: pi-agent
+resolution: "Added the additive --no-pending-release flag and pendingRelease option: a caller that is not cutting a release suppresses the fabricated pending window and restores the leading Unreleased window, with default behaviour and every release run unchanged."
+expected_result: A never-released package version (zero release tags) no longer fabricates a release heading under --all-release-tags when the caller passes --no-pending-release; repos mid-release keep the pending window; healthy tagged repos see no change.
+actual_result: fleet/pm-vcs output under the flag is byte-identical to its committed CHANGELOG.md; fleet/pm-rl restores the leading Unreleased window; all 525 tests pass with 100/100/100 coverage; every new test was proven red on a reverted src/.
+comments[1]{created_at,author,text}:
+  "2026-08-31T10:43:17.549Z",pi-agent,"Implemented the additive control: a pendingRelease option on resolveReleaseTagWindows (ReleaseTagHistoryOptions) and a --no-pending-release CLI flag. When the caller asserts nothing is being released, the fabricated pending window is suppressed and the leading Unreleased window restored; with zero release tags the Unreleased window is open-ended so no version fallback can fabricate a heading. Default behaviour is unchanged: pendingRelease defaults to true, and the flag is a no-op when the version is already tagged. Revert-proof (src/ reverted to main, new tests run red, fix restored): 'restores the leading Unreleased window for a never-released package version' failed with 2026.7.30 - 2026-07-30 !== Unreleased; 'drops a pending window but keeps tagged windows, and is a no-op once the version is tagged' failed; 'returns no windows when suppression coincides with includeUnreleased false' failed with 1 !== 0; '--no-pending-release keeps a never-released package version out of the headings' failed with Unknown option: --no-pending-release; the cli-coverage parser family test failed with Unknown option: --no-pending-release and its defaults test with undefined !== true. End-to-end: fleet/pm-vcs regenerated with the flag is byte-identical to its committed CHANGELOG.md (## Unreleased leads, 2026.8.29 behaviour restored); fleet/pm-rl restores the leading ## Unreleased, with the two items declaring release: 2026.7.31 (a release that never happened) now rendering under Unreleased instead of feeding a fabricated section. PR #170's release-run guarantees stay green: pending window leads, its until stays open, and all-release-tags output is byte-identical before and after tagging."
+files[6]{path,scope}:
+  docs/usage.md,project
+  src/cli.ts,project
+  src/release-context.ts,project
+  test/cli-coverage.test.ts,project
+  test/generator.test.ts,project
+  test/release-context.test.ts,project
+tests[4]{command,path,scope,note}:
+  "PM_PATH=/tmp/pmc-1vma PM_GLOBAL_PATH=/tmp/pmc-1vma-g node --test --test-name-pattern \"restores the leading Unreleased window for a never-released package version\" test/release-context.test.ts",test/release-context.test.ts,project,restores the leading Unreleased window for a never-released package version
+  "PM_PATH=/tmp/pmc-1vma PM_GLOBAL_PATH=/tmp/pmc-1vma-g node --test --test-name-pattern \"drops a pending window but keeps tagged windows, and is a no-op once the version is tagged\" test/release-context.test.ts",test/release-context.test.ts,project,"drops a pending window but keeps tagged windows, and is a no-op once the version is tagged"
+  "PM_PATH=/tmp/pmc-1vma PM_GLOBAL_PATH=/tmp/pmc-1vma-g node --test --test-name-pattern \"returns no windows when suppression coincides with includeUnreleased false\" test/release-context.test.ts",test/release-context.test.ts,project,returns no windows when suppression coincides with includeUnreleased false
+  "PM_PATH=/tmp/pmc-1vma PM_GLOBAL_PATH=/tmp/pmc-1vma-g node --test --test-name-pattern=\"--no-pending-release keeps a never-released package version out of the headings\" test/generator.test.ts",test/generator.test.ts,project,"--no-pending-release keeps a never-released package version out of the headings"
+close_reason: "Added and proved the --no-pending-release control: never-released package versions no longer claim a release heading, default and release-run behaviour unchanged, 100/100/100 coverage held, and every new test revert-proofed red."
+body: ""

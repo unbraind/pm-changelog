@@ -76,6 +76,7 @@ const KNOWN_OPTIONS = [
     "--mode",
     "--no-check-diff",
     "--no-links",
+    "--no-pending-release",
     "--output",
     "--pm-arg",
     "--pm-bin",
@@ -269,6 +270,7 @@ function parseArgs(args) {
         untilReleaseTag: false,
         allReleaseTags: false,
         releaseTagPattern: "v*",
+        pendingRelease: true,
         respectItemRelease: false,
         excludeTags: [],
     };
@@ -360,6 +362,9 @@ function parseArgs(args) {
                 break;
             case "--release-tag-pattern":
                 options.releaseTagPattern = requireValue(normalizedArgs, ++i, rawArg);
+                break;
+            case "--no-pending-release":
+                options.pendingRelease = false;
                 break;
             case "--status":
             case "--statuses":
@@ -546,6 +551,7 @@ function applyReleaseContext(options) {
             includeOrphaned: true,
             pendingVersion: options.version,
             pendingTimestamp: options.until ?? options.date ?? context.date,
+            pendingRelease: options.pendingRelease,
         });
         return;
     }
@@ -847,6 +853,11 @@ Options:
       --all-release-tags    Rebuild full history from git release tag windows
       --release-tag-pattern <glob>
                             Git tag glob for --all-release-tags (default: v*)
+      --no-pending-release  Nothing is being released right now: suppress the pending
+                            release window derived from an untagged --version /
+                            --release-version-from-package (e.g. a package.json version
+                            that has never been released or tagged) and keep the
+                            leading Unreleased window instead
       --status <list>       Comma-separated statuses (default: closed)
       --exclude-tag <list>  Omit items carrying any of these tags (repeatable, comma-separated)
       --respect-item-release

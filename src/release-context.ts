@@ -40,6 +40,16 @@ export interface ReleaseTagHistoryOptions {
   includeUnreleased?: boolean;
   pendingVersion?: string;
   pendingTimestamp?: string;
+  /**
+   * Whether an untagged `pendingVersion` is treated as the release being cut.
+   * Defaults to `true`, which is what a release job needs: the tag genuinely
+   * does not exist yet at generation time. Set to `false` to assert that
+   * nothing is being released right now — a `package.json` version that has
+   * never been released or tagged is a placeholder, not a release — so no
+   * pending window is fabricated for it and the leading `Unreleased` window
+   * is restored.
+   */
+  pendingRelease?: boolean;
 }
 
 /** A release tag and the timestamp used to order and date its window. */
@@ -267,16 +277,34 @@ function calendarDateFromVersion(version: string | undefined): string {
  * `Unreleased` window leads unless suppressed. A pending version with no tag
  * yet always leads regardless of its display timestamp, and its upper bound
  * remains open so the release being cut owns all work after the previous tag.
+ * That pending window is the release-run shape; `pendingRelease: false`
+ * suppresses it for callers where the untagged version is a placeholder rather
+ * than a release being cut, restoring the leading `Unreleased` window instead.
  */
 export function resolveReleaseTagWindows(options: ReleaseTagHistoryOptions = {}): ChangelogReleaseWindow[] {
   const cwd = resolve(options.cwd ?? process.cwd());
   assertReleaseTagHistory({ cwd, requiredBy: ["--all-release-tags"] });
   const tags = listReleaseTags(cwd, options.tagPattern ?? "v*", options.includeOrphaned);
   const pending = resolvePendingReleaseTag(options, tags);
-  const orderedTags = pending
-    ? [pending, ...tags]
-    : tags;
-  if (orderedTags.length === 0) return [];
+  // `pendingRelease: false` asserts no release is being cut, so an untagged
+  // pendingVersion is a placeholder (a package version that has never been
+  // released or tagged), not a release: its window is suppressed rather than
+  // allowed to claim work or displace the `Unreleased` section. The flag stays
+  // a no-op when no pending release would exist anyway (no version given, or
+  // the version is already tagged), so healthy repos see no change.
+  const suppressPending = options.pendingRelease === false && pending !== undefined;
+  const orderedTags = pending && !suppressPending ? [pending, ...tags] : tags;
+  if (orderedTags.length === 0) {
+    if (suppressPending && options.includeUnreleased !== false) {
+      // Zero tags and the pending release suppressed: nothing has ever been
+      // released, so one open-ended Unreleased window owns all work. The empty
+      // list the no-pending caller gets would leave the CLI to fall back on
+      // the package version and fabricate the very heading this suppression
+      // exists to prevent.
+      return [{ heading: "Unreleased" }];
+    }
+    return [];
+  }
 
   const windows: ChangelogReleaseWindow[] = [];
   const leadingTag = orderedTags[0];

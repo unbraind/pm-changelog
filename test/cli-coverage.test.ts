@@ -48,7 +48,7 @@ test("parser maps every supported option family without subprocess coverage", ()
     "--title", "Notes", "--release-version", "1.2.3", "--release-version-from-package",
     "--date", "2026-08-07", "--since", "2026-08-01", "--since-previous-tag",
     "--until", "2026-08-07", "--until-release-tag", "--all-release-tags",
-    "--release-tag-pattern", "release-*", "--statuses", "closed, done", "--group-by", "release",
+    "--release-tag-pattern", "release-*", "--no-pending-release", "--statuses", "closed, done", "--group-by", "release",
     "--section-by", "label", "--summary", "--format", "markdown", "--conventional",
     "--contributors", "--breaking-changes", "--suggest-semver", "--body-preview", "12",
     "--emoji-prefix", "--include-metadata", "--changelog-json", "--limit", "2",
@@ -64,6 +64,7 @@ test("parser maps every supported option family without subprocess coverage", ()
   assert.equal(options.sectionBy, "label");
   assert.equal(options.itemRefStyle, "github");
   assert.equal(options.includeLinks, false);
+  assert.equal(options.pendingRelease, false);
   assert.equal(options.format, "md");
   assert.equal(options.mode, "prepend");
 });
@@ -206,6 +207,7 @@ test("workflow writers reject absent environment targets and helper projections 
   }
   const options = cliTestSurface.parseArgs([]);
   assert.equal(cliTestSurface.buildGenerationOptions(options, []).excludeTags, undefined);
+  assert.equal(options.pendingRelease, true, "pending release windows stay enabled by default");
   assert.deepEqual(cliTestSurface.buildSummary(options, {
     action: "created",
     changed: true,

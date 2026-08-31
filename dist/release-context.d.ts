@@ -34,6 +34,16 @@ export interface ReleaseTagHistoryOptions {
     includeUnreleased?: boolean;
     pendingVersion?: string;
     pendingTimestamp?: string;
+    /**
+     * Whether an untagged `pendingVersion` is treated as the release being cut.
+     * Defaults to `true`, which is what a release job needs: the tag genuinely
+     * does not exist yet at generation time. Set to `false` to assert that
+     * nothing is being released right now — a `package.json` version that has
+     * never been released or tagged is a placeholder, not a release — so no
+     * pending window is fabricated for it and the leading `Unreleased` window
+     * is restored.
+     */
+    pendingRelease?: boolean;
 }
 /** A release tag and the timestamp used to order and date its window. */
 export interface ReleaseTag {
@@ -126,6 +136,9 @@ export declare function resolveReleaseContext(options: ReleaseContextOptions): R
  * `Unreleased` window leads unless suppressed. A pending version with no tag
  * yet always leads regardless of its display timestamp, and its upper bound
  * remains open so the release being cut owns all work after the previous tag.
+ * That pending window is the release-run shape; `pendingRelease: false`
+ * suppresses it for callers where the untagged version is a placeholder rather
+ * than a release being cut, restoring the leading `Unreleased` window instead.
  */
 export declare function resolveReleaseTagWindows(options?: ReleaseTagHistoryOptions): ChangelogReleaseWindow[];
 /**

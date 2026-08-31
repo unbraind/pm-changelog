@@ -1852,6 +1852,73 @@ test("pending all-release-tags output is byte-identical after tagging the releas
   assert.equal(afterTag, beforeTag);
 });
 
+test("--no-pending-release keeps a never-released package version out of the headings", (t) => {
+  // The pm-vcs/pm-rl regression shape (unbraind/pm-vcs run 33379641902): zero
+  // release tags, a package.json version that has never been released or
+  // tagged. Since 2026.8.30 (PR #170) the untagged version is treated as a
+  // pending release, so `--all-release-tags --release-version-from-package`
+  // rewrites the leading `## Unreleased` into `## 2026.7.30 - 2026-07-30` — a
+  // heading asserting a release that never happened. `--no-pending-release`
+  // says no release is being cut and restores the Unreleased window.
+  const directory = mkdtempSync(join(tmpdir(), "pm-changelog-never-released-"));
+  t.after(() => rmSync(directory, { recursive: true, force: true }));
+  execFileSync("git", ["init"], { cwd: directory, encoding: "utf-8" });
+  execFileSync("git", ["config", "user.name", "pm changelog test"], { cwd: directory, encoding: "utf-8" });
+  execFileSync("git", ["config", "user.email", "pm-changelog@example.com"], { cwd: directory, encoding: "utf-8" });
+  writeFileSync(join(directory, "work.txt"), "work\n", "utf-8");
+  execFileSync("git", ["add", "work.txt"], { cwd: directory, encoding: "utf-8" });
+  execFileSync("git", ["commit", "-m", "work"], {
+    cwd: directory,
+    encoding: "utf-8",
+    env: {
+      ...process.env,
+      GIT_AUTHOR_DATE: "2026-07-30T12:00:00Z",
+      GIT_COMMITTER_DATE: "2026-07-30T12:00:00Z",
+    },
+  });
+  // Placeholder version that has never been released: no tag exists for it.
+  writeFileSync(
+    join(directory, "package.json"),
+    JSON.stringify({ name: "pm-vcs-fixture", version: "2026.7.30" }),
+    "utf-8",
+  );
+
+  const input = join(directory, "items.json");
+  writeFileSync(input, JSON.stringify([{
+    id: "pm-never-released",
+    title: "Keep never-released work under Unreleased",
+    status: "closed",
+    type: "feature",
+    closed_at: "2026-08-15T09:00:00Z",
+  }]), "utf-8");
+  const cli = join(process.cwd(), "src", "cli.ts");
+  const generate = (extra: string[]): string => execFileSync(process.execPath, [
+    cli,
+    "--input", input,
+    "--stdout",
+    "--all-release-tags",
+    "--release-version-from-package",
+    "--date-from-version",
+    ...extra,
+  ], {
+    cwd: directory,
+    encoding: "utf-8",
+    env: { ...process.env, TZ: "UTC" },
+  });
+
+  // Default behaviour is unchanged: the pending window still leads (the
+  // release-run shape PR #170 established), which fabricates the heading in
+  // this never-released shape.
+  const fabricated = generate([]);
+  assert.match(fabricated, /## 2026\.7\.30 - 2026-07-30[\s\S]*pm-never-released/);
+  assert.doesNotMatch(fabricated, /## Unreleased/);
+
+  // The flag suppresses the fabricated window and restores Unreleased.
+  const suppressed = generate(["--no-pending-release"]);
+  assert.match(suppressed, /## Unreleased[\s\S]*pm-never-released/);
+  assert.doesNotMatch(suppressed, /2026\.7\.30/);
+});
+
 test("resolveReleaseTagWindows rejects shallow clones but preserves zero-tag pending windows", (t) => {
   const { cloneDir } = createShallowClone(t, []);
 

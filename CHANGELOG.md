@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+### Fixed
+
+- Pending release windows must not claim a never-released package version ([pmc-1vma](https://github.com/unbraind/pm-changelog/blob/main/.agents/pm/issues/pmc-1vma.toon))
+
 ### Other
 
 - Converge the pinned pm-cli on 2026.8.31 and repair history hashes ([pmc-y7al](https://github.com/unbraind/pm-changelog/blob/main/.agents/pm/chores/pmc-y7al.toon))
