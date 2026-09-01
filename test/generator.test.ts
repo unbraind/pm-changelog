@@ -15,9 +15,11 @@ import {
   MISSING_TAG_HISTORY_ERROR_CODE,
   MissingTagHistoryError,
   parseListAllItemsJson,
+  type PmItem,
   readPmItems,
   resolveReleaseContext,
   resolveReleaseTagWindows,
+  resolveReleaseTagWindowResolution,
   writeChangelog,
 } from "../src/index.ts";
 
@@ -4096,9 +4098,13 @@ test("an explicitly empty suppressed window list renders no release heading thro
   // includeUnreleased: false in a zero-tag repository receives [] from the
   // resolver; createChangelog used to read that empty list as absent history
   // and substitute a dated section for the resolved placeholder version, so
-  // the suppression was undone one call later. The two spellings are now
-  // distinct: undefined means "no window history supplied" (single-version
-  // fallback), a supplied empty list means "no release sections exist".
+  // the suppression was undone one call later. The deliberate-emptiness
+  // capability is reachable only on purpose: the caller must forward the
+  // `suppressedPendingRelease` tag the resolution form reports alongside the
+  // empty window list, which asserts the suppressing intent. Without that
+  // signal an accidentally empty list (zero tags, no suppression asserted)
+  // falls back to the absent-history single-version section, so silent total
+  // item loss is not reachable from any combination of public options.
   const directory = mkdtempSync(join(tmpdir(), "pm-changelog-empty-suppression-"));
   t.after(() => rmSync(directory, { recursive: true, force: true }));
   execFileSync("git", ["init"], { cwd: directory, encoding: "utf-8" });
@@ -4121,16 +4127,21 @@ test("an explicitly empty suppressed window list renders no release heading thro
     // Even the opt-in empty-section rendering must not resurrect the heading.
     includeEmpty: true,
   };
-  const windows = resolveReleaseTagWindows({
+  const resolution = resolveReleaseTagWindowResolution({
     cwd: directory,
     pendingVersion: "2026.9.1",
     pendingTimestamp: "2026-09-01T12:00:00Z",
     pendingRelease: false,
     includeUnreleased: false,
   });
-  assert.equal(windows.length, 0, "the resolver honours the suppression");
+  assert.equal(resolution.windows.length, 0, "the resolver honours the suppression");
+  assert.equal(resolution.suppressedPendingRelease, "v2026.9.1");
 
-  const result = createChangelog({ ...options, releaseWindows: windows });
+  const result = createChangelog({
+    ...options,
+    releaseWindows: resolution.windows,
+    suppressedPendingRelease: resolution.suppressedPendingRelease,
+  });
   assert.equal(result.markdown, "# Changelog\n");
   assert.equal(result.itemCount, 0);
   assert.deepEqual(result.sections, []);
@@ -4138,9 +4149,55 @@ test("an explicitly empty suppressed window list renders no release heading thro
   // The selection report agrees with the render — window mode, nothing
   // visible — instead of reporting the single-version shape the empty list
   // used to fall back into.
-  const report = explainChangelogSelection({ ...options, releaseWindows: windows, respectItemRelease: true });
+  const report = explainChangelogSelection({
+    ...options,
+    releaseWindows: resolution.windows,
+    suppressedPendingRelease: resolution.suppressedPendingRelease,
+    respectItemRelease: true,
+  });
   assert.equal(report.filters.release_windows, true);
   assert.equal(report.stage_counts.visible_items, 0);
+});
+
+test("an accidentally empty releaseWindows list preserves items under Unreleased", () => {
+  // Regression test for the silent data-loss path introduced by PR #174:
+  // resolveReleaseTagWindows returns [] in a zero-tag repository, and a
+  // library caller that pipes one straight into the other —
+  //   createChangelog({ items, releaseWindows: resolveReleaseTagWindows(...) })
+  // — used to get a title-only changelog with every item silently dropped
+  // because the empty list was read as deliberate emptiness. The fix makes
+  // deliberate emptiness reachable only when the caller also asserts the
+  // suppressing intent (suppressedPendingRelease); without that signal the
+  // empty list is absent history, so items are preserved under ## Unreleased
+  // exactly as origin/main does.
+  const oneClosedItem: PmItem = {
+    id: "pm-accidental-empty",
+    title: "A fixed thing",
+    status: "closed",
+    type: "bug",
+    closed_at: "2026-08-15T09:00:00Z",
+  };
+
+  // No suppressedPendingRelease: this is the accidental-empty shape.
+  const result = createChangelog({ items: [oneClosedItem], releaseWindows: [] });
+  assert.equal(result.itemCount, 1);
+  assert.match(result.markdown, /^# Changelog\n\n## Unreleased\n/m);
+  assert.match(result.markdown, /pm-accidental-empty/);
+
+  // The selection report must NOT report window mode for an accidental empty.
+  const report = explainChangelogSelection({ items: [oneClosedItem], releaseWindows: [] });
+  assert.equal(report.filters.release_windows, false);
+  assert.equal(report.stage_counts.visible_items, 1);
+
+  // Contrast: with the suppressing intent asserted, the same empty list is
+  // deliberate emptiness and emits nothing.
+  const suppressed = createChangelog({
+    items: [oneClosedItem],
+    releaseWindows: [],
+    suppressedPendingRelease: "v2026.9.1",
+  });
+  assert.equal(suppressed.markdown, "# Changelog\n");
+  assert.equal(suppressed.itemCount, 0);
 });
 
 test("--no-pending-release routes items declaring the suppressed version to Unreleased in a tagged repository", (t) => {

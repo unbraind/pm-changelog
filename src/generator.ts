@@ -61,10 +61,12 @@ export function createChangelog(options: GenerateChangelogOptions): GeneratedCha
   const lines: string[] = [`# ${title}`, ""];
 
   if (sections.length === 0) {
-    // A supplied-but-empty `releaseWindows` list is deliberate: every section
-    // was suppressed, so even `--include-empty` must not resurrect a heading
-    // for the placeholder version the caller suppressed.
-    if (options.includeEmpty && !hasExplicitlyEmptyReleaseWindows(options.releaseWindows)) {
+    // A deliberately empty `releaseWindows` list (suppressed pending release
+    // asserted) means every section was suppressed, so even `--include-empty`
+    // must not resurrect a heading for the placeholder version the caller
+    // suppressed. An accidentally empty list is absent history and falls
+    // back to the single-version section, so this branch is not reached.
+    if (options.includeEmpty && !isDeliberateEmptySuppression(options)) {
       const heading = buildVersionHeading(options.version, options.date);
       lines.push(`## ${heading}`, "", "No changes.", "");
     }
@@ -674,25 +676,43 @@ function replaceChangelog(
   };
 }
 
-/** True when the caller supplied a release-window list that contains no
- * windows. This is the spelling that distinguishes deliberate emptiness —
- * every window was suppressed, e.g. `pendingRelease: false` with
- * `includeUnreleased: false` in a zero-tag repository — from absent history
- * (`undefined`), which keeps the single-version section fallback. Rendering
- * and selection honour the distinction so an explicit suppression survives
- * the whole pipeline instead of being undone by a fabricated heading. */
-function hasExplicitlyEmptyReleaseWindows(windows: ChangelogReleaseWindow[] | undefined): boolean {
-  return windows != null && windows.length === 0;
+/** True when the caller asserted the suppressing intent that produced an
+ * empty `releaseWindows` list. `resolveReleaseTagWindows` returns `[]` in two
+ * situations that are indistinguishable from the list alone: a zero-tag
+ * repository with no pending version (absent history — nothing was ever
+ * released), and a zero-tag repository where the caller suppressed the
+ * pending release AND asked for no `Unreleased` window (deliberate emptiness
+ * — every section was suppressed). Only the latter carries a
+ * `suppressedPendingRelease` tag, because `resolveReleaseTagWindowResolution`
+ * reports the release it removed. Requiring that signal here makes the
+ * deliberate-emptiness capability reachable only on purpose: a library
+ * caller that pipes `resolveReleaseTagWindows(...)` straight into
+ * `createChangelog` gets the safe absent-history `Unreleased` fallback, not a
+ * title-only changelog that silently drops every item. */
+function isDeliberateEmptySuppression(options: GenerateChangelogOptions): boolean {
+  return options.releaseWindows != null
+    && options.releaseWindows.length === 0
+    && Boolean(options.suppressedPendingRelease);
+}
+
+/** True when `releaseWindows` is actively driving generation: a non-empty list
+ * always does, and a deliberately empty one (see {@link isDeliberateEmptySuppression})
+ * does too. An accidentally empty list — zero tags, no suppression asserted —
+ * is absent history, so the single-version section fallback applies instead. */
+function isInReleaseWindowMode(options: GenerateChangelogOptions): boolean {
+  return options.releaseWindows != null
+    && (options.releaseWindows.length > 0 || Boolean(options.suppressedPendingRelease));
 }
 
 /** Select the items a single-window generation should render. Time filtering is
  * skipped entirely under `releaseWindows`, where each window does its own
- * bucketing. A supplied-but-empty window list places nothing at all: no item
- * can belong to a window that does not exist, and falling through to the
- * single-version time window would be exactly the absent-history treatment
- * the empty list exists to differ from. */
+ * bucketing. A deliberately empty window list (suppressed pending release
+ * asserted) places nothing at all: no item can belong to a window that does
+ * not exist. An accidentally empty list falls through to the single-version
+ * time window, preserving the absent-history treatment exactly as the
+ * pre-distinction behaviour did. */
 function filterItems(options: GenerateChangelogOptions): PmItem[] {
-  if (hasExplicitlyEmptyReleaseWindows(options.releaseWindows)) return [];
+  if (isDeliberateEmptySuppression(options)) return [];
   const items = filterItemsByStatus(options);
   if (options.releaseWindows && options.releaseWindows.length > 0) return items;
 
@@ -776,22 +796,23 @@ function applyItemReleaseAttribution(
  * opposed to `releaseWindows` history or `groupBy` release/milestone grouping.
  * Release attribution only applies to that single-window shape; the grouped
  * modes key their headings off the same field and must not have items removed.
- * Any supplied window list — even an empty one — is window mode, so an
- * explicitly empty list never falls back into single-version attribution. */
+ * A non-empty window list, or a deliberately empty one (suppressed pending
+ * release asserted), is window mode; an accidentally empty list is absent
+ * history and falls back to the single-version section. */
 function usesSingleVersionSection(options: GenerateChangelogOptions): boolean {
-  if (options.releaseWindows != null) return false;
+  if (isInReleaseWindowMode(options)) return false;
   if (options.version) return true;
   return options.groupBy !== "release" && options.groupBy !== "milestone";
 }
 
 /** Split selected items into top-level sections. Release windows win when
- * present — including a supplied-but-empty list, which yields no sections at
- * all rather than falling back to a single version section; otherwise a
- * version-less `release`/`milestone` grouping applies, and everything else
- * collapses to one version section. */
+ * actively driving generation — a non-empty list, or a deliberately empty
+ * one (suppressed pending release asserted) which yields no sections at all.
+ * An accidentally empty list is absent history and falls through to the
+ * single-version section, so items are preserved under `## Unreleased`. */
 function buildSections(items: PmItem[], options: GenerateChangelogOptions): ChangelogSection[] {
-  if (options.releaseWindows != null) {
-    return assignItemsToReleaseWindows(items, options.releaseWindows, options.suppressedPendingRelease);
+  if (isInReleaseWindowMode(options)) {
+    return assignItemsToReleaseWindows(items, options.releaseWindows!, options.suppressedPendingRelease);
   }
 
   if (options.groupBy === "release" && !options.version) {
@@ -1814,10 +1835,11 @@ export function visibleChangelogItems(options: GenerateChangelogOptions): PmItem
  */
 export function explainChangelogSelection(options: GenerateChangelogOptions): ChangelogSelectionReport {
   const statuses = new Set((options.includeStatuses ?? DEFAULT_STATUSES).map((status) => status.toLowerCase()));
-  // Any supplied window list is window mode — including an explicitly empty
-  // one, which places nothing and reports every surviving item as excluded by
-  // the release windows rather than falling back to the single-version shape.
-  const hasReleaseWindows = options.releaseWindows != null;
+  // Window mode is active for a non-empty list, or a deliberately empty one
+  // (suppressed pending release asserted). An accidentally empty list — zero
+  // tags, no suppression asserted — is absent history, so the report mirrors
+  // the single-version fallback instead of reading it as window mode.
+  const hasReleaseWindows = isInReleaseWindowMode(options);
 
   const withTitle: PmItem[] = [];
   const missingTitle: PmItem[] = [];
