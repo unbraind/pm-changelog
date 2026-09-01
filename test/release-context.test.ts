@@ -444,6 +444,15 @@ describe("release-context: pendingRelease suppression", () => {
     // window list is forwarded verbatim together with the suppressed pending
     // release.
     deepEqual(resolveGenerationReleaseWindows({ windows: [] }), {});
+    // An empty list is the absent-history fallback only when nothing was
+    // suppressed. An empty list that exists BECAUSE a pending release was
+    // suppressed must carry that identity through, or the generator reads
+    // deliberate suppression as absent history and restores the placeholder
+    // heading and the items the caller suppressed.
+    deepEqual(
+      resolveGenerationReleaseWindows({ windows: [], suppressedPendingRelease: "2026.7.30" }),
+      { releaseWindows: [], suppressedPendingRelease: "2026.7.30" }
+    );
     deepEqual(
       resolveGenerationReleaseWindows({
         windows: [{ heading: "Unreleased" }],

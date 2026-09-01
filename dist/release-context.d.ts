@@ -196,10 +196,14 @@ export declare function resolveReleaseTagWindowResolution(options?: ReleaseTagHi
  * suppress), which those surfaces spell as `undefined` so the generator
  * keeps its historical single-version fallback: a pre-first-release
  * repository still renders `## Unreleased` with its work rather than a
- * title-only changelog. Library callers that deliberately suppressed every
- * window pass `resolution.windows` through unchanged instead — an
- * explicitly empty list is the spelling that keeps suppression intact in
- * `createChangelog`.
+ * title-only changelog.
+ *
+ * An empty list is only that fallback when nothing was suppressed. A
+ * resolution that is empty *because* a pending release was suppressed carries
+ * `suppressedPendingRelease`, and that must be forwarded with the empty list
+ * rather than collapsed to `{}`: collapsing it makes the generator read
+ * deliberate suppression as absent history and restore the very placeholder
+ * heading and items the caller suppressed.
  */
 export declare function resolveGenerationReleaseWindows(resolution: ReleaseTagWindowResolution): {
     releaseWindows?: ChangelogReleaseWindow[];
