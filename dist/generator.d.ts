@@ -1,4 +1,15 @@
 import type { ChangelogDocument, ChangelogSelectionReport, ChangelogSummaryEntry, GeneratedChangelog, GenerateChangelogOptions, MergeChangelogOptions, MergeChangelogResult, PmItem, ReadPmItemsOptions, SemverSuggestion, WriteChangelogOptions, WriteChangelogResult } from "./types.ts";
+type PmCommand = {
+    bin: string;
+    argsPrefix: string[];
+};
+/** Complete replaceable boundaries used while resolving the installed pm CLI. */
+export interface InstalledPmCommandResolutionDependencies {
+    resolveManifestPath: () => string;
+    readManifest: (path: string) => string;
+    pathExists: (path: string) => boolean;
+    nodeExecutable: string;
+}
 /** Render a changelog and return only its markdown. Convenience wrapper over
  * {@link createChangelog} for callers that do not need the selected sections. */
 export declare function generateChangelog(options: GenerateChangelogOptions): string;
@@ -49,6 +60,11 @@ export declare function mergeChangelog(existingMarkdown: string | undefined, gen
  * caller arguments so a conflicting `pmArgs` value cannot silently re-bound a
  * correctness-critical whole-tracker read. */
 export declare function buildPmListArgs(options?: ReadPmItemsOptions): string[];
+/** Resolve the installed pm CLI entry point without consulting or changing the
+ * process-level command memo. Supplying the complete dependency set lets tests
+ * drive manifest and filesystem failures directly; production callers use the
+ * real module resolver, filesystem, and current Node executable by default. */
+export declare function resolveInstalledPmCommand(dependencies?: InstalledPmCommandResolutionDependencies): PmCommand;
 /**
  * Read every item from a pm workspace by invoking the real pm CLI.
  *
@@ -164,4 +180,5 @@ export declare function visibleChangelogItems(options: GenerateChangelogOptions)
 export declare function explainChangelogSelection(options: GenerateChangelogOptions): ChangelogSelectionReport;
 /** Classify an explicit item set into a semver bump (no option-driven filtering). */
 export declare function suggestSemverForItems(items: PmItem[]): SemverSuggestion;
+export {};
 //# sourceMappingURL=generator.d.ts.map

@@ -22,6 +22,7 @@ import {
   resolveReleaseTagWindowResolution,
   writeChangelog,
 } from "../src/index.ts";
+import { resolveInstalledPmCommand } from "../src/generator.ts";
 
 function readEnvironmentValue(
   environment: NodeJS.ProcessEnv,
@@ -2179,6 +2180,47 @@ process.stdout.write(JSON.stringify({ items: [{ id: "pm-large", title: "Large tr
 
   assert.equal(result.length, 1);
   assert.equal(result[0].id, "pm-large");
+});
+
+test("resolveInstalledPmCommand rejects a manifest that does not declare the pm executable", () => {
+  assert.throws(
+    () => resolveInstalledPmCommand({
+      resolveManifestPath: () => "fixtures/pm-cli/package.json",
+      readManifest: () => JSON.stringify({ name: "@unbrained/pm-cli" }),
+      pathExists: () => true,
+      nodeExecutable: "node-for-test",
+    }),
+    /Failed to resolve the installed @unbrained\/pm-cli executable: Package manifest fixtures\/pm-cli\/package\.json does not declare the pm executable \(bin=undefined\)/
+  );
+});
+
+test("resolveInstalledPmCommand rejects a pm executable path that does not exist", () => {
+  assert.throws(
+    () => resolveInstalledPmCommand({
+      resolveManifestPath: () => "fixtures/pm-cli/package.json",
+      readManifest: () => JSON.stringify({ bin: "dist/cli.js" }),
+      pathExists: () => false,
+      nodeExecutable: "node-for-test",
+    }),
+    /Failed to resolve the installed @unbrained\/pm-cli executable: Package manifest fixtures\/pm-cli\/package\.json declares pm bin dist\/cli\.js, but the resolved path does not exist:/
+  );
+});
+
+test("resolveInstalledPmCommand wraps a package manifest resolver failure", () => {
+  assert.throws(
+    () => resolveInstalledPmCommand({
+      resolveManifestPath: () => { throw "resolver failed"; },
+      readManifest: () => "{}",
+      pathExists: () => true,
+      nodeExecutable: "node-for-test",
+    }),
+    (error: unknown) => {
+      assert.ok(error instanceof Error);
+      assert.equal(error.message, "Failed to resolve the installed @unbrained/pm-cli executable: resolver failed");
+      assert.equal(error.cause, "resolver failed");
+      return true;
+    }
+  );
 });
 
 test("readPmItems resolves the installed pm-cli executable without PATH", () => {

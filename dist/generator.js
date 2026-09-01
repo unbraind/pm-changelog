@@ -7,6 +7,12 @@ const DEFAULT_TITLE = "Changelog";
 const DEFAULT_STATUSES = ["closed"];
 const SUPPRESSED_PENDING_RELEASE = Symbol.for("pm-changelog.suppressedPendingRelease");
 const DEFAULT_PM_JSON_MAX_BUFFER = 64 * 1024 * 1024;
+const DEFAULT_INSTALLED_PM_COMMAND_DEPENDENCIES = {
+    resolveManifestPath: () => createRequire(import.meta.url).resolve("@unbrained/pm-cli/package.json"),
+    readManifest: (path) => readFileSync(path, "utf-8"),
+    pathExists: existsSync,
+    nodeExecutable: process.execPath,
+};
 let resolvedPmCommand;
 const CATEGORY_ORDER = [
     "Added",
@@ -360,6 +366,34 @@ export function buildPmListArgs(options = {}) {
     }
     return args;
 }
+/** Resolve the installed pm CLI entry point without consulting or changing the
+ * process-level command memo. Supplying the complete dependency set lets tests
+ * drive manifest and filesystem failures directly; production callers use the
+ * real module resolver, filesystem, and current Node executable by default. */
+export function resolveInstalledPmCommand(dependencies = DEFAULT_INSTALLED_PM_COMMAND_DEPENDENCIES) {
+    try {
+        const pmPackagePath = dependencies.resolveManifestPath();
+        const pmPackage = JSON.parse(dependencies.readManifest(pmPackagePath));
+        const pmCliPath = typeof pmPackage.bin === "string" ? pmPackage.bin : pmPackage.bin?.pm;
+        if (pmCliPath === undefined) {
+            throw new Error(`Package manifest ${pmPackagePath} does not declare the pm executable (bin=${JSON.stringify(pmPackage.bin)})`);
+        }
+        const pmCliAbsolutePath = resolve(dirname(pmPackagePath), pmCliPath);
+        if (!dependencies.pathExists(pmCliAbsolutePath)) {
+            throw new Error(`Package manifest ${pmPackagePath} declares pm bin ${pmCliPath}, but the resolved path does not exist: ${pmCliAbsolutePath}`);
+        }
+        return {
+            bin: dependencies.nodeExecutable,
+            argsPrefix: [pmCliAbsolutePath],
+        };
+    }
+    catch (error) {
+        const message = error instanceof Error ? error.message : String(error);
+        throw new Error(`Failed to resolve the installed @unbrained/pm-cli executable: ${message}`, {
+            cause: error,
+        });
+    }
+}
 /**
  * Read every item from a pm workspace by invoking the real pm CLI.
  *
@@ -376,29 +410,8 @@ export function readPmItems(options = {}) {
     let pmBin = options.pmBin;
     let args = buildPmListArgs(options);
     if (pmBin === undefined) {
-        try {
-            if (resolvedPmCommand === undefined) {
-                const pmPackagePath = createRequire(import.meta.url).resolve("@unbrained/pm-cli/package.json");
-                const pmPackage = JSON.parse(readFileSync(pmPackagePath, "utf-8"));
-                const pmCliPath = typeof pmPackage.bin === "string" ? pmPackage.bin : pmPackage.bin?.pm;
-                if (pmCliPath === undefined) {
-                    throw new Error(`Package manifest ${pmPackagePath} does not declare the pm executable (bin=${JSON.stringify(pmPackage.bin)})`);
-                }
-                const pmCliAbsolutePath = resolve(dirname(pmPackagePath), pmCliPath);
-                if (!existsSync(pmCliAbsolutePath)) {
-                    throw new Error(`Package manifest ${pmPackagePath} declares pm bin ${pmCliPath}, but the resolved path does not exist: ${pmCliAbsolutePath}`);
-                }
-                resolvedPmCommand = {
-                    bin: process.execPath,
-                    argsPrefix: [pmCliAbsolutePath],
-                };
-            }
-        }
-        catch (error) {
-            const message = error instanceof Error ? error.message : String(error);
-            throw new Error(`Failed to resolve the installed @unbrained/pm-cli executable: ${message}`, {
-                cause: error,
-            });
+        if (resolvedPmCommand === undefined) {
+            resolvedPmCommand = resolveInstalledPmCommand();
         }
         pmBin = resolvedPmCommand.bin;
         args = [...resolvedPmCommand.argsPrefix, ...args];
