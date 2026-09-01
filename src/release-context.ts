@@ -4,6 +4,8 @@ import { dirname, join, resolve } from "node:path";
 
 import type { ChangelogReleaseWindow } from "./types.ts";
 
+const SUPPRESSED_PENDING_RELEASE = Symbol.for("pm-changelog.suppressedPendingRelease");
+
 /** Inputs for deriving a single release's version, date, and time window.
  * Each `*FromPackage` / `*Tag` flag asks for a value to be discovered from the
  * checkout instead of supplied, which is what lets a release job pass no
@@ -289,9 +291,22 @@ function calendarDateFromVersion(version: string | undefined): string {
  * `createChangelog` honours as deliberate emptiness (no release sections to
  * render) rather than absent history, so the suppressed placeholder version
  * cannot reappear as a fabricated heading.
+ *
+ * The returned value remains an ordinary array for compatibility. When a
+ * pending release was suppressed, a non-enumerable symbol carries that
+ * identity on the array so direct composition with `createChangelog` cannot
+ * discard the caller's intent. Callers that copy or serialize the windows
+ * should use {@link resolveReleaseTagWindowResolution} and forward its explicit
+ * `suppressedPendingRelease` field instead.
  */
 export function resolveReleaseTagWindows(options: ReleaseTagHistoryOptions = {}): ChangelogReleaseWindow[] {
-  return resolveReleaseTagWindowResolution(options).windows;
+  const resolution = resolveReleaseTagWindowResolution(options);
+  if (resolution.suppressedPendingRelease) {
+    Object.defineProperty(resolution.windows, SUPPRESSED_PENDING_RELEASE, {
+      value: resolution.suppressedPendingRelease,
+    });
+  }
+  return resolution.windows;
 }
 
 /** A repository's resolved release-tag windows plus the pending release that
@@ -348,11 +363,9 @@ export function resolveReleaseTagWindowResolution(
     }
     // Either the repository has no tag history at all (zero tags, no pending
     // release) or the caller suppressed the pending release AND asked for no
-    // Unreleased window. Both are spelled as an empty list; what keeps the
-    // deliberate case intact is the caller passing this list on explicitly:
-    // `createChangelog` distinguishes a supplied empty list (no release
-    // sections, suppression holds) from an absent one (single-version
-    // fallback).
+    // Unreleased window. Both use an empty list, while the suppression identity
+    // distinguishes deliberate emptiness from absent history when the result
+    // reaches `createChangelog`.
     return { windows: [], suppressedPendingRelease };
   }
 
@@ -370,7 +383,9 @@ export function resolveReleaseTagWindowResolution(
     const tag = orderedTags[index];
     const previous = orderedTags[index + 1];
     windows.push({
-      heading: `${formatTagVersion(tag.name)} - ${formatLocalTimestampDate(tag.timestamp)}`,
+      heading: tag.timestamp
+        ? `${formatTagVersion(tag.name)} - ${formatLocalTimestampDate(tag.timestamp)}`
+        : formatTagVersion(tag.name),
       releaseTag: tag.name,
       since: previous?.timestamp,
       sinceExclusive: Boolean(previous),
@@ -428,7 +443,10 @@ function resolvePendingReleaseTag(options: ReleaseTagHistoryOptions, existingTag
   // `2026.05.27` heading the caller never matches. A `v`-prefixed candidate is
   // guaranteed present by releaseTagCandidates.
   const canonical = candidates.find((candidate) => candidate.startsWith("v"))!;
-  const timestamp = normalizeTimestamp(options.pendingTimestamp ?? new Date().toISOString());
+  // A missing timestamp stays missing rather than consulting the wall clock.
+  // Release surfaces supply an explicit date/timestamp; library callers that
+  // provide only a pending version get a stable undated heading.
+  const timestamp = options.pendingTimestamp ? normalizeTimestamp(options.pendingTimestamp) : "";
   return { name: canonical, timestamp, pending: true };
 }
 

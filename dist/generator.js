@@ -5,6 +5,7 @@ import { dirname, resolve } from "node:path";
 import { resolveCompletionTimestamp } from "@unbrained/pm-cli/sdk";
 const DEFAULT_TITLE = "Changelog";
 const DEFAULT_STATUSES = ["closed"];
+const SUPPRESSED_PENDING_RELEASE = Symbol.for("pm-changelog.suppressedPendingRelease");
 const DEFAULT_PM_JSON_MAX_BUFFER = 64 * 1024 * 1024;
 let resolvedPmCommand;
 const CATEGORY_ORDER = [
@@ -572,23 +573,27 @@ function replaceChangelog(existingMarkdown, generatedMarkdown) {
         changed,
     };
 }
+/** Return the explicit suppression identity, or the non-enumerable identity
+ * carried by an array returned directly from `resolveReleaseTagWindows`.
+ * Explicit generator input wins so copied/serialized arrays remain supported
+ * through `resolveReleaseTagWindowResolution`. */
+function getSuppressedPendingRelease(options) {
+    const windows = options.releaseWindows;
+    return options.suppressedPendingRelease ?? windows?.[SUPPRESSED_PENDING_RELEASE];
+}
 /** True when the caller asserted the suppressing intent that produced an
- * empty `releaseWindows` list. `resolveReleaseTagWindows` returns `[]` in two
- * situations that are indistinguishable from the list alone: a zero-tag
- * repository with no pending version (absent history — nothing was ever
- * released), and a zero-tag repository where the caller suppressed the
- * pending release AND asked for no `Unreleased` window (deliberate emptiness
- * — every section was suppressed). Only the latter carries a
- * `suppressedPendingRelease` tag, because `resolveReleaseTagWindowResolution`
- * reports the release it removed. Requiring that signal here makes the
- * deliberate-emptiness capability reachable only on purpose: a library
- * caller that pipes `resolveReleaseTagWindows(...)` straight into
- * `createChangelog` gets the safe absent-history `Unreleased` fallback, not a
- * title-only changelog that silently drops every item. */
+ * empty `releaseWindows` list. A zero-tag repository with no pending version
+ * means absent history, while suppressing a pending release with no
+ * `Unreleased` window means deliberate emptiness. The latter carries either
+ * the explicit `suppressedPendingRelease` field from the detailed resolution
+ * or the identity on the plain resolver's returned array. Requiring that
+ * signal makes deliberate emptiness reachable only on purpose: an accidental
+ * empty array gets the safe single-section fallback rather than silently
+ * dropping every item. */
 function isDeliberateEmptySuppression(options) {
     return options.releaseWindows != null
         && options.releaseWindows.length === 0
-        && Boolean(options.suppressedPendingRelease);
+        && Boolean(getSuppressedPendingRelease(options));
 }
 /** True when `releaseWindows` is actively driving generation: a non-empty list
  * always does, and a deliberately empty one (see {@link isDeliberateEmptySuppression})
@@ -596,7 +601,7 @@ function isDeliberateEmptySuppression(options) {
  * is absent history, so the single-version section fallback applies instead. */
 function isInReleaseWindowMode(options) {
     return options.releaseWindows != null
-        && (options.releaseWindows.length > 0 || Boolean(options.suppressedPendingRelease));
+        && (options.releaseWindows.length > 0 || Boolean(getSuppressedPendingRelease(options)));
 }
 /** Select the items a single-window generation should render. Time filtering is
  * skipped entirely under `releaseWindows`, where each window does its own
@@ -700,7 +705,7 @@ function usesSingleVersionSection(options) {
  * single-version section, so items are preserved under `## Unreleased`. */
 function buildSections(items, options) {
     if (isInReleaseWindowMode(options)) {
-        return assignItemsToReleaseWindows(items, options.releaseWindows, options.suppressedPendingRelease);
+        return assignItemsToReleaseWindows(items, options.releaseWindows, getSuppressedPendingRelease(options));
     }
     if (options.groupBy === "release" && !options.version) {
         return groupSectionsByMetadata(items, "release", "Unreleased");
@@ -918,22 +923,16 @@ export function compareVersionStrings(a, b) {
     }
     return 0;
 }
-/** Build the single-version section heading from a version and date.
+/** Build the single-version section heading from explicit inputs only.
  *
- * A versioned release always carries a date: an explicit one when supplied,
- * otherwise today's (the historical default a release run reproduces). An
- * `Unreleased` heading has no release date to fabricate, so it is stamped
- * only when the caller supplied one explicitly — matching the dateless
- * `Unreleased` window the resolver restores under `pendingRelease: false`,
- * instead of inventing today's date for a release that has not happened
- * (the same fabrication this branch suppresses for placeholder versions).
+ * A real release run supplies both version and date and keeps its dated
+ * heading. A version without a date remains undated: consulting the wall clock
+ * here would make identical inputs produce different changelogs on different
+ * days and would let an untagged placeholder fabricate a dated release.
  */
 function buildVersionHeading(version, date) {
     const heading = version?.trim() || "Unreleased";
     const explicitStamp = date?.trim();
-    if (version?.trim()) {
-        return `${heading} - ${explicitStamp ?? new Date().toISOString().slice(0, 10)}`;
-    }
     return explicitStamp ? `${heading} - ${explicitStamp}` : heading;
 }
 /** True for one code unit that JavaScript's `\\s` and `String#trim` treat as
@@ -1398,7 +1397,7 @@ function isPlacedByReleaseDeclaration(item, options) {
         // `Unreleased` window exists (includeUnreleased: false) the item falls
         // through to timestamp placement, so it must not be classified as
         // release-pinned.
-        const suppressedKey = normalizeSuppressedReleaseKey(options.suppressedPendingRelease);
+        const suppressedKey = normalizeSuppressedReleaseKey(getSuppressedPendingRelease(options));
         return suppressedKey !== ""
             && declaredKey === suppressedKey
             && windows.some((window) => !window.releaseTag);

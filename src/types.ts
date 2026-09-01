@@ -119,11 +119,10 @@ export interface GenerateChangelogOptions {
    * spellings are deliberately distinct: `undefined` (or omitted) means no
    * window history was supplied, so generation falls back to the single
    * version section; a supplied-but-empty list means the caller resolved the
-   * windows and none exist — every section was suppressed (e.g.
-   * `pendingRelease: false` with `includeUnreleased: false` in a zero-tag
-   * repository) — so no release heading is rendered at all and the
-   * single-version fallback is skipped, keeping an explicit suppression
-   * intact through the whole pipeline. */
+   * windows and none exist. An empty array is deliberate only when accompanied
+   * by `suppressedPendingRelease` or when it is the identity-bearing array
+   * returned directly by `resolveReleaseTagWindows`; otherwise it represents
+   * absent history and preserves items under the single-section fallback. */
   releaseWindows?: ChangelogReleaseWindow[];
   /** OPT-IN: the pending release tag whose window was suppressed from
    * `releaseWindows` — what `resolveReleaseTagWindowResolution` reports for

@@ -235,11 +235,11 @@ describe("release-context: resolveReleaseTagWindows", () => {
     }
   });
 
-  it("derives a pending tag with the current time when pendingTimestamp is absent", () => {
+  it("keeps a pending tag undated when pendingTimestamp is absent", () => {
     const dir = gitRepo();
     try {
       const windows = resolveReleaseTagWindows({ cwd: dir, pendingVersion: "2026.9.9" });
-      ok(windows.length > 0, "a pending version produces a window");
+      equal(windows[0]?.heading, "2026.9.9");
     } finally {
       rmSync(dir, { recursive: true, force: true });
     }

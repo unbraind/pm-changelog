@@ -103,22 +103,18 @@ test("createChangelog groups closed items by category", () => {
   assert.doesNotMatch(result.markdown, /Draft release notes/);
 });
 
-test("createChangelog defaults release heading dates to UTC across host timezones", (context) => {
-  const previousTimezone = process.env.TZ;
-  context.mock.timers.enable({ apis: ["Date"], now: new Date("2026-08-01T22:30:00.000Z") });
-
+test("createChangelog does not derive a version heading date from the wall clock", (context) => {
+  context.mock.timers.enable({ apis: ["Date"], now: Date.parse("2026-08-01T22:30:00.000Z") });
   try {
-    process.env.TZ = "UTC";
-    const utc = createChangelog({ items, version: "1.2.0" }).markdown;
-    process.env.TZ = "Europe/Vienna";
-    const vienna = createChangelog({ items, version: "1.2.0" }).markdown;
+    const firstDay = createChangelog({ items, version: "1.2.0" }).markdown;
+    context.mock.timers.setTime(Date.parse("2026-09-01T02:00:00.000Z"));
+    const secondDay = createChangelog({ items, version: "1.2.0" }).markdown;
 
-    assert.equal(vienna, utc);
-    assert.match(utc, /^# Changelog\n\n## 1\.2\.0 - 2026-08-01/m);
+    assert.equal(secondDay, firstDay, "identical inputs must survive a change in simulated today");
+    assert.match(firstDay, /^# Changelog\n\n## 1\.2\.0$/m);
+    assert.doesNotMatch(firstDay, /^## 1\.2\.0 - /m);
   } finally {
     context.mock.timers.reset();
-    if (previousTimezone === undefined) delete process.env.TZ;
-    else process.env.TZ = previousTimezone;
   }
 });
 
@@ -4157,6 +4153,41 @@ test("an explicitly empty suppressed window list renders no release heading thro
   });
   assert.equal(report.filters.release_windows, true);
   assert.equal(report.stage_counts.visible_items, 0);
+});
+
+test("resolveReleaseTagWindows carries deliberate empty suppression into createChangelog", (t) => {
+  const directory = mkdtempSync(join(tmpdir(), "pm-changelog-library-suppression-"));
+  t.after(() => rmSync(directory, { recursive: true, force: true }));
+  execFileSync("git", ["init"], { cwd: directory, encoding: "utf-8" });
+  execFileSync("git", ["config", "user.name", "pm changelog test"], { cwd: directory, encoding: "utf-8" });
+  execFileSync("git", ["config", "user.email", "pm-changelog@example.com"], { cwd: directory, encoding: "utf-8" });
+  writeFileSync(join(directory, "work.txt"), "work\n", "utf-8");
+  execFileSync("git", ["add", "work.txt"], { cwd: directory, encoding: "utf-8" });
+  execFileSync("git", ["commit", "-m", "work"], { cwd: directory, encoding: "utf-8" });
+
+  const releaseWindows = resolveReleaseTagWindows({
+    cwd: directory,
+    pendingVersion: "2026.9.1",
+    pendingTimestamp: "2026-09-01T12:00:00Z",
+    pendingRelease: false,
+    includeUnreleased: false,
+  });
+  assert.equal(releaseWindows.length, 0);
+
+  const result = createChangelog({
+    items: [{
+      id: "pm-library-suppressed",
+      title: "Work under an untagged placeholder",
+      status: "closed",
+      type: "feature",
+    }],
+    version: "2026.9.1",
+    date: "2026-09-01",
+    releaseWindows,
+  });
+  assert.equal(result.markdown, "# Changelog\n");
+  assert.equal(result.itemCount, 0);
+  assert.deepEqual(result.sections, []);
 });
 
 test("an accidentally empty releaseWindows list preserves items under Unreleased", () => {

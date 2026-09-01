@@ -148,6 +148,13 @@ export declare function resolveReleaseContext(options: ReleaseContextOptions): R
  * `createChangelog` honours as deliberate emptiness (no release sections to
  * render) rather than absent history, so the suppressed placeholder version
  * cannot reappear as a fabricated heading.
+ *
+ * The returned value remains an ordinary array for compatibility. When a
+ * pending release was suppressed, a non-enumerable symbol carries that
+ * identity on the array so direct composition with `createChangelog` cannot
+ * discard the caller's intent. Callers that copy or serialize the windows
+ * should use {@link resolveReleaseTagWindowResolution} and forward its explicit
+ * `suppressedPendingRelease` field instead.
  */
 export declare function resolveReleaseTagWindows(options?: ReleaseTagHistoryOptions): ChangelogReleaseWindow[];
 /** A repository's resolved release-tag windows plus the pending release that
