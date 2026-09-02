@@ -31,8 +31,27 @@ import type {
 
 const DEFAULT_TITLE = "Changelog";
 const DEFAULT_STATUSES = ["closed"];
+const SUPPRESSED_PENDING_RELEASE = Symbol.for("pm-changelog.suppressedPendingRelease");
 const DEFAULT_PM_JSON_MAX_BUFFER = 64 * 1024 * 1024;
-let resolvedPmCommand: { bin: string; argsPrefix: string[] } | undefined;
+
+type PmCommand = { bin: string; argsPrefix: string[] };
+
+/** Complete replaceable boundaries used while resolving the installed pm CLI. */
+export interface InstalledPmCommandResolutionDependencies {
+  resolveManifestPath: () => string;
+  readManifest: (path: string) => string;
+  pathExists: (path: string) => boolean;
+  nodeExecutable: string;
+}
+
+const DEFAULT_INSTALLED_PM_COMMAND_DEPENDENCIES: InstalledPmCommandResolutionDependencies = {
+  resolveManifestPath: () => createRequire(import.meta.url).resolve("@unbrained/pm-cli/package.json"),
+  readManifest: (path) => readFileSync(path, "utf-8"),
+  pathExists: existsSync,
+  nodeExecutable: process.execPath,
+};
+
+let resolvedPmCommand: PmCommand | undefined;
 
 const CATEGORY_ORDER = [
   "Added",
@@ -61,7 +80,12 @@ export function createChangelog(options: GenerateChangelogOptions): GeneratedCha
   const lines: string[] = [`# ${title}`, ""];
 
   if (sections.length === 0) {
-    if (options.includeEmpty) {
+    // A deliberately empty `releaseWindows` list (suppressed pending release
+    // asserted) means every section was suppressed, so even `--include-empty`
+    // must not resurrect a heading for the placeholder version the caller
+    // suppressed. An accidentally empty list is absent history and falls
+    // back to the single-version section, so this branch is not reached.
+    if (options.includeEmpty && !isDeliberateEmptySuppression(options)) {
       const heading = buildVersionHeading(options.version, options.date);
       lines.push(`## ${heading}`, "", "No changes.", "");
     }
@@ -440,6 +464,42 @@ export function buildPmListArgs(options: ReadPmItemsOptions = {}): string[] {
   return args;
 }
 
+/** Resolve the installed pm CLI entry point without consulting or changing the
+ * process-level command memo. Supplying the complete dependency set lets tests
+ * drive manifest and filesystem failures directly; production callers use the
+ * real module resolver, filesystem, and current Node executable by default. */
+export function resolveInstalledPmCommand(
+  dependencies: InstalledPmCommandResolutionDependencies = DEFAULT_INSTALLED_PM_COMMAND_DEPENDENCIES
+): PmCommand {
+  try {
+    const pmPackagePath = dependencies.resolveManifestPath();
+    const pmPackage = JSON.parse(dependencies.readManifest(pmPackagePath)) as {
+      bin?: string | Record<string, string>;
+    };
+    const pmCliPath = typeof pmPackage.bin === "string" ? pmPackage.bin : pmPackage.bin?.pm;
+    if (pmCliPath === undefined) {
+      throw new Error(
+        `Package manifest ${pmPackagePath} does not declare the pm executable (bin=${JSON.stringify(pmPackage.bin)})`
+      );
+    }
+    const pmCliAbsolutePath = resolve(dirname(pmPackagePath), pmCliPath);
+    if (!dependencies.pathExists(pmCliAbsolutePath)) {
+      throw new Error(
+        `Package manifest ${pmPackagePath} declares pm bin ${pmCliPath}, but the resolved path does not exist: ${pmCliAbsolutePath}`
+      );
+    }
+    return {
+      bin: dependencies.nodeExecutable,
+      argsPrefix: [pmCliAbsolutePath],
+    };
+  } catch (error: unknown) {
+    const message = error instanceof Error ? error.message : String(error);
+    throw new Error(`Failed to resolve the installed @unbrained/pm-cli executable: ${message}`, {
+      cause: error,
+    });
+  }
+}
+
 /**
  * Read every item from a pm workspace by invoking the real pm CLI.
  *
@@ -456,34 +516,8 @@ export function readPmItems(options: ReadPmItemsOptions = {}): PmItem[] {
   let pmBin = options.pmBin;
   let args = buildPmListArgs(options);
   if (pmBin === undefined) {
-    try {
-      if (resolvedPmCommand === undefined) {
-        const pmPackagePath = createRequire(import.meta.url).resolve("@unbrained/pm-cli/package.json");
-        const pmPackage = JSON.parse(readFileSync(pmPackagePath, "utf-8")) as {
-          bin?: string | Record<string, string>;
-        };
-        const pmCliPath = typeof pmPackage.bin === "string" ? pmPackage.bin : pmPackage.bin?.pm;
-        if (pmCliPath === undefined) {
-          throw new Error(
-            `Package manifest ${pmPackagePath} does not declare the pm executable (bin=${JSON.stringify(pmPackage.bin)})`
-          );
-        }
-        const pmCliAbsolutePath = resolve(dirname(pmPackagePath), pmCliPath);
-        if (!existsSync(pmCliAbsolutePath)) {
-          throw new Error(
-            `Package manifest ${pmPackagePath} declares pm bin ${pmCliPath}, but the resolved path does not exist: ${pmCliAbsolutePath}`
-          );
-        }
-        resolvedPmCommand = {
-          bin: process.execPath,
-          argsPrefix: [pmCliAbsolutePath],
-        };
-      }
-    } catch (error: unknown) {
-      const message = error instanceof Error ? error.message : String(error);
-      throw new Error(`Failed to resolve the installed @unbrained/pm-cli executable: ${message}`, {
-        cause: error,
-      });
+    if (resolvedPmCommand === undefined) {
+      resolvedPmCommand = resolveInstalledPmCommand();
     }
     pmBin = resolvedPmCommand.bin;
     args = [...resolvedPmCommand.argsPrefix, ...args];
@@ -671,10 +705,50 @@ function replaceChangelog(
   };
 }
 
+/** Return the explicit suppression identity, or the non-enumerable identity
+ * carried by an array returned directly from `resolveReleaseTagWindows`.
+ * Explicit generator input wins so copied/serialized arrays remain supported
+ * through `resolveReleaseTagWindowResolution`. */
+function getSuppressedPendingRelease(options: GenerateChangelogOptions): string | undefined {
+  const windows = options.releaseWindows as (ChangelogReleaseWindow[] & {
+    [SUPPRESSED_PENDING_RELEASE]?: string;
+  }) | undefined;
+  return options.suppressedPendingRelease ?? windows?.[SUPPRESSED_PENDING_RELEASE];
+}
+
+/** True when the caller asserted the suppressing intent that produced an
+ * empty `releaseWindows` list. A zero-tag repository with no pending version
+ * means absent history, while suppressing a pending release with no
+ * `Unreleased` window means deliberate emptiness. The latter carries either
+ * the explicit `suppressedPendingRelease` field from the detailed resolution
+ * or the identity on the plain resolver's returned array. Requiring that
+ * signal makes deliberate emptiness reachable only on purpose: an accidental
+ * empty array gets the safe single-section fallback rather than silently
+ * dropping every item. */
+function isDeliberateEmptySuppression(options: GenerateChangelogOptions): boolean {
+  return options.releaseWindows != null
+    && options.releaseWindows.length === 0
+    && Boolean(getSuppressedPendingRelease(options));
+}
+
+/** True when `releaseWindows` is actively driving generation: a non-empty list
+ * always does, and a deliberately empty one (see {@link isDeliberateEmptySuppression})
+ * does too. An accidentally empty list — zero tags, no suppression asserted —
+ * is absent history, so the single-version section fallback applies instead. */
+function isInReleaseWindowMode(options: GenerateChangelogOptions): boolean {
+  return options.releaseWindows != null
+    && (options.releaseWindows.length > 0 || Boolean(getSuppressedPendingRelease(options)));
+}
+
 /** Select the items a single-window generation should render. Time filtering is
  * skipped entirely under `releaseWindows`, where each window does its own
- * bucketing. */
+ * bucketing. A deliberately empty window list (suppressed pending release
+ * asserted) places nothing at all: no item can belong to a window that does
+ * not exist. An accidentally empty list falls through to the single-version
+ * time window, preserving the absent-history treatment exactly as the
+ * pre-distinction behaviour did. */
 function filterItems(options: GenerateChangelogOptions): PmItem[] {
+  if (isDeliberateEmptySuppression(options)) return [];
   const items = filterItemsByStatus(options);
   if (options.releaseWindows && options.releaseWindows.length > 0) return items;
 
@@ -757,19 +831,24 @@ function applyItemReleaseAttribution(
 /** Whether `buildSections` will emit a single `## version - date` section, as
  * opposed to `releaseWindows` history or `groupBy` release/milestone grouping.
  * Release attribution only applies to that single-window shape; the grouped
- * modes key their headings off the same field and must not have items removed. */
+ * modes key their headings off the same field and must not have items removed.
+ * A non-empty window list, or a deliberately empty one (suppressed pending
+ * release asserted), is window mode; an accidentally empty list is absent
+ * history and falls back to the single-version section. */
 function usesSingleVersionSection(options: GenerateChangelogOptions): boolean {
-  if (options.releaseWindows && options.releaseWindows.length > 0) return false;
+  if (isInReleaseWindowMode(options)) return false;
   if (options.version) return true;
   return options.groupBy !== "release" && options.groupBy !== "milestone";
 }
 
 /** Split selected items into top-level sections. Release windows win when
- * present; otherwise a version-less `release`/`milestone` grouping applies, and
- * everything else collapses to one version section. */
+ * actively driving generation — a non-empty list, or a deliberately empty
+ * one (suppressed pending release asserted) which yields no sections at all.
+ * An accidentally empty list is absent history and falls through to the
+ * single-version section, so items are preserved under `## Unreleased`. */
 function buildSections(items: PmItem[], options: GenerateChangelogOptions): ChangelogSection[] {
-  if (options.releaseWindows && options.releaseWindows.length > 0) {
-    return assignItemsToReleaseWindows(items, options.releaseWindows);
+  if (isInReleaseWindowMode(options)) {
+    return assignItemsToReleaseWindows(items, options.releaseWindows!, getSuppressedPendingRelease(options));
   }
 
   if (options.groupBy === "release" && !options.version) {
@@ -796,10 +875,28 @@ function buildSections(items: PmItem[], options: GenerateChangelogOptions): Chan
  * keeps a tracker closed long after its fix shipped in the release it actually
  * landed in, and it also stops `pm update --release` - which bumps
  * `updated_at` - from duplicating an item into a later window.
+ *
+ * An item declaring the release the caller SUPPRESSED
+ * (`suppressedPendingRelease`, the pending version removed from the window
+ * list by `pendingRelease: false`) is routed to the `Unreleased` window
+ * rather than placed by time. Without this, suppressing a phantom pending
+ * release could silently attribute the item to an unrelated older release
+ * whose time window it happens to fall in, or drop it entirely when its
+ * timestamp falls outside all windows. When no `Unreleased` window exists the
+ * item falls through to time placement, preserving the caller's explicit
+ * `includeUnreleased: false` opt-out.
+ *
+ * Every OTHER unmatched declaration — stale, misspelled, or naming a tag the
+ * window list excludes — keeps its historical timestamp-based placement.
+ * Routing those to `Unreleased` as well would pull real shipped work out of
+ * the release its timestamps place it in, on every ordinary `--all-release-tags`
+ * run, while the attribution provenance still classified the item as placed by
+ * timestamp (Greptile, PR #174).
  */
 function assignItemsToReleaseWindows(
   items: PmItem[],
-  windows: ChangelogReleaseWindow[]
+  windows: ChangelogReleaseWindow[],
+  suppressedPendingRelease?: string
 ): ChangelogSection[] {
   const buckets = new Map<string, PmItem[]>();
   for (const window of windows) buckets.set(window.heading, []);
@@ -812,6 +909,8 @@ function assignItemsToReleaseWindows(
     releaseIndex.set(key, window.heading);
   }
 
+  const unreleasedHeading = windows.find((window) => !window.releaseTag)?.heading;
+  const suppressedKey = normalizeSuppressedReleaseKey(suppressedPendingRelease);
   const remaining: PmItem[] = [];
   for (const item of items) {
     const releaseField = getStringField(item, "release");
@@ -819,6 +918,13 @@ function assignItemsToReleaseWindows(
     const heading = key ? releaseIndex.get(key) : undefined;
     if (heading) {
       buckets.get(heading)!.push(item);
+      continue;
+    }
+    // Only a declaration naming the suppressed pending release is re-routed:
+    // the caller removed that window deliberately, so the declaration must
+    // not fall into an older release its timestamp happens to intersect.
+    if (key && suppressedKey && key === suppressedKey && unreleasedHeading) {
+      buckets.get(unreleasedHeading)!.push(item);
       continue;
     }
     remaining.push(item);
@@ -833,6 +939,14 @@ function assignItemsToReleaseWindows(
     heading: window.heading,
     items: buckets.get(window.heading)!,
   }));
+}
+
+/** Normalized release identity of a suppressed pending release, or `""` when
+ * the value is absent or blank. Shared by window placement and attribution
+ * provenance so the two can never disagree about which declarations were
+ * deliberately orphaned by suppression. */
+function normalizeSuppressedReleaseKey(suppressed: string | undefined): string {
+  return suppressed ? normalizeReleaseKey(suppressed) : "";
 }
 
 /**
@@ -966,10 +1080,17 @@ export function compareVersionStrings(a: string, b: string): number {
   return 0;
 }
 
+/** Build the single-version section heading from explicit inputs only.
+ *
+ * A real release run supplies both version and date and keeps its dated
+ * heading. A version without a date remains undated: consulting the wall clock
+ * here would make identical inputs produce different changelogs on different
+ * days and would let an untagged placeholder fabricate a dated release.
+ */
 function buildVersionHeading(version: string | undefined, date: string | undefined): string {
   const heading = version?.trim() || "Unreleased";
-  const stamp = date?.trim() || new Date().toISOString().slice(0, 10);
-  return `${heading} - ${stamp}`;
+  const explicitStamp = date?.trim();
+  return explicitStamp ? `${heading} - ${explicitStamp}` : heading;
 }
 
 /** True for one code unit that JavaScript's `\\s` and `String#trim` treat as
@@ -1417,14 +1538,17 @@ export function formatInferredSources(sources: Record<string, number>): string {
  * Whether this item's release placement came from its own declared `release`
  * rather than from any timestamp.
  *
- * Both placement paths honour a declaration, so both must be recognised here or
- * the `release_pinned` bucket leaks items back into the timestamp counts:
+ * Both placement paths honour a declaration, so every declaration-honouring
+ * placement must be recognised here or the `release_pinned` bucket leaks
+ * items back into the timestamp counts:
  *
  * - Multi-window (`--all-release-tags`): {@link assignItemsToReleaseWindows}
  *   buckets an item by a declaration whose normalized key matches a release-tag
- *   window, consulting no timestamp. A declaration matching NO window is not a
- *   pin - that item falls through to time filtering, so it stays a timestamp
- *   attribution.
+ *   window, consulting no timestamp, and routes a declaration naming the
+ *   suppressed pending release (`suppressedPendingRelease`) to `Unreleased`
+ *   without consulting a timestamp either — both are pins. Any OTHER
+ *   declaration matching no window is not a pin - that item falls through to
+ *   time filtering, so it stays a timestamp attribution.
  * - Single-version (`--respect-item-release`): {@link
  *   applyItemReleaseAttribution} keeps a declared item when it matches
  *   `options.version` and drops it otherwise, so any surviving declared item
@@ -1439,9 +1563,20 @@ function isPlacedByReleaseDeclaration(item: PmItem, options: GenerateChangelogOp
   if (!declaredKey) return false;
   const windows = options.releaseWindows;
   if (windows && windows.length > 0) {
-    return windows.some(
+    if (windows.some(
       (window) => window.releaseTag && normalizeReleaseKey(window.releaseTag) === declaredKey
-    );
+    )) {
+      return true;
+    }
+    // A declaration naming the suppressed pending release was routed to
+    // `Unreleased` by that declaration, not by any timestamp. When no
+    // `Unreleased` window exists (includeUnreleased: false) the item falls
+    // through to timestamp placement, so it must not be classified as
+    // release-pinned.
+    const suppressedKey = normalizeSuppressedReleaseKey(getSuppressedPendingRelease(options));
+    return suppressedKey !== ""
+      && declaredKey === suppressedKey
+      && windows.some((window) => !window.releaseTag);
   }
   return Boolean(options.respectItemRelease) && usesSingleVersionSection(options);
 }
@@ -1730,7 +1865,11 @@ export function visibleChangelogItems(options: GenerateChangelogOptions): PmItem
  */
 export function explainChangelogSelection(options: GenerateChangelogOptions): ChangelogSelectionReport {
   const statuses = new Set((options.includeStatuses ?? DEFAULT_STATUSES).map((status) => status.toLowerCase()));
-  const hasReleaseWindows = Boolean(options.releaseWindows && options.releaseWindows.length > 0);
+  // Window mode is active for a non-empty list, or a deliberately empty one
+  // (suppressed pending release asserted). An accidentally empty list — zero
+  // tags, no suppression asserted — is absent history, so the report mirrors
+  // the single-version fallback instead of reading it as window mode.
+  const hasReleaseWindows = isInReleaseWindowMode(options);
 
   const withTitle: PmItem[] = [];
   const missingTitle: PmItem[] = [];
@@ -1808,7 +1947,6 @@ export function explainChangelogSelection(options: GenerateChangelogOptions): Ch
   const candidateItems = candidateSections.flatMap((section) => section.items);
   const visibleItems = visibleSections.flatMap((section) => section.items);
   const attributionProvenance = buildAttributionProvenance(visibleItems, options);
-
   const excludedCounts = {
     missing_title: missingTitle.length,
     excluded_tag: excludedByTag.length,

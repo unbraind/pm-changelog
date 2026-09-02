@@ -4,6 +4,8 @@ import { dirname, join, resolve } from "node:path";
 
 import type { ChangelogReleaseWindow } from "./types.ts";
 
+const SUPPRESSED_PENDING_RELEASE = Symbol.for("pm-changelog.suppressedPendingRelease");
+
 /** Inputs for deriving a single release's version, date, and time window.
  * Each `*FromPackage` / `*Tag` flag asks for a value to be discovered from the
  * checkout instead of supplied, which is what lets a release job pass no
@@ -40,6 +42,20 @@ export interface ReleaseTagHistoryOptions {
   includeUnreleased?: boolean;
   pendingVersion?: string;
   pendingTimestamp?: string;
+  /**
+   * Whether an untagged `pendingVersion` is treated as the release being cut.
+   * Defaults to `true`, which is what a release job needs: the tag genuinely
+   * does not exist yet at generation time. Set to `false` to assert that
+   * nothing is being released right now — a `package.json` version that has
+   * never been released or tagged is a placeholder, not a release — so no
+   * pending window is fabricated for it. The leading `Unreleased` window is
+   * restored only when `includeUnreleased` is not `false`; when it is
+   * `false`, the window list is empty, and a caller that passes that empty
+   * list on to `createChangelog` gets no release heading at all — the
+   * suppression holds instead of being undone by a fabricated placeholder
+   * section.
+   */
+  pendingRelease?: boolean;
 }
 
 /** A release tag and the timestamp used to order and date its window. */
@@ -267,16 +283,91 @@ function calendarDateFromVersion(version: string | undefined): string {
  * `Unreleased` window leads unless suppressed. A pending version with no tag
  * yet always leads regardless of its display timestamp, and its upper bound
  * remains open so the release being cut owns all work after the previous tag.
+ * That pending window is the release-run shape; `pendingRelease: false`
+ * suppresses it for callers where the untagged version is a placeholder
+ * rather than a release being cut. The leading `Unreleased` window is
+ * restored only when `includeUnreleased` is not `false`; with
+ * `includeUnreleased: false` the result is an empty list, which
+ * `createChangelog` honours as deliberate emptiness (no release sections to
+ * render) rather than absent history, so the suppressed placeholder version
+ * cannot reappear as a fabricated heading.
+ *
+ * The returned value remains an ordinary array for compatibility. When a
+ * pending release was suppressed, a non-enumerable symbol carries that
+ * identity on the array so direct composition with `createChangelog` cannot
+ * discard the caller's intent. Callers that copy or serialize the windows
+ * should use {@link resolveReleaseTagWindowResolution} and forward its explicit
+ * `suppressedPendingRelease` field instead.
  */
 export function resolveReleaseTagWindows(options: ReleaseTagHistoryOptions = {}): ChangelogReleaseWindow[] {
+  const resolution = resolveReleaseTagWindowResolution(options);
+  if (resolution.suppressedPendingRelease) {
+    Object.defineProperty(resolution.windows, SUPPRESSED_PENDING_RELEASE, {
+      value: resolution.suppressedPendingRelease,
+    });
+  }
+  return resolution.windows;
+}
+
+/** A repository's resolved release-tag windows plus the pending release that
+ * was deliberately suppressed from them. Callers that forward both fields
+ * into changelog generation keep suppression intact end to end: `windows`
+ * says what to render, and `suppressedPendingRelease` says which declared
+ * releases belong under `Unreleased` rather than under an older window their
+ * timestamps happen to fall in. */
+export interface ReleaseTagWindowResolution {
+  /** Ordered release windows, newest first — exactly what
+   * {@link resolveReleaseTagWindows} returns for the same options. */
+  windows: ChangelogReleaseWindow[];
+  /** Tag name (e.g. `v2026.9.1`) of the pending release suppressed by
+   * `pendingRelease: false`, present only when a pending window actually was
+   * suppressed. Absent when the flag is unset, when no pending version was
+   * given, or when the version is already tagged. */
+  suppressedPendingRelease?: string;
+}
+
+/**
+ * Resolve a repository's release-tag windows together with the pending
+ * release that `pendingRelease: false` suppressed from them.
+ *
+ * The window derivation is identical to {@link resolveReleaseTagWindows};
+ * use this form when the caller also needs to know which declared releases
+ * were deliberately orphaned by suppression. The CLI and extension forward
+ * both fields into generation so an item declaring the suppressed version
+ * lands under `Unreleased` instead of being relocated into an older real
+ * release.
+ */
+export function resolveReleaseTagWindowResolution(
+  options: ReleaseTagHistoryOptions = {}
+): ReleaseTagWindowResolution {
   const cwd = resolve(options.cwd ?? process.cwd());
   assertReleaseTagHistory({ cwd, requiredBy: ["--all-release-tags"] });
   const tags = listReleaseTags(cwd, options.tagPattern ?? "v*", options.includeOrphaned);
   const pending = resolvePendingReleaseTag(options, tags);
-  const orderedTags = pending
-    ? [pending, ...tags]
-    : tags;
-  if (orderedTags.length === 0) return [];
+  // `pendingRelease: false` asserts no release is being cut, so an untagged
+  // pendingVersion is a placeholder (a package version that has never been
+  // released or tagged), not a release: its window is suppressed rather than
+  // allowed to claim work or displace the `Unreleased` section. The flag stays
+  // a no-op when no pending release would exist anyway (no version given, or
+  // the version is already tagged), so healthy repos see no change.
+  const suppressPending = options.pendingRelease === false && pending !== undefined;
+  const suppressedPendingRelease = suppressPending && pending ? pending.name : undefined;
+  const orderedTags = pending && !suppressPending ? [pending, ...tags] : tags;
+  if (orderedTags.length === 0) {
+    if (suppressPending && options.includeUnreleased !== false) {
+      // Zero tags and the pending release suppressed: nothing has ever been
+      // released, so one open-ended Unreleased window owns all work rather
+      // than letting the package version fabricate the very heading this
+      // suppression exists to prevent.
+      return { windows: [{ heading: "Unreleased" }], suppressedPendingRelease };
+    }
+    // Either the repository has no tag history at all (zero tags, no pending
+    // release) or the caller suppressed the pending release AND asked for no
+    // Unreleased window. Both use an empty list, while the suppression identity
+    // distinguishes deliberate emptiness from absent history when the result
+    // reaches `createChangelog`.
+    return { windows: [], suppressedPendingRelease };
+  }
 
   const windows: ChangelogReleaseWindow[] = [];
   const leadingTag = orderedTags[0];
@@ -292,7 +383,9 @@ export function resolveReleaseTagWindows(options: ReleaseTagHistoryOptions = {})
     const tag = orderedTags[index];
     const previous = orderedTags[index + 1];
     windows.push({
-      heading: `${formatTagVersion(tag.name)} - ${formatLocalTimestampDate(tag.timestamp)}`,
+      heading: tag.timestamp
+        ? `${formatTagVersion(tag.name)} - ${formatLocalTimestampDate(tag.timestamp)}`
+        : formatTagVersion(tag.name),
       releaseTag: tag.name,
       since: previous?.timestamp,
       sinceExclusive: Boolean(previous),
@@ -300,7 +393,38 @@ export function resolveReleaseTagWindows(options: ReleaseTagHistoryOptions = {})
     });
   }
 
-  return windows;
+  return { windows, suppressedPendingRelease };
+}
+
+/**
+ * Project a window resolution onto the generator's `releaseWindows` and
+ * `suppressedPendingRelease` option fields, applying the CLI and extension
+ * policy for empty resolutions.
+ *
+ * A non-empty window list is forwarded verbatim together with any suppressed
+ * pending release. An empty list from this policy's callers means the
+ * repository has no tag history at all (zero tags and no pending version to
+ * suppress), which those surfaces spell as `undefined` so the generator
+ * keeps its historical single-version fallback: a pre-first-release
+ * repository still renders `## Unreleased` with its work rather than a
+ * title-only changelog.
+ *
+ * An empty list is only that fallback when nothing was suppressed. A
+ * resolution that is empty *because* a pending release was suppressed carries
+ * `suppressedPendingRelease`, and that must be forwarded with the empty list
+ * rather than collapsed to `{}`: collapsing it makes the generator read
+ * deliberate suppression as absent history and restore the very placeholder
+ * heading and items the caller suppressed.
+ */
+export function resolveGenerationReleaseWindows(
+  resolution: ReleaseTagWindowResolution
+): { releaseWindows?: ChangelogReleaseWindow[]; suppressedPendingRelease?: string } {
+  return resolution.windows.length > 0 || resolution.suppressedPendingRelease !== undefined
+    ? {
+        releaseWindows: resolution.windows,
+        suppressedPendingRelease: resolution.suppressedPendingRelease,
+      }
+    : {};
 }
 
 /**
@@ -323,7 +447,10 @@ function resolvePendingReleaseTag(options: ReleaseTagHistoryOptions, existingTag
   // `2026.05.27` heading the caller never matches. A `v`-prefixed candidate is
   // guaranteed present by releaseTagCandidates.
   const canonical = candidates.find((candidate) => candidate.startsWith("v"))!;
-  const timestamp = normalizeTimestamp(options.pendingTimestamp ?? new Date().toISOString());
+  // A missing timestamp stays missing rather than consulting the wall clock.
+  // Release surfaces supply an explicit date/timestamp; library callers that
+  // provide only a pending version get a stable undated heading.
+  const timestamp = options.pendingTimestamp ? normalizeTimestamp(options.pendingTimestamp) : "";
   return { name: canonical, timestamp, pending: true };
 }
 

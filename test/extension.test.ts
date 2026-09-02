@@ -117,6 +117,7 @@ test("extension command exposes item-url-base for clickable item IDs", async () 
     "--item-ref-style",
     "--exclude-tag",
     "--respect-item-release",
+    "--no-pending-release",
   ]) {
     assert.ok(
       generateFlags.includes(flag),
@@ -626,4 +627,65 @@ test("the pm host gate refuses every version below the declared floor", () => {
     true,
     "a floor must not reject later hosts: that is what an exact pin would do",
   );
+});
+
+test("CLI and extension produce byte-identical output with and without --no-pending-release", async () => {
+  // Greptile issue 1 on PR #174: the extension surface had no equivalent of
+  // the CLI's `--no-pending-release`, so the two surfaces could silently
+  // diverge for the same inputs. This equivalence test runs both surfaces
+  // against the same tracker root and git context, with and without the flag,
+  // and asserts byte-identical changelog markdown — per-surface tests are what
+  // let them drift.
+  const { commands } = await activateChangelog();
+  const cli = join(process.cwd(), "src", "cli.ts");
+  // A future version not yet tagged triggers the pending-release path; with
+  // `--no-pending-release` the pending window is suppressed and `Unreleased`
+  // leads, exactly as the CLI does.
+  const baseOptions = {
+    "all-release-tags": true,
+    "release-version": "2099.1.2",
+    "date-from-version": true,
+    "include-empty": true,
+  } as const;
+
+  for (const suppress of [false, true] as const) {
+    const label = suppress ? "with --no-pending-release" : "without --no-pending-release";
+
+    // CLI surface — reads items via the pm CLI binary, resolves tags from the
+    // repo root cwd, and writes markdown to stdout.
+    const cliArgs = [
+      cli, "--pm-root", TRACKER_ROOT,
+      "--all-release-tags", "--release-version", "2099.1.2", "--date-from-version", "--include-empty", "--stdout",
+    ];
+    if (suppress) cliArgs.push("--no-pending-release");
+    const cliOutput = execFileSync(process.execPath, cliArgs, {
+      encoding: "utf-8",
+      env: { ...process.env, TZ: "UTC" },
+    });
+
+    // Extension surface — reads items via the SDK, resolves tags from
+    // pm_root, and returns markdown in the `changelog` field.
+    const extOptions: Record<string, unknown> = { stdout: true, ...baseOptions };
+    if (suppress) extOptions["no-pending-release"] = true;
+    const extResult = await runRegisteredCommandForTest(commands, {
+      command: "changelog generate",
+      options: extOptions,
+      pmRoot: TRACKER_ROOT,
+    });
+    const extOutput = (commandResult(extResult) as { changelog: string }).changelog;
+
+    assert.equal(
+      cliOutput, extOutput,
+      `CLI and extension must produce byte-identical output ${label}`,
+    );
+
+    // Sanity: the flag actually changes the output — without it the pending
+    // window leads, with it Unreleased leads. This guards against a future
+    // change that makes both branches identical (e.g. the version gets tagged).
+    if (suppress) {
+      assert.match(extOutput, /## Unreleased/, `extension output should lead with Unreleased ${label}`);
+    } else {
+      assert.match(extOutput, /## 2099\.1\.2 - 2099-01-02/, `extension output should lead with the pending version ${label}`);
+    }
+  }
 });

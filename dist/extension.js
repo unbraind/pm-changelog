@@ -2,7 +2,7 @@ import { writeFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { defineExtension, listAllItemMetadata, locateItem, readLocatedItem, readSettings, resolveItemTypeRegistry, EXIT_CODE, PmCliError, } from "@unbrained/pm-cli/sdk";
 import { buildChangelogDocument, createChangelog, createChangelogSummary, explainChangelogSelection, formatSummaryLine, mergeChangelog, suggestSemver, writeChangelog } from "./generator.js";
-import { MissingTagHistoryError, resolveReleaseContext, resolveReleaseTagWindows } from "./release-context.js";
+import { MissingTagHistoryError, resolveGenerationReleaseWindows, resolveReleaseContext, resolveReleaseTagWindowResolution, } from "./release-context.js";
 const BODY_ENRICHMENT_DEPENDENCIES = {
     readSettings,
     resolveItemTypeRegistry,
@@ -90,6 +90,7 @@ export default defineExtension({
                 { long: "--item-ref-style", value_name: "style", description: "How item IDs render: auto (default), label (neutral/public-safe), toon (force blob link), github (public issue/PR link from gh:owner/repo#N provenance tag)" },
                 { long: "--exclude-tag", value_name: "list", description: "Omit items carrying any of these comma-separated tags (ignore convention, e.g. changelog:ignore)" },
                 { long: "--respect-item-release", description: "Treat an item release field as the authority for its single version window: keep it when it matches the release version regardless of timestamps, drop it otherwise (--all-release-tags always honors the field)" },
+                { long: "--no-pending-release", description: "Nothing is being released right now: suppress the pending release window for an untagged package version" },
                 { long: "--check", description: "Do not write; report whether the changelog would change" },
             ],
             async run(ctx) {
@@ -146,15 +147,24 @@ export default defineExtension({
                     until: untilOption,
                     untilReleaseTag: booleanOption(ctx.options, "until-release-tag", "untilReleaseTag"),
                 }));
-                const releaseWindows = allReleaseTags
-                    ? withTagHistoryDiagnostics(() => resolveReleaseTagWindows({
+                // Same policy as the CLI: forward the resolved windows and the
+                // suppressed pending release (so items declaring that version land
+                // under `Unreleased`, not an older real release), spelling an empty
+                // resolution as absent history so a pre-first-release repository keeps
+                // the single-section `## Unreleased` fallback.
+                const windowResolution = allReleaseTags
+                    ? withTagHistoryDiagnostics(() => resolveReleaseTagWindowResolution({
                         cwd: ctx.pm_root,
                         tagPattern: stringOption(ctx.options, "release-tag-pattern", "releaseTagPattern"),
                         includeOrphaned: true,
                         pendingVersion: releaseContext.version,
                         pendingTimestamp: untilOption ?? dateOption ?? releaseContext.date,
+                        pendingRelease: booleanOption(ctx.options, "no-pending-release", "noPendingRelease") ? false : undefined,
                     }))
                     : undefined;
+                const { releaseWindows, suppressedPendingRelease } = windowResolution
+                    ? resolveGenerationReleaseWindows(windowResolution)
+                    : {};
                 const items = await listAllItemMetadata(ctx.pm_root);
                 const bodyPreview = parseBodyPreviewOption(ctx.options);
                 // listAllItemMetadata omits item bodies, so --body-preview would silently
@@ -170,6 +180,7 @@ export default defineExtension({
                     since: releaseContext.since,
                     until: releaseContext.until,
                     releaseWindows,
+                    suppressedPendingRelease,
                     includeStatuses: statuses,
                     groupBy,
                     sectionBy,

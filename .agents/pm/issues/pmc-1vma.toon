@@ -1,0 +1,42 @@
+id: pmc-1vma
+title: Pending release windows must not claim a never-released package version
+description: "Since 2026.8.30 (PR #170), --all-release-tags treats an untagged package.json version as a pending release, puts its window first, and suppresses the leading Unreleased window. That is correct only when a release is actually being cut; resolvePendingReleaseTag derives pending purely from package.json, so in a repo whose version has never been released or tagged the version is a placeholder and the changelog fabricates a heading asserting a release that never happened. Measured: fleet/pm-vcs (version 2026.7.30, zero release tags, never published) and fleet/pm-rl (2026.7.31, same) both regenerate '## Unreleased' as '## 2026.7.30 - 2026-07-30' / '## 2026.7.31 - 2026-07-31'; their Dependency Refresh workflow fails on it (unbraind/pm-vcs run 33379641902). Bisected with the pm CLI held constant: 2026.8.29 good, 2026.8.30/31 bad; the 19 fleet repos whose package version matches a real tag are unaffected. Fix: add an additive --no-pending-release CLI flag and a pendingRelease option on resolveReleaseTagWindows that suppress the fabricated pending window and restore the leading Unreleased window, with default behaviour unchanged."
+type: Issue
+status: closed
+priority: 2
+tags: []
+created_at: "2026-08-31T10:39:11.702Z"
+updated_at: "2026-09-02T11:10:05.784Z"
+closed_at: "2026-09-02T11:10:05.320Z"
+completed_at: "2026-09-02T11:10:05.320Z"
+author: pi-agent
+resolution: "Added the additive --no-pending-release flag and pendingRelease option; callers can suppress a fabricated pending window while the explicit includeUnreleased:false opt-out remains authoritative."
+expected_result: A never-released package version does not fabricate a release heading when suppression is requested; Unreleased appears only when includeUnreleased is enabled.
+actual_result: "With includeUnreleased enabled, suppression restores the leading Unreleased window. With includeUnreleased:false, suppression returns no Unreleased window. Default and release-run behavior remains unchanged."
+comments[2]:
+  - created_at: "2026-08-31T10:43:17.549Z"
+    author: pi-agent
+    text: "Implemented the additive control: a pendingRelease option on resolveReleaseTagWindows (ReleaseTagHistoryOptions) and a --no-pending-release CLI flag. When the caller asserts nothing is being released, the fabricated pending window is suppressed and the leading Unreleased window restored; with zero release tags the Unreleased window is open-ended so no version fallback can fabricate a heading. Default behaviour is unchanged: pendingRelease defaults to true, and the flag is a no-op when the version is already tagged. The linked test entries record commands and intent; broad quantitative claims about fleet-wide counts, full coverage, blanket revert-proofing, and byte-identical fleet regeneration are not re-asserted here as executed fact (see actual_result for the narrowing rationale)."
+    edited_at: "2026-09-01T07:08:19.849Z"
+  - created_at: "2026-09-02T11:10:04.815Z"
+    author: codex
+    text: "CodeRabbit review correction on PR #174: qualified the restoration claim. A leading Unreleased window is restored only when includeUnreleased is not false; the explicit includeUnreleased:false opt-out continues to return no Unreleased window."
+files[8]{path,scope}:
+  docs/usage.md,project
+  src/cli.ts,project
+  src/generator.ts,project
+  src/release-context.ts,project
+  src/types.ts,project
+  test/cli-coverage.test.ts,project
+  test/generator.test.ts,project
+  test/release-context.test.ts,project
+tests[7]{command,path,scope,note}:
+  "PM_PATH=/tmp/pmc-1vma PM_GLOBAL_PATH=/tmp/pmc-1vma-g node --test --test-name-pattern \"restores the leading Unreleased window for a never-released package version\" test/release-context.test.ts",test/release-context.test.ts,project,restores the leading Unreleased window for a never-released package version
+  "PM_PATH=/tmp/pmc-1vma PM_GLOBAL_PATH=/tmp/pmc-1vma-g node --test --test-name-pattern \"drops a pending window but keeps tagged windows, and is a no-op once the version is tagged\" test/release-context.test.ts",test/release-context.test.ts,project,"drops a pending window but keeps tagged windows, and is a no-op once the version is tagged"
+  "PM_PATH=/tmp/pmc-1vma PM_GLOBAL_PATH=/tmp/pmc-1vma-g node --test --test-name-pattern \"returns no windows when suppression coincides with includeUnreleased false\" test/release-context.test.ts",test/release-context.test.ts,project,returns no windows when suppression coincides with includeUnreleased false
+  "PM_PATH=/tmp/pmc-1vma PM_GLOBAL_PATH=/tmp/pmc-1vma-g node --test --test-name-pattern=\"--no-pending-release keeps a never-released package version out of the headings\" test/generator.test.ts",test/generator.test.ts,project,"--no-pending-release keeps a never-released package version out of the headings"
+  "PM_PATH=/tmp/pmc-1vma PM_GLOBAL_PATH=/tmp/pmc-1vma-g node --test --test-name-pattern \"an explicitly empty suppressed window list renders no release heading through createChangelog\" test/generator.test.ts",test/generator.test.ts,project,"an explicitly empty suppressed window list renders no release heading through createChangelog (finding 1: empty vs absent window list distinction, tested through createChangelog)"
+  "PM_PATH=/tmp/pmc-1vma PM_GLOBAL_PATH=/tmp/pmc-1vma-g node --test --test-name-pattern \"--all-release-tags with zero tags and no version keeps the Unreleased fallback\" test/generator.test.ts",test/generator.test.ts,project,"--all-release-tags with zero tags and no version keeps the Unreleased fallback (CLI spells empty resolution as absent so the single-version fallback renders the work, not a title-only changelog)"
+  "PM_PATH=/tmp/pmc-1vma PM_GLOBAL_PATH=/tmp/pmc-1vma-g node --test --test-name-pattern \"explainChangelogSelection counts a suppressed-release declaration as release-pinned\" test/generator.test.ts",test/generator.test.ts,project,"explainChangelogSelection counts a suppressed-release declaration as release-pinned (provenance agrees with placement: suppressed declaration is a release pin, not a timestamp attribution)"
+close_reason: "Corrected review evidence: Unreleased restoration is conditional on includeUnreleased not being false."
+body: ""

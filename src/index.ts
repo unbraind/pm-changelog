@@ -18,10 +18,15 @@ export {
   assertReleaseTagHistory,
   MISSING_TAG_HISTORY_ERROR_CODE,
   MissingTagHistoryError,
+  resolveGenerationReleaseWindows,
   resolveReleaseContext,
+  resolveReleaseTagWindowResolution,
   resolveReleaseTagWindows,
 } from "./release-context.ts";
-export type { AssertReleaseTagHistoryOptions } from "./release-context.ts";
+export type {
+  AssertReleaseTagHistoryOptions,
+  ReleaseTagWindowResolution,
+} from "./release-context.ts";
 export type {
   ChangelogAttributionProvenance,
   ChangelogDocument,

@@ -15,11 +15,14 @@ import {
   MISSING_TAG_HISTORY_ERROR_CODE,
   MissingTagHistoryError,
   parseListAllItemsJson,
+  type PmItem,
   readPmItems,
   resolveReleaseContext,
   resolveReleaseTagWindows,
+  resolveReleaseTagWindowResolution,
   writeChangelog,
 } from "../src/index.ts";
+import { resolveInstalledPmCommand } from "../src/generator.ts";
 
 function readEnvironmentValue(
   environment: NodeJS.ProcessEnv,
@@ -101,22 +104,18 @@ test("createChangelog groups closed items by category", () => {
   assert.doesNotMatch(result.markdown, /Draft release notes/);
 });
 
-test("createChangelog defaults release heading dates to UTC across host timezones", (context) => {
-  const previousTimezone = process.env.TZ;
-  context.mock.timers.enable({ apis: ["Date"], now: new Date("2026-08-01T22:30:00.000Z") });
-
+test("createChangelog does not derive a version heading date from the wall clock", (context) => {
+  context.mock.timers.enable({ apis: ["Date"], now: Date.parse("2026-08-01T22:30:00.000Z") });
   try {
-    process.env.TZ = "UTC";
-    const utc = createChangelog({ items, version: "1.2.0" }).markdown;
-    process.env.TZ = "Europe/Vienna";
-    const vienna = createChangelog({ items, version: "1.2.0" }).markdown;
+    const firstDay = createChangelog({ items, version: "1.2.0" }).markdown;
+    context.mock.timers.setTime(Date.parse("2026-09-01T02:00:00.000Z"));
+    const secondDay = createChangelog({ items, version: "1.2.0" }).markdown;
 
-    assert.equal(vienna, utc);
-    assert.match(utc, /^# Changelog\n\n## 1\.2\.0 - 2026-08-01/m);
+    assert.equal(secondDay, firstDay, "identical inputs must survive a change in simulated today");
+    assert.match(firstDay, /^# Changelog\n\n## 1\.2\.0$/m);
+    assert.doesNotMatch(firstDay, /^## 1\.2\.0 - /m);
   } finally {
     context.mock.timers.reset();
-    if (previousTimezone === undefined) delete process.env.TZ;
-    else process.env.TZ = previousTimezone;
   }
 });
 
@@ -1852,6 +1851,73 @@ test("pending all-release-tags output is byte-identical after tagging the releas
   assert.equal(afterTag, beforeTag);
 });
 
+test("--no-pending-release keeps a never-released package version out of the headings", (t) => {
+  // The pm-vcs/pm-rl regression shape (unbraind/pm-vcs run 33379641902): zero
+  // release tags, a package.json version that has never been released or
+  // tagged. Since 2026.8.30 (PR #170) the untagged version is treated as a
+  // pending release, so `--all-release-tags --release-version-from-package`
+  // rewrites the leading `## Unreleased` into `## 2026.7.30 - 2026-07-30` — a
+  // heading asserting a release that never happened. `--no-pending-release`
+  // says no release is being cut and restores the Unreleased window.
+  const directory = mkdtempSync(join(tmpdir(), "pm-changelog-never-released-"));
+  t.after(() => rmSync(directory, { recursive: true, force: true }));
+  execFileSync("git", ["init"], { cwd: directory, encoding: "utf-8" });
+  execFileSync("git", ["config", "user.name", "pm changelog test"], { cwd: directory, encoding: "utf-8" });
+  execFileSync("git", ["config", "user.email", "pm-changelog@example.com"], { cwd: directory, encoding: "utf-8" });
+  writeFileSync(join(directory, "work.txt"), "work\n", "utf-8");
+  execFileSync("git", ["add", "work.txt"], { cwd: directory, encoding: "utf-8" });
+  execFileSync("git", ["commit", "-m", "work"], {
+    cwd: directory,
+    encoding: "utf-8",
+    env: {
+      ...process.env,
+      GIT_AUTHOR_DATE: "2026-07-30T12:00:00Z",
+      GIT_COMMITTER_DATE: "2026-07-30T12:00:00Z",
+    },
+  });
+  // Placeholder version that has never been released: no tag exists for it.
+  writeFileSync(
+    join(directory, "package.json"),
+    JSON.stringify({ name: "pm-vcs-fixture", version: "2026.7.30" }),
+    "utf-8",
+  );
+
+  const input = join(directory, "items.json");
+  writeFileSync(input, JSON.stringify([{
+    id: "pm-never-released",
+    title: "Keep never-released work under Unreleased",
+    status: "closed",
+    type: "feature",
+    closed_at: "2026-08-15T09:00:00Z",
+  }]), "utf-8");
+  const cli = join(process.cwd(), "src", "cli.ts");
+  const generate = (extra: string[]): string => execFileSync(process.execPath, [
+    cli,
+    "--input", input,
+    "--stdout",
+    "--all-release-tags",
+    "--release-version-from-package",
+    "--date-from-version",
+    ...extra,
+  ], {
+    cwd: directory,
+    encoding: "utf-8",
+    env: { ...process.env, TZ: "UTC" },
+  });
+
+  // Default behaviour is unchanged: the pending window still leads (the
+  // release-run shape PR #170 established), which fabricates the heading in
+  // this never-released shape.
+  const fabricated = generate([]);
+  assert.match(fabricated, /## 2026\.7\.30 - 2026-07-30[\s\S]*pm-never-released/);
+  assert.doesNotMatch(fabricated, /## Unreleased/);
+
+  // The flag suppresses the fabricated window and restores Unreleased.
+  const suppressed = generate(["--no-pending-release"]);
+  assert.match(suppressed, /## Unreleased[\s\S]*pm-never-released/);
+  assert.doesNotMatch(suppressed, /2026\.7\.30/);
+});
+
 test("resolveReleaseTagWindows rejects shallow clones but preserves zero-tag pending windows", (t) => {
   const { cloneDir } = createShallowClone(t, []);
 
@@ -2114,6 +2180,47 @@ process.stdout.write(JSON.stringify({ items: [{ id: "pm-large", title: "Large tr
 
   assert.equal(result.length, 1);
   assert.equal(result[0].id, "pm-large");
+});
+
+test("resolveInstalledPmCommand rejects a manifest that does not declare the pm executable", () => {
+  assert.throws(
+    () => resolveInstalledPmCommand({
+      resolveManifestPath: () => "fixtures/pm-cli/package.json",
+      readManifest: () => JSON.stringify({ name: "@unbrained/pm-cli" }),
+      pathExists: () => true,
+      nodeExecutable: "node-for-test",
+    }),
+    /Failed to resolve the installed @unbrained\/pm-cli executable: Package manifest fixtures\/pm-cli\/package\.json does not declare the pm executable \(bin=undefined\)/
+  );
+});
+
+test("resolveInstalledPmCommand rejects a pm executable path that does not exist", () => {
+  assert.throws(
+    () => resolveInstalledPmCommand({
+      resolveManifestPath: () => "fixtures/pm-cli/package.json",
+      readManifest: () => JSON.stringify({ bin: "dist/cli.js" }),
+      pathExists: () => false,
+      nodeExecutable: "node-for-test",
+    }),
+    /Failed to resolve the installed @unbrained\/pm-cli executable: Package manifest fixtures\/pm-cli\/package\.json declares pm bin dist\/cli\.js, but the resolved path does not exist:/
+  );
+});
+
+test("resolveInstalledPmCommand wraps a package manifest resolver failure", () => {
+  assert.throws(
+    () => resolveInstalledPmCommand({
+      resolveManifestPath: () => { throw "resolver failed"; },
+      readManifest: () => "{}",
+      pathExists: () => true,
+      nodeExecutable: "node-for-test",
+    }),
+    (error: unknown) => {
+      assert.ok(error instanceof Error);
+      assert.equal(error.message, "Failed to resolve the installed @unbrained/pm-cli executable: resolver failed");
+      assert.equal(error.cause, "resolver failed");
+      return true;
+    }
+  );
 });
 
 test("readPmItems resolves the installed pm-cli executable without PATH", () => {
@@ -3750,4 +3857,552 @@ test("explainChangelogSelection treats a release declaration matching no window 
   assert.equal(provenance.release_pinned, 0);
   assert.equal(provenance.inferred, 1);
   assert.deepEqual(provenance.inferred_sample, ["pm-unmatched: Declares an unknown release"]);
+});
+
+// ---------------------------------------------------------------------------
+// Issue 2 (Greptile on PR #174): suppressing a phantom pending release must
+// not relocate an item into an older real release or drop it entirely. An
+// item whose declared `release` names the SUPPRESSED pending version lands
+// under `Unreleased`; every other unmatched declaration keeps its historical
+// timestamp placement and attribution (the follow-up tests below).
+// ---------------------------------------------------------------------------
+
+/**
+ * Release windows simulating `resolveReleaseTagWindowResolution` with
+ * `pendingRelease: false` for a never-tagged placeholder version: the pending
+ * window is gone, a leading `Unreleased` window owns post-tag work, and two
+ * tagged releases follow. The same resolution reports `v2026.7.1` as the
+ * suppressed pending release, which these tests forward through
+ * `suppressedPendingRelease` exactly as the CLI and extension do.
+ */
+const SUPPRESSED_PENDING_WINDOWS = [
+  { heading: "Unreleased", since: "2026-06-01T12:00:00Z", sinceExclusive: true },
+  { heading: "2026.6.1 - 2026-06-01", releaseTag: "v2026.6.1", since: "2026-05-01T12:00:00Z", sinceExclusive: true, until: "2026-06-01T12:00:00Z" },
+  { heading: "2026.5.1 - 2026-05-01", releaseTag: "v2026.5.1", until: "2026-05-01T12:00:00Z" },
+] as const;
+
+test("suppressed pending release does not relocate a declared item into an older real release", () => {
+  // Shape: an item declares the suppressed placeholder version (2026.7.1) and
+  // its completion timestamp falls squarely inside the 2026.6.1 window. Before
+  // the fix the item was placed by time into `## 2026.6.1`, silently crediting
+  // work to a real release that never shipped it. After the fix the item lands
+  // under `## Unreleased` because its declared release is the one the caller
+  // suppressed.
+  const result = createChangelog({
+    items: [
+      {
+        id: "pm-relocated",
+        title: "Work attributed to a phantom release",
+        status: "closed",
+        type: "feature",
+        release: "2026.7.1",
+        completed_at: "2026-05-15T12:00:00Z",
+      },
+    ],
+    releaseWindows: [...SUPPRESSED_PENDING_WINDOWS],
+    suppressedPendingRelease: "v2026.7.1",
+  });
+  assert.match(result.markdown, /## Unreleased[\s\S]*pm-relocated/);
+  assert.doesNotMatch(
+    result.markdown.match(/## 2026\.6\.1[\s\S]*?(?=## 2026\.5\.1|$)/)?.[0] ?? "",
+    /pm-relocated/,
+  );
+  assert.equal(result.itemCount, 1, "the item must not be dropped");
+});
+
+test("suppressed pending release does not drop a declared item narrowed out of an older release section", () => {
+  // Shape: an item declares the suppressed placeholder version (2026.7.1) and
+  // its completion timestamp falls inside the oldest tagged window (2026.5.1).
+  // `--since-version 2026.6.1` narrows the visible sections to Unreleased +
+  // 2026.6.1, dropping the 2026.5.1 section. Before the fix the item was placed
+  // by time into `## 2026.5.1`, which was then dropped by section narrowing —
+  // the item silently disappeared. After the fix it lands under `## Unreleased`
+  // (which section narrowing always keeps), so it survives.
+  const result = createChangelog({
+    items: [
+      {
+        id: "pm-omitted",
+        title: "Work that would have been lost",
+        status: "closed",
+        type: "bug",
+        release: "2026.7.1",
+        completed_at: "2026-04-15T12:00:00Z",
+      },
+    ],
+    releaseWindows: [...SUPPRESSED_PENDING_WINDOWS],
+    suppressedPendingRelease: "v2026.7.1",
+    sinceVersion: "2026.6.1",
+  });
+  assert.match(result.markdown, /## Unreleased[\s\S]*pm-omitted/);
+  assert.equal(result.itemCount, 1, "the item must not be dropped by section narrowing");
+});
+
+test("an item declaring the suppressed pending release lands under Unreleased whatever its timestamps say", () => {
+  // The intended behaviour, now constrained to it: an item whose declared
+  // release is the one the caller suppressed is routed to Unreleased
+  // regardless of where its timestamps would place it — inside an older
+  // window or outside all windows — alongside ordinary timestamp-placed work.
+  const result = createChangelog({
+    items: [
+      {
+        id: "pm-in-window",
+        title: "Timestamp falls in an older release",
+        status: "closed",
+        type: "feature",
+        release: "2026.7.1",
+        completed_at: "2026-05-15T12:00:00Z",
+      },
+      {
+        id: "pm-before-all",
+        title: "Timestamp before the oldest tag",
+        status: "closed",
+        type: "bug",
+        release: "2026.7.1",
+        completed_at: "2026-04-01T12:00:00Z",
+      },
+      {
+        id: "pm-ordinary",
+        title: "Ordinary post-tag work",
+        status: "closed",
+        type: "task",
+        completed_at: "2026-06-15T12:00:00Z",
+      },
+    ],
+    releaseWindows: [...SUPPRESSED_PENDING_WINDOWS],
+    suppressedPendingRelease: "v2026.7.1",
+  });
+  // Both declared items land under Unreleased alongside the ordinary item.
+  const unreleasedSection = result.markdown.match(/## Unreleased[\s\S]*?(?=## 2026\.6\.1|$)/)?.[0] ?? "";
+  assert.match(unreleasedSection, /pm-in-window/);
+  assert.match(unreleasedSection, /pm-before-all/);
+  assert.match(unreleasedSection, /pm-ordinary/);
+  assert.equal(result.itemCount, 3, "all three items must appear");
+});
+
+test("explainChangelogSelection counts a suppressed-release declaration as release-pinned", () => {
+  // Placement and provenance must agree: assignItemsToReleaseWindows routes a
+  // declaration naming the suppressed pending release to Unreleased without
+  // consulting a timestamp, so counting it as a timestamp attribution would
+  // leak it out of the release_pinned bucket the way multi-window pins leaked
+  // before (see the release-pinned counting test above).
+  const report = explainChangelogSelection({
+    items: [
+      {
+        id: "pm-suppressed-declared",
+        title: "Declares the suppressed placeholder",
+        status: "closed",
+        type: "feature",
+        release: "2026.7.1",
+        closed_at: "2026-05-15T12:00:00Z",
+      },
+      {
+        id: "pm-by-time",
+        title: "Placed by time only",
+        status: "closed",
+        type: "task",
+        // `completed_at` (not `closed_at`) so the item is an authoritative
+        // timestamp attribution — the clean control the release-pinned item is
+        // contrasted against. `closed_at` would classify as inferred (a
+        // tracker closed long after its fix shipped), which the assertion
+        // `inferred: 0` deliberately excludes.
+        completed_at: "2026-06-15T12:00:00Z",
+      },
+    ],
+    releaseWindows: [...SUPPRESSED_PENDING_WINDOWS],
+    suppressedPendingRelease: "v2026.7.1",
+  });
+  const provenance = report.attribution_provenance;
+  assert.ok(provenance);
+  assert.equal(provenance.release_pinned, 1);
+  assert.equal(provenance.authoritative, 1);
+  assert.equal(provenance.inferred, 0);
+});
+
+test("a stale or misspelled release declaration keeps its timestamp placement and attribution", () => {
+  // Greptile issue on PR #174 (the over-correction): the orphan routing fired
+  // on every --all-release-tags run, so an item with a stale or misspelled
+  // release declaration was pulled out of the tagged release its timestamps
+  // place it in and filed under Unreleased, while the provenance still
+  // classified it as placed by timestamp. Only a declaration naming the
+  // SUPPRESSED pending release is routed now; every other unmatched
+  // declaration keeps the pre-PR timestamp placement and classification.
+  const options = {
+    items: [
+      {
+        id: "pm-stale",
+        title: "Declares a release that was never tagged",
+        status: "closed",
+        type: "bug",
+release: "2026.4.9",
+        // `completed_at` (not `closed_at`) so the provenance classifies the
+        // item as authoritative timestamp placement — the classification the
+        // assertion `authoritative: 2` checks. `closed_at` would mark these
+        // as inferred late-close candidates instead.
+        completed_at: "2026-05-15T12:00:00Z",
+      },
+      {
+        id: "pm-misspelled",
+        title: "Misspells the release it shipped in",
+        status: "closed",
+        type: "feature",
+        release: "2026.6.l",
+        completed_at: "2026-05-20T12:00:00Z",
+      },
+    ],
+    releaseWindows: [
+      { heading: "Unreleased", since: "2026-06-01T12:00:00Z", sinceExclusive: true },
+      { heading: "2026.6.1 - 2026-06-01", releaseTag: "v2026.6.1", since: "2026-05-01T12:00:00Z", sinceExclusive: true, until: "2026-06-01T12:00:00Z" },
+      { heading: "2026.5.1 - 2026-05-01", releaseTag: "v2026.5.1", until: "2026-05-01T12:00:00Z" },
+    ],
+  };
+  const result = createChangelog(options);
+  // Both stay in the 2026.6.1 window their timestamps place them in — the
+  // pre-PR placement — instead of being pulled into Unreleased.
+  const window61 = result.markdown.match(/## 2026\.6\.1[\s\S]*?(?=## 2026\.5\.1|$)/)?.[0] ?? "";
+  assert.match(window61, /pm-stale/);
+  assert.match(window61, /pm-misspelled/);
+  const unreleased = result.markdown.match(/## Unreleased[\s\S]*?(?=## 2026\.6\.1|$)/)?.[0] ?? "";
+  assert.equal(unreleased, "", "no items belong under Unreleased in an ordinary tagged repository");
+  // And the provenance classifies them by timestamp, not as declaration pins
+  // — the classification the placement actually used.
+  const report = explainChangelogSelection(options);
+  assert.equal(report.attribution_provenance?.release_pinned, 0);
+  assert.equal(report.attribution_provenance?.authoritative, 2);
+});
+
+test("a suppressed declaration keeps timestamp placement when no Unreleased window exists", () => {
+  // `includeUnreleased: false` is an explicit opt-out with no Unreleased
+  // window to route to: the suppressed declaration falls through to timestamp
+  // placement exactly as before, preserving the caller's opt-out.
+  const result = createChangelog({
+    items: [
+      {
+        id: "pm-suppressed-no-unreleased",
+        title: "Declares the suppressed version with no Unreleased window",
+        status: "closed",
+        type: "feature",
+        release: "2026.7.1",
+        closed_at: "2026-05-15T12:00:00Z",
+      },
+    ],
+    releaseWindows: [
+      { heading: "2026.6.1 - 2026-06-01", releaseTag: "v2026.6.1", since: "2026-05-01T12:00:00Z", sinceExclusive: true, until: "2026-06-01T12:00:00Z" },
+      { heading: "2026.5.1 - 2026-05-01", releaseTag: "v2026.5.1", until: "2026-05-01T12:00:00Z" },
+    ],
+    suppressedPendingRelease: "v2026.7.1",
+  });
+  assert.match(result.markdown, /## 2026\.6\.1[\s\S]*pm-suppressed-no-unreleased/);
+  assert.doesNotMatch(result.markdown, /## Unreleased/);
+});
+
+test("explainChangelogSelection counts a suppressed declaration as timestamp attribution when no Unreleased window exists", () => {
+  // When includeUnreleased is false and pendingRelease is false, there is no
+  // Unreleased window to route to: the suppressed declaration falls through to
+  // timestamp placement. The provenance must classify it as timestamp
+  // attribution, not release-pinned, so the --explain report does not hide it
+  // from the diagnostics used to identify potentially misplaced work.
+  const report = explainChangelogSelection({
+    items: [
+      {
+        id: "pm-suppressed-no-unreleased",
+        title: "Declares the suppressed version with no Unreleased window",
+        status: "closed",
+        type: "feature",
+        release: "2026.7.1",
+        closed_at: "2026-05-15T12:00:00Z",
+      },
+    ],
+    releaseWindows: [
+      { heading: "2026.6.1 - 2026-06-01", releaseTag: "v2026.6.1", since: "2026-05-01T12:00:00Z", sinceExclusive: true, until: "2026-06-01T12:00:00Z" },
+      { heading: "2026.5.1 - 2026-05-01", releaseTag: "v2026.5.1", until: "2026-05-01T12:00:00Z" },
+    ],
+    suppressedPendingRelease: "v2026.7.1",
+  });
+  const provenance = report.attribution_provenance;
+  assert.ok(provenance);
+  assert.equal(provenance.release_pinned, 0);
+  assert.equal(provenance.inferred, 1);
+});
+
+// ---------------------------------------------------------------------------
+// Round 3, Greptile issue 1 (reported twice) on PR #174: an explicit
+// suppression must survive into createChangelog. The resolver's empty list
+// and an absent one are now distinct spellings, so the handover between
+// resolveReleaseTagWindows and createChangelog keeps the suppression.
+// ---------------------------------------------------------------------------
+
+test("an explicitly empty suppressed window list renders no release heading through createChangelog", (t) => {
+  // A library caller combining pendingRelease: false with
+  // includeUnreleased: false in a zero-tag repository receives [] from the
+  // resolver; createChangelog used to read that empty list as absent history
+  // and substitute a dated section for the resolved placeholder version, so
+  // the suppression was undone one call later. The deliberate-emptiness
+  // capability is reachable only on purpose: the caller must forward the
+  // `suppressedPendingRelease` tag the resolution form reports alongside the
+  // empty window list, which asserts the suppressing intent. Without that
+  // signal an accidentally empty list (zero tags, no suppression asserted)
+  // falls back to the absent-history single-version section, so silent total
+  // item loss is not reachable from any combination of public options.
+  const directory = mkdtempSync(join(tmpdir(), "pm-changelog-empty-suppression-"));
+  t.after(() => rmSync(directory, { recursive: true, force: true }));
+  execFileSync("git", ["init"], { cwd: directory, encoding: "utf-8" });
+  execFileSync("git", ["config", "user.name", "pm changelog test"], { cwd: directory, encoding: "utf-8" });
+  execFileSync("git", ["config", "user.email", "pm-changelog@example.com"], { cwd: directory, encoding: "utf-8" });
+  writeFileSync(join(directory, "work.txt"), "work\n", "utf-8");
+  execFileSync("git", ["add", "work.txt"], { cwd: directory, encoding: "utf-8" });
+  execFileSync("git", ["commit", "-m", "work"], { cwd: directory, encoding: "utf-8" });
+
+  const options = {
+    items: [{
+      id: "pm-suppressed-placeholder",
+      title: "Work done under a placeholder version",
+      status: "closed",
+      type: "feature",
+      closed_at: "2026-08-15T09:00:00Z",
+    }],
+    version: "2026.9.1",
+    date: "2026-09-01",
+    // Even the opt-in empty-section rendering must not resurrect the heading.
+    includeEmpty: true,
+  };
+  const resolution = resolveReleaseTagWindowResolution({
+    cwd: directory,
+    pendingVersion: "2026.9.1",
+    pendingTimestamp: "2026-09-01T12:00:00Z",
+    pendingRelease: false,
+    includeUnreleased: false,
+  });
+  assert.equal(resolution.windows.length, 0, "the resolver honours the suppression");
+  assert.equal(resolution.suppressedPendingRelease, "v2026.9.1");
+
+  const result = createChangelog({
+    ...options,
+    releaseWindows: resolution.windows,
+    suppressedPendingRelease: resolution.suppressedPendingRelease,
+  });
+  assert.equal(result.markdown, "# Changelog\n");
+  assert.equal(result.itemCount, 0);
+  assert.deepEqual(result.sections, []);
+
+  // The selection report agrees with the render — window mode, nothing
+  // visible — instead of reporting the single-version shape the empty list
+  // used to fall back into.
+  const report = explainChangelogSelection({
+    ...options,
+    releaseWindows: resolution.windows,
+    suppressedPendingRelease: resolution.suppressedPendingRelease,
+    respectItemRelease: true,
+  });
+  assert.equal(report.filters.release_windows, true);
+  assert.equal(report.stage_counts.visible_items, 0);
+});
+
+test("resolveReleaseTagWindows carries deliberate empty suppression into createChangelog", (t) => {
+  const directory = mkdtempSync(join(tmpdir(), "pm-changelog-library-suppression-"));
+  t.after(() => rmSync(directory, { recursive: true, force: true }));
+  execFileSync("git", ["init"], { cwd: directory, encoding: "utf-8" });
+  execFileSync("git", ["config", "user.name", "pm changelog test"], { cwd: directory, encoding: "utf-8" });
+  execFileSync("git", ["config", "user.email", "pm-changelog@example.com"], { cwd: directory, encoding: "utf-8" });
+  writeFileSync(join(directory, "work.txt"), "work\n", "utf-8");
+  execFileSync("git", ["add", "work.txt"], { cwd: directory, encoding: "utf-8" });
+  execFileSync("git", ["commit", "-m", "work"], { cwd: directory, encoding: "utf-8" });
+
+  const releaseWindows = resolveReleaseTagWindows({
+    cwd: directory,
+    pendingVersion: "2026.9.1",
+    pendingTimestamp: "2026-09-01T12:00:00Z",
+    pendingRelease: false,
+    includeUnreleased: false,
+  });
+  assert.equal(releaseWindows.length, 0);
+
+  const result = createChangelog({
+    items: [{
+      id: "pm-library-suppressed",
+      title: "Work under an untagged placeholder",
+      status: "closed",
+      type: "feature",
+    }],
+    version: "2026.9.1",
+    date: "2026-09-01",
+    releaseWindows,
+  });
+  assert.equal(result.markdown, "# Changelog\n");
+  assert.equal(result.itemCount, 0);
+  assert.deepEqual(result.sections, []);
+});
+
+test("an accidentally empty releaseWindows list preserves items under Unreleased", () => {
+  // Regression test for the silent data-loss path introduced by PR #174:
+  // resolveReleaseTagWindows returns [] in a zero-tag repository, and a
+  // library caller that pipes one straight into the other —
+  //   createChangelog({ items, releaseWindows: resolveReleaseTagWindows(...) })
+  // — used to get a title-only changelog with every item silently dropped
+  // because the empty list was read as deliberate emptiness. The fix makes
+  // deliberate emptiness reachable only when the caller also asserts the
+  // suppressing intent (suppressedPendingRelease); without that signal the
+  // empty list is absent history, so items are preserved under ## Unreleased
+  // exactly as origin/main does.
+  const oneClosedItem: PmItem = {
+    id: "pm-accidental-empty",
+    title: "A fixed thing",
+    status: "closed",
+    type: "bug",
+    closed_at: "2026-08-15T09:00:00Z",
+  };
+
+  // No suppressedPendingRelease: this is the accidental-empty shape.
+  const result = createChangelog({ items: [oneClosedItem], releaseWindows: [] });
+  assert.equal(result.itemCount, 1);
+  assert.match(result.markdown, /^# Changelog\n\n## Unreleased\n/m);
+  assert.match(result.markdown, /pm-accidental-empty/);
+
+  // The selection report must NOT report window mode for an accidental empty.
+  const report = explainChangelogSelection({ items: [oneClosedItem], releaseWindows: [] });
+  assert.equal(report.filters.release_windows, false);
+  assert.equal(report.stage_counts.visible_items, 1);
+
+  // Contrast: with the suppressing intent asserted, the same empty list is
+  // deliberate emptiness and emits nothing.
+  const suppressed = createChangelog({
+    items: [oneClosedItem],
+    releaseWindows: [],
+    suppressedPendingRelease: "v2026.9.1",
+  });
+  assert.equal(suppressed.markdown, "# Changelog\n");
+  assert.equal(suppressed.itemCount, 0);
+});
+
+test("--no-pending-release routes items declaring the suppressed version to Unreleased in a tagged repository", (t) => {
+  // End-to-end proof that the CLI forwards what the resolver suppressed: the
+  // generator re-routes ONLY declarations naming the suppressed pending
+  // release, so without the forwarding the declared item below would fall
+  // back to timestamp placement and be credited to the older real release its
+  // completion time falls inside. The stale declaration in the same run shows
+  // the constrained half of the behaviour.
+  const directory = mkdtempSync(join(tmpdir(), "pm-changelog-suppressed-forwarding-"));
+  t.after(() => rmSync(directory, { recursive: true, force: true }));
+  execFileSync("git", ["init"], { cwd: directory, encoding: "utf-8" });
+  execFileSync("git", ["config", "user.name", "pm changelog test"], { cwd: directory, encoding: "utf-8" });
+  execFileSync("git", ["config", "user.email", "pm-changelog@example.com"], { cwd: directory, encoding: "utf-8" });
+  const commit = (message: string, date: string): void => {
+    writeFileSync(join(directory, "file.txt"), `${message}\n`, "utf-8");
+    execFileSync("git", ["add", "file.txt"], { cwd: directory, encoding: "utf-8" });
+    execFileSync("git", ["commit", "-m", message], {
+      cwd: directory,
+      encoding: "utf-8",
+      env: {
+        ...process.env,
+        GIT_AUTHOR_DATE: date,
+        GIT_COMMITTER_DATE: date,
+      },
+    });
+  };
+  commit("one", "2026-05-01T12:00:00Z");
+  execFileSync("git", ["tag", "v2026.5.1"], { cwd: directory, encoding: "utf-8" });
+  commit("two", "2026-06-01T12:00:00Z");
+  execFileSync("git", ["tag", "v2026.6.1"], { cwd: directory, encoding: "utf-8" });
+  // Placeholder version that has never been tagged.
+  writeFileSync(
+    join(directory, "package.json"),
+    JSON.stringify({ name: "pm-suppression-fixture", version: "2026.7.1" }),
+    "utf-8",
+  );
+
+  const input = join(directory, "items.json");
+  writeFileSync(input, JSON.stringify([
+    {
+      id: "pm-declares-placeholder",
+      title: "Declares the suppressed placeholder version",
+      status: "closed",
+      type: "feature",
+      release: "2026.7.1",
+      closed_at: "2026-05-15T12:00:00Z",
+    },
+    {
+      id: "pm-stale-declaration",
+      title: "Declares a release that was never tagged",
+      status: "closed",
+      type: "bug",
+      release: "2026.4.9",
+      closed_at: "2026-05-20T12:00:00Z",
+    },
+  ]), "utf-8");
+  const cli = join(process.cwd(), "src", "cli.ts");
+  const generate = (extra: string[]): string => execFileSync(process.execPath, [
+    cli,
+    "--input", input,
+    "--stdout",
+    "--all-release-tags",
+    "--release-version-from-package",
+    "--date-from-version",
+    ...extra,
+  ], {
+    cwd: directory,
+    encoding: "utf-8",
+    env: { ...process.env, TZ: "UTC" },
+  });
+
+  // With the flag: the declared placeholder item lands under Unreleased
+  // (not 2026.6.1), while the stale declaration keeps its timestamp placement
+  // — the constrained routing, both halves in one run.
+  const suppressed = generate(["--no-pending-release"]);
+  const unreleasedSection = suppressed.match(/## Unreleased[\s\S]*?(?=## 2026\.6\.1|$)/)?.[0] ?? "";
+  const window61 = suppressed.match(/## 2026\.6\.1[\s\S]*?(?=## 2026\.5\.1|$)/)?.[0] ?? "";
+  assert.match(unreleasedSection, /pm-declares-placeholder/);
+  assert.doesNotMatch(window61, /pm-declares-placeholder/);
+  assert.match(window61, /pm-stale-declaration/);
+  assert.doesNotMatch(unreleasedSection, /pm-stale-declaration/);
+
+  // Default behaviour is unchanged: the pending window leads and the
+  // declaration pins the item into it.
+  const cutting = generate([]);
+  assert.match(cutting, /## 2026\.7\.1 - 2026-07-01[\s\S]*pm-declares-placeholder/);
+});
+
+test("--all-release-tags with zero tags and no version keeps the Unreleased fallback", (t) => {
+  // A repository before its first release has no tags and nothing to resolve
+  // a version from: the resolver's empty list is absent history, and the CLI
+  // deliberately spells it as undefined so the generator keeps the
+  // single-section `## Unreleased` fallback. Passing the empty list through
+  // unchanged would render a title-only changelog and drop all the work —
+  // the exact regression the empty/absent distinction makes possible.
+  const directory = mkdtempSync(join(tmpdir(), "pm-changelog-zero-tag-fallback-"));
+  t.after(() => rmSync(directory, { recursive: true, force: true }));
+  execFileSync("git", ["init"], { cwd: directory, encoding: "utf-8" });
+  execFileSync("git", ["config", "user.name", "pm changelog test"], { cwd: directory, encoding: "utf-8" });
+  execFileSync("git", ["config", "user.email", "pm-changelog@example.com"], { cwd: directory, encoding: "utf-8" });
+  writeFileSync(join(directory, "work.txt"), "work\n", "utf-8");
+  execFileSync("git", ["add", "work.txt"], { cwd: directory, encoding: "utf-8" });
+  execFileSync("git", ["commit", "-m", "work"], {
+    cwd: directory,
+    encoding: "utf-8",
+    env: {
+      ...process.env,
+      GIT_AUTHOR_DATE: "2026-08-01T12:00:00Z",
+      GIT_COMMITTER_DATE: "2026-08-01T12:00:00Z",
+    },
+  });
+
+  const input = join(directory, "items.json");
+  writeFileSync(input, JSON.stringify([{
+    id: "pm-pre-first-release",
+    title: "Work before the first release",
+    status: "closed",
+    type: "feature",
+    closed_at: "2026-08-15T09:00:00Z",
+  }]), "utf-8");
+  const cli = join(process.cwd(), "src", "cli.ts");
+  const output = execFileSync(process.execPath, [
+    cli,
+    "--input", input,
+    "--stdout",
+    "--all-release-tags",
+  ], {
+    cwd: directory,
+    encoding: "utf-8",
+    env: { ...process.env, TZ: "UTC" },
+  });
+  assert.match(output, /^# Changelog\n\n## Unreleased\n/m);
+  assert.match(output, /pm-pre-first-release/);
 });

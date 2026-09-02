@@ -1,0 +1,39 @@
+id: pmc-hox8
+title: "Suppressed pending release can relocate or drop an item (Greptile issue 2, PR #174)"
+description: Suppressing a pending release window can silently relocate or drop an item declaring the suppressed version — Greptile issue 2 on PR #174. Routing is now constrained to the suppressed release only.
+type: Issue
+status: closed
+priority: 2
+tags[3]: bug,greptile,pr-174
+created_at: "2026-08-31T11:19:54.090Z"
+updated_at: "2026-09-02T11:21:31.652Z"
+closed_at: "2026-09-02T11:21:31.186Z"
+completed_at: "2026-09-02T11:21:31.186Z"
+author: pi-agent
+resolution: Constrained assignment routes only declarations naming the suppressed pending release to Unreleased; unmatched stale declarations preserve timestamp placement.
+expected_result: "Only a declaration naming the suppressed pending release routes to Unreleased; other unmatched declarations keep timestamp placement and attribution. The suppressed item survives section narrowing, while includeUnreleased:false preserves the caller opt-out."
+actual_result: The reverted implementation failed the targeted stale-declaration test because stale and misspelled items left the 2026.6.1 window; the restored implementation passed with tests=1 pass=1 fail=0. The other three focused routing tests also pass.
+comments[4]:
+  - created_at: "2026-08-31T11:23:34.180Z"
+    author: pi-agent
+    text: "Fixed: assignItemsToReleaseWindows now routes ONLY a declaration naming the suppressed pending release to the Unreleased window, preventing relocation to older releases and omission by section narrowing; every other unmatched declaration keeps its timestamp placement and attribution classification."
+    edited_at: "2026-09-01T07:08:08.508Z"
+  - created_at: "2026-09-01T06:32:50.778Z"
+    author: claude
+    text: "Execution evidence for the recorded outcome (addressing CodeRabbit's request that outcomes carry evidence, not intent). Each of the four recorded test commands was executed against this branch on 2026-09-01 and each matched exactly one real test title and passed. Verified with the run counts, not the exit code, because --test-name-pattern is a regex and a pattern that matches nothing still exits 0: 'suppressed pending release does not relocate' tests=1 pass=1 fail=0; 'suppressed pending release does not drop' tests=1 pass=1 fail=0; 'a stale or misspelled release declaration keeps its timestamp placement and attribution' tests=1 pass=1 fail=0; 'a suppressed declaration keeps timestamp placement when no Unreleased window exists' tests=1 pass=1 fail=0."
+  - created_at: "2026-09-02T11:10:21.827Z"
+    author: codex
+    text: "CodeRabbit review correction on PR #174: repaired the revert-proof receipt so it records the reverted run as failing and only the restored run as tests=1 pass=1 fail=0."
+  - created_at: "2026-09-02T11:21:30.672Z"
+    author: codex
+    text: "Cubic review correction on PR #174: expected_result now states intended product behavior; revert-proof execution evidence remains in actual_result."
+files[2]{path,scope,note}:
+  src/generator.ts,project,Constrained assignItemsToReleaseWindows to route only the suppressed pending release to Unreleased; other unmatched declarations keep timestamp placement; buildVersionHeading omits fabricated dates for version-less Unreleased
+  test/generator.test.ts,project,"Added three tests for relocate,narrowing,and correct Unreleased placement"
+tests[4]{command,path,scope,note}:
+  "npx tsx --test --test-name-pattern \"suppressed pending release does not relocate\" test/generator.test.ts",test/generator.test.ts,project,suppressed pending release does not relocate a declared item into an older real release
+  "npx tsx --test --test-name-pattern \"suppressed pending release does not drop\" test/generator.test.ts",test/generator.test.ts,project,suppressed pending release does not drop a declared item narrowed out of an older release section
+  "PM_PATH=/tmp/pmc-hox8 PM_GLOBAL_PATH=/tmp/pmc-hox8-g node --test --test-name-pattern \"a stale or misspelled release declaration keeps its timestamp placement and attribution\" test/generator.test.ts",test/generator.test.ts,project,"a stale or misspelled release declaration keeps its timestamp placement and attribution (revert-proofed: unconditional orphan routing pulls items into Unreleased, window61 empty)"
+  "PM_PATH=/tmp/pmc-hox8 PM_GLOBAL_PATH=/tmp/pmc-hox8-g node --test --test-name-pattern \"a suppressed declaration keeps timestamp placement when no Unreleased window exists\" test/generator.test.ts",test/generator.test.ts,project,"a suppressed declaration keeps timestamp placement when no Unreleased window exists (includeUnreleased:false opt-out preserved)"
+close_reason: "Corrected review evidence: expected_result states product behavior and actual_result records the revert proof."
+body: "## Reasoning (causal path, unexecuted analysis)\n\nGreptile review on PR #174 (confidence 3/5): when tagged history contains an item declaring the suppressed placeholder version, with a completion time at or before the newest real tag, removing the pending window leaves no matching release identity. The timestamp fallback then renders that item under an older real release, and section narrowing can drop it entirely. So suppressing a phantom release can silently attribute work to a real past release or lose it.\n\n## Fix applied (constrained)\n\nassignItemsToReleaseWindows routes ONLY a declaration naming the suppressed pending release (suppressedPendingRelease, the pending version removed by pendingRelease: false) to the Unreleased window, without consulting a timestamp. Every other unmatched declaration — stale, misspelled, or naming a tag the window list excludes — keeps its historical timestamp-based placement and classification, so ordinary --all-release-tags runs are unaffected (Greptile's over-correction finding). When no Unreleased window exists (includeUnreleased: false) the suppressed declaration falls through to timestamp placement, preserving the caller's explicit opt-out. Attribution provenance (isPlacedByReleaseDeclaration) recognises the suppressed-key routing as a release pin so the release_pinned bucket does not leak."

@@ -1,0 +1,81 @@
+id: pmc-kd73
+title: The installed pm resolver's memo makes three untested failures appear and disappear from exact coverage
+description: "The module-level resolvedPmCommand memo means installed pm resolution runs at most once per process. No test directly drives the missing-bin, missing-target, or resolver-failure paths, so Node 22 worker scheduling can change whether V8 counts their untaken branches and make an unchanged exact-coverage gate alternate between red and green."
+type: Issue
+status: closed
+priority: 0
+tags[5]: coverage,determinism,node22,release-gate,test-quality
+created_at: "2026-09-01T08:25:40.470Z"
+updated_at: "2026-09-01T08:39:46.937Z"
+closed_at: "2026-09-01T08:39:46.456Z"
+completed_at: "2026-09-01T08:39:46.456Z"
+author: pi-agent
+estimated_minutes: 90
+acceptance_criteria: "Introduce an injectable installed-command resolution seam while preserving production memoization and default behavior; directly assert missing bin, nonexistent target, and resolver failure; prove default no-PATH execution; run coverage at least three times on Node 22.23.1 and once on default Node; pass all repository gates."
+risk: high
+confidence: high
+severity: high
+environment: Node 22.23.1 coverage gate with test files scheduled across workers
+repro_steps: Run npm run coverage repeatedly under Node 22.23.1 and inspect src/generator.ts lines in the installed pm resolution branch.
+resolution: "Extracted installed pm command resolution behind a complete injectable dependency boundary. Direct tests cover missing bin, nonexistent target, and resolver wrapping without touching the process memo; readPmItems retains one-time production memoization and its no-PATH integration test proves the real manifest, filesystem, current Node executable, and installed CLI defaults."
+expected_result: Every identical run directly covers all installed pm resolution guards and reports deterministic 100 percent line branch and function coverage.
+actual_result: Three consecutive Node 22.23.1 coverage runs and one default Node 26.5.0 run report generator.ts and aggregate at exact 100/100/100. All focused tests execute exactly one named test and mutation checks kill removal of each protected path.
+fixed_version: 2026.8.31
+component: src/generator.ts installed pm command resolution
+customer_impact: A mandatory gate can reject unchanged input nondeterministically and obscure genuinely untested error handling.
+notes[3]{created_at,author,text}:
+  "2026-09-01T08:26:20.075Z",pi-agent,"Root cause confirmed before mutation: src/generator.ts holds resolvedPmCommand at module scope and only enters installed-command resolution while it is undefined, so the block runs at most once per process. Repository search found readPmItems tests with explicit pmBin plus one default-resolution integration case, but no targeted assertion for a manifest without bin, a nonexistent resolved target, or a thrown package resolver. Thus coverage attribution for the untaken guards can depend on whether a worker enters the memoized block."
+  "2026-09-01T08:30:55.591Z",pi-agent,"Mutation verification killed all three guard removals: deleting the missing-bin guard made its exact diagnostic assertion fail; deleting the path-existence guard produced Missing expected exception; replacing the wrapping catch with a raw rethrow made the Error-and-cause assertion fail. Each focused run reported tests 1, pass 0, fail 1, proving the behavioral assertions—not incidental coverage—protect each path."
+  "2026-09-01T08:39:45.522Z",pi-agent,"Determinism evidence: with PATH prefixed to Node v22.23.1, three consecutive npm run coverage executions passed; generator.ts and aggregate each reported 100.00 lines, 100.00 branches, and 100.00 functions on runs 1, 2, and 3. The default Node v26.5.0 run also passed with generator.ts and aggregate at 100.00/100.00/100.00. The full code gate then passed 544 tests with 544 pass and 0 fail, exact generator and aggregate coverage, and 184 documented declarations; pm health strict also returned ok true."
+files[4]{path,scope,note}:
+  dist/generator.d.ts,project,generated declarations
+  dist/generator.js,project,generated runtime output
+  src/generator.ts,project,injectable installed pm resolver and production memo boundary
+  test/generator.test.ts,project,direct resolver failures and default no-PATH integration
+tests[4]:
+  - command: "node --test --test-name-pattern=\"^resolveInstalledPmCommand rejects a manifest that does not declare the pm executable$\" test/generator.test.ts"
+    path: test/generator.test.ts
+    scope: project
+    pm_context_mode: auto
+    provenance:
+      author: pi-agent
+      created_at: "2026-09-01T08:31:08.558Z"
+      source_kind: local_mutation
+      source_ref: fix/pending-release-window-must-not-claim-an-untagged-release
+    assert_stdout_contains[2]: pass 1,tests 1
+    note: Missing bin is rejected with the wrapped diagnostic; exact run count is asserted.
+  - command: "node --test --test-name-pattern=\"^resolveInstalledPmCommand rejects a pm executable path that does not exist$\" test/generator.test.ts"
+    path: test/generator.test.ts
+    scope: project
+    pm_context_mode: auto
+    provenance:
+      author: pi-agent
+      created_at: "2026-09-01T08:31:09.016Z"
+      source_kind: local_mutation
+      source_ref: fix/pending-release-window-must-not-claim-an-untagged-release
+    assert_stdout_contains[2]: pass 1,tests 1
+    note: Nonexistent resolved target is rejected; exact run count is asserted.
+  - command: "node --test --test-name-pattern=\"^resolveInstalledPmCommand wraps a package manifest resolver failure$\" test/generator.test.ts"
+    path: test/generator.test.ts
+    scope: project
+    pm_context_mode: auto
+    provenance:
+      author: pi-agent
+      created_at: "2026-09-01T08:31:09.451Z"
+      source_kind: local_mutation
+      source_ref: fix/pending-release-window-must-not-claim-an-untagged-release
+    assert_stdout_contains[2]: pass 1,tests 1
+    note: Non-Error resolver failure is wrapped and retained as cause; exact run count is asserted.
+  - command: "node --test --test-name-pattern=\"^readPmItems resolves the installed pm-cli executable without PATH$\" test/generator.test.ts"
+    path: test/generator.test.ts
+    scope: project
+    pm_context_mode: auto
+    provenance:
+      author: pi-agent
+      created_at: "2026-09-01T08:31:09.999Z"
+      source_kind: local_mutation
+      source_ref: fix/pending-release-window-must-not-claim-an-untagged-release
+    assert_stdout_contains[2]: pass 1,tests 1
+    note: Default resolver executes installed pm with current Node without PATH; exact run count is asserted.
+close_reason: "Direct error-path behavior, default execution, repeated exact Node 22 and default-Node coverage, full tests, docstrings, and strict tracker health are green."
+body: ""
