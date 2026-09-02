@@ -645,6 +645,7 @@ test("CLI and extension produce byte-identical output with and without --no-pend
     "all-release-tags": true,
     "release-version": "2099.1.2",
     "date-from-version": true,
+    "include-empty": true,
   } as const;
 
   for (const suppress of [false, true] as const) {
@@ -654,7 +655,7 @@ test("CLI and extension produce byte-identical output with and without --no-pend
     // repo root cwd, and writes markdown to stdout.
     const cliArgs = [
       cli, "--pm-root", TRACKER_ROOT,
-      "--all-release-tags", "--release-version", "2099.1.2", "--date-from-version", "--stdout",
+      "--all-release-tags", "--release-version", "2099.1.2", "--date-from-version", "--include-empty", "--stdout",
     ];
     if (suppress) cliArgs.push("--no-pending-release");
     const cliOutput = execFileSync(process.execPath, cliArgs, {

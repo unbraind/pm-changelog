@@ -6,19 +6,21 @@ status: closed
 priority: 2
 tags[3]: bug,greptile,pr-174
 created_at: "2026-08-31T11:19:44.449Z"
-updated_at: "2026-08-31T11:24:19.288Z"
-closed_at: "2026-08-31T11:24:19.246Z"
-completed_at: "2026-08-31T11:24:19.246Z"
+updated_at: "2026-09-02T10:53:46.176Z"
+closed_at: "2026-09-02T10:53:45.839Z"
+completed_at: "2026-09-02T10:53:45.839Z"
 author: pi-agent
-resolution: fixed
-expected_result: "Extension forwards pendingRelease to resolveReleaseTagWindows, matching CLI behaviour"
-actual_result: Added --no-pending-release flag and pendingRelease forwarding; equivalence test passes
-comments[1]{created_at,author,text}:
+resolution: "The cross-surface regression fixture explicitly requests empty sections on both the standalone CLI and SDK extension paths, so a synthetic untagged pending release remains observable after the real package version is tagged and the tracker has no post-tag completions."
+expected_result: "CLI and extension emit byte-identical output with and without pending-release suppression on every repository release state, while both logical branches remain exercised by exact coverage."
+actual_result: "After merging origin/main at tagged 2026.9.1, the focused test passes 1/1 and the full suite passes 544/544 with exact 100.00% line, branch, and function coverage."
+comments[3]{created_at,author,text}:
   "2026-08-31T11:23:26.796Z",pi-agent,"Fixed: added --no-pending-release flag to extension changelog generate command and forwarded pendingRelease through resolveReleaseTagWindows. Equivalence test asserts CLI and extension produce byte-identical output with and without the flag. Revert-proof: test fails when the pendingRelease forwarding is removed."
+  "2026-09-02T10:52:23.837Z",codex,"Duplicate/lineage check: this is the exact test introduced for pmc-zj2w. No new item is needed. After merging origin/main, v2026.9.1 contains every completed tracker item, so the synthetic 2099 pending window is valid but empty and filtered from visible output. The product path remains correct; the test must request include-empty on both CLI and extension surfaces to observe the window it is comparing."
+  "2026-09-02T10:53:45.418Z",codex,"Verification after current-main merge: focused equivalence test passes 1/1 with include-empty on both surfaces. Full coverage then passes 544/544 with exact 100.00% lines, branches, and functions; docstring gate passes 184/184; production audit reports zero vulnerabilities; pack dry-run succeeds. The only later release:check failure was expected tracker/changelog drift because this item was temporarily reopened for the fix."
 files[2]{path,scope,note}:
   src/extension.ts,project,Added --no-pending-release flag and forwarded pendingRelease
   test/extension.test.ts,project,Added --no-pending-release to flag contract list and byte-identical equivalence test
 tests[1]{command,scope,note}:
   npx tsx --test test/extension.test.ts,project,CLI and extension produce byte-identical output with and without --no-pending-release
-close_reason: Fixed and verified
+close_reason: Extension-equivalence coverage is now independent of whether current main has unreleased completed items.
 body: ""
