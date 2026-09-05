@@ -33,7 +33,7 @@ pm changelog generate --mode prepend --release-version "$GITHUB_REF_NAME"
 pm changelog generate --check --mode prepend --release-version "$GITHUB_REF_NAME"
 ```
 
-The extension command uses `--release-version` because `pm --version` is a global CLI flag.
+The extension command uses `--release-version` because `pm --version` is a global CLI flag. The same applies to `--explain`: `pm --explain` expands root help, so the extension exposes selection diagnostics as `--explain-selection`. The standalone CLI keeps `--explain`.
 
 ## Standalone CLI
 
@@ -235,7 +235,7 @@ The same flags are available on the pm extension command:
 pm changelog generate --stdout --section-by status
 pm changelog generate --stdout --conventional --contributors
 pm changelog generate --changelog-json
-pm changelog generate --stdout --explain
+pm changelog generate --stdout --explain-selection
 ```
 
 Attribute work to the release that actually shipped it, instead of to whenever the tracker was closed:

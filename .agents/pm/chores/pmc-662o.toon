@@ -1,0 +1,28 @@
+id: pmc-662o
+title: Pin pm-cli 2026.9.5 and rename extension --explain
+description: "Pin @unbrained/pm-cli and pm-ops to 2026.9.5. pm-cli now owns --explain as a global help flag, so changelog generate must expose selection diagnostics under --explain-selection instead."
+type: Chore
+status: closed
+priority: 2
+tags: []
+created_at: "2026-09-05T18:08:03.466Z"
+updated_at: "2026-09-05T18:16:59.214Z"
+closed_at: "2026-09-05T18:16:59.186Z"
+completed_at: "2026-09-05T18:16:59.186Z"
+claim_principal: pi-agent
+author: pi-agent
+resolution: Pin @unbrained/pm-cli and pm-ops to 2026.9.5 and expose selection diagnostics as --explain-selection so changelog generate no longer declares host-owned --explain.
+expected_result: "release:check and pm health --strict-exit pass on the pinned toolchain."
+actual_result: "release:check exit 0 (545 tests, 100% coverage). Revert-proof: 3 tests fail against the old --explain declaration, 18 pass after the rename."
+comments[1]{created_at,author,text}:
+  "2026-09-05T18:14:27.347Z",pi-agent,"Pinned @unbrained/pm-cli and pm-ops to 2026.9.5. The date-from-version control already asserts only that the unflagged heading differs from the flagged one, so that gate stayed green. What broke is the host-flag contracts gate: pm-cli 2026.9.5 owns --explain as root-help expansion, so changelog generate now exposes --explain-selection instead. Revert-proof on test/extension.test.ts + test/host-flag-contracts.test.ts: 3 failing against the old declaration, 18 passing with the rename (exit 1 then 0)."
+files[5]{path,scope}:
+  package.json,project
+  package-lock.json,project
+  src/extension.ts,project
+  test/extension.test.ts,project
+  docs/usage.md,project
+tests[1]{command,scope,provenance{author,created_at,source_kind,source_ref}}:
+  changelog generate exposes --explain-selection instead of host-owned --explain,project,pi-agent,"2026-09-05T18:14:03.019Z",local_mutation,chore/pin-pm-cli-2026.9.5-and-pm-ops-2026.9.5
+close_reason: Pinned the current pm toolchain and renamed the colliding extension flag.
+body: ""
