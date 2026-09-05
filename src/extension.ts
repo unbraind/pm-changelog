@@ -95,6 +95,7 @@ export default defineExtension({
         "pm changelog generate --output RELEASE_NOTES.md --since 2026-05-01",
         "pm changelog generate --stdout --group-by release",
         "pm changelog generate --stdout --group-by milestone",
+        "pm changelog generate --stdout --explain-selection",
         "pm changelog generate --check --mode prepend --release-version 1.2.0",
       ],
       flags: [
@@ -125,7 +126,7 @@ export default defineExtension({
         { long: "--emoji-prefix", description: "Prefix section headings with conventional emoji (Added 🎉, Fixed 🐛, ...)" },
         { long: "--include-metadata", description: "Append compact item metadata (type/status/priority/release/milestone) to each entry" },
         { long: "--changelog-json", description: "Return the full structured changelog document (releases->sections->items)" },
-        { long: "--explain", description: "Return item-selection diagnostics (counts, exclusions, hints)" },
+        { long: "--explain-selection", description: "Return item-selection diagnostics (counts, exclusions, hints)" },
         { long: "--summary", description: "Return a compact one-line-per-change summary instead of full markdown" },
         { long: "--format", value_name: "md|json", description: "Output format: md (default) or json for machine-readable output" },
         { long: "--mode", value_name: "mode", description: "replace or prepend existing changelog (default: replace)" },
@@ -249,7 +250,11 @@ export default defineExtension({
           respectItemRelease: booleanOption(ctx.options, "respect-item-release", "respectItemRelease"),
           excludeTags: excludeTagsOption(ctx.options),
         };
-        const selectionReport = booleanOption(ctx.options, "explain", "explain")
+        // pm-cli 2026.9.5 owns `--explain` as root-help expansion, so the
+        // extension cannot declare that spelling. Selection diagnostics stay
+        // available under `--explain-selection`; the standalone CLI keeps
+        // `--explain` because it is not a pm subcommand.
+        const selectionReport = booleanOption(ctx.options, "explain-selection", "explainSelection")
           ? explainChangelogSelection(generationOptions)
           : undefined;
 

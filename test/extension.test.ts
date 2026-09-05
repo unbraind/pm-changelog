@@ -111,7 +111,7 @@ test("extension command exposes item-url-base for clickable item IDs", async () 
     "--since-version",
     "--include-metadata",
     "--changelog-json",
-    "--explain",
+    "--explain-selection",
     "--summary",
     "--format",
     "--item-ref-style",
@@ -150,6 +150,22 @@ test("extension command exposes item-url-base for clickable item IDs", async () 
     );
     assert.equal(override.resultDiscriminator?.({ output: "{}\n" }), false);
   }
+});
+
+test("changelog generate exposes --explain-selection instead of host-owned --explain", async () => {
+  // pm-cli 2026.9.5 owns `--explain` as root-help expansion. Declaring it on
+  // changelog generate fails the sdk/contracts gate; the diagnostics feature
+  // must remain reachable under a name the host does not own.
+  const generateFlags = await registeredFlagLongs("changelog generate");
+  assert.ok(
+    generateFlags.includes("--explain-selection"),
+    "selection diagnostics must remain available under --explain-selection",
+  );
+  assert.equal(
+    generateFlags.includes("--explain"),
+    false,
+    "changelog generate must not declare host-owned --explain",
+  );
 });
 
 test("changelog exporter rejects unsupported formats", async () => {
@@ -358,7 +374,7 @@ test("generate command exercises validation and every result mode through the re
     status: "open,in_progress,closed,done",
     "release-version": "2026.8.7",
     date: "2026-08-07",
-    explain: true,
+    "explain-selection": true,
   };
   const summaryJson = await runRegisteredCommandForTest(commands, {
     command: "changelog generate",
@@ -368,7 +384,7 @@ test("generate command exercises validation and every result mode through the re
   assert.equal(extensionTestSurface.isRenderedCommandResult(commandResult(summaryJson)), true);
   const summaryJsonWithoutExplain = await runRegisteredCommandForTest(commands, {
     command: "changelog generate",
-    options: { ...baseOptions, explain: false, summary: true, format: "json" },
+    options: { ...baseOptions, "explain-selection": false, summary: true, format: "json" },
     pmRoot: TRACKER_ROOT,
   });
   assert.equal(extensionTestSurface.isRenderedCommandResult(commandResult(summaryJsonWithoutExplain)), true);
@@ -386,7 +402,7 @@ test("generate command exercises validation and every result mode through the re
   assert.match((commandResult(populatedSummary) as { summary: string }).summary, /pmc-/);
   await runRegisteredCommandForTest(commands, {
     command: "changelog generate",
-    options: { ...baseOptions, explain: false, summary: true },
+    options: { ...baseOptions, "explain-selection": false, summary: true },
     pmRoot: TRACKER_ROOT,
   });
   const document = await runRegisteredCommandForTest(commands, {
@@ -397,7 +413,7 @@ test("generate command exercises validation and every result mode through the re
   assert.equal(extensionTestSurface.isRenderedCommandResult(commandResult(document)), true);
   await runRegisteredCommandForTest(commands, {
     command: "changelog generate",
-    options: { ...baseOptions, explain: false, "changelog-json": true },
+    options: { ...baseOptions, "explain-selection": false, "changelog-json": true },
     pmRoot: TRACKER_ROOT,
   });
   const semver = await runRegisteredCommandForTest(commands, {
@@ -408,7 +424,7 @@ test("generate command exercises validation and every result mode through the re
   assert.equal(extensionTestSurface.isRenderedCommandResult(commandResult(semver)), true);
   await runRegisteredCommandForTest(commands, {
     command: "changelog generate",
-    options: { ...baseOptions, explain: false, "suggest-semver": true },
+    options: { ...baseOptions, "explain-selection": false, "suggest-semver": true },
     pmRoot: TRACKER_ROOT,
   });
   const stdout = await runRegisteredCommandForTest(commands, {
@@ -452,7 +468,7 @@ test("generate command exercises validation and every result mode through the re
   assert.equal((commandResult(written) as { changed?: boolean }).changed, true);
   await runRegisteredCommandForTest(commands, {
     command: "changelog generate",
-    options: { ...baseOptions, explain: false, output },
+    options: { ...baseOptions, "explain-selection": false, output },
     pmRoot: TRACKER_ROOT,
   });
   await assert.rejects(

@@ -1,5 +1,11 @@
 # Changelog
 
+## Unreleased
+
+### Other
+
+- Pin pm-cli 2026.9.5 and rename extension --explain ([pmc-662o](https://github.com/unbraind/pm-changelog/blob/main/.agents/pm/chores/pmc-662o.toon))
+
 ## 2026.9.2 - 2026-09-02
 
 ### Fixed
