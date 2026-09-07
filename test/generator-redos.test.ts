@@ -8,10 +8,12 @@ const WORKER = join(dirname(fileURLToPath(import.meta.url)), "generator-redos-wo
 const PATHOLOGICAL_SIZE = 50_000;
 const STARTUP_BUDGET_MS = 5_000;
 const OPERATION_BUDGET_MS = 250;
+const OPERATION_WATCHDOG_MS = 5_000;
 
 /** Run one synchronous generator path in an already-loaded child process so a
  * pre-fix backtracking hang can be terminated and the budget excludes module
- * startup. */
+ * startup. CPU usage retains the 250ms algorithm budget when the OS deschedules
+ * a worker; a separate wall watchdog still terminates a backtracking hang. */
 function assertCompletesWithinBudget(operation: string): Promise<void> {
   return new Promise((resolve, reject) => {
     const child = spawn(process.execPath, [WORKER, "--server", String(PATHOLOGICAL_SIZE)], {
@@ -46,11 +48,15 @@ function assertCompletesWithinBudget(operation: string): Promise<void> {
         clearTimeout(startupTimer);
         operationTimer = setTimeout(() => {
           child.kill("SIGKILL");
-          finish(new Error(`${operation} exceeded ${OPERATION_BUDGET_MS}ms`));
-        }, OPERATION_BUDGET_MS);
+          finish(new Error(`${operation} exceeded ${OPERATION_WATCHDOG_MS}ms wall watchdog`));
+        }, OPERATION_WATCHDOG_MS);
         child.stdin.end(`${operation}\n`);
       }
-      if (ready && stdout.includes("ok\n")) finish();
+      const result = /^ok ([0-9]+)\n/m.exec(stdout);
+      if (ready && result) {
+        const cpuMs = Number(result[1]) / 1_000;
+        finish(cpuMs > OPERATION_BUDGET_MS ? new Error(`${operation} used ${cpuMs}ms CPU; budget ${OPERATION_BUDGET_MS}ms`) : undefined);
+      }
     });
     child.stderr.on("data", (chunk: string) => {
       stderr += chunk;
