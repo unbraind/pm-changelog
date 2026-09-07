@@ -2,15 +2,18 @@ id: pmc-zoqj
 title: Measure changelog parser CPU time without counting descheduled workers
 description: "The full release gate on a busy shared host fails replace-release and bracketed-heading 250ms wall timers despite safe linear implementations. Preserve a strict 250ms operation CPU budget and bounded parent watchdog, measure inside the already-loaded child, and prove the historical pathological regex remains rejected. This keeps the adversarial parser gate meaningful under concurrent fleet validation."
 type: Issue
-status: in_progress
+status: closed
 priority: 2
 tags[3]: performance,regression,tests
 created_at: "2026-09-07T23:13:50.939Z"
-updated_at: "2026-09-07T23:28:50.214Z"
-assignee: codex-pm-coordinator
-claim_principal: codex-pm-coordinator
+updated_at: "2026-09-07T23:41:19.997Z"
+closed_at: "2026-09-07T23:41:07.373Z"
+completed_at: "2026-09-07T23:41:07.373Z"
 author: codex
 acceptance_criteria: All existing public parser operations retain hostile inputs and assertions; child CPU cost remains at most 250ms; hung workers remain killable; historical vulnerable-regex negative control fails; full release gate passes.
+resolution: Measured operation CPU in the worker and retained an independent parent hang watchdog.
+expected_result: Reject pathological parser work without penalizing scheduler delay.
+actual_result: Seven linked parser operations and 466 release tests passed; the historical sectionVersionKey negative control failed its watchdog and source restoration was byte-verified.
 notes[2]{created_at,author,text}:
   "2026-09-07T23:18:58.598Z",codex-pm-coordinator,"Historical sectionVersionKey from f8c5138 parent was restored as a negative control: the real worker exceeded the 5000ms wall watchdog and failed. Exact generator.ts bytes were restored and verified. A separate normalizeReleaseHeadingKey-only historical probe remained below budget, so that probe is not evidence of regression rejection. The unchanged 250ms CPU budget and 5000ms hang watchdog are independently enforced."
   "2026-09-07T23:28:50.214Z",codex-pm-coordinator,"Final full release:check passed466 tests with zero failures/skips and100.00 lines/branches/functions in the existing declared source scope; statement metric remains separately unproven under pmc-ilrh. Linked7-operation parser test also passed after the complete gate. No production source bytes changed; negative-control restoration verified exact bytes."
@@ -19,4 +22,5 @@ files[2]{path,scope}:
   test/generator-redos.test.ts,project
 tests[1]{command,scope,timeout_seconds,provenance{author,created_at,source_kind,source_ref}}:
   node --test test/generator-redos.test.ts,project,90,codex-pm-coordinator,"2026-09-07T23:18:56.390Z",local_mutation,chore/certify-pm-cli-2026-9-7
+close_reason: "Verified parser regression fix: all seven linked operations pass under the unchanged 250 ms CPU budget and independent 5 s hang watchdog; the full release gate passed 466 tests with no skips. Restoring the historical sectionVersionKey parser failed the watchdog, and the original source bytes were restored. Package-wide statement coverage and external review availability remain separately open in pmc-ilrh and pmc-fv5g."
 body: ""
