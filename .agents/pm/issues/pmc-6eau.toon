@@ -1,0 +1,12 @@
+id: pmc-6eau
+title: "A test asserts an error that only occurs when no package.json exists anywhere above the OS temp directory, so it fails on a host where one does"
+description: "test/release-context.test.ts, 'throws when release-version-from-package finds no package.json', creates a fixture under tmpdir() and asserts resolveReleaseContext walks to the filesystem root without finding a package.json. Its own comment states the assumption out loud: '/tmp itself has none.'\n\nThat is an assumption about the HOST, not about the code. On this development machine /tmp/package.json existed - 60 bytes, created 2026-09-06 by an npx/bunx execution probe, exactly the kind of thing that leaves one behind - so the walk found it and the assertion failed with a message that reads like a production regression:\n\n  The input did not match /requires a package.json in the current directory or an ancestor/.\n  Input: 'Error: /tmp/package.json does not contain a valid version field'\n\nConfirmed pre-existing and environmental: the failure reproduces on origin/main with all local changes stashed, and disappears once the stray file is moved aside. CI has never seen it because a fresh runner has a clean /tmp.\n\nTwo separable problems. The verdict depends on state nobody declared or controls, so it can flip with no commit - the same class as a gate that measures the clock. And when it flips, the failure names the production regex rather than the unmet precondition, so the reader's first hypothesis is a code change that did not happen; this session spent time confirming it was not one.\n\nNeither weakening the assertion nor skipping on an unsuitable host is acceptable, because a skipped test reports as a pass. The test should assert its precondition explicitly so an unsuitable host reports ITSELF, or the search should take a boundary so the case is reachable without depending on the entire filesystem above the fixture."
+type: Issue
+status: open
+priority: 2
+tags[2]: flake,testing
+created_at: "2026-09-07T11:08:42.695Z"
+updated_at: "2026-09-07T11:08:42.695Z"
+author: claude
+acceptance_criteria: "The test's verdict does not depend on the contents of directories above the fixture; On a host where the precondition does not hold, the failure names the precondition, not the production regex"
+body: ""
