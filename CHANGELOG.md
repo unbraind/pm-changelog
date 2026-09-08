@@ -1,5 +1,11 @@
 # Changelog
 
+## 2026.9.8 - 2026-09-08
+
+### Fixed
+
+- Measure changelog parser CPU time without counting descheduled workers ([pmc-zoqj](https://github.com/unbraind/pm-changelog/blob/main/.agents/pm/issues/pmc-zoqj.toon))
+
 ## 2026.9.6 - 2026-09-06
 
 ### Other

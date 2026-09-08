@@ -74,7 +74,9 @@ if (!serverMode) {
   process.stdin.setEncoding("utf-8");
   process.stdin.once("data", (command) => {
     const commandText = typeof command === "string" ? command : command.toString("utf-8");
+    const started = process.cpuUsage();
     runOperation(commandText.trim());
-    process.stdout.write("ok\n");
+    const used = process.cpuUsage(started);
+    process.stdout.write(`ok ${used.user + used.system}\n`);
   });
 }
