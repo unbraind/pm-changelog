@@ -33,9 +33,14 @@ export async function resolveGitReleaseMembership(
   const assignments = new Map<string, string | null>();
   const windows = options.releaseWindows;
   if (!windows?.length || !existsSync(resolve(pmRoot, "settings.json"))) return assignments;
-  const cwd = execFileSync("git", ["rev-parse", "--show-toplevel"], {
-    cwd: pmRoot, encoding: "utf8", stdio: ["ignore", "pipe", "pipe"],
-  }).trim();
+  let cwd: string;
+  try {
+    cwd = execFileSync("git", ["rev-parse", "--show-toplevel"], {
+      cwd: pmRoot, encoding: "utf8", stdio: ["ignore", "pipe", "pipe"],
+    }).trim();
+  } catch (error) {
+    throw new Error(`Cannot locate the Git work tree for ${pmRoot}: ${String(error)}`, { cause: error });
+  }
   const trackerPath = relative(cwd, realpathSync(pmRoot)).split(sep).join("/");
   const trackerPrefix = trackerPath ? `${trackerPath}/` : "";
   const sections = createChangelog({ ...options, releaseMembership: undefined }).sections;
@@ -91,7 +96,8 @@ export async function resolveGitReleaseMembership(
     }
     const originalIds = new Set(original.map((item) => item.id));
     pending = candidates.filter((item) => {
-      if (statuses.get(item.id!) !== item.status?.toLowerCase()) return true;
+      const taggedStatus = statuses.get(item.id!);
+      if (taggedStatus === undefined || taggedStatus !== item.status?.toLowerCase()) return true;
       if (!originalIds.has(item.id)) assignments.set(item.id!, window.heading);
       return false;
     });

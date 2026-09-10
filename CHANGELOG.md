@@ -4,6 +4,7 @@
 
 ### Fixed
 
+- Require explicit tagged status evidence for incomplete SDK inputs ([pmc-sonp](https://github.com/unbraind/pm-changelog/blob/main/.agents/pm/issues/pmc-sonp.toon))
 - Preserve historical schemas and physical tracker roots during release membership verification ([pmc-j6cb](https://github.com/unbraind/pm-changelog/blob/main/.agents/pm/issues/pmc-j6cb.toon))
 - Keep branch-only completions out of release tags that do not contain them ([pmc-3jq8](https://github.com/unbraind/pm-changelog/blob/main/.agents/pm/issues/pmc-3jq8.toon))
 

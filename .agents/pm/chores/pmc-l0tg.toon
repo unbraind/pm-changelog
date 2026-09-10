@@ -6,7 +6,7 @@ status: closed
 priority: 2
 tags[2]: metadata,release
 created_at: "2026-09-10T08:34:10.739Z"
-updated_at: "2026-09-10T08:36:12.106Z"
+updated_at: "2026-09-10T09:35:04.635Z"
 closed_at: "2026-09-10T08:36:11.698Z"
 completed_at: "2026-09-10T08:36:11.698Z"
 author: codex
@@ -16,9 +16,10 @@ release: 2026.9.10
 resolution: Synchronized package and extension versions plus compiled distribution at 2026.9.10 for the tag-membership fix PR.
 expected_result: Reviewed main contains matching version metadata and a passing release gate before npm publication or Git tagging.
 actual_result: "The complete release:check and linked version-stamping tests pass for 2026.9.10; publication and tag creation have not yet run."
-comments[2]{created_at,author,text}:
+comments[3]{created_at,author,text}:
   "2026-09-10T08:34:10.739Z",codex,"Duplicate check: fresh all-open and in-progress lists plus all-status 2026.9.10 search found only pmc-3jq8, which tracks the functional fix rather than release metadata. Use its lineage and prepare one reviewed owner-package PR; preserve existing other-owner claims."
   "2026-09-10T08:36:11.248Z",codex,"Prepared package.json/package-lock.json, extension manifest and registration at 2026.9.10 using npm version --no-git-tag-version and scripts/sync-version.ts. The complete release:check passes on this version, including 472 tests and all measured coverage dimensions at 100 percent, docstrings, production audit, package validation, generated changelog, date and attestation guards. Publication is intentionally pending review and merge; the existing workflow will resume this untagged version from reviewed main instead of creating another release-metadata PR."
+  "2026-09-10T09:35:04.635Z",codex,"Durable execution evidence: https://github.com/unbraind/pm-changelog/actions/runs/34460170601 completed successfully for commit 074db998d38e87bb27286ae983b73c7ca0f6eadf on Node 22 and Node 26. Its recorded steps independently cover type checking, docstring coverage, tests with exact coverage, production audit, package contents, generated changelog, version-derived dates, and publish attestation. This immutable run supplements the existing focused linked-test records and local release:check evidence without duplicating the full suite as three linked executions."
 files[6]{path,scope,note}:
   dist/extension.js,project,Reviewed 2026.9.10 version metadata
   dist/extension.js.map,project,Reviewed 2026.9.10 version metadata

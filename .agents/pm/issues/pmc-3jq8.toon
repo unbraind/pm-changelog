@@ -6,7 +6,7 @@ status: closed
 priority: 2
 tags[4]: bug,changelog,git-tags,release
 created_at: "2026-09-10T08:15:12.708Z"
-updated_at: "2026-09-10T08:32:40.147Z"
+updated_at: "2026-09-10T09:35:05.180Z"
 closed_at: "2026-09-10T08:32:39.715Z"
 completed_at: "2026-09-10T08:32:39.715Z"
 author: codex
@@ -17,10 +17,12 @@ expected_result: Release history must not attribute branch work to a tag that pr
 actual_result: "472 tests passed with 100 percent line/branch/function coverage and complete docstrings; real multi-branch and later-tag fixtures pass, and the native pm-cli consumer retains all 2351 entries while correcting nine early timestamp attributions."
 dependencies[1]{id,kind,created_at,author,source_kind,author_source}:
   pmc-qm7s,verifies,"2026-09-10T08:32:38.896Z",codex,"cli:update:dep",detected
-comments[3]{created_at,author,text}:
+comments[5]{created_at,author,text}:
   "2026-09-10T08:15:12.708Z",codex,"Duplicate check: canonical orient, all seven open items and four in-progress items inspected; all-status release tag membership branch timestamp search plus specific unmerged and membership searches found no existing owner. Historical full-tag foundation pmc-qm7s is closed and is retained as parent. Consumer reproduction is pm-cli PR 1228 at 9775c9480 versus tag v2026.9.10."
   "2026-09-10T08:21:47.665Z",codex,"new real Git fixture failed before implementation (missing resolver), then reproduced closure predating unrelated release and passed after tag membership verification. The fixture includes subsequent first-containing and later tags. Shared API keeps tracker documents untouched, resolves timestamp-placement corrections by SDK-parsed tagged item state, and reports membership provenance. Read-only consumer probe completed successfully against pm-cli; comparing extension-native item population before final attribution proof."
   "2026-09-10T08:32:39.332Z",codex,"Verification: 472 tests pass with exact 100 percent line/branch/function coverage across all 12 measured source files; all 156 declarations across 15 files have docstrings. Type checks, npm production audit (zero vulnerabilities), package dry-run, release-date and provenance-publish guards pass. Tracker validation has zero history drift; existing historical resolution and provenance advisories retain their baseline. Native pm-cli SDK consumer keeps 2351 entries and moves the four PR 1228 items to Unreleased. Five previous timestamp-only attributions also move to their first containing tags; tagged tsx, jscpd, Sentry and typescript-eslint manifests corroborate the corrected release boundaries. Real Git fixtures verify later regenerations, explicit release pins, Markdown/TOON parsing, pending omission, and fail-closed corrupt evidence."
+  "2026-09-10T09:35:03.592Z",codex,"Durable execution evidence: https://github.com/unbraind/pm-changelog/actions/runs/34460170601 completed successfully for commit 074db998d38e87bb27286ae983b73c7ca0f6eadf on Node 22 and Node 26. Its recorded steps independently cover type checking, docstring coverage, tests with exact coverage, production audit, package contents, generated changelog, version-derived dates, and publish attestation. This immutable run supplements the existing focused linked-test records and local release:check evidence without duplicating the full suite as three linked executions."
+  "2026-09-10T09:35:05.180Z",codex,"Consumer execution receipt: {\"input\":2675,\"before\":2351,\"after\":2351,\"corrections\":[[\"pm-k47gdd\",\"2026.9.1 - 2026-09-01\"],[\"pm-wv47pf\",\"2026.9.3 - 2026-09-03\"],[\"pm-ur4swu\",\"2026.9.3 - 2026-09-03\"],[\"pm-r8yytk\",\"2026.9.3 - 2026-09-03\"],[\"pm-92tp12\",\"2026.9.3 - 2026-09-03\"],[\"pm-qs5iiq\",\"Unreleased\"],[\"pm-wfskfn\",\"Unreleased\"],[\"pm-fmy9ih\",\"Unreleased\"],[\"pm-m6g87m\",\"Unreleased\"]],\"latestReleaseCount\":6,\"consumer_repository\":\"unbraind/pm-cli\",\"consumer_head\":\"9775c9480\",\"generator_head\":\"074db998d38e87bb27286ae983b73c7ca0f6eadf\",\"command\":\"read-only public SDK listAllItemMetadata -> resolveGitReleaseMembership -> createChangelog\"}"
 files[27]{path,scope,note}:
   dist/cli.d.ts.map,project,Release tag membership implementation and verification
   dist/cli.js,project,Release tag membership implementation and verification

@@ -117,6 +117,7 @@ test("membership preserves declarations and explicit omission and pending-window
   };
   deepEqual([...(await resolveGitReleaseMembership(pending, pmRoot))], [["pm-test", "2026.9.11"]]);
   deepEqual([...(await resolveGitReleaseMembership({ ...options, items: [{ ...item, status: undefined }], includeStatuses: [] }, pmRoot))], [["pm-test", "Unreleased"]]);
+  deepEqual([...(await resolveGitReleaseMembership({ ...options, items: [{ ...item, id: "pm-absent", status: undefined }], includeStatuses: [] }, pmRoot))], [["pm-absent", "Unreleased"]]);
   throws(() => createChangelog({ ...options, releaseMembership: new Map([["pm-test", "missing"]]) }), /Unknown release membership window/);
   equal(explainChangelogSelection({ items: [item], releaseMembership: new Map([["pm-test", "Unreleased"]]) }).attribution_provenance?.authoritative, 1);
   writeItem(root, "closed");
@@ -311,4 +312,13 @@ test("historical schema evidence fails closed for malformed documents and escapi
   git(root, ["commit", "-m", "Default schema"]);
   git(root, ["tag", "default-schema"]);
   equal((await resolveGitReleaseMembership({ ...options, releaseWindows: [{ heading: "default", releaseTag: "default-schema", until: "2026-09-10T07:00:00Z" }] }, pmRoot)).size, 0);
+});
+
+test("membership reports the tracker root when Git has no working tree", async (t) => {
+  const root = mkdtempSync(join(tmpdir(), "pm-changelog-bare-"));
+  t.after(() => rmSync(root, { recursive: true, force: true }));
+  git(root, ["init", "--bare"]);
+  writeFileSync(join(root, "settings.json"), JSON.stringify(SETTINGS_DEFAULTS));
+  await rejects(resolveGitReleaseMembership({ items: [], releaseWindows: [{ heading: "tag", releaseTag: "v2026.9.10" }] }, root),
+    (error: Error) => error.message.includes(`Cannot locate the Git work tree for ${root}`) && error.message.includes("git rev-parse"));
 });
