@@ -20,7 +20,8 @@ import {
   resolveReleaseContext,
   resolveReleaseTagWindowResolution,
 } from "./release-context.ts";
-import type { ChangelogGroupBy, ChangelogItemRefStyle, ChangelogSectionBy, PmItem } from "./types.ts";
+import { resolveGitReleaseMembership } from "./release-membership.ts";
+import type { ChangelogGroupBy, ChangelogItemRefStyle, ChangelogSectionBy, GenerateChangelogOptions, PmItem } from "./types.ts";
 
 /**
  * Marks a command result as JSON text that pm-changelog has already rendered.
@@ -80,7 +81,7 @@ function renderCommandResult(context: { result?: unknown } | undefined): string 
 
 export default defineExtension({
   name: "pm-changelog",
-  version: "2026.9.9",
+  version: "2026.9.10",
 
   activate(api) {
     api.registerCommand({
@@ -222,7 +223,7 @@ export default defineExtension({
         if (bodyPreview !== undefined && bodyPreview > 0) {
           await enrichItemBodies(ctx.pm_root, items);
         }
-        const generationOptions = {
+        const generationOptions: GenerateChangelogOptions = {
           items,
           title: titleOption,
           version: releaseContext.version,
@@ -250,6 +251,13 @@ export default defineExtension({
           respectItemRelease: booleanOption(ctx.options, "respect-item-release", "respectItemRelease"),
           excludeTags: excludeTagsOption(ctx.options),
         };
+        if (allReleaseTags) {
+          try {
+            generationOptions.releaseMembership = await resolveGitReleaseMembership(generationOptions, ctx.pm_root);
+          } catch (error) {
+            throw new PmCliError(`Cannot verify release membership: ${String(error)}`, EXIT_CODE.GENERIC_FAILURE);
+          }
+        }
         // pm-cli 2026.9.5 owns `--explain` as root-help expansion, so the
         // extension cannot declare that spelling. Selection diagnostics stay
         // available under `--explain-selection`; the standalone CLI keeps

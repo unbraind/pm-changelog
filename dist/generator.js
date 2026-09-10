@@ -718,7 +718,7 @@ function usesSingleVersionSection(options) {
  * single-version section, so items are preserved under `## Unreleased`. */
 function buildSections(items, options) {
     if (isInReleaseWindowMode(options)) {
-        return assignItemsToReleaseWindows(items, options.releaseWindows, getSuppressedPendingRelease(options));
+        return assignItemsToReleaseWindows(items, options.releaseWindows, getSuppressedPendingRelease(options), options.releaseMembership);
     }
     if (options.groupBy === "release" && !options.version) {
         return groupSectionsByMetadata(items, "release", "Unreleased");
@@ -734,7 +734,8 @@ function buildSections(items, options) {
     ];
 }
 /**
- * Bucket items into release windows, declaration first and timestamps second.
+ * Bucket items into release windows, declaration first, verified membership
+ * corrections second, and completion timestamps for the remainder.
  *
  * An item naming a release that matches a window is pinned there regardless of
  * its timestamps; only the remainder is placed by time. That ordering is what
@@ -759,7 +760,7 @@ function buildSections(items, options) {
  * run, while the attribution provenance still classified the item as placed by
  * timestamp (Greptile, PR #174).
  */
-function assignItemsToReleaseWindows(items, windows, suppressedPendingRelease) {
+function assignItemsToReleaseWindows(items, windows, suppressedPendingRelease, releaseMembership) {
     const buckets = new Map();
     for (const window of windows)
         buckets.set(window.heading, []);
@@ -788,6 +789,16 @@ function assignItemsToReleaseWindows(items, windows, suppressedPendingRelease) {
         // not fall into an older release its timestamp happens to intersect.
         if (key && suppressedKey && key === suppressedKey && unreleasedHeading) {
             buckets.get(unreleasedHeading).push(item);
+            continue;
+        }
+        if (item.id && releaseMembership?.has(item.id)) {
+            const membershipHeading = releaseMembership.get(item.id);
+            if (membershipHeading !== null) {
+                const bucket = buckets.get(membershipHeading);
+                if (!bucket)
+                    throw new Error(`Unknown release membership window: ${membershipHeading}`);
+                bucket.push(item);
+            }
             continue;
         }
         remaining.push(item);
@@ -1431,11 +1442,16 @@ function buildAttributionProvenance(items, options) {
         return undefined;
     let authoritative = 0;
     let releasePinned = 0;
+    let releaseMembership = 0;
     const inferredSources = {};
     const inferredCandidates = [];
     for (const item of items) {
         if (isPlacedByReleaseDeclaration(item, options)) {
             releasePinned++;
+            continue;
+        }
+        if (isInReleaseWindowMode(options) && item.id && options.releaseMembership?.has(item.id)) {
+            releaseMembership++;
             continue;
         }
         const resolved = resolveItemCompletion(item);
@@ -1463,6 +1479,7 @@ function buildAttributionProvenance(items, options) {
         authoritative,
         inferred: inferredCandidates.length,
         release_pinned: releasePinned,
+        ...(releaseMembership > 0 ? { release_membership: releaseMembership } : {}),
         inferred_sources: inferredSources,
         inferred_sample: inferredSample,
     };

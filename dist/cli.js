@@ -3,9 +3,11 @@ import { appendFileSync, existsSync, readFileSync, realpathSync } from "node:fs"
 import { basename, resolve } from "node:path";
 import { stdin } from "node:process";
 import { fileURLToPath } from "node:url";
+import { resolvePmRoot } from "@unbrained/pm-cli/sdk";
 import { createUnifiedDiff, DEFAULT_MAX_DIFF_LINES } from "./diff.js";
 import { buildChangelogDocument, createChangelog, createChangelogSummary, explainChangelogSelection, formatInferredSources, formatSummaryLine, mergeChangelog, parsePmItemsJson, readPmItems, suggestSemver, writeChangelog, } from "./generator.js";
 import { resolveGenerationReleaseWindows, resolveReleaseContext, resolveReleaseTagWindowResolution, } from "./release-context.js";
+import { resolveGitReleaseMembership } from "./release-membership.js";
 // Compatibility aliases for value-taking options. Kept intentionally small and
 // explicit so default behavior remains stable.
 const OPTION_ALIASES = {
@@ -110,6 +112,9 @@ async function main(args = process.argv.slice(2)) {
     const items = await loadItems(options);
     const outputPath = resolve(options.output);
     const generationOptions = buildGenerationOptions(options, items);
+    if (options.allReleaseTags && !options.input && !options.stdin) {
+        generationOptions.releaseMembership = await resolveGitReleaseMembership(generationOptions, resolvePmRoot(options.pmCwd ? resolve(options.pmCwd) : process.cwd(), options.pmRoot));
+    }
     const selectionReport = options.explain ? explainChangelogSelection(generationOptions) : undefined;
     // OPT-IN (`--format json` without `--summary`): alias for the structured
     // `--changelog-json` document, giving agents a single standard `--format`
@@ -767,7 +772,8 @@ function writeSelectionReport(report) {
     if (provenance) {
         const sources = formatInferredSources(provenance.inferred_sources);
         console.error(`Attribution provenance: authoritative=${provenance.authoritative} inferred=${provenance.inferred}`
-            + ` release_pinned=${provenance.release_pinned} (inferred sources: ${sources})`);
+            + ` release_pinned=${provenance.release_pinned} (inferred sources: ${sources})`
+            + (provenance.release_membership ? ` release_membership=${provenance.release_membership}` : ""));
         if (provenance.inferred_sample.length > 0) {
             console.error(`Inferred-attribution sample: ${provenance.inferred_sample.join(", ")}`);
         }

@@ -1,3 +1,4 @@
 export { buildChangelogDocument, buildPmListArgs, createChangelog, createChangelogSummary, explainChangelogSelection, formatSummaryLine, generateChangelog, IncompleteListAllError, mergeChangelog, parseListAllItemsJson, parsePmItemsJson, readPmItems, suggestSemver, writeChangelog, } from "./generator.js";
 export { assertReleaseTagHistory, MISSING_TAG_HISTORY_ERROR_CODE, MissingTagHistoryError, resolveGenerationReleaseWindows, resolveReleaseContext, resolveReleaseTagWindowResolution, resolveReleaseTagWindows, } from "./release-context.js";
+export { resolveGitReleaseMembership } from "./release-membership.js";
 //# sourceMappingURL=index.js.map

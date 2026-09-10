@@ -1,6 +1,16 @@
 # Changelog
 
-## 2026.9.8 - 2026-09-08
+## 2026.9.10 - 2026-09-10
+
+### Fixed
+
+- Keep branch-only completions out of release tags that do not contain them ([pmc-3jq8](https://github.com/unbraind/pm-changelog/blob/main/.agents/pm/issues/pmc-3jq8.toon))
+
+### Other
+
+- Prepare reviewed pm-changelog 2026.9.10 release metadata ([pmc-l0tg](https://github.com/unbraind/pm-changelog/blob/main/.agents/pm/chores/pmc-l0tg.toon))
+
+## 2026.9.9 - 2026-09-09
 
 ### Fixed
 
@@ -16,16 +26,13 @@
 
 ### Fixed
 
+- The installed pm resolver's memo makes three untested failures appear and disappear from exact coverage ([pmc-kd73](https://github.com/unbraind/pm-changelog/blob/main/.agents/pm/issues/pmc-kd73.toon))
+- The empty-windows fallback re-fabricates a dated placeholder heading on the library path ([pmc-zgnm](https://github.com/unbraind/pm-changelog/blob/main/.agents/pm/issues/pmc-zgnm.toon))
 - Suppressed pending release can relocate or drop an item (Greptile issue 2, PR \#174) ([pmc-hox8](https://github.com/unbraind/pm-changelog/blob/main/.agents/pm/issues/pmc-hox8.toon))
 - Pending release windows must not claim a never-released package version ([pmc-1vma](https://github.com/unbraind/pm-changelog/blob/main/.agents/pm/issues/pmc-1vma.toon))
 - Extension surface has no --no-pending-release equivalent (Greptile issue 1, PR \#174) ([pmc-zj2w](https://github.com/unbraind/pm-changelog/blob/main/.agents/pm/issues/pmc-zj2w.toon))
 
 ## 2026.9.1 - 2026-09-01
-
-### Fixed
-
-- The installed pm resolver's memo makes three untested failures appear and disappear from exact coverage ([pmc-kd73](https://github.com/unbraind/pm-changelog/blob/main/.agents/pm/issues/pmc-kd73.toon))
-- The empty-windows fallback re-fabricates a dated placeholder heading on the library path ([pmc-zgnm](https://github.com/unbraind/pm-changelog/blob/main/.agents/pm/issues/pmc-zgnm.toon))
 
 ### Other
 
@@ -138,13 +145,10 @@
 
 ### Added
 
+- Enforce a real coverage gate by running tests against TypeScript sources ([pmc-6jr4](https://github.com/unbraind/pm-changelog/blob/main/.agents/pm/features/pmc-6jr4.toon))
 - Adopt authoritative completion-timestamp contract from pm-cli SDK ([pmc-366b](https://github.com/unbraind/pm-changelog/blob/main/.agents/pm/features/pmc-366b.toon))
 
 ## 2026.7.29 - 2026-07-28
-
-### Added
-
-- Enforce a real coverage gate by running tests against TypeScript sources ([pmc-6jr4](https://github.com/unbraind/pm-changelog/blob/main/.agents/pm/features/pmc-6jr4.toon))
 
 ### Fixed
 
@@ -405,6 +409,7 @@
 
 ### Other
 
+- Release readiness hardening for pm-changelog ([pmc-14cx](https://github.com/unbraind/pm-changelog/blob/main/.agents/pm/tasks/pmc-14cx.toon))
 - Bump @unbrained/pm-cli SDK to \>=2026.5.24 ([pmc-cfhf](https://github.com/unbraind/pm-changelog/blob/main/.agents/pm/tasks/pmc-cfhf.toon))
 
 ## 2026.5.26 - 2026-05-25
@@ -412,10 +417,6 @@
 ### Fixed
 
 - Fix release tag date drift in changelog checks ([pmc-7dm6](https://github.com/unbraind/pm-changelog/blob/main/.agents/pm/issues/pmc-7dm6.toon))
-
-### Other
-
-- Release readiness hardening for pm-changelog ([pmc-14cx](https://github.com/unbraind/pm-changelog/blob/main/.agents/pm/tasks/pmc-14cx.toon))
 
 ## 2026.5.25 - 2026-05-25
 
