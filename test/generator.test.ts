@@ -2600,8 +2600,14 @@ test("pm package install activates changelog command", (t) => {
     encoding: "utf-8",
   }));
   // Scoped renderer ownership proves that only changelog command marker results
-  // can reach the toon/json callbacks, so isolated doctor remains warning-free.
-  assert.deepEqual(doctor.warnings, []);
+  // can reach the toon/json callbacks, so no renderer warning reaches an
+  // isolated doctor. The one warning that does is unrelated to ownership: this
+  // fixture installs the package from a local directory, which has no GitHub
+  // release feed, and pm-cli 2026.9.8 (GH-1219) began reporting that skipped
+  // update probe instead of counting it as covered. Asserting the exact list
+  // rather than tolerating warnings keeps a renderer-ownership regression —
+  // which is what this assertion exists to catch — a failure.
+  assert.deepEqual(doctor.warnings, ["extension_update_health_partial_coverage:skipped_non_github:1"]);
   assert.equal(doctor.details?.isolation?.isolated, true);
   const installedExtensions = doctor.details?.deep?.installed_extensions;
   assert.ok(Array.isArray(installedExtensions), "installed_extensions should be an array");
