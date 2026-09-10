@@ -1,11 +1,11 @@
 import { deepEqual, equal, rejects, throws } from "node:assert/strict";
 import { execFileSync } from "node:child_process";
-import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { mkdirSync, mkdtempSync, readFileSync, renameSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { test } from "node:test";
 
-import { readSettings, serializeItemDocument } from "@unbrained/pm-cli/sdk";
+import { readSettings, serializeItemDocument, SETTINGS_DEFAULTS } from "@unbrained/pm-cli/sdk";
 import { activateExtensionForTest, runRegisteredCommandForTest } from "@unbrained/pm-cli/sdk/testing";
 
 import { createChangelog, explainChangelogSelection } from "../src/generator.ts";
@@ -42,7 +42,7 @@ function writeItem(root: string, status: "open" | "closed", format: "toon" | "js
 function createRepository(): string {
   const root = mkdtempSync(join(tmpdir(), "pm-changelog-membership-"));
   mkdirSync(join(root, ".agents/pm/tasks"), { recursive: true });
-  writeFileSync(join(root, ".agents/pm/settings.json"), "{}\n");
+  writeFileSync(join(root, ".agents/pm/settings.json"), JSON.stringify(SETTINGS_DEFAULTS));
   git(root, ["init", "-b", "main"]);
   git(root, ["config", "user.name", "Test"]);
   git(root, ["config", "user.email", "test@example.com"]);
@@ -130,6 +130,7 @@ test("membership reads Markdown blobs, ignores nested package documents, and han
   t.after(() => rmSync(root, { recursive: true, force: true }));
   rmSync(join(root, ".agents/pm/tasks/pm-test.toon"));
   writeItem(root, "closed", "json_markdown");
+  writeFileSync(join(root, ".agents/pm/settings.json"), JSON.stringify({ ...SETTINGS_DEFAULTS, item_format: "json_markdown" }));
   mkdirSync(join(root, ".agents/pm/extensions/example/tasks"), { recursive: true });
   writeFileSync(join(root, ".agents/pm/extensions/example/tasks/pm-test.toon"), "not a tracker item");
   git(root, ["add", "."]);
@@ -200,4 +201,114 @@ test("Git batch decoding rejects truncated, mismatched, and ambiguous evidence",
     throws(() => parseReleaseItemStatuses(malformed, blobs, schema), /Git blob/);
   }
   throws(() => parseReleaseItemStatuses(valid, new Map([["pm-other", { hash, format: "toon" }]]), schema), /identity disagree/);
+});
+
+test("repository-root and symlinked trackers retain correct Git path membership", async (t) => {
+  const root = createRepository();
+  const aliasRoot = mkdtempSync(join(tmpdir(), "pm-changelog-root-alias-"));
+  t.after(() => { rmSync(aliasRoot, { recursive: true, force: true }); rmSync(root, { recursive: true, force: true }); });
+  renameSync(join(root, ".agents/pm/tasks"), join(root, "tasks"));
+  renameSync(join(root, ".agents/pm/settings.json"), join(root, "settings.json"));
+  git(root, ["add", "."]);
+  git(root, ["commit", "-m", "Root tracker"], "2026-09-10T07:00:00Z");
+  git(root, ["tag", "v2026.9.10"]);
+  symlinkSync(root, join(aliasRoot, "workspace"), "dir");
+  const options = {
+    items: [{ id: "pm-test", title: "Branch completion", status: "closed", completed_at: "2026-09-10T05:00:00Z" }],
+    releaseWindows: resolveReleaseTagWindows({ cwd: root }),
+  };
+  for (const pmRoot of [root, join(aliasRoot, "workspace")]) {
+    deepEqual([...(await resolveGitReleaseMembership(options, pmRoot))], [["pm-test", "Unreleased"]]);
+  }
+});
+
+test("historical inline and file-backed schemas survive current schema evolution", async (t) => {
+  const root = createRepository();
+  t.after(() => rmSync(root, { recursive: true, force: true }));
+  const pmRoot = join(root, ".agents/pm");
+  const historicalSchema = { ...SETTINGS_DEFAULTS.schema, statuses: [...SETTINGS_DEFAULTS.schema.statuses, { id: "reviewed", roles: ["active" as const] }] };
+  const document = {
+    metadata: {
+      id: "pm-test", title: "Historical custom status", description: "Schema evolution fixture", type: "LegacyTask", status: "reviewed",
+      priority: 2 as const, tags: [], created_at: "2026-09-10T04:00:00Z", updated_at: "2026-09-10T05:00:00Z",
+      legacy_field: "previously allowed",
+    }, body: "",
+  };
+  writeFileSync(join(pmRoot, "settings.json"), JSON.stringify({ ...SETTINGS_DEFAULTS, schema: historicalSchema }));
+  writeFileSync(join(pmRoot, "tasks/pm-test.toon"), serializeItemDocument(document, { schema: historicalSchema }));
+  git(root, ["add", "."]);
+  git(root, ["commit", "-m", "Release inline schema"], "2026-09-10T07:00:00Z");
+  git(root, ["tag", "v2026.9.10"]);
+
+  mkdirSync(join(root, "schema"));
+  writeFileSync(join(root, "schema/statuses.json"), JSON.stringify({ statuses: historicalSchema.statuses }));
+  writeFileSync(join(pmRoot, "settings.json"), JSON.stringify({ ...SETTINGS_DEFAULTS, schema: { files: { statuses: "../../schema/statuses.json" } } }));
+  git(root, ["add", "."]);
+  git(root, ["commit", "-m", "Release file-backed schema"], "2026-09-11T07:00:00Z");
+  git(root, ["tag", "v2026.9.11"]);
+  writeFileSync(join(pmRoot, "settings.json"), JSON.stringify({ ...SETTINGS_DEFAULTS, schema: { unknown_field_policy: "reject" } }));
+  const options = {
+    items: [{ id: "pm-test", title: "Current completion", status: "closed", completed_at: "2026-09-10T05:00:00Z" }],
+    releaseWindows: resolveReleaseTagWindows({ cwd: root }),
+  };
+  deepEqual([...(await resolveGitReleaseMembership(options, pmRoot))], [["pm-test", "Unreleased"]]);
+  writeFileSync(join(pmRoot, "settings.json"), JSON.stringify({ ...SETTINGS_DEFAULTS, schema: historicalSchema }));
+  writeFileSync(join(pmRoot, "tasks/pm-test.toon"), serializeItemDocument({ ...document, metadata: { ...document.metadata, status: "closed" } }, { schema: historicalSchema }));
+  git(root, ["add", "."]);
+  git(root, ["commit", "-m", "Release legacy field completion"], "2026-09-12T07:00:00Z");
+  git(root, ["tag", "v2026.9.12"]);
+  writeFileSync(join(pmRoot, "settings.json"), JSON.stringify({ ...SETTINGS_DEFAULTS, schema: { unknown_field_policy: "reject" } }));
+  deepEqual([...(await resolveGitReleaseMembership({ ...options, releaseWindows: resolveReleaseTagWindows({ cwd: root }) }, pmRoot))], [["pm-test", "2026.9.12 - 2026-09-12"]]);
+});
+
+test("historical schema evidence fails closed for malformed documents and escaping paths", async (t) => {
+  const root = createRepository();
+  t.after(() => rmSync(root, { recursive: true, force: true }));
+  const pmRoot = join(root, ".agents/pm");
+  const settingsPath = join(pmRoot, "settings.json");
+  const samples = [
+    "{", "null", "[]", "3", "{}",
+    ...[null, [], 3, { files: [] }, { files: null }].map((schema) => JSON.stringify({ ...SETTINGS_DEFAULTS, schema })),
+    ...[false, "", "/outside/schema.json", "../../..", "../../../escape.json"].map((statuses) =>
+      JSON.stringify({ ...SETTINGS_DEFAULTS, schema: { files: { statuses } } })),
+  ];
+  for (const [index, content] of samples.entries()) {
+    writeFileSync(settingsPath, content);
+    git(root, ["add", "."]);
+    git(root, ["commit", "-m", `Malformed schema ${index}`]);
+    const tag = `invalid-schema-${index}`;
+    git(root, ["tag", tag]);
+    await rejects(resolveGitReleaseMembership({
+      items: [{ id: "pm-test", title: "Historical work", status: "closed", completed_at: "2026-09-10T03:00:00Z" }],
+      releaseWindows: [{ heading: tag, releaseTag: tag, until: "2026-09-10T07:00:00Z" }],
+    }, pmRoot), /JSON|tagged|Tagged/);
+  }
+
+  writeFileSync(settingsPath, JSON.stringify(SETTINGS_DEFAULTS));
+  mkdirSync(join(pmRoot, "schema"), { recursive: true });
+  writeFileSync(join(pmRoot, "schema/statuses.json"), "{malformed");
+  git(root, ["add", "."]);
+  git(root, ["commit", "-m", "Malformed schema file"]);
+  git(root, ["tag", "invalid-schema-file"]);
+  await rejects(resolveGitReleaseMembership({
+    items: [{ id: "pm-test", title: "Historical work", status: "closed", completed_at: "2026-09-10T03:00:00Z" }],
+    releaseWindows: [{ heading: "bad-file", releaseTag: "invalid-schema-file", until: "2026-09-10T07:00:00Z" }],
+  }, pmRoot), /Invalid tagged schema evidence/);
+
+  git(root, ["rm", ".agents/pm/settings.json"]);
+  git(root, ["commit", "-m", "Legacy tracker without tagged settings"]);
+  git(root, ["tag", "no-settings"]);
+  writeFileSync(settingsPath, JSON.stringify(SETTINGS_DEFAULTS));
+  const options = {
+    items: [{ id: "pm-test", title: "Historical work", status: "open", completed_at: "2026-09-10T03:00:00Z" }], includeStatuses: ["open"],
+    releaseWindows: [{ heading: "legacy", releaseTag: "no-settings", until: "2026-09-10T07:00:00Z" }],
+  };
+  equal((await resolveGitReleaseMembership(options, pmRoot)).size, 0);
+  rmSync(join(pmRoot, "schema"), { recursive: true });
+  const { schema: unusedSchema, ...withoutSchema } = SETTINGS_DEFAULTS;
+  writeFileSync(settingsPath, JSON.stringify(withoutSchema));
+  git(root, ["add", "."]);
+  git(root, ["commit", "-m", "Default schema"]);
+  git(root, ["tag", "default-schema"]);
+  equal((await resolveGitReleaseMembership({ ...options, releaseWindows: [{ heading: "default", releaseTag: "default-schema", until: "2026-09-10T07:00:00Z" }] }, pmRoot)).size, 0);
 });

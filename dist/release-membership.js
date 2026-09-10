@@ -1,7 +1,8 @@
 import { execFileSync } from "node:child_process";
-import { existsSync } from "node:fs";
-import { basename, extname, relative, resolve, sep } from "node:path";
-import { parseItemDocument, readSettings } from "@unbrained/pm-cli/sdk";
+import { existsSync, mkdirSync, mkdtempSync, realpathSync, rmSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { basename, dirname, extname, isAbsolute, join, relative, resolve, sep } from "node:path";
+import { parseItemDocument, readSettingsWithMetadata, SETTINGS_DEFAULTS } from "@unbrained/pm-cli/sdk";
 import { createChangelog } from "./generator.js";
 /**
  * Verify timestamp-derived release placement against the tracked item state
@@ -23,8 +24,8 @@ export async function resolveGitReleaseMembership(options, pmRoot) {
     const cwd = execFileSync("git", ["rev-parse", "--show-toplevel"], {
         cwd: pmRoot, encoding: "utf8", stdio: ["ignore", "pipe", "pipe"],
     }).trim();
-    const trackerPath = relative(cwd, resolve(pmRoot)).split(sep).join("/");
-    const settings = await readSettings(pmRoot);
+    const trackerPath = relative(cwd, realpathSync(pmRoot)).split(sep).join("/");
+    const trackerPrefix = trackerPath ? `${trackerPath}/` : "";
     const sections = createChangelog({ ...options, releaseMembership: undefined }).sections;
     let pending = [];
     for (const window of [...windows].reverse()) {
@@ -39,19 +40,22 @@ export async function resolveGitReleaseMembership(options, pmRoot) {
             continue;
         }
         const ids = new Set(candidates.map((item) => item.id));
-        const tree = execFileSync("git", ["ls-tree", "-r", "-z", window.releaseTag, "--", trackerPath], {
+        const tree = execFileSync("git", ["ls-tree", "-r", "-z", window.releaseTag, "--", "."], {
             cwd, encoding: "utf8", maxBuffer: 64 * 1024 * 1024, stdio: ["ignore", "pipe", "pipe"],
         });
         const blobs = new Map();
+        const treeObjects = new Map();
         let hasTrackerItems = false;
         for (const entry of tree.split("\0")) {
             const tab = entry.indexOf("\t");
             if (tab < 0)
                 continue;
             const path = entry.slice(tab + 1);
+            const [, kind, hash] = entry.slice(0, tab).split(" ");
+            treeObjects.set(path, hash);
             // Item documents are direct children of type folders. Extension docs,
             // evidence directories, and nested package trackers are not this tracker.
-            if (path.slice(trackerPath.length + 1).split("/").length !== 2)
+            if (!path.startsWith(trackerPrefix) || path.slice(trackerPrefix.length).split("/").length !== 2)
                 continue;
             const extension = extname(path);
             if (extension !== ".toon" && extension !== ".md")
@@ -60,7 +64,6 @@ export async function resolveGitReleaseMembership(options, pmRoot) {
             const id = basename(path, extension);
             if (!ids.has(id))
                 continue;
-            const [, kind, hash] = entry.slice(0, tab).split(" ");
             if (kind !== "blob")
                 throw new Error(`Release item ${id} in ${window.releaseTag} is not a Git blob`);
             if (blobs.has(id))
@@ -80,7 +83,7 @@ export async function resolveGitReleaseMembership(options, pmRoot) {
                 maxBuffer: 64 * 1024 * 1024,
                 stdio: ["pipe", "pipe", "pipe"],
             });
-            statuses = parseReleaseItemStatuses(output, blobs, settings.schema);
+            statuses = parseReleaseItemStatuses(output, blobs, await readTaggedSchema(cwd, trackerPath, treeObjects));
         }
         const originalIds = new Set(original.map((item) => item.id));
         pending = candidates.filter((item) => {
@@ -96,6 +99,58 @@ export async function resolveGitReleaseMembership(options, pmRoot) {
     for (const item of pending)
         assignments.set(item.id, null);
     return assignments;
+}
+/**
+ * Reconstruct only the tagged settings and their four schema documents in an
+ * isolated directory, then let the public SDK validate and load that snapshot.
+ * Current checkout rules must never reject valid historical item metadata.
+ * Relative schema files may live elsewhere in the repository; paths escaping
+ * it cannot provide versioned evidence and are refused before filesystem access.
+ */
+async function readTaggedSchema(cwd, trackerPath, treeObjects) {
+    const settingsHash = treeObjects.get(trackerPath ? `${trackerPath}/settings.json` : "settings.json");
+    if (!settingsHash)
+        return SETTINGS_DEFAULTS.schema;
+    const content = execFileSync("git", ["cat-file", "blob", settingsHash], { cwd, encoding: "utf8" });
+    const raw = JSON.parse(content);
+    if (typeof raw !== "object" || raw === null || Array.isArray(raw))
+        throw new Error("Invalid tagged settings document");
+    const schema = raw.schema;
+    const files = typeof schema === "object" && schema !== null && !Array.isArray(schema)
+        ? schema.files : undefined;
+    const configuredFiles = typeof files === "object" && files !== null && !Array.isArray(files)
+        ? files : {};
+    const scratch = mkdtempSync(join(tmpdir(), "pm-changelog-tag-schema-"));
+    try {
+        const root = resolve(scratch, trackerPath);
+        mkdirSync(root, { recursive: true });
+        writeFileSync(join(root, "settings.json"), content);
+        for (const section of ["types", "statuses", "fields", "workflows"]) {
+            const configured = configuredFiles[section];
+            const path = configured === undefined ? SETTINGS_DEFAULTS.schema.files[section] : configured;
+            if (typeof path !== "string" || !path.trim())
+                throw new Error(`Invalid tagged schema path: ${section}`);
+            const target = resolve(root, path);
+            const withinRepository = relative(scratch, target);
+            if (isAbsolute(path) || withinRepository === ".." || withinRepository.startsWith(`..${sep}`)) {
+                throw new Error(`Tagged schema path is outside the repository: ${section}`);
+            }
+            const hash = treeObjects.get(withinRepository.split(sep).join("/"));
+            if (!hash)
+                continue;
+            mkdirSync(dirname(target), { recursive: true });
+            writeFileSync(target, execFileSync("git", ["cat-file", "blob", hash], { cwd }));
+        }
+        const loaded = await readSettingsWithMetadata(root);
+        const failures = loaded.warnings.filter((warning) => !warning.startsWith("runtime_schema_bootstrap_created:")
+            && warning !== "settings_item_format_legacy_json_markdown_coerced_to_toon");
+        if (failures.length)
+            throw new Error(`Invalid tagged schema evidence: ${failures.join(", ")}`);
+        return loaded.settings.schema;
+    }
+    finally {
+        rmSync(scratch, { recursive: true, force: true });
+    }
 }
 /**
  * Decode length-prefixed Git batch blobs with the public SDK item parser.

@@ -1,4 +1,4 @@
-import { readSettings } from "@unbrained/pm-cli/sdk";
+import { SETTINGS_DEFAULTS } from "@unbrained/pm-cli/sdk";
 import type { GenerateChangelogOptions } from "./types.ts";
 /** Immutable Git blob identity and the SDK parser format selected by its path. */
 export interface ReleaseItemBlob {
@@ -24,5 +24,5 @@ export declare function resolveGitReleaseMembership(options: GenerateChangelogOp
  * any status is trusted; a malformed response must fail changelog generation
  * rather than treating a partial read as evidence that work was unreleased.
  */
-export declare function parseReleaseItemStatuses(output: Buffer, blobs: ReadonlyMap<string, ReleaseItemBlob>, schema: Awaited<ReturnType<typeof readSettings>>["schema"]): Map<string, string>;
+export declare function parseReleaseItemStatuses(output: Buffer, blobs: ReadonlyMap<string, ReleaseItemBlob>, schema: typeof SETTINGS_DEFAULTS.schema): Map<string, string>;
 //# sourceMappingURL=release-membership.d.ts.map

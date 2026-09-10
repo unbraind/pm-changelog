@@ -146,6 +146,11 @@ Explicit release declarations remain authoritative; tags with no tracker
 documents retain historical timestamp placement. Membership reads use Git blobs
 and the public pm SDK parser, and malformed evidence fails generation.
 This behavior is tracked in [pmc-3jq8](../.agents/pm/issues/pmc-3jq8.toon).
+Tagged items use their tag's settings and schema files, so later schema changes
+do not invalidate historical metadata. Repository-root and symlinked tracker
+paths are supported; schema references outside the tagged repository cannot
+provide versioned evidence and fail generation. These compatibility guarantees
+are tracked in [pmc-j6cb](../.agents/pm/issues/pmc-j6cb.toon).
 
 Pure API inputs and standalone `--input`/`--stdin` documents retain timestamp
 placement because they need not describe the local tracker. SDK callers can opt
