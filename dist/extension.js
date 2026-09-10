@@ -3,6 +3,7 @@ import { resolve } from "node:path";
 import { defineExtension, listAllItemMetadata, locateItem, readLocatedItem, readSettings, resolveItemTypeRegistry, EXIT_CODE, PmCliError, } from "@unbrained/pm-cli/sdk";
 import { buildChangelogDocument, createChangelog, createChangelogSummary, explainChangelogSelection, formatSummaryLine, mergeChangelog, suggestSemver, writeChangelog } from "./generator.js";
 import { MissingTagHistoryError, resolveGenerationReleaseWindows, resolveReleaseContext, resolveReleaseTagWindowResolution, } from "./release-context.js";
+import { resolveGitReleaseMembership } from "./release-membership.js";
 const BODY_ENRICHMENT_DEPENDENCIES = {
     readSettings,
     resolveItemTypeRegistry,
@@ -36,7 +37,7 @@ function renderCommandResult(context) {
 }
 export default defineExtension({
     name: "pm-changelog",
-    version: "2026.9.9",
+    version: "2026.9.10",
     activate(api) {
         api.registerCommand({
             name: "changelog generate",
@@ -201,6 +202,14 @@ export default defineExtension({
                     respectItemRelease: booleanOption(ctx.options, "respect-item-release", "respectItemRelease"),
                     excludeTags: excludeTagsOption(ctx.options),
                 };
+                if (allReleaseTags) {
+                    try {
+                        generationOptions.releaseMembership = await resolveGitReleaseMembership(generationOptions, ctx.pm_root);
+                    }
+                    catch (error) {
+                        throw new PmCliError(`Cannot verify release membership: ${String(error)}`, EXIT_CODE.GENERIC_FAILURE);
+                    }
+                }
                 // pm-cli 2026.9.5 owns `--explain` as root-help expansion, so the
                 // extension cannot declare that spelling. Selection diagnostics stay
                 // available under `--explain-selection`; the standalone CLI keeps

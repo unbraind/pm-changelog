@@ -124,6 +124,11 @@ export interface GenerateChangelogOptions {
    * returned directly by `resolveReleaseTagWindows`; otherwise it represents
    * absent history and preserves items under the single-section fallback. */
   releaseWindows?: ChangelogReleaseWindow[];
+  /** Verified item-id to release-window heading corrections from
+   * resolveGitReleaseMembership. Null means no supplied window contains the
+   * item. Explicit item release declarations take precedence; absent entries
+   * keep timestamp placement. Never changes the input tracker metadata. */
+  releaseMembership?: ReadonlyMap<string, string | null>;
   /** OPT-IN: the pending release tag whose window was suppressed from
    * `releaseWindows` — what `resolveReleaseTagWindowResolution` reports for
    * `pendingRelease: false`, forwarded by the CLI and extension. An item
@@ -413,6 +418,9 @@ export interface ChangelogAttributionProvenance {
    * the release. Counted apart from `authoritative`/`inferred` so a late-close
    * hunt is not seeded with items whose placement was never in question. */
   release_pinned: number;
+  /** Items moved by verified release membership instead of completion time.
+   * Omitted when no visible placement used a membership correction. */
+  release_membership?: number;
   /** The metadata field that supplied each inferred item's timestamp, keyed by
    * field name (`closed_at` / `updated_at` / `created_at`) to its count. */
   inferred_sources: Record<string, number>;

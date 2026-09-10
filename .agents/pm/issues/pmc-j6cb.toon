@@ -1,0 +1,42 @@
+id: pmc-j6cb
+title: Preserve historical schemas and physical tracker roots during release membership verification
+description: PR #188 review found that an empty repository-root pathspec fails Git reads and present-day schema rules reject valid historical item blobs. Resolve physical tracker roots and load each tag with its own settings and schema files while preserving strict blob evidence validation.
+type: Issue
+status: closed
+priority: 2
+tags: []
+created_at: "2026-09-10T09:11:30.892Z"
+updated_at: "2026-09-10T09:35:04.113Z"
+closed_at: "2026-09-10T09:20:31.713Z"
+completed_at: "2026-09-10T09:20:31.713Z"
+author: codex
+acceptance_criteria: Real root and symlink tracker fixtures pass; historical inline and file-backed custom schemas remain readable after evolution; malformed or out-of-repository historical schema evidence fails closed; complete release gate remains green.
+parent: pmc-3jq8
+release: 2026.9.10
+resolution: Release membership resolves physical tracker roots and validates tagged items with tag-local settings and schema files in isolated snapshots.
+expected_result: "Root and symlink trackers work, historical schema evolution does not reject valid evidence, and malformed or escaping schema evidence fails closed."
+actual_result: "Real Git regressions and all 475 release-gate tests pass with exact measured coverage, docstrings, package and release validation; consumer full-history generation succeeds."
+dependencies[1]{id,kind,created_at,author,source_kind,author_source}:
+  pmc-3jq8,verifies,"2026-09-10T09:18:44.803Z",codex,"cli:update:dep",detected
+comments[5]{created_at,author,text}:
+  "2026-09-10T09:11:30.892Z",codex,"Duplicate check: fresh all-status schema, tracker root, and membership searches plus open/in-progress lists found the completed implementation pmc-3jq8 and unrelated historical owners, but no owner for these two new PR #188 compatibility findings. Reuse pmc-3jq8 lineage through this review-fix child. Sources: https://github.com/unbraind/pm-changelog/pull/188#discussion_r3977389940 and https://github.com/unbraind/pm-changelog/pull/188#discussion_r3977412690"
+  "2026-09-10T09:18:45.259Z",codex,"TDD evidence: the new real Git fixtures first failed with an empty root pathspec and rejection of a historical custom status by current schema rules. Physical roots and tag-local settings plus schema snapshots now pass, including relative schema files elsewhere inside the repository, historical unknown fields, malformed settings/schema negative controls, path-escape refusals, and default legacy settings. The complete coverage run passed all 475 tests with lines, branches, and functions each exactly 100 percent; public SDK parsing and strict byte/identity validation remain enabled. The separate docstring gate passed. A read-only full-history generation against the pm-cli consumer also passed."
+  "2026-09-10T09:20:31.284Z",codex,"Terminal review-fix evidence: npm run release:check passed all 475 tests and exact 100 percent lines/branches/functions, docstrings, production audit, package validation, generated changelog, date guard and publish-attestation guard. The two initial regression failures are preserved as TDD evidence. The real consumer generation also succeeds against the complete pm-cli history."
+  "2026-09-10T09:30:10.419Z",codex,"Review round 2: CodeRabbit independently verified the root/symlink correction at 074db99 in the real inline thread; its full-review request is temporarily rate-limited until approximately 09:58 UTC. Greptile confirmed the historical-schema fix but raised a missing configured-file concern. A real Git/SDK probe disproved that concern as stated: schema.files are optional override locations, including explicitly configured locations; inline custom status verified and required field proof remain enforced when those files are absent. Valid membership passed and a second tagged item missing proof was rejected. The SDK ensureRuntimeSchemaFileScaffold and loadRuntimeSchemaFromOptionalFiles implementations confirm this contract. Declined the new finding with a thumbs-down and detailed inline evidence; malformed present schema files and out-of-repository paths still fail closed."
+  "2026-09-10T09:35:04.113Z",codex,"Durable execution evidence: https://github.com/unbraind/pm-changelog/actions/runs/34460170601 completed successfully for commit 074db998d38e87bb27286ae983b73c7ca0f6eadf on Node 22 and Node 26. Its recorded steps independently cover type checking, docstring coverage, tests with exact coverage, production audit, package contents, generated changelog, version-derived dates, and publish attestation. This immutable run supplements the existing focused linked-test records and local release:check evidence without duplicating the full suite as three linked executions."
+learnings[1]{created_at,author,text}:
+  "2026-09-10T09:30:10.823Z",codex,"Historical schema reconstruction must follow the public SDK optional-file contract: absent schema.files paths do not erase inline definitions or make a workspace invalid. Distinguish absent optional overrides from malformed present evidence; prove preserved custom status and required-field enforcement before tightening historical reads."
+files[6]{path,scope,note}:
+  dist/release-membership.d.ts,project,Compiled historical schema and tracker root correction
+  dist/release-membership.d.ts.map,project,Compiled historical schema and tracker root correction
+  dist/release-membership.js,project,Compiled historical schema and tracker root correction
+  dist/release-membership.js.map,project,Compiled historical schema and tracker root correction
+  src/release-membership.ts,project,Resolve roots and read tagged schemas
+  test/release-membership.test.ts,project,Real Git root and schema-evolution regressions
+tests[1]{command,scope,timeout_seconds,provenance{author,created_at,source_kind,source_ref}}:
+  node --test test/release-membership.test.ts,project,240,codex,"2026-09-10T09:11:33.121Z",local_mutation,fix/release-window-tag-membership
+docs[2]{path,scope,note}:
+  CHANGELOG.md,project,Document reviewed compatibility correction
+  docs/usage.md,project,Document reviewed compatibility correction
+close_reason: Verified historical schema snapshots and physical tracker paths for PR 188
+body: ""

@@ -23,6 +23,7 @@ export {
   resolveReleaseTagWindowResolution,
   resolveReleaseTagWindows,
 } from "./release-context.ts";
+export { resolveGitReleaseMembership } from "./release-membership.ts";
 export type {
   AssertReleaseTagHistoryOptions,
   ReleaseTagWindowResolution,

@@ -138,6 +138,28 @@ npx pm-changelog --all-release-tags --mode replace --output CHANGELOG.md \
 
 `--all-release-tags` creates a newest-first `Unreleased` section for closed items after the latest tag, then one section per matching git tag. Release section dates come from the tag commit timestamp. Items with a `release` field whose value matches a known tag (`v2026.05.24-7`, `2026.05.24-7`, etc.) are bucketed into that tag's section regardless of timestamps; items without a matching `release` field use each item's authoritative `completed_at`, then fall back to the inferred `closed_at`, `updated_at`, and `created_at` for legacy records. Empty release windows are omitted unless `--include-empty` is passed.
 
+For live tracker reads, the CLI and extension also verify undeclared items against
+the item state stored in each tag. Work completed on a branch before an unrelated
+release stays `Unreleased` until the first tag contains its selected status. A
+pending release being prepared can include that work before its tag exists.
+Explicit release declarations remain authoritative; tags with no tracker
+documents retain historical timestamp placement. Membership reads use Git blobs
+and the public pm SDK parser, and malformed evidence fails generation.
+This behavior is tracked in [pmc-3jq8](../.agents/pm/issues/pmc-3jq8.toon).
+Tagged items use their tag's settings and schema files, so later schema changes
+do not invalidate historical metadata. Repository-root and symlinked tracker
+paths are supported; schema references outside the tagged repository cannot
+provide versioned evidence and fail generation. These compatibility guarantees
+are tracked in [pmc-j6cb](../.agents/pm/issues/pmc-j6cb.toon).
+
+Pure API inputs and standalone `--input`/`--stdin` documents retain timestamp
+placement because they need not describe the local tracker. SDK callers can opt
+into the same verification by passing
+`releaseMembership: await resolveGitReleaseMembership(options, pmRoot)` alongside
+their existing `options` to `createChangelog` or `writeChangelog`. Import
+`resolveGitReleaseMembership` from `pm-changelog`. Selection diagnostics report
+corrected visible entries under `attribution_provenance.release_membership`.
+
 Pair `--all-release-tags` with `--release-version-from-package` (or `--version v<x>`) to insert a section for the pending release before the tag is created — for example during CI when bumping `package.json` ahead of `git tag`.
 
 The pending-release section is only correct when a release is actually being cut. In a package whose `package.json` version has never been released or tagged, that version is a placeholder, not a release — the generator would otherwise emit a heading that asserts a release that never happened. Pass `--no-pending-release` to say "nothing is being released right now": the pending window is suppressed and the leading `Unreleased` window is kept instead.

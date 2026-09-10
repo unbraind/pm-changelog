@@ -5,6 +5,8 @@ import { stdin } from "node:process";
 import type { Readable } from "node:stream";
 import { fileURLToPath } from "node:url";
 
+import { resolvePmRoot } from "@unbrained/pm-cli/sdk";
+
 import { createUnifiedDiff, DEFAULT_MAX_DIFF_LINES } from "./diff.ts";
 import {
   buildChangelogDocument,
@@ -24,12 +26,14 @@ import {
   resolveReleaseContext,
   resolveReleaseTagWindowResolution,
 } from "./release-context.ts";
+import { resolveGitReleaseMembership } from "./release-membership.ts";
 import type {
   ChangelogGroupBy,
   ChangelogItemRefStyle,
   ChangelogReleaseWindow,
   ChangelogSelectionReport,
   ChangelogSectionBy,
+  GenerateChangelogOptions,
   PmItem,
 } from "./types.ts";
 
@@ -193,7 +197,12 @@ async function main(args: string[] = process.argv.slice(2)): Promise<void> {
   applyReleaseContext(options);
   const items = await loadItems(options);
   const outputPath = resolve(options.output);
-  const generationOptions = buildGenerationOptions(options, items);
+  const generationOptions: GenerateChangelogOptions = buildGenerationOptions(options, items);
+  if (options.allReleaseTags && !options.input && !options.stdin) {
+    generationOptions.releaseMembership = await resolveGitReleaseMembership(
+      generationOptions, resolvePmRoot(options.pmCwd ? resolve(options.pmCwd) : process.cwd(), options.pmRoot),
+    );
+  }
   const selectionReport = options.explain ? explainChangelogSelection(generationOptions) : undefined;
 
   // OPT-IN (`--format json` without `--summary`): alias for the structured
@@ -891,6 +900,7 @@ function writeSelectionReport(report: ChangelogSelectionReport): void {
     console.error(
       `Attribution provenance: authoritative=${provenance.authoritative} inferred=${provenance.inferred}`
       + ` release_pinned=${provenance.release_pinned} (inferred sources: ${sources})`
+      + (provenance.release_membership ? ` release_membership=${provenance.release_membership}` : "")
     );
     if (provenance.inferred_sample.length > 0) {
       console.error(`Inferred-attribution sample: ${provenance.inferred_sample.join(", ")}`);

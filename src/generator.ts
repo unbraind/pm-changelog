@@ -848,7 +848,7 @@ function usesSingleVersionSection(options: GenerateChangelogOptions): boolean {
  * single-version section, so items are preserved under `## Unreleased`. */
 function buildSections(items: PmItem[], options: GenerateChangelogOptions): ChangelogSection[] {
   if (isInReleaseWindowMode(options)) {
-    return assignItemsToReleaseWindows(items, options.releaseWindows!, getSuppressedPendingRelease(options));
+    return assignItemsToReleaseWindows(items, options.releaseWindows!, getSuppressedPendingRelease(options), options.releaseMembership);
   }
 
   if (options.groupBy === "release" && !options.version) {
@@ -868,7 +868,8 @@ function buildSections(items: PmItem[], options: GenerateChangelogOptions): Chan
 }
 
 /**
- * Bucket items into release windows, declaration first and timestamps second.
+ * Bucket items into release windows, declaration first, verified membership
+ * corrections second, and completion timestamps for the remainder.
  *
  * An item naming a release that matches a window is pinned there regardless of
  * its timestamps; only the remainder is placed by time. That ordering is what
@@ -896,7 +897,8 @@ function buildSections(items: PmItem[], options: GenerateChangelogOptions): Chan
 function assignItemsToReleaseWindows(
   items: PmItem[],
   windows: ChangelogReleaseWindow[],
-  suppressedPendingRelease?: string
+  suppressedPendingRelease?: string,
+  releaseMembership?: ReadonlyMap<string, string | null>,
 ): ChangelogSection[] {
   const buckets = new Map<string, PmItem[]>();
   for (const window of windows) buckets.set(window.heading, []);
@@ -925,6 +927,15 @@ function assignItemsToReleaseWindows(
     // not fall into an older release its timestamp happens to intersect.
     if (key && suppressedKey && key === suppressedKey && unreleasedHeading) {
       buckets.get(unreleasedHeading)!.push(item);
+      continue;
+    }
+    if (item.id && releaseMembership?.has(item.id)) {
+      const membershipHeading = releaseMembership.get(item.id)!;
+      if (membershipHeading !== null) {
+        const bucket = buckets.get(membershipHeading);
+        if (!bucket) throw new Error(`Unknown release membership window: ${membershipHeading}`);
+        bucket.push(item);
+      }
       continue;
     }
     remaining.push(item);
@@ -1597,11 +1608,16 @@ function buildAttributionProvenance(
   if (items.length === 0) return undefined;
   let authoritative = 0;
   let releasePinned = 0;
+  let releaseMembership = 0;
   const inferredSources: Record<string, number> = {};
   const inferredCandidates: Array<{ label: string; timestamp: string | undefined }> = [];
   for (const item of items) {
     if (isPlacedByReleaseDeclaration(item, options)) {
       releasePinned++;
+      continue;
+    }
+    if (isInReleaseWindowMode(options) && item.id && options.releaseMembership?.has(item.id)) {
+      releaseMembership++;
       continue;
     }
     const resolved = resolveItemCompletion(item);
@@ -1627,6 +1643,7 @@ function buildAttributionProvenance(
     authoritative,
     inferred: inferredCandidates.length,
     release_pinned: releasePinned,
+    ...(releaseMembership > 0 ? { release_membership: releaseMembership } : {}),
     inferred_sources: inferredSources,
     inferred_sample: inferredSample,
   };
