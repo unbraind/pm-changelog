@@ -4,6 +4,7 @@
 
 ### Other
 
+- Group the codeql-action init and analyze updates so Dependabot stops splitting a pair that must match ([pmc-fi6u](https://github.com/unbraind/pm-changelog/blob/main/.agents/pm/chores/pmc-fi6u.toon))
 - Certify pm CLI 2026.9.12 and the pm-ops 2026.9.11 auditor ([pmc-s7bi](https://github.com/unbraind/pm-changelog/blob/main/.agents/pm/chores/pmc-s7bi.toon))
 
 ## 2026.9.10 - 2026-09-10
