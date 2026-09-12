@@ -1,0 +1,21 @@
+id: pmc-fi6u
+title: Group the codeql-action init and analyze updates so Dependabot stops splitting a pair that must match
+description: "On 2026-09-12 Dependabot opened pm-changelog#192 (codeql-action/analyze 4.37.9 to 4.38.0) and #193 (codeql-action/init 4.37.9 to 4.38.0) as separate pull requests. CodeQL requires init and analyze from the same release, so each PR fails its CodeQL check alone and neither can ever merge by itself. The other fleet repositories already group github/codeql-action* in their github-actions update block; this repository's block had no groups entry."
+type: Chore
+status: closed
+priority: 2
+tags: []
+created_at: "2026-09-12T21:27:37.694Z"
+updated_at: "2026-09-12T21:27:40.493Z"
+closed_at: "2026-09-12T21:27:40.475Z"
+completed_at: "2026-09-12T21:27:40.475Z"
+claim_principal: claude-orchestrator
+author: claude-orchestrator
+acceptance_criteria: "The github-actions update block in .github/dependabot.yml groups github/codeql-action* into one codeql-action group, matching the grouping the other fleet repositories use; the two split pull requests are closed with a pointer to the grouped update that replaces them"
+resolution: Grouped codeql-action updates in dependabot.yml
+expected_result: One Dependabot PR bumps init and analyze together
+actual_result: The github-actions block declares the codeql-action group
+files[1]{path,scope,note}:
+  .github/dependabot.yml,project,codeql-action group in the github-actions block
+close_reason: "Added a codeql-action group matching github/codeql-action* to the github-actions update block, the same grouping used by pm-csv, pm-jira, pm-linear, pm-rl and the other fleet repositories. Dependabot's next run opens one grouped PR for init and analyze together; the split pair, #192 and #193, is closed once this merges."
+body: ""
