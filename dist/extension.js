@@ -167,7 +167,7 @@ export default defineExtension({
                 const { releaseWindows, suppressedPendingRelease } = windowResolution
                     ? resolveGenerationReleaseWindows(windowResolution)
                     : {};
-                const items = await listAllItemMetadata(ctx.pm_root);
+                const items = await listWorkspaceItemMetadata(ctx.pm_root);
                 const bodyPreview = parseBodyPreviewOption(ctx.options);
                 // listAllItemMetadata omits item bodies, so --body-preview would silently
                 // render nothing (GH #27). Load bodies on demand only when previewing.
@@ -363,7 +363,7 @@ export default defineExtension({
                 until: untilOption,
                 untilReleaseTag: booleanOption(ctx.options, "until-release-tag", "untilReleaseTag"),
             }));
-            const items = await listAllItemMetadata(ctx.pm_root);
+            const items = await listWorkspaceItemMetadata(ctx.pm_root);
             const generated = createChangelog({
                 items,
                 title: stringOption(ctx.options, "title", "title") ?? (releaseNotes ? "Release Notes" : undefined),
@@ -419,6 +419,14 @@ export default defineExtension({
         }
     },
 });
+/** Read every configured item folder using the workspace's format and schema.
+ * The low-level SDK store defaults to built-in folders; release generation must
+ * also include user-defined types such as Story without requiring a package update. */
+async function listWorkspaceItemMetadata(pmRoot) {
+    const settings = await readSettings(pmRoot);
+    const registry = resolveItemTypeRegistry(settings);
+    return listAllItemMetadata(pmRoot, settings.item_format, registry.type_to_folder, undefined, settings.schema);
+}
 /**
  * Best-effort enrichment of item metadata with the on-disk body, used so
  * `--body-preview` renders real body content in the extension path (GH #27).

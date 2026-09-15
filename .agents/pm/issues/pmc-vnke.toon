@@ -1,0 +1,40 @@
+id: pmc-vnke
+title: Include configured custom item types in changelog generation and export
+description: "The extension calls listAllItemMetadata with built-in default folders and silently excludes custom workspace types. Downstream pm-cli has 2762 records but generator input is 2708: all 54 Story records are omitted. Resolve the workspace registry through the public SDK for both extension commands and prove behavior with real custom-type fixtures."
+type: Issue
+status: closed
+priority: 1
+tags: []
+created_at: "2026-09-15T10:11:32.018Z"
+updated_at: "2026-09-15T10:16:11.309Z"
+closed_at: "2026-09-15T10:16:10.869Z"
+completed_at: "2026-09-15T10:16:10.869Z"
+author: codex
+acceptance_criteria: Generate and export include configured custom types alongside built-ins; selection input accounts for every fixture item; regression fails before the fix; complete package gates and packed consumer validation pass.
+resolution: Both changelog extension commands resolve workspace settings and custom type folders through the public SDK before listing metadata.
+expected_result: Configured custom types appear in release generation and export alongside built-ins.
+actual_result: "Real Task plus Story fixtures produce two entries in both commands, including packed npm and Bun consumers; 479 tests pass with 100 percent measured line/branch/function coverage and full docstrings."
+dependencies[1]{id,kind,created_at,author,source_kind,author_source}:
+  pmc-0jm1,discovered_from,"2026-09-15T10:12:36.476Z",codex,"cli:update:dep",detected
+comments[3]{created_at,author,text}:
+  "2026-09-15T10:11:32.018Z",codex,"Duplicate check: inspected all 166 items across every status plus custom-types search and open/in-progress inventories; no canonical custom-type enumeration defect exists. Continues the published-SDK integration established by closed pmc-0jm1. Discovered while validating pm-cli pm-z436 and pm-8eclqf."
+  "2026-09-15T10:13:49.613Z",codex,"TDD evidence: a real temporary tracker populated through the published CLI with Task and custom Story fails before the fix (item_count 1 instead of 2). Resolving readSettings plus resolveItemTypeRegistry and passing item format, type folders, and schema to listAllItemMetadata makes both generate and export pass. No SDK internals or copied types added. Downstream pm-cli completion is waiting for this package release."
+  "2026-09-15T10:16:09.937Z",codex,"Validation: all 479 package tests passed; measured Node V8 line/branch/function coverage is 100/100/100 across 12 runtime source files. Separate statement coverage remains owned by existing pmc-ilrh and is not claimed here. Docstring gate reports all 156 declarations documented across 15 files. Typecheck, production audit (zero vulnerabilities), release date and publish-attestation gates pass. Packed tarball installed independently with npm and Bun against published pm-cli 2026.9.15; both runtime tests include Task and Story in generate/export. GitHub open dependency/code/secret alert inventories are all zero; no preexisting PRs or issues. Tracker health passes with its three known provenance advisories."
+notes[1]{created_at,author,text}:
+  "2026-09-15T10:15:25.362Z",codex,The low-level SDK listing primitive intentionally accepts a caller-supplied type map. The package omitted it and therefore only enumerated built-in folders. Both extension paths now share registry-aware enumeration; standalone CLI already uses the full pm list transport. No change to generator selection or historical release attribution.
+learnings[1]{created_at,author,text}:
+  "2026-09-15T10:15:25.870Z",codex,"Customizable PM integrations must resolve the workspace schema before enumerating storage. A complete built-in fixture is insufficient proof: include a real custom-type folder and compare generator input counts with the known corpus."
+files[5]{path,scope,note}:
+  dist/extension.d.ts.map,project,Generated declaration sourcemap
+  dist/extension.js,project,Built package runtime
+  dist/extension.js.map,project,Generated runtime sourcemap
+  src/extension.ts,project,Resolve configured type registry before metadata enumeration
+  test/custom-types.test.ts,project,Real tracker regression for generation and export
+tests[3]{command,scope,timeout_seconds,provenance{author,created_at,source_kind,source_ref}}:
+  node --test test/custom-types.test.ts,project,120,codex,"2026-09-15T10:12:37.925Z",local_mutation,fix/custom-type-changelog-enumeration
+  npm run coverage,project,240,codex,"2026-09-15T10:15:24.360Z",local_mutation,fix/custom-type-changelog-enumeration
+  npm run docstring,project,120,codex,"2026-09-15T10:15:24.860Z",local_mutation,fix/custom-type-changelog-enumeration
+docs[1]{path,scope,note}:
+  CHANGELOG.md,project,Self-generated completion entry
+close_reason: "Registry-aware enumeration implemented and verified through red-green regression, full package gates and npm/Bun packed consumers; publication follows reviewed delivery."
+body: ""
