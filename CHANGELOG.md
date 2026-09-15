@@ -1,5 +1,11 @@
 # Changelog
 
+## Unreleased
+
+### Fixed
+
+- Include configured custom item types in changelog generation and export ([pmc-vnke](https://github.com/unbraind/pm-changelog/blob/main/.agents/pm/issues/pmc-vnke.toon))
+
 ## 2026.9.13 - 2026-09-13
 
 ### Other
