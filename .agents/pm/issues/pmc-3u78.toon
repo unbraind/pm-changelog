@@ -2,13 +2,12 @@ id: pmc-3u78
 title: "A release run bumped and committed a new version every night while publishing was impossible, and the changelog-date verifier no gate ever invoked"
 description: "Two defects in the same release path. Publication is the only step that can fail for a reason outside this repository and it runs last, so ten days of a dead npm credential still advanced main every night and published nothing. Separately, scripts/verify-release-changelog-date.sh proved the untagged-release heading comes from the calendar version rather than the clock, but no package script or workflow ever invoked it, which makes it documentation rather than a gate."
 type: Issue
-status: in_progress
+status: open
 priority: 0
 tags[4]: changelog,ci,npm,release
 created_at: "2026-08-26T21:29:33.455Z"
-updated_at: "2026-08-27T18:53:14.183Z"
+updated_at: "2026-09-15T11:25:46.951Z"
 deadline: "2026-09-02T00:00:00.000Z"
-assignee: claude
 author: claude
 estimated_minutes: 120
 acceptance_criteria: "The release job is gated by ref at the job level so no repository-controlled code runs with id-token write from a non-main ref; the run fails before the version bump when npm will not accept the workflow's OIDC identity, naming the package, organization, repository and workflow to configure; a registry outage or rate limit is reported as such rather than as an identity refusal; no registry credential reaches the publish step under any name or mechanism; every credential the scrub claims to remove is removed, asserted in the delimited form so no key's expression can satisfy another's; the effective npm is verified at install time and again immediately before publication; no run script in the release job interpolates workflow context; and every enumerated mutation fails the guard suite, with the verified count recorded on the run that produced it rather than fixed in this criterion."
