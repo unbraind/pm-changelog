@@ -1,5 +1,11 @@
 # Changelog
 
+## Unreleased
+
+### Other
+
+- Certify pm CLI 2026.9.17 ([pmc-r1qu](https://github.com/unbraind/pm-changelog/blob/main/.agents/pm/chores/pmc-r1qu.toon))
+
 ## 2026.9.15 - 2026-09-15
 
 ### Fixed
