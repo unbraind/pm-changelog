@@ -56,7 +56,7 @@ jobs:
           # path yet and classifies that known legacy aggregate as blocking. Keep an
           # exact fail-closed baseline here: a changed count, a different provenance
           # finding, or any other non-advisory warning still fails this gate.
-          health_json="$(./node_modules/.bin/pm health --json || true)"
+          health_json="$(./node_modules/.bin/pm health --json --require-merge-drivers || true)"
           printf '%s\n' "$health_json"
           printf '%s\n' "$health_json" | jq -e '
             def advisory:
@@ -64,7 +64,6 @@ jobs:
               startswith("history_stream_over_compact_threshold:") or
               startswith("stale_in_progress_items:") or
               startswith("provenance_resolver_zero_success:") or
-              startswith("merge_driver_configuration_missing:") or
               . == "provenance_value_domain_invalid:claude-code:role:single_digit:32";
             ([.warnings[] | select(advisory | not)] | length) == 0 and
             ([.warnings[] | select(startswith("provenance_value_domain_invalid:"))] ==
