@@ -499,8 +499,19 @@ export class IncompleteListAllError extends Error {
  * against both each other and the returned row array: clean boolean flags do
  * not make a missing or internally inconsistent corpus complete. A missing
  * `completeness` block counts as incomplete too: an answer that cannot prove
- * its own completeness must not be consumed as if it had. `next_cursor` is
- * deliberately NOT followed - this package has no paging consumer, and
+ * its own completeness must not be consumed as if it had.
+ *
+ * Since pm 2026.9.18 (pm-g8oh0f, "Omit redundant read receipts when canonical
+ * output flags do not compact results") the `read_output` receipt is omitted
+ * from an uncompacted read and only attached when the output-budget compaction
+ * path engaged, so this gate treats an absent `read_output` as exactly "no
+ * compaction receipt happened" and never requires the key. The receipt is not
+ * a completeness proof in either direction (pm <=2026.9.17 attached it to
+ * complete reads as well), so the gate stays fail-closed through the envelope
+ * signals that a compacted read always carries instead: `truncated`,
+ * `has_more`, a non-null `next_cursor` continuation, a present
+ * `output_budget_truncation` disclosure, and the count arithmetic. `next_cursor`
+ * is deliberately NOT followed - this package has no paging consumer, and
  * refusing loudly beats a hand-rolled resumption loop that can itself
  * half-fail.
  *
@@ -513,6 +524,13 @@ function incompleteListAllSignals(record) {
         signals.push("truncated=true");
     if (record.has_more === true)
         signals.push("has_more=true");
+    if (record.next_cursor !== undefined && record.next_cursor !== null) {
+        signals.push(`next_cursor=${JSON.stringify(record.next_cursor)}`);
+    }
+    if (isRecord(record.output_budget_truncation)) {
+        const reason = record.output_budget_truncation.reason;
+        signals.push(`output_budget_truncation.reason=${typeof reason === "string" ? reason : "<missing>"}`);
+    }
     const status = isRecord(record.completeness) ? record.completeness.status : undefined;
     if (status !== "complete") {
         signals.push(`completeness.status=${status === undefined ? "<missing>" : JSON.stringify(status)}`);
@@ -544,7 +562,11 @@ function incompleteListAllSignals(record) {
  * Unlike {@link parsePmItemsJson} this rejects the legacy bare-array answer:
  * an array carries no receipt, so it cannot prove completeness, and consuming
  * it silently is exactly the 2026.8.14 failure mode. This is the parser for
- * live CLI reads; caller-supplied documents keep the permissive one.
+ * live CLI reads; caller-supplied documents keep the permissive one. The
+ * optional `read_output` compaction receipt (omitted by pm >=2026.9.18 on an
+ * uncompacted read, always present on pm <=2026.9.17) is not consulted:
+ * completeness is proven by the envelope signals alone, so both envelope
+ * shapes parse identically.
  *
  * @param raw - stdout of a successful canonical whole-tracker list invocation.
  * @returns The envelope's items, only when every receipt signal is clean.

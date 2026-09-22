@@ -1,5 +1,11 @@
 # Changelog
 
+## Unreleased
+
+### Other
+
+- Certify pm CLI 2026.9.21 and install merge drivers through the canonical pm-ops launcher ([pmc-psin](https://github.com/unbraind/pm-changelog/blob/main/.agents/pm/chores/pmc-psin.toon))
+
 ## 2026.9.18 - 2026-09-18
 
 ### Other

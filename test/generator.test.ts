@@ -2239,7 +2239,11 @@ test("readPmItems resolves the installed pm-cli executable without PATH", () => 
 /** A real canonical `pm list --all --json` envelope captured from the installed CLI
  * against this repository's own tracker, cached so the spawn happens once.
  * Mutating one field of this envelope is how the refusal tests drive each
- * signal from the CLI's real answer shape rather than a hand-written mock. */
+ * signal from the CLI's real answer shape rather than a hand-written mock.
+ * The captured shape depends on the installed CLI: pm <=2026.9.17 always
+ * attached the `read_output` receipt, while pm >=2026.9.18 (pm-g8oh0f) omits
+ * it exactly when the canonical output flags do not compact results, which is
+ * the unbounded read performed here. */
 let realListAllEnvelope: Record<string, unknown> | undefined;
 
 function captureRealListAllEnvelope(): Record<string, unknown> {
@@ -2272,10 +2276,29 @@ function captureRealListAllEnvelope(): Record<string, unknown> {
       omitted_field_group_count: 0,
       omitted_field_groups: [],
     });
-    assert.deepEqual(
-      (parsed.read_output as { legacy_aliases_used?: unknown }).legacy_aliases_used,
-      [],
-      "the real receipt must prove no compatibility alias was used",
+    // pm 2026.9.18 (pm-g8oh0f) omits the read receipt when the canonical output
+    // flags do not compact the result, so under the pinned >=2026.9.18 CLI the
+    // complete unbounded read carries no read_output at all; under pm
+    // <=2026.9.17 the always-attached receipt must instead prove the read was
+    // neither aliased nor compacted. Both envelope shapes are acceptable here.
+    if (parsed.read_output !== undefined) {
+      const receipt = parsed.read_output as Record<string, unknown>;
+      assert.deepEqual(
+        receipt.legacy_aliases_used,
+        [],
+        "a legacy-shape receipt must prove no compatibility alias was used",
+      );
+      assert.notEqual(receipt.rows_compacted, true, "a legacy-shape receipt must prove no row compaction");
+      assert.notEqual(receipt.result_omitted, true, "a legacy-shape receipt must prove the result was not omitted");
+    }
+    assert.ok(
+      parsed.next_cursor === undefined || parsed.next_cursor === null,
+      "the real complete read must carry no continuation cursor",
+    );
+    assert.equal(
+      parsed.output_budget_truncation,
+      undefined,
+      "the real uncompacted read must carry no budget-truncation disclosure",
     );
     realListAllEnvelope = parsed;
   }
@@ -2297,9 +2320,57 @@ function realEnvelopeWith(override: Record<string, unknown>): string {
   return JSON.stringify({ ...captureRealListAllEnvelope(), ...override });
 }
 
+/** A real compacted `pm list --all --json` envelope captured from the installed
+ * CLI by forcing a tiny output budget against this repository's own tracker,
+ * cached so the spawn happens once. pm attaches the `read_output` compaction
+ * receipt, the continuation cursor, and the `output_budget_truncation`
+ * disclosure only on a read it actually compacted, so this is the real shape of
+ * a partial answer rather than a hand-written mock. */
+let realCompactedListAllEnvelope: Record<string, unknown> | undefined;
+
+/** Capture {@link realCompactedListAllEnvelope} from the installed CLI. */
+function captureRealCompactedListAllEnvelope(): Record<string, unknown> {
+  if (realCompactedListAllEnvelope === undefined) {
+    const pmBin = join(process.cwd(), "node_modules", ".bin", "pm");
+    const result = spawnSync(pmBin, [
+      "--pm-path", join(process.cwd(), ".agents", "pm"),
+      "--output-budget", "2000",
+      "--output-limit", "unbounded",
+      "list", "--all", "--json",
+    ], {
+      encoding: "utf-8",
+      maxBuffer: 64 * 1024 * 1024,
+    });
+    assert.equal(result.status, 0, `capturing a real compacted list envelope failed: ${result.stderr}`);
+    assert.equal(result.stderr, "", "a budget-truncated list must still exit cleanly on stderr");
+    const parsed = JSON.parse(result.stdout) as Record<string, unknown>;
+    assert.equal(parsed.truncated, true, "the compacted envelope must actually be truncated");
+    assert.equal(parsed.has_more, true, "the compacted envelope must require pagination");
+    assert.equal(
+      typeof parsed.read_output,
+      "object",
+      "the compacted envelope must carry the compaction receipt pm omits from uncompacted reads",
+    );
+    assert.ok(
+      isRecordish(parsed.output_budget_truncation),
+      "the compacted envelope must carry the output_budget_truncation disclosure",
+    );
+    realCompactedListAllEnvelope = parsed;
+  }
+  return realCompactedListAllEnvelope;
+}
+
+/** Narrow an unknown value to a non-array object for assertions that only need
+ * record-ness of an envelope sub-block. */
+function isRecordish(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
 for (const [signal, override, expectedDetail] of [
   ["truncated", { truncated: true }, "truncated=true"],
   ["has_more", { has_more: true }, "has_more=true"],
+  ["next_cursor", { next_cursor: "cursor-1" }, 'next_cursor="cursor-1"'],
+  ["output_budget_truncation", { output_budget_truncation: { reason: "output_budget_reached" } }, "output_budget_truncation.reason=output_budget_reached"],
   ["completeness.status", { completeness: { status: "partial", unreadable_item_count: 2, unreadable_directory_count: 0 } }, 'completeness.status="partial"'],
   ["omission_receipt.has_omissions", { omission_receipt: { has_omissions: true, omitted_field_group_count: 1, omitted_field_groups: ["body"] } }, "omission_receipt.has_omissions=true"],
 ] as const) {
@@ -2385,6 +2456,53 @@ test("parseListAllItemsJson lets every item of a real complete envelope flow thr
   const envelope = captureRealListAllEnvelope();
   const rows = envelope.items as unknown[];
   assert.deepEqual(parseListAllItemsJson(JSON.stringify(envelope)), rows);
+});
+
+test("parseListAllItemsJson accepts a legacy always-attached read_output receipt as readily as the receipt-less shape", () => {
+  const envelope = captureRealListAllEnvelope();
+  const rows = envelope.items as unknown[];
+  // pm <=2026.9.17 attached this receipt on every read, complete or not; the
+  // generator must keep consuming that envelope shape unchanged.
+  const legacyReceipt = {
+    contract_version: 1,
+    command: "list",
+    requested_dimensions: ["amount", "cost"],
+    precedence: ["canonical", "legacy", "intent", "default"],
+    canonical_options_used: ["--output-limit", "--output-budget"],
+    legacy_aliases_used: [],
+    migration_hints: [],
+    estimated_tokens: 4242,
+    within_budget: true,
+    strings_compacted: false,
+    rows_compacted: false,
+    result_omitted: false,
+  } as const;
+  assert.deepEqual(parseListAllItemsJson(realEnvelopeWith({ read_output: legacyReceipt })), rows);
+  // pm >=2026.9.18 (pm-g8oh0f) omits the receipt when nothing was compacted,
+  // which is exactly the envelope the capture above recorded.
+  assert.equal("read_output" in envelope, false, "the pinned >=2026.9.18 uncompacted read must omit the receipt");
+  assert.deepEqual(parseListAllItemsJson(JSON.stringify(envelope)), rows);
+});
+
+test("parseListAllItemsJson refuses a budget-truncation disclosure whose reason is missing", () => {
+  assert.throws(
+    () => parseListAllItemsJson(realEnvelopeWith({ output_budget_truncation: {} })),
+    (error: unknown) => error instanceof IncompleteListAllError
+      && error.message.includes("output_budget_truncation.reason=<missing>"),
+  );
+});
+
+test("parseListAllItemsJson refuses a real compacted envelope that carries a compaction receipt", () => {
+  const envelope = captureRealCompactedListAllEnvelope();
+  assert.throws(
+    () => parseListAllItemsJson(JSON.stringify(envelope)),
+    (error: unknown) => error instanceof IncompleteListAllError
+      && error.message.includes("truncated=true")
+      && error.message.includes("has_more=true")
+      && error.message.includes("next_cursor=")
+      && error.message.includes("output_budget_truncation.reason=output_budget_reached"),
+    "a budget-compacted partial read must be refused through every signal it discloses",
+  );
 });
 
 test("parseListAllItemsJson keeps parsePmItemsJson's behavior for unparseable reads", () => {

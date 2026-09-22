@@ -1,0 +1,60 @@
+id: pmc-psin
+title: Certify pm CLI 2026.9.21 and install merge drivers through the canonical pm-ops launcher
+description: "Fleet wave 2026-09-22 (companion epic pm-cli-website-5s6z). Pins @unbrained/pm-cli 2026.9.21, pm-ops 2026.9.18 and pm-changelog 2026.9.18 exactly. The prepare hook becomes a thin launcher over pm-ops/merge-driver instead of a vendored implementation, and CI's pm health --strict-exit --require-merge-drivers runs right after npm ci, so it proves the prepare hook installed the drivers; a clone that lacks them fails instead of hard-conflicting tracker files."
+type: Chore
+status: closed
+priority: 1
+tags[4]: certify,merge-driver,multi-agent,pm-cli-2026.9.21
+created_at: "2026-09-22T06:37:03.273Z"
+updated_at: "2026-09-22T08:26:07.951Z"
+deadline: "2026-09-23T00:00:00.000Z"
+closed_at: "2026-09-22T08:18:05.685Z"
+completed_at: "2026-09-22T08:18:05.685Z"
+author: fleet-wave-script
+estimated_minutes: 30
+acceptance_criteria: "package.json and package-lock.json pin pm-cli 2026.9.21, pm-ops 2026.9.18, pm-changelog 2026.9.18; scripts/prepare-merge-driver.ts is the thin pm-ops/merge-driver launcher; no vendored implementation remains; CI runs pm health --strict-exit --require-merge-drivers after npm ci, with no separate install step"
+resolution: "Certified pm CLI 2026.9.21: the completeness gate treats an absent read_output as no-compaction-receipt (pm-g8oh0f, pm >=2026.9.18) while staying fail-closed through truncated/has_more/next_cursor/output_budget_truncation/count-vs-total; prepare hook is now the thin canonical pm-ops merge-driver launcher and CI requires merge drivers."
+expected_result: "release:check exits 0 under pm 2026.9.21 with coverage thresholds 100/100/100 unchanged, and truncated or budget-compacted reads (with or without a receipt) are still refused via IncompleteListAllError"
+actual_result: "Measured: npm run release:check EXIT=0; coverage-gate 100.00 lines/100.00 branches/100.00 functions on 12 gated files (thresholds 100/100/100 unchanged); docstring-gate 15 files/152 declarations; typecheck clean; node --test 473/473 pass"
+dependencies[1]{id,kind,created_at,author,source_kind,author_source}:
+  pmc-r1qu,related,"2026-09-22T06:37:03.273Z",fleet-wave-script,"cli:create:dep",asserted
+comments[7]{created_at,author,text}:
+  "2026-09-22T06:37:03.273Z",fleet-wave-script,Created by the 2026-09-22 fleet wave script; the release workflow variant here is not covered by the anchored applier and is handled separately.
+  "2026-09-22T08:12:53.167Z",pi-agent,"Root cause: pm 2026.9.18 (pm-g8oh0f) omits the read_output receipt from a complete uncompacted read and attaches it only when the output-budget compaction path engaged, so captureRealListAllEnvelope's unconditional read_output.legacy_aliases_used assertion threw TypeError under pm 2026.9.21. Fix: the generator's completeness gate now treats an absent read_output as exactly 'no compaction receipt' and stays fail-closed through independent envelope signals, extended with a non-null next_cursor continuation and a present output_budget_truncation disclosure; src/generator.ts docstrings document both envelope shapes (pm <=2026.9.17 always emits read_output, >=2026.9.18 omits it when uncompacted)."
+  "2026-09-22T08:12:54.077Z",pi-agent,"Adversarial tests (test/generator.test.ts): the refusal suite still mutates the real 2026.9.21 envelope, which carries no read_output, proving a truncated envelope WITHOUT a receipt is still refused (IncompleteListAllError, truncated=true); a new capture of a real budget-compacted read (read_output present, output_budget_truncation.reason=output_budget_reached) is refused naming truncated=true, has_more=true, next_cursor= and the budget disclosure; a new test proves a legacy always-attached read_output receipt still flows through unchanged; next_cursor and output_budget_truncation each refuse independently, including a disclosure whose reason is missing."
+  "2026-09-22T08:13:00.052Z",pi-agent,"Measured gates on the branch: node --test 473 of 473 pass; coverage-gate reports 100.00 lines / 100.00 branches / 100.00 functions across all 12 gated source files (thresholds 100/100/100 unchanged); docstring-gate 15 files, 152 declarations documented; typecheck clean."
+  "2026-09-22T08:13:00.639Z",pi-agent,"Functional proof (scratch workspace, pm 2026.9.21): `pm init` in an empty dir, then three items created with pm 2026.9.21 (pm-2n22 open \"Add weekly digest email\"; pm-zet5 closed \"Fix digest timezone handling\"; pm-1px2 closed \"Write digest delivery runbook\"). The real complete `pm list --all --json` read (count=3 total=3, truncated=false, has_more=false) carries NO read_output, and the built pm-changelog consumed it without refusal and generated:\n\n```markdown\n# Changelog\n\n## Unreleased\n\n### Fixed\n\n- Fix digest timezone handling ([pm-zet5](https://example.com/blob/main/.agents/pm/tasks/pm-zet5.toon))\n\n### Other\n\n- Write digest delivery runbook ([pm-1px2](https://example.com/blob/main/.agents/pm/tasks/pm-1px2.toon))\n```\n\nThe open item pm-2n22 is correctly excluded."
+  "2026-09-22T08:13:05.036Z",pi-agent,"Dependabot PR #206 (@types/node 26.5.1 -> 26.6.1) absorbed exactly as proposed with the lockfile-only procedure: npm install --save-dev --save-exact @types/node@26.6.1, package.json range restored to ^26.1.1, npm install. package-lock.json now resolves node_modules/@types/node 26.6.1 with integrity sha512-VqGJBMCtdhqkBUCcBLvywI0NJ+KLuVzgNnlBUNFOQjqVxzo2lxLUNg1DSey8+u2u6ktswSAxg+s68QLzWHNOuA==, byte-identical to the PR's lockfile entry; no other unrelated dependency drift (the @sentry/* 10.75.0 entries are the exact @sentry/node pin pm-cli 2026.9.21 itself declares)."
+  "2026-09-22T08:26:07.392Z",claude-orchestrator,"Review follow-up (Greptile on PR #207, 'test mutates checkout configuration'): the launcher test used to import the launcher bare, which ran the real pm merge install against this checkout and asserted only exitCode 0. A fixture module (test/stub-pm-on-path.ts), imported first, now puts a stub pm on PATH (ES module imports evaluate in order), so the canonical installer runs against the stub. Test 1 asserts the stub recorded exactly 'merge install'; test 2 spawns the launcher with a stub that exits 3 and asserts a non-zero exit. Mutation check: replacing the launcher with 'process.exitCode = 0' fails both tests. git config merge.pm* is byte-identical before and after the suite."
+notes[1]{created_at,author,text}:
+  "2026-09-22T06:37:03.273Z",fleet-wave-script,CI health is jq-baselined here; the merge_driver_configuration_missing advisory exemption is removed so missing drivers fail the gate.
+learnings[1]{created_at,author,text}:
+  "2026-09-22T06:37:03.273Z",fleet-wave-script,"pm-ops 2026.9.18 declares its optional jscpd peer as ^4.3.0, so a consumer already on jscpd 5 hits npm ERESOLVE until pm-ops widens the range"
+files[9]:
+  - path: .github/workflows/ci.yml
+    scope: project
+  - path: package-lock.json
+    scope: project
+  - path: package.json
+    scope: project
+    note: pins and prepare hook
+  - path: README.md
+    scope: project
+  - path: scripts/prepare-merge-driver.ts
+    scope: project
+  - path: src/generator.ts
+    scope: project
+    note: read_output-optional envelope gate with next_cursor and output_budget_truncation signals
+  - path: test/generator.test.ts
+    scope: project
+    note: both envelope shapes plus adversarial receipt/truncation refusals
+  - path: test/prepare-merge-driver.test.ts
+    scope: project
+  - path: test/stub-pm-on-path.ts
+    scope: project
+tests[1]{command,scope,timeout_seconds,provenance{author,created_at,source_kind,source_ref}}:
+  "npm run release:check",project,900,fleet-wave-script,"2026-09-22T06:37:03.273Z",local_mutation,pm-cli-2026-9-21-canonical-merge-driver-release-window
+docs[1]{path,scope,note}:
+  README.md,project,multi-agent merge safety section
+close_reason: "Certified pm CLI 2026.9.21: the completeness gate treats an absent read_output as no-compaction-receipt (pm-g8oh0f, pm >=2026.9.18) while staying fail-closed through truncated/has_more/next_cursor/output_budget_truncation/count-vs-total; prepare hook is now the thin canonical pm-ops merge-driver launcher and CI requires merge drivers."
+body: "Wave of 2026-09-22 (companion epic pm-cli-website-5s6z): pin 2026.9.21 and move the prepare hook onto pm-ops/merge-driver."

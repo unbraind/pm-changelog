@@ -108,7 +108,11 @@ export declare class IncompleteListAllError extends Error {
  * Unlike {@link parsePmItemsJson} this rejects the legacy bare-array answer:
  * an array carries no receipt, so it cannot prove completeness, and consuming
  * it silently is exactly the 2026.8.14 failure mode. This is the parser for
- * live CLI reads; caller-supplied documents keep the permissive one.
+ * live CLI reads; caller-supplied documents keep the permissive one. The
+ * optional `read_output` compaction receipt (omitted by pm >=2026.9.18 on an
+ * uncompacted read, always present on pm <=2026.9.17) is not consulted:
+ * completeness is proven by the envelope signals alone, so both envelope
+ * shapes parse identically.
  *
  * @param raw - stdout of a successful canonical whole-tracker list invocation.
  * @returns The envelope's items, only when every receipt signal is clean.
