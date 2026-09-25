@@ -796,3 +796,24 @@ describe("dependency-updates: release ranges and outputs", () => {
     }
   });
 });
+
+describe("dependency-updates: an explicit --until cutoff", () => {
+  it("bounds a tagged release and a pending one, as it bounds their items", () => {
+    const dir = gitRepo();
+    try {
+      commitIn(dir, "feat: base", "2026-09-10T10:00:00Z");
+      gitIn(dir, ["tag", "v2026.09.10"]);
+      commitIn(dir, "build(deps): bump before from 1.0.0 to 1.0.1 (#1)", "2026-09-12T10:00:00Z");
+      commitIn(dir, "build(deps): bump after from 1.0.0 to 1.0.1 (#2)", "2026-09-14T10:00:00Z");
+      gitIn(dir, ["tag", "v2026.09.15"]);
+      const base = { items: [], version: "2026.9.15", dependencyUpdates: true, gitCwd: dir, dependencySinceRef: "v2026.09.10", until: "2026-09-13T00:00:00Z" };
+      for (const dependencyUntilRef of ["v2026.09.15", "v2026.09.99"]) {
+        const result = createChangelog({ ...base, dependencyUntilRef });
+        ok(result.markdown.includes("Bump before"), result.markdown);
+        ok(!result.markdown.includes("Bump after"), `a commit after --until must stay out (${dependencyUntilRef})`);
+      }
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+});

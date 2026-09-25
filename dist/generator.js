@@ -81,7 +81,9 @@ function gitSucceeds(gitCwd, args) {
 /** Read the Dependabot-shaped commits in one release window.
  *
  * The range is exact whenever the tags allow it: `sinceRef..untilRef` when the
- * older tag is an ancestor of the newer one. An `untilRef` that does not exist
+ * older tag is an ancestor of the newer one, still bounded by a single
+ * release's `cutoff` so an explicit `--until` excludes later dependency commits
+ * exactly as it excludes later items. An `untilRef` that does not exist
  * yet is the pending release, whose commits end at `HEAD`. When the older tag
  * is missing or not an ancestor (a tag orphaned by a history rewrite), the
  * window's time bounds select commits within the newer ref's own history
@@ -97,6 +99,8 @@ function readDependencyCommits(gitCwd, range) {
     const args = ["log", "--no-merges", "--format=%s"];
     if (range.sinceRef !== undefined && gitSucceeds(gitCwd, ["merge-base", "--is-ancestor", range.sinceRef, untilRef])) {
         args.push(`${range.sinceRef}..${untilRef}`);
+        if (range.cutoff !== undefined)
+            args.push(`--until=${range.cutoff}`);
     }
     else if (range.sinceRef !== undefined && range.sinceTimestamp === undefined) {
         return [];
@@ -177,6 +181,7 @@ function enrichSectionsWithDependencyCommits(sections, options, gitCwd) {
         untilRef: options.dependencyUntilRef,
         sinceTimestamp: options.since,
         untilTimestamp: options.until,
+        cutoff: options.until,
     });
     return commits.length > 0 ? sections.map((section) => ({ ...section, dependencyCommits: commits })) : sections;
 }
