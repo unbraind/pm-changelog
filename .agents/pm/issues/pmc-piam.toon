@@ -6,7 +6,7 @@ status: closed
 priority: 1
 tags[2]: release,reliability
 created_at: "2026-09-25T09:09:56.697Z"
-updated_at: "2026-09-25T09:26:21.520Z"
+updated_at: "2026-09-25T09:39:53.691Z"
 deadline: "2026-09-26T00:00:00.000Z"
 closed_at: "2026-09-25T09:26:18.705Z"
 completed_at: "2026-09-25T09:26:18.705Z"
@@ -19,8 +19,9 @@ expected_result: A late-visible publish is reconciled and bun lag no longer skip
 actual_result: "release:check exits 0"
 dependencies[1]{id,kind,created_at,author,source_kind,author_source}:
   pmc-r1qu,related,"2026-09-25T09:09:56.697Z",fleet-wave-script,"cli:create:dep",asserted
-comments[1]{created_at,author,text}:
+comments[2]{created_at,author,text}:
   "2026-09-25T09:09:56.697Z",fleet-wave-script,Created by the 2026-09-25 fleet wave script.
+  "2026-09-25T09:39:53.691Z",fleet-wave-script,"Review round 1 (Greptile, pm-changelog#209): the bun gate step said the GitHub Release was not affected, which is false when the Create GitHub release step also failed. It now says only what is known (the publish and tag push had succeeded) and points at the release step's own outcome."
 notes[1]{created_at,author,text}:
   "2026-09-25T09:09:56.697Z",fleet-wave-script,The launcher is checked byte-for-byte against node_modules/pm-ops/templates/prepare-merge-driver.ts.
 learnings[1]{created_at,author,text}:

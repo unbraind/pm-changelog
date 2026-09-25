@@ -943,5 +943,5 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          echo "::error::bun install verification failed (see the step log above); the npm publish, the tag push and the GitHub release were not affected. Failing the job so the bun mirror problem is not silent."
+          echo "::error::bun install verification failed (see the step log above). The npm publish and the tag push had already succeeded; the Create GitHub release step reports its own outcome. Failing the job so the bun mirror problem is not silent."
           exit 1
