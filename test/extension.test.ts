@@ -117,6 +117,7 @@ test("extension command exposes item-url-base for clickable item IDs", async () 
     "--item-ref-style",
     "--exclude-tag",
     "--respect-item-release",
+    "--dependency-updates",
     "--no-pending-release",
   ]) {
     assert.ok(
@@ -495,6 +496,22 @@ test("generate all-tag and body-preview paths use the real tracker", async () =>
     pmRoot: TRACKER_ROOT,
   });
   assert.equal(typeof (commandResult(result) as { changelog?: unknown }).changelog, "string");
+
+  // Exercise the --dependency-updates path so the extension's gitCwd wiring
+  // is covered. The tracker root is a git repo, so git log will succeed;
+  // no Dependabot subjects are expected in the output, but the option must
+  // be accepted and the command must not crash.
+  const depResult = await runRegisteredCommandForTest(commands, {
+    command: "changelog generate",
+    options: {
+      stdout: true,
+      "release-version": "2099.1.1",
+      "date-from-version": true,
+      "dependency-updates": true,
+    },
+    pmRoot: TRACKER_ROOT,
+  });
+  assert.equal(typeof (commandResult(depResult) as { changelog?: unknown }).changelog, "string");
   const items = [
     { id: "missing-item", title: "missing" },
     { title: "no id" },

@@ -185,6 +185,17 @@ export interface GenerateChangelogOptions {
      * Matching is case-insensitive and trims surrounding whitespace.
      * Absent/empty → no items are excluded by tag. */
     excludeTags?: string[];
+    /** OPT-IN: when true, read Dependabot-shaped git commits for each release
+     * window and render them in a `### Dependencies` section after the existing
+     * item-based sections. Requires `gitCwd` to locate the repository.
+     * Absent → no dependency sections, output is byte-identical to historical
+     * behaviour. */
+    dependencyUpdates?: boolean;
+    /** Working directory for git commands used by `--dependency-updates`.
+     * Git resolves the repository root from any subdirectory, so the pm project
+     * root or `process.cwd()` suffices. Absent → dependency commits cannot be
+     * read even when `dependencyUpdates` is set. */
+    gitCwd?: string;
 }
 /** A truthy `breaking` flag may live directly on a pm item or in its metadata.
  * Used only by the opt-in `--breaking-changes` / `--suggest-semver` features. */
@@ -268,9 +279,30 @@ export interface WriteChangelogResult {
 }
 /** A heading and the items rendered beneath it, the intermediate structure
  * every grouping mode reduces to before markdown is emitted. */
+/** A parsed Dependabot commit subject, used by the opt-in
+ * `--dependency-updates` feature to render a `### Dependencies` section for
+ * release windows that contain only dependency bumps and no closed pm items.
+ * Non-Dependabot subjects are ignored during collection. */
+export interface DependencyCommit {
+    /** Full git commit subject (e.g.
+     * `"build(deps-dev): bump jscpd from 5.2.0 to 5.3.0 (#129)"`). */
+    subject: string;
+    /** Human-readable description with the conventional-commit prefix stripped
+     * and the first letter capitalised (e.g. `"Bump jscpd from 5.2.0 to 5.3.0"`). */
+    description: string;
+    /** PR number extracted from the trailing `(#NNN)`, or `undefined` when the
+     * subject has no PR suffix. */
+    prNumber: number | undefined;
+}
+/** A heading and the items rendered beneath it, the intermediate structure
+ * every grouping mode reduces to before markdown is emitted. */
 export interface ChangelogSection {
     heading: string;
     items: PmItem[];
+    /** OPT-IN (`--dependency-updates`): parsed Dependabot commits for this
+     * release window. Present only when `--dependency-updates` is set and
+     * `gitCwd` is provided. */
+    dependencyCommits?: DependencyCommit[];
 }
 /** A single item as it appears in the structured `--changelog-json` document. */
 export interface ChangelogDocumentItem {

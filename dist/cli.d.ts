@@ -47,6 +47,7 @@ interface CliOptions {
     itemRefStyle?: ChangelogItemRefStyle;
     respectItemRelease: boolean;
     excludeTags: string[];
+    dependencyUpdates: boolean;
     mode: "replace" | "prepend";
     check: boolean;
     checkDiff: boolean;
@@ -136,6 +137,8 @@ declare function buildGenerationOptions(options: CliOptions, items: PmItem[]): {
     itemRefStyle: ChangelogItemRefStyle | undefined;
     respectItemRelease: boolean;
     excludeTags: string[] | undefined;
+    dependencyUpdates: boolean;
+    gitCwd: string | undefined;
 };
 /** Assemble the machine-readable run summary emitted by `--json` and written as
  * GitHub step outputs. The job-summary panel receives generated markdown

@@ -1,0 +1,49 @@
+id: pmc-ny9i
+title: Add opt-in Dependabot dependency sections so item-less release windows still get notes
+description: "Dependency-only releases get empty changelog. Add opt-in --dependency-updates flag. Companion: pm-cli-website-tbni."
+type: Feature
+status: closed
+priority: 1
+tags[2]: "area:release",release-notes
+created_at: "2026-09-25T07:57:27.797Z"
+updated_at: "2026-09-25T09:36:55.730Z"
+deadline: "2026-09-27T00:00:00.000Z"
+closed_at: "2026-09-25T09:36:50.890Z"
+completed_at: "2026-09-25T09:36:50.890Z"
+author: pi-agent
+estimated_minutes: 120
+acceptance_criteria: opt-in flag in cli.ts and extension.ts; Dependabot subjects in Dependencies section; Item-less windows with deps still produce sections; Without flag byte-identical; 100/100/100 coverage
+resolution: Added the opt-in --dependency-updates flag to the CLI and the host extension
+expected_result: "A dependency-only release gets a non-empty section listing its Dependabot bumps, and output without the flag is unchanged"
+actual_result: "pm-csv v2026.09.23 renders its four bumps with PR links; coverage 100/100/100; release:check exits 0"
+dependencies[1]{id,kind,created_at,author,source_kind,author_source}:
+  pmc-an10,related,"2026-09-25T07:57:27.797Z",pi-agent,"cli:create:dep",asserted
+comments[2]{created_at,author,text}:
+  "2026-09-25T07:57:27.797Z",pi-agent,Starting implementation
+  "2026-09-25T09:36:50.370Z",claude-hub,"Finished by the orchestrator after the pi agent hit its run time limit with 505/505 tests passing and generator.ts at 99.88% branches. The one uncovered branch was an early return for empty sections that callers never reach and that mapping an empty list already covers, so it was removed; gitCwd is now passed explicitly instead of two non-null assertions. README and docs/usage.md document the flag. Real-data acceptance: on pm-csv at tag v2026.09.23 the flag produces exactly the four Dependabot bullets hand-written for that release, in both the single-window and all-release-tags modes."
+notes[1]{created_at,author,text}:
+  "2026-09-25T07:57:27.797Z",pi-agent,Opt-in to avoid stale CHANGELOG fleet-wide
+learnings[1]{created_at,author,text}:
+  "2026-09-25T07:57:27.797Z",pi-agent,Dependabot subjects follow build or chore with deps scope
+files[7]:
+  - path: docs/usage.md
+    scope: project
+  - path: README.md
+    scope: project
+  - path: src/cli.ts
+    scope: project
+  - path: src/extension.ts
+    scope: project
+  - path: src/generator.ts
+    scope: project
+    note: Add dependency commit rendering
+  - path: src/types.ts
+    scope: project
+  - path: test/dependency-updates.test.ts
+    scope: project
+tests[1]{command,scope,provenance{author,created_at,source_kind,source_ref},note}:
+  npm run coverage,project,pi-agent,"2026-09-25T07:57:27.797Z",local_mutation,dependency-update-sections-in-release-notes,Coverage gate
+docs[1]{path,scope,note}:
+  README.md,project,Document the flag
+close_reason: "Opt-in --dependency-updates adds a Dependencies section per release window from Dependabot-shaped git subjects in that window's tag range; item-less dependency-only windows get their version heading; output without the flag is byte-identical. npm run coverage: 505/505 tests, 100/100/100; npm run release:check exits 0; real pm-csv v2026.09.23 data renders the four bumps in both modes."
+body: "Add opt-in --dependency-updates flag that reads git commits per window and collects Dependabot subjects into ### Dependencies. Companion: pm-cli-website-tbni"

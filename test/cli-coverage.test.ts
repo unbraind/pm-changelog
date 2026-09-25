@@ -55,6 +55,7 @@ test("parser maps every supported option family without subprocess coverage", ()
     "--since-version", "1.0.0", "--mode", "prepend", "--include-empty", "--include-links",
     "--no-links", "--item-url-base", "https://example.test/items", "--item-ref-style", "GITHUB",
     "--respect-item-release", "--exclude-tags", "skip, private",
+    "--dependency-updates",
   ]);
   assert.equal(options.output, "out.md");
   assert.deepEqual(options.pmArgs, ["--json"]);
@@ -65,6 +66,7 @@ test("parser maps every supported option family without subprocess coverage", ()
   assert.equal(options.itemRefStyle, "github");
   assert.equal(options.includeLinks, false);
   assert.equal(options.pendingRelease, false);
+  assert.equal(options.dependencyUpdates, true);
   assert.equal(options.format, "md");
   assert.equal(options.mode, "prepend");
 });
@@ -207,6 +209,17 @@ test("workflow writers reject absent environment targets and helper projections 
   }
   const options = cliTestSurface.parseArgs([]);
   assert.equal(cliTestSurface.buildGenerationOptions(options, []).excludeTags, undefined);
+  assert.equal(cliTestSurface.buildGenerationOptions(options, []).dependencyUpdates, false);
+  assert.equal(cliTestSurface.buildGenerationOptions(options, []).gitCwd, undefined);
+
+  // With --dependency-updates and --pm-cwd, gitCwd resolves to the pm-cwd path.
+  const depOpts = cliTestSurface.parseArgs(["--dependency-updates", "--pm-cwd", "/tmp"]);
+  assert.equal(cliTestSurface.buildGenerationOptions(depOpts, []).dependencyUpdates, true);
+  assert.equal(cliTestSurface.buildGenerationOptions(depOpts, []).gitCwd, "/tmp");
+  // With --dependency-updates but no --pm-cwd, gitCwd resolves to process.cwd().
+  const depNoCwdOpts = cliTestSurface.parseArgs(["--dependency-updates"]);
+  assert.equal(cliTestSurface.buildGenerationOptions(depNoCwdOpts, []).gitCwd, process.cwd());
+
   assert.equal(options.pendingRelease, true, "pending release windows stay enabled by default");
   assert.deepEqual(cliTestSurface.buildSummary(options, {
     action: "created",

@@ -137,6 +137,7 @@ export default defineExtension({
         { long: "--item-ref-style", value_name: "style", description: "How item IDs render: auto (default), label (neutral/public-safe), toon (force blob link), github (public issue/PR link from gh:owner/repo#N provenance tag)" },
         { long: "--exclude-tag", value_name: "list", description: "Omit items carrying any of these comma-separated tags (ignore convention, e.g. changelog:ignore)" },
         { long: "--respect-item-release", description: "Treat an item release field as the authority for its single version window: keep it when it matches the release version regardless of timestamps, drop it otherwise (--all-release-tags always honors the field)" },
+        { long: "--dependency-updates", description: "Read Dependabot-shaped git commits for each release window and render them in a ### Dependencies section; a window with no closed items but >=1 dependency commit still produces its version section" },
         { long: "--no-pending-release", description: "Nothing is being released right now: suppress the pending release window for an untagged package version" },
         { long: "--check", description: "Do not write; report whether the changelog would change" },
       ],
@@ -250,6 +251,8 @@ export default defineExtension({
           itemRefStyle: itemRefStyleOption(ctx.options),
           respectItemRelease: booleanOption(ctx.options, "respect-item-release", "respectItemRelease"),
           excludeTags: excludeTagsOption(ctx.options),
+          dependencyUpdates: booleanOption(ctx.options, "dependency-updates", "dependencyUpdates"),
+          gitCwd: booleanOption(ctx.options, "dependency-updates", "dependencyUpdates") ? ctx.pm_root : undefined,
         };
         if (allReleaseTags) {
           try {

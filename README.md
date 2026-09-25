@@ -84,6 +84,36 @@ npx pm-changelog --stdout --respect-item-release    # honor each item's release 
 npx pm-changelog --stdout --exclude-tag changelog:ignore  # keep tagged items out of the changelog entirely
 ```
 
+### Dependency updates: releases that ship only Dependabot bumps
+
+A daily release fires whenever a commit landed since the last tag, and Dependabot merges are commits,
+but sections are built from closed pm items. Without help, a dependency-only release gets an empty
+notes file and no `CHANGELOG.md` section at all. `--dependency-updates` reads each release window's
+commits from git (`git log --no-merges`, using the same tag windows `--all-release-tags` and
+`--since-previous-tag --until-release-tag` already derive) and adds a `### Dependencies` section,
+listed last, with one bullet per Dependabot-shaped subject (`<type>(deps|deps-dev): bump …`).
+A window with no closed items but at least one such commit still gets its version heading.
+Other commit subjects are ignored, because items remain the source of truth for everything else.
+
+```bash
+npx pm-changelog --stdout --since-previous-tag --until-release-tag --release-version-from-package \
+  --item-url-base https://github.com/unbraind/pm-csv/blob/main/.agents/pm --dependency-updates
+```
+
+```markdown
+## 2026.9.23 - 2026-09-23
+
+### Dependencies
+
+- Bump jscpd from 5.2.0 to 5.3.0 ([#129](https://github.com/unbraind/pm-csv/pull/129))
+- Bump @types/node from 26.5.1 to 26.6.1 ([#132](https://github.com/unbraind/pm-csv/pull/132))
+```
+
+PR numbers link to `https://github.com/<owner>/<repo>/pull/<n>` only when `--item-url-base` is a
+`https://github.com/<owner>/<repo>/…` URL; otherwise they print unlinked as `(#129)`. The flag is
+opt-in because turning it on changes the generated `CHANGELOG.md` of any repository whose history
+contains Dependabot merges, so each repository adopts it in one reviewed change.
+
 `--item-ref-style` controls how pm item IDs render as references:
 
 - `auto` (default) — an internal `.toon` blob link when `--item-url-base` is set, otherwise a neutral `(id)` label. Byte-for-byte identical to prior behavior.

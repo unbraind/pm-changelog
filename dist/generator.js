@@ -1,4 +1,4 @@
-import { spawnSync } from "node:child_process";
+import { execFileSync, spawnSync } from "node:child_process";
 import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import { createRequire } from "node:module";
 import { dirname, resolve } from "node:path";
@@ -23,6 +23,150 @@ const CATEGORY_ORDER = [
     "Deprecated",
     "Other",
 ];
+/** Conventional-commit subjects with a `deps` or `deps-dev` scope, as emitted
+ * by Dependabot squash-merged PRs. Linear-time: anchored start, a negated
+ * character class `\w` for the type, and a fixed alternation of literals for
+ * the scope — no nested quantifiers, no exponential backtracking. */
+const DEPENDABOT_SUBJECT = /^[\w-]+\((?:deps|deps-dev)\):/;
+/** Trailing `(#NNN)` PR reference at the end of a commit subject. Linear-time:
+ * a single greedy `\d+` followed by a literal `)` and end anchor. When no `)`
+ * is present the quantifier backtracks one digit at a time (O(n), not
+ * exponential) before the overall match fails. */
+const PR_NUMBER = /\(#(\d+)\)$/;
+/** Extract `owner`/`repo` from a GitHub `--item-url-base` URL. Linear-time:
+ * negated character classes `[^/]+` cannot backtrack across `/`, and the
+ * prefix is a chain of literals. */
+const GITHUB_URL_PREFIX = /^https:\/\/github\.com\/([^/]+)\/([^/]+)/;
+/** Parse a git commit subject as a Dependabot dependency bump, or return
+ * `undefined` when the subject does not match the Dependabot conventional-
+ * commit pattern.
+ *
+ * Recognised subjects follow the form
+ * `<type>(deps|deps-dev): bump … (#NNN)`. The conventional prefix is stripped,
+ * the first letter of the remaining description is capitalised, and the
+ * trailing `(#NNN)` PR number is extracted when present.
+ *
+ * @param subject - A single-line git commit subject.
+ * @returns The parsed commit, or `undefined` when the subject is not
+ * Dependabot-shaped. */
+export function parseDependencyCommit(subject) {
+    if (!DEPENDABOT_SUBJECT.test(subject))
+        return undefined;
+    const colonIndex = subject.indexOf(": ");
+    if (colonIndex === -1)
+        return undefined;
+    let description = subject.slice(colonIndex + 2);
+    let prNumber;
+    const prMatch = PR_NUMBER.exec(description);
+    if (prMatch) {
+        prNumber = Number(prMatch[1]);
+        description = description.slice(0, prMatch.index).trim();
+    }
+    description = description.charAt(0).toUpperCase() + description.slice(1);
+    return { subject, description, prNumber };
+}
+/** Extract the `owner`/`repo` pair from a GitHub `--item-url-base` URL, or
+ * return `undefined` when the URL is not a `https://github.com/<owner>/<repo>/…`
+ * URL. Used to derive PR links for dependency bullets. */
+export function resolveGithubOwnerRepo(itemUrlBase) {
+    const match = GITHUB_URL_PREFIX.exec(itemUrlBase);
+    if (!match)
+        return undefined;
+    return { owner: match[1], repo: match[2] };
+}
+/** Read git commits in a release window and return the ones whose subjects
+ * match the Dependabot conventional-commit pattern. Git refs (tag names) are
+ * preferred for the range because they are exact; timestamp fallbacks
+ * (`--since`/`--until`) cover the single-window mode where no tag refs are
+ * available. Failing soft — a non-repository or an unreachable ref returns an
+ * empty array so changelog generation never breaks on a missing window. */
+function readDependencyCommits(gitCwd, range) {
+    const args = ["log", "--no-merges", "--format=%s"];
+    if (range.sinceRef && range.untilRef) {
+        args.push(`${range.sinceRef}..${range.untilRef}`);
+    }
+    else if (range.untilRef) {
+        args.push(range.untilRef);
+    }
+    else if (range.sinceTimestamp || range.untilTimestamp) {
+        if (range.sinceTimestamp)
+            args.push(`--since=${range.sinceTimestamp}`);
+        if (range.untilTimestamp)
+            args.push(`--until=${range.untilTimestamp}`);
+    }
+    else {
+        return [];
+    }
+    let output;
+    try {
+        output = execFileSync("git", args, {
+            cwd: gitCwd,
+            encoding: "utf-8",
+            stdio: ["ignore", "pipe", "ignore"],
+        });
+    }
+    catch {
+        return [];
+    }
+    const commits = [];
+    for (const line of output.split("\n")) {
+        const trimmed = line.trim();
+        if (!trimmed)
+            continue;
+        const parsed = parseDependencyCommit(trimmed);
+        if (parsed)
+            commits.push(parsed);
+    }
+    return commits;
+}
+/** Format dependency commits as markdown bullets for the `### Dependencies`
+ * section. PR links are derived from `itemUrlBase` only when it is a GitHub
+ * URL; otherwise the PR number is printed as an unlinked `(#NNN)` suffix. */
+function formatDependencyBullets(commits, itemUrlBase) {
+    const github = itemUrlBase ? resolveGithubOwnerRepo(itemUrlBase) : undefined;
+    return commits.map((commit) => {
+        if (commit.prNumber !== undefined && github) {
+            const url = `https://github.com/${github.owner}/${github.repo}/pull/${commit.prNumber}`;
+            return `- ${commit.description} ([#${commit.prNumber}](${url}))`;
+        }
+        if (commit.prNumber !== undefined) {
+            return `- ${commit.description} (#${commit.prNumber})`;
+        }
+        return `- ${commit.description}`;
+    });
+}
+/** OPT-IN (`--dependency-updates`): attach each section's Dependabot commits.
+ *
+ * With release windows (`--all-release-tags`, newest first, one section per
+ * window), section `i` reads the commits between window `i + 1`'s tag and
+ * window `i`'s tag, or `HEAD` for the untagged Unreleased window. Without
+ * windows, the single section reads the commits between `options.since` and
+ * `options.until`. A section with no dependency commits is returned unchanged.
+ *
+ * @param sections - Sections from {@link buildSections}, before filtering.
+ * @param options - The generation options that shaped those sections.
+ * @param gitCwd - Repository to read commits from (the caller checked it is set).
+ * @returns The sections, each carrying `dependencyCommits` when it has any. */
+function enrichSectionsWithDependencyCommits(sections, options, gitCwd) {
+    const windows = options.releaseWindows;
+    if (windows && windows.length > 0) {
+        return sections.map((section, index) => {
+            const window = windows[index];
+            const untilRef = window.releaseTag ?? "HEAD";
+            const olderWindow = windows[index + 1];
+            const sinceRef = olderWindow?.releaseTag;
+            const commits = readDependencyCommits(gitCwd, { sinceRef, untilRef });
+            return commits.length > 0 ? { ...section, dependencyCommits: commits } : section;
+        });
+    }
+    // Single-window mode: one section, use options.since/options.until as
+    // timestamp bounds for the git log --since/--until flags.
+    const commits = readDependencyCommits(gitCwd, {
+        sinceTimestamp: options.since,
+        untilTimestamp: options.until,
+    });
+    return sections.map((section, index) => index === 0 && commits.length > 0 ? { ...section, dependencyCommits: commits } : section);
+}
 /** Render a changelog and return only its markdown. Convenience wrapper over
  * {@link createChangelog} for callers that do not need the selected sections. */
 export function generateChangelog(options) {
@@ -60,37 +204,51 @@ export function createChangelog(options) {
     }
     for (const section of visibleSections) {
         lines.push(`## ${section.heading}`, "");
-        if (section.items.length === 0) {
-            lines.push("No changes.", "");
-            continue;
-        }
-        // OPT-IN (`--breaking-changes`): a dedicated heading listing breaking items
-        // up front. Items still appear in their normal category/field group below,
-        // so this is purely additive and absent by default.
-        if (options.breakingChanges) {
-            const breaking = section.items.filter(isBreakingItem);
-            if (breaking.length > 0) {
-                lines.push(`### ${maybeEmoji("Breaking Changes", options)}`, "");
-                for (const item of breaking) {
+        const hasItems = section.items.length > 0;
+        const depCommits = section.dependencyCommits;
+        const hasDeps = Boolean(depCommits && depCommits.length > 0);
+        if (hasItems) {
+            // OPT-IN (`--breaking-changes`): a dedicated heading listing breaking items
+            // up front. Items still appear in their normal category/field group below,
+            // so this is purely additive and absent by default.
+            if (options.breakingChanges) {
+                const breaking = section.items.filter(isBreakingItem);
+                if (breaking.length > 0) {
+                    lines.push(`### ${maybeEmoji("Breaking Changes", options)}`, "");
+                    for (const item of breaking) {
+                        lines.push(`- ${formatItem(item, options)}`);
+                    }
+                    lines.push("");
+                }
+            }
+            for (const group of groupSectionItems(section, sectionBy, options)) {
+                lines.push(`### ${maybeEmoji(group.heading, options)}`, "");
+                for (const item of group.items) {
                     lines.push(`- ${formatItem(item, options)}`);
                 }
                 lines.push("");
             }
+            if (options.contributors) {
+                const names = collectContributors(section.items);
+                if (names.length > 0) {
+                    lines.push("### Contributors", "");
+                    lines.push(names.map((name) => `@${name}`).join(", "));
+                    lines.push("");
+                }
+            }
         }
-        for (const group of groupSectionItems(section, sectionBy, options)) {
-            lines.push(`### ${maybeEmoji(group.heading, options)}`, "");
-            for (const item of group.items) {
-                lines.push(`- ${formatItem(item, options)}`);
+        // OPT-IN (`--dependency-updates`): ### Dependencies section, rendered last
+        // after every item-based section. A window with no closed items but ≥1
+        // dependency commit still produces its heading and this section.
+        if (hasDeps) {
+            lines.push(`### ${maybeEmoji("Dependencies", options)}`, "");
+            for (const bullet of formatDependencyBullets(depCommits, options.itemUrlBase)) {
+                lines.push(bullet);
             }
             lines.push("");
         }
-        if (options.contributors) {
-            const names = collectContributors(section.items);
-            if (names.length > 0) {
-                lines.push("### Contributors", "");
-                lines.push(names.map((name) => `@${name}`).join(", "));
-                lines.push("");
-            }
+        if (!hasItems && !hasDeps) {
+            lines.push("No changes.", "");
         }
     }
     return {
@@ -146,10 +304,16 @@ function sectionVersionKey(heading) {
  */
 function selectChangelogSections(options) {
     const items = filterItems(options);
-    const sections = buildSections(items, options);
+    let sections = buildSections(items, options);
+    // OPT-IN (`--dependency-updates`): read Dependabot commits for each window
+    // so that item-less windows with dependency bumps stay visible and render a
+    // ### Dependencies section.
+    if (options.dependencyUpdates && options.gitCwd) {
+        sections = enrichSectionsWithDependencyCommits(sections, options, options.gitCwd);
+    }
     const candidateSections = options.includeEmpty
         ? sections
-        : sections.filter((section) => section.items.length > 0);
+        : sections.filter((section) => section.items.length > 0 || (section.dependencyCommits?.length ?? 0) > 0);
     return {
         items,
         sections,
