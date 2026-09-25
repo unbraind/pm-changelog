@@ -1,0 +1,44 @@
+id: pmc-pcax
+title: Certify pm CLI 2026.9.23 and adopt the guarded pm-ops merge-driver launcher
+description: "Fleet wave 2026-09-25 (companion epic pm-cli-website-5s6z, launcher rollout pm-cli-website-xy19). Pins the toolchain to 2026.9.23 and replaces the prepare hook with the launcher template pm-ops ships: it imports nothing from pm-ops, so a production install of a clone (npm ci --omit=dev) skips with one notice instead of failing, while a stale or broken pm-ops still fails the install. A test keeps the copy byte-identical to the pinned template, whose branches pm-ops covers with real fixtures."
+type: Chore
+status: closed
+priority: 1
+tags[4]: certify,merge-driver,multi-agent,pm-cli-2026.9.23
+created_at: "2026-09-25T09:09:55.289Z"
+updated_at: "2026-09-25T09:26:20.538Z"
+deadline: "2026-09-26T00:00:00.000Z"
+closed_at: "2026-09-25T09:26:15.680Z"
+completed_at: "2026-09-25T09:26:15.680Z"
+author: fleet-wave-script
+estimated_minutes: 30
+acceptance_criteria: "package.json and package-lock.json pin pm-cli 2026.9.23 and pm-ops 2026.9.23 (pm-changelog 2026.9.23 where used); scripts/prepare-merge-driver.ts is byte-identical to the pinned pm-ops template, enforced by a test; CI runs pm health --strict-exit --require-merge-drivers and release:check exits 0"
+resolution: Pinned the toolchain to 2026.9.23 and adopted the guarded pm-ops launcher
+expected_result: "release:check and the CI health gate pass on 2026.9.23 with the launcher byte-identical to the template"
+actual_result: "release:check exits 0; the launcher test and the CI health block pass"
+dependencies[1]{id,kind,created_at,author,source_kind,author_source}:
+  pmc-r1qu,related,"2026-09-25T09:09:55.289Z",fleet-wave-script,"cli:create:dep",asserted
+comments[1]{created_at,author,text}:
+  "2026-09-25T09:09:55.289Z",fleet-wave-script,Created by the 2026-09-25 fleet wave script.
+notes[1]{created_at,author,text}:
+  "2026-09-25T09:09:55.289Z",fleet-wave-script,The launcher is checked byte-for-byte against node_modules/pm-ops/templates/prepare-merge-driver.ts.
+learnings[1]{created_at,author,text}:
+  "2026-09-25T09:09:55.289Z",fleet-wave-script,A launcher copied unchanged is only unchanged while a test compares it with the template the pinned pm-ops ships
+files[5]:
+  - path: package-lock.json
+    scope: project
+  - path: package.json
+    scope: project
+    note: pins and prepare hook
+  - path: README.md
+    scope: project
+  - path: scripts/prepare-merge-driver.ts
+    scope: project
+  - path: test/prepare-merge-driver.test.ts
+    scope: project
+tests[1]{command,scope,timeout_seconds,provenance{author,created_at,source_kind,source_ref}}:
+  "npm run release:check",project,900,fleet-wave-script,"2026-09-25T09:09:55.289Z",local_mutation,certify-pm-cli-2026-9-23-and-roll-out-guarded-merge-driver-launcher
+docs[1]{path,scope,note}:
+  README.md,project,merge-driver install contract
+close_reason: "Pins: @unbrained/pm-cli 2026.9.21 -> 2026.9.23, pm-ops 2026.9.18 -> 2026.9.23 (package.json and package-lock.json). Launcher: pm-ops template copied unchanged; test/prepare-merge-driver.test.ts proves byte identity and exercises every launcher branch in isolated checkouts. The release workflow keeps its own resume path (a missing Release for an existing tag is recovered on the next run) and gains the release-window fix through variant-specific anchors. test/release-workflow.test.ts now checks it by evaluating the Create GitHub release and bun-gate conditions across publish, tag-push, bun and recovery outcomes with a small expression evaluator, and asserting the 10-minute npm and bun windows; both new tests fail against the previous workflow. The CI health block runs green with --require-merge-drivers; release:check exits 0."
+body: "Wave of 2026-09-25 (companion epic pm-cli-website-5s6z, launcher rollout pm-cli-website-xy19, release window pm-cli-website-3y5d)."

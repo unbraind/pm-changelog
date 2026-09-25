@@ -1,0 +1,40 @@
+id: pmc-piam
+title: A publish that npm accepts late is reported as failed and the GitHub Release is skipped on bun mirror lag
+description: "Companion item pm-cli-website-3y5d. pm-csv 2026.9.23 is the live case: npm accepted the publish with provenance and the tag was pushed, but bun still answered No version matching after 4 minutes, so the job failed before creating the GitHub Release. This repository's own release.yml gets a 10-minute npm visibility window with --prefer-online reads and an honest never-visible message, a ~10-minute bun window, and a GitHub Release that depends only on the publish and tag-push outcomes, with a gate step that fails the job visibly when bun verification failed."
+type: Issue
+status: closed
+priority: 1
+tags[2]: release,reliability
+created_at: "2026-09-25T09:09:56.697Z"
+updated_at: "2026-09-25T09:39:53.691Z"
+deadline: "2026-09-26T00:00:00.000Z"
+closed_at: "2026-09-25T09:26:18.705Z"
+completed_at: "2026-09-25T09:26:18.705Z"
+author: fleet-wave-script
+estimated_minutes: 30
+acceptance_criteria: "A publish npm accepts late is waited for (10 minutes) and never reported as a publish failure; The GitHub Release is created whenever the publish and the tag push succeeded, and a bun failure still fails the job visibly"
+repro_steps: 1. A Daily Release publishes to npm and pushes the tag. 2. bun still answers No version matching after 8 attempts (pm-csv 2026.9.23). 3. The job fails before Create GitHub release.
+resolution: Release-window fix applied
+expected_result: A late-visible publish is reconciled and bun lag no longer skips the Release
+actual_result: "release:check exits 0"
+dependencies[1]{id,kind,created_at,author,source_kind,author_source}:
+  pmc-r1qu,related,"2026-09-25T09:09:56.697Z",fleet-wave-script,"cli:create:dep",asserted
+comments[2]{created_at,author,text}:
+  "2026-09-25T09:09:56.697Z",fleet-wave-script,Created by the 2026-09-25 fleet wave script.
+  "2026-09-25T09:39:53.691Z",fleet-wave-script,"Review round 1 (Greptile, pm-changelog#209): the bun gate step said the GitHub Release was not affected, which is false when the Create GitHub release step also failed. It now says only what is known (the publish and tag push had succeeded) and points at the release step's own outcome."
+notes[1]{created_at,author,text}:
+  "2026-09-25T09:09:56.697Z",fleet-wave-script,The launcher is checked byte-for-byte against node_modules/pm-ops/templates/prepare-merge-driver.ts.
+learnings[1]{created_at,author,text}:
+  "2026-09-25T09:09:56.697Z",fleet-wave-script,A launcher copied unchanged is only unchanged while a test compares it with the template the pinned pm-ops ships
+files[2]:
+  - path: .github/workflows/release.yml
+    scope: project
+  - path: package.json
+    scope: project
+    note: pins and prepare hook
+tests[1]{command,scope,timeout_seconds,provenance{author,created_at,source_kind,source_ref}}:
+  "npm run release:check",project,900,fleet-wave-script,"2026-09-25T09:09:56.697Z",local_mutation,certify-pm-cli-2026-9-23-and-roll-out-guarded-merge-driver-launcher
+docs[1]{path,scope,note}:
+  README.md,project,merge-driver install contract
+close_reason: "Applied to this repository's own release.yml by anchored replacements; release:check exits 0."
+body: "Wave of 2026-09-25 (companion epic pm-cli-website-5s6z, launcher rollout pm-cli-website-xy19, release window pm-cli-website-3y5d)."
