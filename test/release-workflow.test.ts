@@ -565,18 +565,118 @@ test("interrupted releases resume their version and missing GitHub releases reco
   const updateStart = stepIndex("Update release version");
   const decideStep = workflow.slice(decideStart, updateStart);
   const githubReleaseStart = stepIndex("Create GitHub release");
-  const githubReleaseStep = workflow.slice(githubReleaseStart);
+  const githubReleaseStep = workflow.slice(githubReleaseStart, stepIndex("Fail the job on bun verification failure"));
 
   assert.match(decideStep, /current_version/);
   assert.match(decideStep, /current_padded_tag/);
   assert.match(decideStep, /Resuming untagged release metadata/);
   assert.match(decideStep, /should_recover_release=true/);
-  assert.match(
-    githubReleaseStep,
-    /should_release == 'true' \|\| steps\.decide\.outputs\.should_recover_release == 'true'/
-  );
+  assert.match(githubReleaseStep, /steps\.decide\.outputs\.should_recover_release == 'true' && success\(\)/);
   assert.match(githubReleaseStep, /npm view "\$\{pkg_name\}@\$\{NPM_VERSION\}"/);
   assert.match(githubReleaseStep, /GitHub release \$\{RELEASE_TAG\} already exists/);
+});
+
+/** Outcomes a GitHub Actions step condition can read in this workflow. */
+interface StepOutcomes {
+  readonly publish: string;
+  readonly push_tag: string;
+  readonly verify_bun: string;
+  readonly recover: boolean;
+  readonly earlierFailure: boolean;
+}
+
+/**
+ * Evaluate the subset of the GitHub Actions expression language these release
+ * conditions use: `!`, `&&`, `||`, parentheses, `cancelled()`, `success()`, and
+ * `steps.<id>.outcome == '<value>'` or `steps.decide.outputs.should_recover_release == 'true'`
+ * comparisons. Anything else throws, so a condition that grows past this
+ * subset fails the test instead of being misread.
+ */
+function evaluateCondition(expression: string, outcomes: StepOutcomes): boolean {
+  const tokens = expression.match(/!|&&|\|\||\(|\)|cancelled\(\)|success\(\)|steps\.[\w.]+ == '[\w-]+'/g) ?? [];
+  assert.equal(tokens.join(""), expression.replace(/\s+/g, "").replaceAll("==", " == "), "condition uses an unsupported construct");
+  let position = 0;
+  const primary = (): boolean => {
+    const token = tokens[position++];
+    if (token === "!") return !primary();
+    if (token === "(") {
+      const value = disjunction();
+      assert.equal(tokens[position++], ")");
+      return value;
+    }
+    if (token === "cancelled()") return false;
+    if (token === "success()") return !outcomes.earlierFailure;
+    const comparison = /^steps\.([\w.]+) == '([\w-]+)'$/.exec(token ?? "");
+    assert.ok(comparison, `unsupported token ${token}`);
+    const [, path, expected] = comparison;
+    if (path === "decide.outputs.should_recover_release") return String(outcomes.recover) === expected;
+    const step = /^(publish|push_tag|verify_bun)\.outcome$/.exec(path);
+    assert.ok(step, `unsupported step reference ${path}`);
+    return outcomes[step[1] as "publish" | "push_tag" | "verify_bun"] === expected;
+  };
+  const conjunction = (): boolean => {
+    let value = primary();
+    while (tokens[position] === "&&") {
+      position++;
+      value = primary() && value;
+    }
+    return value;
+  };
+  const disjunction = (): boolean => {
+    let value = conjunction();
+    while (tokens[position] === "||") {
+      position++;
+      value = conjunction() || value;
+    }
+    return value;
+  };
+  const result = disjunction();
+  assert.equal(position, tokens.length, "condition was not fully consumed");
+  return result;
+}
+
+/** The folded `if: >-` condition of a named step, joined onto one line. */
+function stepCondition(name: string, nextName: string): string {
+  const step = workflow.slice(stepIndex(name), stepIndex(nextName));
+  const match = /\n\s+if: >-\n((?:\s{10}.*\n)+)/.exec(step);
+  assert.ok(match, `${name} should carry a folded if: condition`);
+  return match[1].split("\n").map((line) => line.trim()).filter(Boolean).join(" ");
+}
+
+test("bun mirror lag cannot skip the GitHub release, and a bun failure still fails the job", () => {
+  // pm-csv 2026.9.23 and pm-linear 2026.9.18 published to npm and pushed their
+  // tags, then lost the GitHub Release to a bun step that failed first.
+  assert.match(workflow.slice(stepIndex("Publish npm package")), /- name: Publish npm package\n\s+id: publish\n/);
+  assert.match(workflow.slice(stepIndex("Push release tag")), /- name: Push release tag\n\s+id: push_tag\n/);
+  assert.match(workflow.slice(stepIndex("Verify bun install of published package")), /- name: Verify bun install of published package\n\s+id: verify_bun\n/);
+  const release = stepCondition("Create GitHub release", "Fail the job on bun verification failure");
+  const gateStart = stepIndex("Fail the job on bun verification failure");
+  const gate = /\n\s+if: >-\n((?:\s{10}.*\n)+)/.exec(workflow.slice(gateStart))?.[1].split("\n").map((line) => line.trim()).filter(Boolean).join(" ") ?? "";
+  const cases: ReadonlyArray<[StepOutcomes, boolean, boolean]> = [
+    // [outcomes, Release created, gate fails the job]
+    [{ publish: "success", push_tag: "success", verify_bun: "success", recover: false, earlierFailure: false }, true, false],
+    [{ publish: "success", push_tag: "success", verify_bun: "failure", recover: false, earlierFailure: true }, true, true],
+    [{ publish: "failure", push_tag: "skipped", verify_bun: "skipped", recover: false, earlierFailure: true }, false, false],
+    [{ publish: "success", push_tag: "failure", verify_bun: "skipped", recover: false, earlierFailure: true }, false, false],
+    [{ publish: "skipped", push_tag: "skipped", verify_bun: "skipped", recover: true, earlierFailure: false }, true, false],
+    [{ publish: "skipped", push_tag: "skipped", verify_bun: "skipped", recover: true, earlierFailure: true }, false, false],
+    [{ publish: "skipped", push_tag: "skipped", verify_bun: "skipped", recover: false, earlierFailure: false }, false, false],
+  ];
+  for (const [outcomes, created, gated] of cases) {
+    assert.equal(evaluateCondition(release, outcomes), created, `Create GitHub release for ${JSON.stringify(outcomes)}`);
+    assert.equal(evaluateCondition(gate, outcomes), gated, `bun gate for ${JSON.stringify(outcomes)}`);
+  }
+  assert.match(workflow.slice(gateStart), /exit 1\n/);
+});
+
+test("a publish npm serves late is waited for across a 10-minute window, never reported as failed", () => {
+  const publishStep = workflow.slice(stepIndex("Publish npm package"), stepIndex("Push release tag"));
+  assert.match(publishStep, /reconcile_attempts=20\n/);
+  assert.match(publishStep, /npm view "\$\{pkg_name\}@\$\{NPM_VERSION\}" version --prefer-online --json/);
+  assert.match(publishStep, /at the end of the 10-minute visibility window/);
+  const bunStep = workflow.slice(stepIndex("Verify bun install of published package"), stepIndex("Create GitHub release"));
+  assert.match(bunStep, /bun_attempts=21\n/);
+  assert.doesNotMatch(bunStep, /Treating verification as successful/);
 });
 
 test("published bytes come from the exact merged and fully checked main commit", () => {

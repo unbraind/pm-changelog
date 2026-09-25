@@ -1,5 +1,15 @@
 # Changelog
 
+## Unreleased
+
+### Fixed
+
+- A publish that npm accepts late is reported as failed and the GitHub Release is skipped on bun mirror lag ([pmc-piam](https://github.com/unbraind/pm-changelog/blob/main/.agents/pm/issues/pmc-piam.toon))
+
+### Other
+
+- Certify pm CLI 2026.9.23 and adopt the guarded pm-ops merge-driver launcher ([pmc-pcax](https://github.com/unbraind/pm-changelog/blob/main/.agents/pm/chores/pmc-pcax.toon))
+
 ## 2026.9.23 - 2026-09-23
 
 ### Other

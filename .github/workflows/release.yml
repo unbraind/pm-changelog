@@ -690,6 +690,7 @@ jobs:
       # publishing must be configured for this package on npmjs.com against
       # unbraind/pm-changelog and this workflow filename, or publish fails closed.
       - name: Publish npm package
+        id: publish
         if: steps.decide.outputs.should_release == 'true'
         shell: bash
         env:
@@ -757,17 +758,37 @@ jobs:
               sleep 30
             fi
           done
-          if npm view "${pkg_name}@${NPM_VERSION}" version --json >/dev/null 2>&1; then
-            echo "::notice::Version landed after the final reported error; treating as success."
+          # 20 reads, 30 s apart, plus a final read: a 10-minute visibility
+          # window. A single read here raced propagation: npm can accept a
+          # publish, report an error, and serve the version minutes later
+          # (pm-slack and pm-web 2026-09-18 were visible 35 s after a 2.5-minute
+          # window closed), and failing then skips the tag and the GitHub
+          # release for a version that is on the registry. --prefer-online keeps
+          # a stale cache answer from faking or hiding visibility. Paid only on
+          # the path where npm already reported an error (pm-cli-website-3y5d).
+          reconcile_attempts=20
+          for reconcile_attempt in $(seq 1 "${reconcile_attempts}"); do
+            if npm view "${pkg_name}@${NPM_VERSION}" version --prefer-online --json >/dev/null 2>&1; then
+              echo "::notice::Version landed after the final reported error; treating as success."
+              exit 0
+            fi
+            echo "Not yet visible on the registry; re-reading in 30s (${reconcile_attempt}/${reconcile_attempts})..."
+            sleep 30
+          done
+          if npm view "${pkg_name}@${NPM_VERSION}" version --prefer-online --json >/dev/null 2>&1; then
+            echo "::notice::Version landed at the end of the 10-minute visibility window; treating as success."
             exit 0
           fi
-          echo "::error::Publish with provenance failed after ${max_attempts} attempts. Refusing to downgrade supply-chain attestations; retry the release transaction."
+          # Never claim the publish failed when only visibility was not
+          # confirmed: say exactly what this run knows.
+          echo "::error::npm did not confirm ${pkg_name}@${NPM_VERSION} is published after ${max_attempts} publish attempts and a 10-minute visibility window. The registry shows nothing at that coordinate right now: either the publish genuinely failed, or propagation outlasted the window. Refusing to downgrade supply-chain attestations; retry the release transaction."
           exit 1
 
       # Tag the exact merged/verified main commit AFTER a successful publish.
       # If publication fails, main retains the prepared metadata and the next
       # run resumes the same version instead of inventing another release.
       - name: Push release tag
+        id: push_tag
         if: steps.decide.outputs.should_release == 'true'
         shell: bash
         env:
@@ -806,6 +827,7 @@ jobs:
           git push origin "refs/tags/${release_tag}"
 
       - name: Verify bun install of published package
+        id: verify_bun
         if: steps.decide.outputs.should_release == 'true'
         env:
           NPM_VERSION: ${{ steps.decide.outputs.npm_version }}
@@ -820,29 +842,45 @@ jobs:
           bun init -y > /dev/null
           # Smoke-test that the just-published version installs via bun.
           # Retry to absorb npm registry propagation (~60s typical).
-          for attempt in 1 2 3 4 5 6 7 8; do
+          # 21 attempts with a 30 s pause BETWEEN them: the same 10-minute
+          # window the npm reconcile uses. The last attempt runs after the
+          # final pause, so a version that becomes installable at the very end
+          # of the window still passes instead of failing on a trailing sleep.
+          bun_attempts=21
+          for attempt in $(seq 1 "${bun_attempts}"); do
             if bun add "${pkg_name}@${pkg_version}"; then
               echo "bun add succeeded on attempt $attempt"
               exit 0
             fi
-            echo "bun add failed on attempt $attempt, sleeping 30s..."
-            sleep 30
+            if (( attempt < bun_attempts )); then
+              echo "bun add failed on attempt $attempt, sleeping 30s..."
+              sleep 30
+            fi
           done
-          # bun's registry mirror can lag well past npm's own propagation,
-          # especially for prerelease (-N) versions. The npm registry is
-          # authoritative for what we just published: if it confirms the
-          # version, the release genuinely succeeded and the bun failure is
-          # mirror lag, not a publish failure. Do not let it block the
-          # GitHub release / post-publish steps that follow.
-          echo "bun could not resolve ${pkg_name}@${pkg_version}; checking npm registry authoritatively..."
-          if npm view "${pkg_name}@${pkg_version}" version --registry="https://registry.npmjs.org" > /dev/null 2>&1; then
-            echo "::warning::bun has not mirrored ${pkg_name}@${pkg_version} yet, but npm confirms it is published (registry mirror lag). Treating verification as successful."
-            exit 0
-          fi
-          echo "npm registry does not show ${pkg_name}@${pkg_version} - real publish failure."
+          # The GitHub release below is now created whenever the publish and
+          # the tag push succeeded, regardless of this step, so a bun failure
+          # must NOT be papered over as success. The old fallback here (treat
+          # mirror lag as a passing verification once `npm view` confirmed the
+          # version) still let a total failure skip the Release: pm-linear run
+          # 35323736826 (2026-09-18) failed this step, the Release was skipped,
+          # and tag v2026.09.18 has had no Release since. npm acceptance is
+          # already proven by the publish step above; this step verifies bun
+          # alone, so a failure here is reported as a failure and the gate
+          # step below fails the job visibly.
+          echo "::error::bun could not resolve ${pkg_name}@${pkg_version} after ${bun_attempts} attempts across a 10-minute window. npm accepted the publish and the GitHub release is created regardless of this step; this failure keeps the bun mirror problem visible instead of silent."
           exit 1
       - name: Create GitHub release
-        if: steps.decide.outputs.should_release == 'true' || steps.decide.outputs.should_recover_release == 'true'
+        # A fresh release is created whenever the publish and the tag push
+        # succeeded, even when bun verification failed (that ordering left
+        # pm-linear v2026.09.18 and pm-csv v2026.09.23 tagged with no Release);
+        # the gate step below keeps a bun failure visible. The recovery path
+        # keeps its old rule: every earlier step must have succeeded.
+        # !cancelled() is required: with the default success() condition any
+        # earlier failure, including bun's, would skip this step.
+        if: >-
+          !cancelled() &&
+          ((steps.publish.outcome == 'success' && steps.push_tag.outcome == 'success') ||
+          (steps.decide.outputs.should_recover_release == 'true' && success()))
         shell: bash
         env:
           REPO_NAME: ${{ github.event.repository.name }}
@@ -892,3 +930,18 @@ jobs:
             --title "pm-changelog $RELEASE_TAG" \
             --notes-file RELEASE_NOTES.md \
             --verify-tag
+
+      # The visible half of the bun decoupling: the Release above is created
+      # regardless of bun verification, so without this gate a bun failure
+      # would end in a green run and mirror lag would be invisible. Only a
+      # bun FAILURE trips it - a skipped bun step means the publish or the
+      # tag push already failed the job on its own.
+      - name: Fail the job on bun verification failure
+        if: >-
+          !cancelled() &&
+          steps.verify_bun.outcome == 'failure'
+        shell: bash
+        run: |
+          set -euo pipefail
+          echo "::error::bun install verification failed (see the step log above); the npm publish, the tag push and the GitHub release were not affected. Failing the job so the bun mirror problem is not silent."
+          exit 1
