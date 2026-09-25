@@ -52,6 +52,8 @@ interface CliOptions {
     dependencySinceRef?: string;
     /** Current release tag from the release context, ending the single-window dependency range. */
     dependencyUntilRef?: string;
+    /** The explicit --until, kept apart from the tag-derived until the release context fills in. */
+    dependencyCutoff?: string;
     mode: "replace" | "prepend";
     check: boolean;
     checkDiff: boolean;
@@ -145,6 +147,7 @@ declare function buildGenerationOptions(options: CliOptions, items: PmItem[]): {
     gitCwd: string | undefined;
     dependencySinceRef: string | undefined;
     dependencyUntilRef: string | undefined;
+    dependencyCutoff: string | undefined;
 };
 /** Assemble the machine-readable run summary emitted by `--json` and written as
  * GitHub step outputs. The job-summary panel receives generated markdown

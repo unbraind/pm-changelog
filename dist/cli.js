@@ -602,6 +602,7 @@ function applyReleaseContext(options) {
     options.version = context.version;
     options.date = options.date ?? context.date;
     options.since = context.since;
+    options.dependencyCutoff = options.until;
     options.until = context.until;
     options.dependencySinceRef = context.previousTag;
     options.dependencyUntilRef = context.releaseTag;
@@ -729,6 +730,7 @@ function buildGenerationOptions(options, items) {
             : undefined,
         dependencySinceRef: options.dependencySinceRef,
         dependencyUntilRef: options.dependencyUntilRef,
+        dependencyCutoff: options.dependencyCutoff,
     };
 }
 /** Assemble the machine-readable run summary emitted by `--json` and written as

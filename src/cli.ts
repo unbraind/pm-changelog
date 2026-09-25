@@ -88,6 +88,8 @@ interface CliOptions {
   dependencySinceRef?: string;
   /** Current release tag from the release context, ending the single-window dependency range. */
   dependencyUntilRef?: string;
+  /** The explicit --until, kept apart from the tag-derived until the release context fills in. */
+  dependencyCutoff?: string;
   mode: "replace" | "prepend";
   check: boolean;
   checkDiff: boolean;
@@ -708,6 +710,7 @@ function applyReleaseContext(options: CliOptions): void {
   options.version = context.version;
   options.date = options.date ?? context.date;
   options.since = context.since;
+  options.dependencyCutoff = options.until;
   options.until = context.until;
   options.dependencySinceRef = context.previousTag;
   options.dependencyUntilRef = context.releaseTag;
@@ -842,6 +845,7 @@ function buildGenerationOptions(options: CliOptions, items: PmItem[]) {
       : undefined,
     dependencySinceRef: options.dependencySinceRef,
     dependencyUntilRef: options.dependencyUntilRef,
+    dependencyCutoff: options.dependencyCutoff,
   };
 }
 

@@ -256,6 +256,7 @@ export default defineExtension({
           gitCwd: dependencyUpdates ? ctx.pm_root : undefined,
           dependencySinceRef: releaseContext.previousTag,
           dependencyUntilRef: releaseContext.releaseTag,
+          dependencyCutoff: untilOption,
         };
         if (allReleaseTags) {
           try {
@@ -451,6 +452,7 @@ export default defineExtension({
         gitCwd: dependencyUpdates ? ctx.pm_root : undefined,
         dependencySinceRef: releaseContext.previousTag,
         dependencyUntilRef: releaseContext.releaseTag,
+        dependencyCutoff: untilOption,
       });
 
       const outputPath = stringOption(ctx.options, "output", "output");

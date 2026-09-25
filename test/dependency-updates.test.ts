@@ -806,12 +806,36 @@ describe("dependency-updates: an explicit --until cutoff", () => {
       commitIn(dir, "build(deps): bump before from 1.0.0 to 1.0.1 (#1)", "2026-09-12T10:00:00Z");
       commitIn(dir, "build(deps): bump after from 1.0.0 to 1.0.1 (#2)", "2026-09-14T10:00:00Z");
       gitIn(dir, ["tag", "v2026.09.15"]);
-      const base = { items: [], version: "2026.9.15", dependencyUpdates: true, gitCwd: dir, dependencySinceRef: "v2026.09.10", until: "2026-09-13T00:00:00Z" };
+      const base = { items: [], version: "2026.9.15", dependencyUpdates: true, gitCwd: dir, dependencySinceRef: "v2026.09.10", until: "2026-09-13T00:00:00Z", dependencyCutoff: "2026-09-13T00:00:00Z" };
       for (const dependencyUntilRef of ["v2026.09.15", "v2026.09.99"]) {
         const result = createChangelog({ ...base, dependencyUntilRef });
         ok(result.markdown.includes("Bump before"), result.markdown);
         ok(!result.markdown.includes("Bump after"), `a commit after --until must stay out (${dependencyUntilRef})`);
       }
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
+  it("keeps a bump inside the tag range whose commit date is later than the tag's, when until only comes from the tag", () => {
+    const dir = gitRepo();
+    try {
+      commitIn(dir, "feat: base", "2026-09-10T10:00:00Z");
+      gitIn(dir, ["tag", "v2026.09.10"]);
+      // Clock skew: committed into the release before the tag, but dated after it.
+      commitIn(dir, "build(deps): bump skewed from 1.0.0 to 1.0.1 (#3)", "2026-09-20T10:00:00Z");
+      commitIn(dir, "chore: release", "2026-09-15T10:00:00Z");
+      gitIn(dir, ["tag", "v2026.09.15"]);
+      const result = createChangelog({
+        items: [],
+        version: "2026.9.15",
+        until: "2026-09-15T10:00:00Z",
+        dependencyUpdates: true,
+        gitCwd: dir,
+        dependencySinceRef: "v2026.09.10",
+        dependencyUntilRef: "v2026.09.15",
+      });
+      ok(result.markdown.includes("Bump skewed"), result.markdown);
     } finally {
       rmSync(dir, { recursive: true, force: true });
     }

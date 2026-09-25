@@ -218,6 +218,12 @@ export interface GenerateChangelogOptions {
    * ends at, from `--until-release-tag`. Absent, or not yet created because the
    * release is still pending → `HEAD`. */
   dependencyUntilRef?: string;
+  /** An explicit upper time bound (the `--until` flag) applied to the
+   * single-window `--dependency-updates` range even when tags make it exact,
+   * as it cuts off items. A bound derived from the release tag is not a cutoff:
+   * the tag already ends the range, and a skewed commit date inside it must
+   * not drop a bump. */
+  dependencyCutoff?: string;
 }
 
 /** A truthy `breaking` flag may live directly on a pm item or in its metadata.
