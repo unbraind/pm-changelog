@@ -5,7 +5,7 @@
  * with real commits and tags — no mocked git, no stubbed child_process.
  */
 import { describe, it } from "node:test";
-import { equal, ok, match } from "node:assert/strict";
+import { equal, ok } from "node:assert/strict";
 import { execFileSync } from "node:child_process";
 import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
