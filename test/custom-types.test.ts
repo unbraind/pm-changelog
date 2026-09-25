@@ -28,11 +28,18 @@ test("generation and export enumerate configured and extension types alongside b
     writeFileSync(join(extensionRoot, "index.mjs"), "export function activate(api) { api.registerItemTypes([{ name: 'Changeset', folder: 'changesets' }]); }");
     await runWithActiveExtensions({ path: pmRoot }, async () => {
       await runCreate({ title: "Extension changeset release", type: "Changeset", createMode: "progressive", body: "Actual extension body evidence" }, { path: pmRoot });
+      await runCreate({ title: "Closed extension delivery", type: "Changeset", createMode: "progressive", status: "closed", closeReason: "Fixture accepted", completedAt: "2026-09-25T00:00:00.000Z" }, { path: pmRoot });
       const activation = await activateExtensionForTest(extension, {
         name: "pm-changelog", capabilities: ["commands", "schema", "importers", "renderers"],
       });
       assert.deepEqual(activation.failed, []);
       for (const command of ["changelog generate", "changelog export"]) {
+        const defaultRun = await runRegisteredCommandForTest(activation.commands, { command, pmRoot, options: { stdout: true } });
+        assert.ok(defaultRun.result !== null && typeof defaultRun.result === "object");
+        assert.ok("item_count" in defaultRun.result && defaultRun.result.item_count === 1);
+        assert.ok("changelog" in defaultRun.result && typeof defaultRun.result.changelog === "string");
+        assert.match(defaultRun.result.changelog, /Closed extension delivery/);
+        assert.doesNotMatch(defaultRun.result.changelog, /Custom story release|Built-in task release|Extension changeset release/);
         const { result } = await runRegisteredCommandForTest(activation.commands, {
           command, pmRoot, options: { stdout: true, status: "open", "explain-selection": true, "body-preview": 100 },
         });
@@ -50,7 +57,7 @@ test("generation and export enumerate configured and extension types alongside b
           assert.ok(report !== null && typeof report === "object" && "stage_counts" in report);
           const counts = report.stage_counts;
           assert.ok(counts !== null && typeof counts === "object" && "input" in counts);
-          assert.equal(counts.input, 3);
+          assert.equal(counts.input, 4);
         }
       }
     });
