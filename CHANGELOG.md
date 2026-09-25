@@ -8,6 +8,7 @@
 
 ### Fixed
 
+- Include extension-registered item types in changelog generation and body previews ([pmc-k1oq](https://github.com/unbraind/pm-changelog/blob/main/.agents/pm/issues/pmc-k1oq.toon))
 - A publish that npm accepts late is reported as failed and the GitHub Release is skipped on bun mirror lag ([pmc-piam](https://github.com/unbraind/pm-changelog/blob/main/.agents/pm/issues/pmc-piam.toon))
 
 ### Other

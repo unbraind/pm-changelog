@@ -1,6 +1,6 @@
 import { writeFileSync } from "node:fs";
 import { resolve } from "node:path";
-import { defineExtension, listAllItemMetadata, locateItem, readLocatedItem, readSettings, resolveItemTypeRegistry, EXIT_CODE, PmCliError, } from "@unbrained/pm-cli/sdk";
+import { defineExtension, getActiveExtensionRegistrations, listAllItemMetadata, locateItem, readLocatedItem, readSettings, resolveItemTypeRegistry, EXIT_CODE, PmCliError, } from "@unbrained/pm-cli/sdk";
 import { buildChangelogDocument, createChangelog, createChangelogSummary, explainChangelogSelection, formatSummaryLine, mergeChangelog, suggestSemver, writeChangelog } from "./generator.js";
 import { MissingTagHistoryError, resolveGenerationReleaseWindows, resolveReleaseContext, resolveReleaseTagWindowResolution, } from "./release-context.js";
 import { resolveGitReleaseMembership } from "./release-membership.js";
@@ -435,10 +435,10 @@ export default defineExtension({
 });
 /** Read every configured item folder using the workspace's format and schema.
  * The low-level SDK store defaults to built-in folders; release generation must
- * also include user-defined types such as Story without requiring a package update. */
+ * also include configured and active extension-defined types without a package update. */
 async function listWorkspaceItemMetadata(pmRoot) {
     const settings = await readSettings(pmRoot);
-    const registry = resolveItemTypeRegistry(settings);
+    const registry = resolveItemTypeRegistry(settings, getActiveExtensionRegistrations());
     return listAllItemMetadata(pmRoot, settings.item_format, registry.type_to_folder, undefined, settings.schema);
 }
 /**
@@ -454,7 +454,7 @@ async function enrichItemBodies(pmRoot, items, dependencies = BODY_ENRICHMENT_DE
     let format;
     try {
         const settings = await dependencies.readSettings(pmRoot);
-        typeToFolder = dependencies.resolveItemTypeRegistry(settings).type_to_folder;
+        typeToFolder = dependencies.resolveItemTypeRegistry(settings, getActiveExtensionRegistrations()).type_to_folder;
         idPrefix = settings.id_prefix;
         format = settings.item_format;
     }

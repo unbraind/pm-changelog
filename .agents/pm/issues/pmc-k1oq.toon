@@ -1,0 +1,38 @@
+id: pmc-k1oq
+title: Include extension-registered item types in changelog generation and body previews
+description: pm-changelog 2026.9.23 resolves configured item types but omits active extension registrations. A closed Changeset created by the version-control package is visible in pm list but absent from changelog generation. Resolve the active registry through the public SDK for enumeration and body enrichment.
+type: Issue
+status: closed
+priority: 1
+tags: []
+created_at: "2026-09-25T15:00:50.960Z"
+updated_at: "2026-09-25T15:17:21.503Z"
+closed_at: "2026-09-25T15:17:20.909Z"
+completed_at: "2026-09-25T15:17:20.909Z"
+author: codex
+acceptance_criteria: Generate and export include an extension-registered Changeset alongside configured Story and built-in Task; body preview loads its real body; regression fails before the fix; package gates pass.
+resolution: Resolve configured and active extension types in enumeration and body enrichment; verify both open and default closed selection.
+expected_result: Closed extension Changesets appear in default generated and exported changelogs.
+actual_result: "All four linked verification commands passed: custom-type acceptance, full coverage, docstrings, and typecheck; default closed output includes only the closed Changeset."
+dependencies[1]{id,kind,created_at,author,source_kind,author_source}:
+  pmc-vnke,recurs_from,"2026-09-25T15:00:50.960Z",codex,"cli:create:dep",detected
+comments[4]{created_at,author,text}:
+  "2026-09-25T15:00:50.960Z",codex,"Duplicate check: all-status custom-type search and live open/in-progress inventory found only closed pmc-vnke, whose accepted fix covered configured Story types. This recurrence is the distinct active extension-registration path, observed from pm-cli pm-g0b88h."
+  "2026-09-25T15:03:43.339Z",codex,"TDD reproduced with a real temporary tracker and active schema extension: generation returned 2 items instead of 3, omitting the extension-owned Changeset while configured Story and built-in Task were present. The repair passes getActiveExtensionRegistrations into the existing public SDK type-registry resolver for both metadata enumeration and body lookup."
+  "2026-09-25T15:05:04.591Z",codex,"The red-green fixture now returns all three records for generate/export and includes the actual extension-owned body in previews. Package typecheck, full coverage suite and docstring gate pass. The package coverage tool measures line/branch/function axes; its existing statement-metric work remains pmc-ilrh and is not falsely claimed complete."
+  "2026-09-25T15:17:20.381Z",codex,"Addressed PR #211 review: added closed extension Changeset acceptance for default generate/export filters, preserving the existing explicit-open cases. Linked and ran all four verification commands through pm; all pass with zero failure categories, including full coverage, docstrings, and typecheck."
+files[5]{path,scope}:
+  dist/extension.d.ts.map,project
+  dist/extension.js,project
+  dist/extension.js.map,project
+  src/extension.ts,project
+  test/custom-types.test.ts,project
+tests[4]{command,scope,timeout_seconds,provenance{author,created_at,source_kind,source_ref}}:
+  node --test test/custom-types.test.ts,project,120,codex,"2026-09-25T15:03:42.581Z",local_mutation,fix/extension-type-changelog-enumeration
+  npm run coverage,project,240,codex,"2026-09-25T15:13:56.791Z",local_mutation,fix/extension-type-changelog-enumeration
+  npm run docstring,project,120,codex,"2026-09-25T15:13:56.791Z",local_mutation,fix/extension-type-changelog-enumeration
+  npm run typecheck,project,120,codex,"2026-09-25T15:13:56.791Z",local_mutation,fix/extension-type-changelog-enumeration
+docs[1]{path,scope}:
+  CHANGELOG.md,project
+close_reason: Extension-defined types are included by default and explicit filters.
+body: ""

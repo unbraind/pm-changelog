@@ -3,6 +3,7 @@ import { resolve } from "node:path";
 
 import {
   defineExtension,
+  getActiveExtensionRegistrations,
   listAllItemMetadata,
   locateItem,
   readLocatedItem,
@@ -498,10 +499,10 @@ export default defineExtension({
 
 /** Read every configured item folder using the workspace's format and schema.
  * The low-level SDK store defaults to built-in folders; release generation must
- * also include user-defined types such as Story without requiring a package update. */
+ * also include configured and active extension-defined types without a package update. */
 async function listWorkspaceItemMetadata(pmRoot: string): ReturnType<typeof listAllItemMetadata> {
   const settings = await readSettings(pmRoot);
-  const registry = resolveItemTypeRegistry(settings);
+  const registry = resolveItemTypeRegistry(settings, getActiveExtensionRegistrations());
   return listAllItemMetadata(pmRoot, settings.item_format, registry.type_to_folder, undefined, settings.schema);
 }
 
@@ -522,7 +523,7 @@ async function enrichItemBodies(
   let format: Awaited<ReturnType<typeof readSettings>>["item_format"];
   try {
     const settings = await dependencies.readSettings(pmRoot);
-    typeToFolder = dependencies.resolveItemTypeRegistry(settings).type_to_folder;
+    typeToFolder = dependencies.resolveItemTypeRegistry(settings, getActiveExtensionRegistrations()).type_to_folder;
     idPrefix = settings.id_prefix;
     format = settings.item_format;
   } catch {
