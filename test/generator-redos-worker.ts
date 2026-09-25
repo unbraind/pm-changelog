@@ -1,4 +1,4 @@
-import { createChangelogSummary, formatSummaryLine, mergeChangelog } from "../src/index.ts";
+import { createChangelogSummary, formatSummaryLine, mergeChangelog, parseDependencyCommit, resolveGithubOwnerRepo } from "../src/index.ts";
 
 const serverMode = process.argv[2] === "--server";
 const operation = serverMode ? undefined : process.argv[2];
@@ -59,6 +59,36 @@ function runOperation(selectedOperation: string): void {
       const generated = "# Changelog\n\n## 1.0.0 - 2026-01-01\n\n### Fixed\n\n- Work\n";
       const merged = mergeChangelog(existing, generated);
       if (!merged.markdown.includes("Work")) throw new Error("title-heading operation did not merge the release");
+      break;
+    }
+    case "dep-parse": {
+      // Exercise DEPENDABOT_SUBJECT and PR_NUMBER with a long matching subject.
+      const subject = `build(deps-dev): bump ${"x".repeat(size)} from 1.0.0 to 2.0.0 (#${"1".repeat(size)})`;
+      const result = parseDependencyCommit(subject);
+      if (!result) throw new Error("dep-parse operation did not match a Dependabot subject");
+      break;
+    }
+    case "dep-nonmatch": {
+      // Exercise the non-matching path of DEPENDABOT_SUBJECT with a long
+      // string that starts like a conventional commit but lacks the deps scope.
+      const subject = `feat: ${"x".repeat(size)}`;
+      const result = parseDependencyCommit(subject);
+      if (result) throw new Error("dep-nonmatch should not match a non-Dependabot subject");
+      break;
+    }
+    case "dep-github-url": {
+      // Exercise GITHUB_URL_PREFIX with a long path after owner/repo.
+      const url = `https://github.com/owner/repo/blob/main/${"x".repeat(size)}`;
+      const result = resolveGithubOwnerRepo(url);
+      if (!result) throw new Error("dep-github-url operation did not extract owner/repo");
+      break;
+    }
+    case "dep-github-nonmatch": {
+      // Exercise the non-matching path of GITHUB_URL_PREFIX with a long
+      // non-GitHub URL.
+      const url = `https://example.test/${"x".repeat(size)}`;
+      const result = resolveGithubOwnerRepo(url);
+      if (result) throw new Error("dep-github-nonmatch should not match a non-GitHub URL");
       break;
     }
     default:

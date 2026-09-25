@@ -106,6 +106,16 @@ test("argument helpers cover normalization, aliases, validation, and suggestions
   assert.throws(() => cliTestSurface.parseArgs(["--unknown"]), /Unknown option/);
 });
 
+test("--dependency-updates parses with version grouping and is refused with release or milestone grouping", () => {
+  assert.equal(cliTestSurface.parseArgs(["--dependency-updates"]).dependencyUpdates, true);
+  for (const groupBy of ["release", "milestone"]) {
+    assert.throws(
+      () => cliTestSurface.parseArgs(["--dependency-updates", "--group-by", groupBy]),
+      /cannot be combined with --group-by release or milestone/,
+    );
+  }
+});
+
 test("in-process main renders summary, document, semver, and markdown modes", async (t) => {
   const { directory, input } = fixture(t);
   const writes: string[] = [];
@@ -207,6 +217,17 @@ test("workflow writers reject absent environment targets and helper projections 
   }
   const options = cliTestSurface.parseArgs([]);
   assert.equal(cliTestSurface.buildGenerationOptions(options, []).excludeTags, undefined);
+  assert.equal(cliTestSurface.buildGenerationOptions(options, []).dependencyUpdates, false);
+  assert.equal(cliTestSurface.buildGenerationOptions(options, []).gitCwd, undefined);
+
+  // With --dependency-updates and --pm-cwd, gitCwd resolves to the pm-cwd path.
+  const depOpts = cliTestSurface.parseArgs(["--dependency-updates", "--pm-cwd", "/tmp"]);
+  assert.equal(cliTestSurface.buildGenerationOptions(depOpts, []).dependencyUpdates, true);
+  assert.equal(cliTestSurface.buildGenerationOptions(depOpts, []).gitCwd, "/tmp");
+  // With --dependency-updates but no --pm-cwd, gitCwd resolves to process.cwd().
+  const depNoCwdOpts = cliTestSurface.parseArgs(["--dependency-updates"]);
+  assert.equal(cliTestSurface.buildGenerationOptions(depNoCwdOpts, []).gitCwd, process.cwd());
+
   assert.equal(options.pendingRelease, true, "pending release windows stay enabled by default");
   assert.deepEqual(cliTestSurface.buildSummary(options, {
     action: "created",

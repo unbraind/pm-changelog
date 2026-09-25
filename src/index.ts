@@ -8,9 +8,11 @@ export {
   generateChangelog,
   IncompleteListAllError,
   mergeChangelog,
+  parseDependencyCommit,
   parseListAllItemsJson,
   parsePmItemsJson,
   readPmItems,
+  resolveGithubOwnerRepo,
   suggestSemver,
   writeChangelog,
 } from "./generator.ts";
@@ -31,6 +33,7 @@ export type {
 export type {
   ChangelogAttributionProvenance,
   ChangelogDocument,
+  ChangelogDocumentDependency,
   ChangelogDocumentItem,
   ChangelogDocumentRelease,
   ChangelogDocumentSection,
@@ -42,6 +45,7 @@ export type {
   ChangelogSummaryEntry,
   ChangelogMergeAction,
   ChangelogOutputMode,
+  DependencyCommit,
   GeneratedChangelog,
   GenerateChangelogOptions,
   MergeChangelogOptions,

@@ -17,6 +17,7 @@ import type {
   ChangelogSectionBy,
   ChangelogSection,
   ChangelogSummaryEntry,
+  DependencyCommit,
   GeneratedChangelog,
   GenerateChangelogOptions,
   MergeChangelogOptions,
@@ -65,6 +66,193 @@ const CATEGORY_ORDER = [
 
 type Category = (typeof CATEGORY_ORDER)[number];
 
+/** Dependabot's squash-merged subjects: a conventional-commit type, a `deps` or
+ * `deps-dev` scope, and the `bump` verb (`build(deps-dev): bump jscpd from …`,
+ * `chore(deps): bump the codeql-action group with 2 updates`). Requiring the
+ * verb keeps a hand-written `fix(deps): correct loader` out of the section.
+ * Linear-time: anchored start, one character-class run for the type, and a
+ * fixed alternation of literals — no nested quantifiers. */
+const DEPENDABOT_SUBJECT = /^[\w-]+\((?:deps|deps-dev)\): bump /;
+
+/** Trailing `(#NNN)` PR reference at the end of a commit subject. Linear-time:
+ * a single greedy `\d+` followed by a literal `)` and end anchor. When no `)`
+ * is present the quantifier backtracks one digit at a time (O(n), not
+ * exponential) before the overall match fails. */
+const PR_NUMBER = /\(#(\d+)\)$/;
+
+/** Extract `owner`/`repo` from a GitHub `--item-url-base` URL. Linear-time:
+ * negated character classes `[^/]+` cannot backtrack across `/`, and the
+ * prefix is a chain of literals. */
+const GITHUB_URL_PREFIX = /^https:\/\/github\.com\/([^/]+)\/([^/]+)/;
+
+/** Parse a git commit subject as a Dependabot dependency bump, or return
+ * `undefined` when the subject does not match the Dependabot conventional-
+ * commit pattern.
+ *
+ * Recognised subjects follow the form
+ * `<type>(deps|deps-dev): bump … (#NNN)`. The conventional prefix is stripped,
+ * the first letter of the remaining description is capitalised, and the
+ * trailing `(#NNN)` PR number is extracted when present.
+ *
+ * @param subject - A single-line git commit subject.
+ * @returns The parsed commit, or `undefined` when the subject is not
+ * Dependabot-shaped. */
+export function parseDependencyCommit(subject: string): DependencyCommit | undefined {
+  if (!DEPENDABOT_SUBJECT.test(subject)) return undefined;
+  // The pattern guarantees the "): bump " separator, so the description starts after it.
+  let description = subject.slice(subject.indexOf(": ") + 2);
+  let prNumber: number | undefined;
+  const prMatch = PR_NUMBER.exec(description);
+  if (prMatch) {
+    prNumber = Number(prMatch[1]);
+    description = description.slice(0, prMatch.index).trim();
+  }
+  description = description.charAt(0).toUpperCase() + description.slice(1);
+  return { subject, description, prNumber };
+}
+
+/** Extract the `owner`/`repo` pair from a GitHub `--item-url-base` URL, or
+ * return `undefined` when the URL is not a `https://github.com/<owner>/<repo>/…`
+ * URL. Used to derive PR links for dependency bullets. */
+export function resolveGithubOwnerRepo(
+  itemUrlBase: string,
+): { owner: string; repo: string } | undefined {
+  const match = GITHUB_URL_PREFIX.exec(itemUrlBase);
+  if (!match) return undefined;
+  return { owner: match[1], repo: match[2] };
+}
+
+/** Whether a git command succeeds in `gitCwd`, with its output discarded. */
+function gitSucceeds(gitCwd: string, args: readonly string[]): boolean {
+  return spawnSync("git", args, { cwd: gitCwd, stdio: "ignore" }).status === 0;
+}
+
+/** One release window's commit range for `--dependency-updates`: the tag it
+ * starts after, the ref it ends at, and the window's own time bounds. */
+interface DependencyRange {
+  readonly sinceRef?: string;
+  readonly untilRef?: string;
+  readonly sinceTimestamp?: string;
+  readonly untilTimestamp?: string;
+  /** An explicit upper time bound (a single release's `--until`), applied in
+   * every branch: on top of an exact tag range, and in place of the window's
+   * own end on the time-bounded fallback. Tags already end an exact range, so a
+   * bound derived from them is never passed here. */
+  readonly cutoff?: string;
+}
+
+/** Read the Dependabot-shaped commits in one release window.
+ *
+ * The range is exact whenever the tags allow it: `sinceRef..untilRef` when the
+ * older tag is an ancestor of the newer one, still bounded by an explicit
+ * `--until` cutoff so later dependency commits are excluded exactly as later
+ * items are. An `untilRef` that does not exist
+ * yet is the pending release, whose commits end at `HEAD`. When the older tag
+ * is missing or not an ancestor (a tag orphaned by a history rewrite), the
+ * window's time bounds select commits within the newer ref's own history
+ * instead of a range that would sweep in unrelated commits; without time
+ * bounds there is then no safe window and nothing is read. A window with no
+ * start at all (the oldest release, or a changelog with no since bound) reads
+ * all history up to its end, as the item changelog does for items. Git
+ * failures read as no commits, so generation never breaks on a missing window. */
+function readDependencyCommits(gitCwd: string, range: DependencyRange): DependencyCommit[] {
+  const untilRef = range.untilRef !== undefined && gitSucceeds(gitCwd, ["rev-parse", "--verify", "--quiet", `${range.untilRef}^{commit}`])
+    ? range.untilRef
+    : "HEAD";
+  const args = ["log", "--no-merges", "--format=%s"];
+  if (range.sinceRef !== undefined && gitSucceeds(gitCwd, ["merge-base", "--is-ancestor", range.sinceRef, untilRef])) {
+    args.push(`${range.sinceRef}..${untilRef}`);
+    if (range.cutoff !== undefined) args.push(`--until=${range.cutoff}`);
+  } else if (range.sinceRef !== undefined && range.sinceTimestamp === undefined) {
+    return [];
+  } else {
+    args.push(untilRef);
+    if (range.sinceTimestamp !== undefined) args.push(`--since=${range.sinceTimestamp}`);
+    // An explicit cutoff is the caller's bound; it wins over the window's own end.
+    const upper = range.cutoff ?? range.untilTimestamp;
+    if (upper !== undefined) args.push(`--until=${upper}`);
+  }
+  const result = spawnSync("git", args, { cwd: gitCwd, encoding: "utf-8", stdio: ["ignore", "pipe", "ignore"] });
+  if (result.status !== 0) return [];
+  const commits: DependencyCommit[] = [];
+  for (const line of result.stdout.split("\n")) {
+    const parsed = parseDependencyCommit(line.trim());
+    if (parsed) commits.push(parsed);
+  }
+  return commits;
+}
+
+/** Format dependency commits as markdown bullets for the `### Dependencies`
+ * section. Descriptions are escaped like item titles, so link or emphasis
+ * syntax in a commit subject renders as text. PR links are derived from
+ * `itemUrlBase` only when it is a GitHub URL; otherwise the PR number is
+ * printed as an unlinked `(#NNN)` suffix. */
+function formatDependencyBullets(
+  commits: DependencyCommit[],
+  itemUrlBase?: string,
+): string[] {
+  const github = itemUrlBase ? resolveGithubOwnerRepo(itemUrlBase) : undefined;
+  return commits.map((commit) => {
+    const description = escapeItemTitleMarkdown(commit.description);
+    if (commit.prNumber !== undefined && github) {
+      const url = `https://github.com/${github.owner}/${github.repo}/pull/${commit.prNumber}`;
+      return `- ${description} ([#${commit.prNumber}](${url}))`;
+    }
+    if (commit.prNumber !== undefined) {
+      return `- ${description} (#${commit.prNumber})`;
+    }
+    return `- ${description}`;
+  });
+}
+
+/** OPT-IN (`--dependency-updates`): attach each section's Dependabot commits.
+ *
+ * With release windows (`--all-release-tags`, newest first, one section per
+ * window), section `i` reads the commits between window `i + 1`'s tag and
+ * window `i`'s tag (`HEAD` for the untagged Unreleased window, all history for
+ * the oldest). Without windows, the single section reads the range between the
+ * previous and current release tags, or its since/until timestamps. Release or
+ * milestone grouping has no git window and is returned unchanged, as is a
+ * section with no dependency commits.
+ *
+ * @param sections - Sections from {@link buildSections}, before filtering.
+ * @param options - The generation options that shaped those sections.
+ * @param gitCwd - Repository to read commits from (the caller checked it is set).
+ * @returns The sections, each carrying `dependencyCommits` when it has any. */
+function enrichSectionsWithDependencyCommits(
+  sections: ChangelogSection[],
+  options: GenerateChangelogOptions,
+  gitCwd: string,
+): ChangelogSection[] {
+  const windows = options.releaseWindows;
+  if (windows && windows.length > 0) {
+    return sections.map((section, index) => {
+      const window = windows[index]!;
+      const commits = readDependencyCommits(gitCwd, {
+        sinceRef: windows[index + 1]?.releaseTag,
+        untilRef: window.releaseTag,
+        sinceTimestamp: window.since,
+        untilTimestamp: window.until,
+      });
+      return commits.length > 0 ? { ...section, dependencyCommits: commits } : section;
+    });
+  }
+  // Release or milestone grouping builds sections from item metadata, not from
+  // a git window, so no range belongs to any of them (the CLI refuses the pair).
+  if ((options.groupBy === "release" || options.groupBy === "milestone") && !options.version) return sections;
+
+  // Single window: the previous and current release tags when the release
+  // context found them, the since/until timestamps otherwise.
+  const commits = readDependencyCommits(gitCwd, {
+    sinceRef: options.dependencySinceRef,
+    untilRef: options.dependencyUntilRef,
+    sinceTimestamp: options.since,
+    untilTimestamp: options.until,
+    cutoff: options.dependencyCutoff,
+  });
+  return commits.length > 0 ? sections.map((section) => ({ ...section, dependencyCommits: commits })) : sections;
+}
+
 /** Render a changelog and return only its markdown. Convenience wrapper over
  * {@link createChangelog} for callers that do not need the selected sections. */
 export function generateChangelog(options: GenerateChangelogOptions): string {
@@ -106,40 +294,56 @@ export function createChangelog(options: GenerateChangelogOptions): GeneratedCha
 
   for (const section of visibleSections) {
     lines.push(`## ${section.heading}`, "");
-    if (section.items.length === 0) {
-      lines.push("No changes.", "");
-      continue;
-    }
+    const hasItems = section.items.length > 0;
+    const depCommits = section.dependencyCommits;
+    const hasDeps = Boolean(depCommits && depCommits.length > 0);
 
-    // OPT-IN (`--breaking-changes`): a dedicated heading listing breaking items
-    // up front. Items still appear in their normal category/field group below,
-    // so this is purely additive and absent by default.
-    if (options.breakingChanges) {
-      const breaking = section.items.filter(isBreakingItem);
-      if (breaking.length > 0) {
-        lines.push(`### ${maybeEmoji("Breaking Changes", options)}`, "");
-        for (const item of breaking) {
+    if (hasItems) {
+      // OPT-IN (`--breaking-changes`): a dedicated heading listing breaking items
+      // up front. Items still appear in their normal category/field group below,
+      // so this is purely additive and absent by default.
+      if (options.breakingChanges) {
+        const breaking = section.items.filter(isBreakingItem);
+        if (breaking.length > 0) {
+          lines.push(`### ${maybeEmoji("Breaking Changes", options)}`, "");
+          for (const item of breaking) {
+            lines.push(`- ${formatItem(item, options)}`);
+          }
+          lines.push("");
+        }
+      }
+
+      for (const group of groupSectionItems(section, sectionBy, options)) {
+        lines.push(`### ${maybeEmoji(group.heading, options)}`, "");
+        for (const item of group.items) {
           lines.push(`- ${formatItem(item, options)}`);
         }
         lines.push("");
       }
+
+      if (options.contributors) {
+        const names = collectContributors(section.items);
+        if (names.length > 0) {
+          lines.push("### Contributors", "");
+          lines.push(names.map((name) => `@${name}`).join(", "));
+          lines.push("");
+        }
+      }
     }
 
-    for (const group of groupSectionItems(section, sectionBy, options)) {
-      lines.push(`### ${maybeEmoji(group.heading, options)}`, "");
-      for (const item of group.items) {
-        lines.push(`- ${formatItem(item, options)}`);
+    // OPT-IN (`--dependency-updates`): ### Dependencies section, rendered last
+    // after every item-based section. A window with no closed items but ≥1
+    // dependency commit still produces its heading and this section.
+    if (hasDeps) {
+      lines.push(`### ${maybeEmoji("Dependencies", options)}`, "");
+      for (const bullet of formatDependencyBullets(depCommits!, options.itemUrlBase)) {
+        lines.push(bullet);
       }
       lines.push("");
     }
 
-    if (options.contributors) {
-      const names = collectContributors(section.items);
-      if (names.length > 0) {
-        lines.push("### Contributors", "");
-        lines.push(names.map((name) => `@${name}`).join(", "));
-        lines.push("");
-      }
+    if (!hasItems && !hasDeps) {
+      lines.push("No changes.", "");
     }
   }
 
@@ -211,10 +415,20 @@ interface ChangelogItemGroup {
  */
 function selectChangelogSections(options: GenerateChangelogOptions): SelectedChangelogSections {
   const items = filterItems(options);
-  const sections = buildSections(items, options);
+  let sections = buildSections(items, options);
+
+  // OPT-IN (`--dependency-updates`): read Dependabot commits for each window
+  // so that item-less windows with dependency bumps stay visible and render a
+  // ### Dependencies section.
+  if (options.dependencyUpdates && options.gitCwd) {
+    sections = enrichSectionsWithDependencyCommits(sections, options, options.gitCwd);
+  }
+
   const candidateSections = options.includeEmpty
     ? sections
-    : sections.filter((section) => section.items.length > 0);
+    : sections.filter(
+        (section) => section.items.length > 0 || (section.dependencyCommits?.length ?? 0) > 0,
+      );
   return {
     items,
     sections,
@@ -267,6 +481,11 @@ export function buildChangelogDocument(options: GenerateChangelogOptions): Chang
       breaking_changes: options.breakingChanges
         ? section.items.filter(isBreakingItem).map(toDocumentItem)
         : undefined,
+      dependencies: section.dependencyCommits?.map((commit) => ({
+        subject: commit.subject,
+        description: commit.description,
+        pr_number: commit.prNumber,
+      })),
     };
   });
 
@@ -295,7 +514,8 @@ export function buildChangelogDocument(options: GenerateChangelogOptions): Chang
  * `sectionBy: "category"` the `category` field is the keep-a-changelog category
  * (Added/Changed/Fixed/...); with `sectionBy: "type"` it is the title-cased item
  * type (Feature/Issue/Task/...); with `sectionBy: "label"` an item may appear
- * once per tag.
+ * once per tag. With `--dependency-updates`, each Dependabot commit follows as a
+ * `Dependencies` entry whose id is its `#PR` number.
  */
 export function createChangelogSummary(options: GenerateChangelogOptions): ChangelogSummaryEntry[] {
   const { visibleSections, sectionBy } = selectChangelogSections(options);
@@ -303,12 +523,22 @@ export function createChangelogSummary(options: GenerateChangelogOptions): Chang
   const entries: ChangelogSummaryEntry[] = [];
   for (const section of visibleSections) {
     const version = sectionVersionKey(section.heading);
-    if (section.items.length === 0) continue;
-
-    for (const group of groupSectionItems(section, sectionBy, options)) {
-      for (const item of group.items) {
-        entries.push(toSummaryEntry(section.heading, version, group.heading, item));
+    if (section.items.length > 0) {
+      for (const group of groupSectionItems(section, sectionBy, options)) {
+        for (const item of group.items) {
+          entries.push(toSummaryEntry(section.heading, version, group.heading, item));
+        }
       }
+    }
+    // A dependency-only release is still a release: list its bumps too.
+    for (const commit of section.dependencyCommits ?? []) {
+      entries.push({
+        heading: section.heading,
+        version,
+        category: "Dependencies",
+        id: commit.prNumber === undefined ? undefined : `#${commit.prNumber}`,
+        title: toSingleLine(commit.description),
+      });
     }
   }
   return entries;

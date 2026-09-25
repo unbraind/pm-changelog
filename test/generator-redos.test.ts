@@ -96,3 +96,19 @@ test("new release insertion completes when existing markdown has no release head
 test("title insertion completes for a long whitespace-heavy title", async () => {
   await assertCompletesWithinBudget("title-heading");
 });
+
+test("Dependabot subject parsing completes for a long matching subject", async () => {
+  await assertCompletesWithinBudget("dep-parse");
+});
+
+test("Dependabot subject rejection completes for a long non-matching subject", async () => {
+  await assertCompletesWithinBudget("dep-nonmatch");
+});
+
+test("GitHub URL extraction completes for a long URL path", async () => {
+  await assertCompletesWithinBudget("dep-github-url");
+});
+
+test("GitHub URL rejection completes for a long non-GitHub URL", async () => {
+  await assertCompletesWithinBudget("dep-github-nonmatch");
+});

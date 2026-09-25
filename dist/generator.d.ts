@@ -1,4 +1,4 @@
-import type { ChangelogDocument, ChangelogSelectionReport, ChangelogSummaryEntry, GeneratedChangelog, GenerateChangelogOptions, MergeChangelogOptions, MergeChangelogResult, PmItem, ReadPmItemsOptions, SemverSuggestion, WriteChangelogOptions, WriteChangelogResult } from "./types.ts";
+import type { ChangelogDocument, ChangelogSelectionReport, ChangelogSummaryEntry, DependencyCommit, GeneratedChangelog, GenerateChangelogOptions, MergeChangelogOptions, MergeChangelogResult, PmItem, ReadPmItemsOptions, SemverSuggestion, WriteChangelogOptions, WriteChangelogResult } from "./types.ts";
 type PmCommand = {
     bin: string;
     argsPrefix: string[];
@@ -10,6 +10,26 @@ export interface InstalledPmCommandResolutionDependencies {
     pathExists: (path: string) => boolean;
     nodeExecutable: string;
 }
+/** Parse a git commit subject as a Dependabot dependency bump, or return
+ * `undefined` when the subject does not match the Dependabot conventional-
+ * commit pattern.
+ *
+ * Recognised subjects follow the form
+ * `<type>(deps|deps-dev): bump … (#NNN)`. The conventional prefix is stripped,
+ * the first letter of the remaining description is capitalised, and the
+ * trailing `(#NNN)` PR number is extracted when present.
+ *
+ * @param subject - A single-line git commit subject.
+ * @returns The parsed commit, or `undefined` when the subject is not
+ * Dependabot-shaped. */
+export declare function parseDependencyCommit(subject: string): DependencyCommit | undefined;
+/** Extract the `owner`/`repo` pair from a GitHub `--item-url-base` URL, or
+ * return `undefined` when the URL is not a `https://github.com/<owner>/<repo>/…`
+ * URL. Used to derive PR links for dependency bullets. */
+export declare function resolveGithubOwnerRepo(itemUrlBase: string): {
+    owner: string;
+    repo: string;
+} | undefined;
 /** Render a changelog and return only its markdown. Convenience wrapper over
  * {@link createChangelog} for callers that do not need the selected sections. */
 export declare function generateChangelog(options: GenerateChangelogOptions): string;
@@ -37,7 +57,8 @@ export declare function buildChangelogDocument(options: GenerateChangelogOptions
  * `sectionBy: "category"` the `category` field is the keep-a-changelog category
  * (Added/Changed/Fixed/...); with `sectionBy: "type"` it is the title-cased item
  * type (Feature/Issue/Task/...); with `sectionBy: "label"` an item may appear
- * once per tag.
+ * once per tag. With `--dependency-updates`, each Dependabot commit follows as a
+ * `Dependencies` entry whose id is its `#PR` number.
  */
 export declare function createChangelogSummary(options: GenerateChangelogOptions): ChangelogSummaryEntry[];
 /**

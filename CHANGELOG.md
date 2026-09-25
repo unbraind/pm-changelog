@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+### Added
+
+- Add opt-in Dependabot dependency sections so item-less release windows still get notes ([pmc-ny9i](https://github.com/unbraind/pm-changelog/blob/main/.agents/pm/features/pmc-ny9i.toon))
+
 ### Fixed
 
 - A publish that npm accepts late is reported as failed and the GitHub Release is skipped on bun mirror lag ([pmc-piam](https://github.com/unbraind/pm-changelog/blob/main/.agents/pm/issues/pmc-piam.toon))

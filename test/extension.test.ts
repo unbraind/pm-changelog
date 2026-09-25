@@ -117,6 +117,7 @@ test("extension command exposes item-url-base for clickable item IDs", async () 
     "--item-ref-style",
     "--exclude-tag",
     "--respect-item-release",
+    "--dependency-updates",
     "--no-pending-release",
   ]) {
     assert.ok(
@@ -178,6 +179,29 @@ test("changelog exporter rejects unsupported formats", async () => {
     }),
     /--format must be 'md' or 'json'/,
   );
+});
+
+test("both changelog commands accept --dependency-updates and refuse it with release or milestone grouping", async () => {
+  const { commands } = await activateChangelog();
+  assert.ok((await registeredFlagLongs("changelog export")).includes("--dependency-updates"));
+  const exported = await runRegisteredCommandForTest(commands, {
+    command: "changelog export",
+    options: { "release-version": "2099.1.1", date: "2099-01-01", "dependency-updates": true },
+    pmRoot: TRACKER_ROOT,
+  });
+  assert.equal(typeof (commandResult(exported) as { changelog?: unknown }).changelog, "string");
+  for (const command of ["changelog generate", "changelog export"]) {
+    for (const groupBy of ["release", "milestone"]) {
+      await assert.rejects(
+        () => runRegisteredCommandForTest(commands, {
+          command,
+          options: { stdout: true, "group-by": groupBy, "dependency-updates": true },
+          pmRoot: TRACKER_ROOT,
+        }),
+        /cannot be combined with --group-by release or milestone/,
+      );
+    }
+  }
 });
 
 test("changelog generate rejects unsupported formats before workspace reads", async () => {
@@ -495,6 +519,22 @@ test("generate all-tag and body-preview paths use the real tracker", async () =>
     pmRoot: TRACKER_ROOT,
   });
   assert.equal(typeof (commandResult(result) as { changelog?: unknown }).changelog, "string");
+
+  // Exercise the --dependency-updates path so the extension's gitCwd wiring
+  // is covered. The tracker root is a git repo, so git log will succeed;
+  // no Dependabot subjects are expected in the output, but the option must
+  // be accepted and the command must not crash.
+  const depResult = await runRegisteredCommandForTest(commands, {
+    command: "changelog generate",
+    options: {
+      stdout: true,
+      "release-version": "2099.1.1",
+      "date-from-version": true,
+      "dependency-updates": true,
+    },
+    pmRoot: TRACKER_ROOT,
+  });
+  assert.equal(typeof (commandResult(depResult) as { changelog?: unknown }).changelog, "string");
   const items = [
     { id: "missing-item", title: "missing" },
     { title: "no id" },
