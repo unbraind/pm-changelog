@@ -134,8 +134,9 @@ interface DependencyRange {
   readonly untilRef?: string;
   readonly sinceTimestamp?: string;
   readonly untilTimestamp?: string;
-  /** An explicit upper time bound applied on top of an exact tag range too
-   * (a single release's `--until`). Tags already end the range exactly, so a
+  /** An explicit upper time bound (a single release's `--until`), applied in
+   * every branch: on top of an exact tag range, and in place of the window's
+   * own end on the time-bounded fallback. Tags already end an exact range, so a
    * bound derived from them is never passed here. */
   readonly cutoff?: string;
 }
@@ -167,7 +168,9 @@ function readDependencyCommits(gitCwd: string, range: DependencyRange): Dependen
   } else {
     args.push(untilRef);
     if (range.sinceTimestamp !== undefined) args.push(`--since=${range.sinceTimestamp}`);
-    if (range.untilTimestamp !== undefined) args.push(`--until=${range.untilTimestamp}`);
+    // An explicit cutoff is the caller's bound; it wins over the window's own end.
+    const upper = range.cutoff ?? range.untilTimestamp;
+    if (upper !== undefined) args.push(`--until=${upper}`);
   }
   const result = spawnSync("git", args, { cwd: gitCwd, encoding: "utf-8", stdio: ["ignore", "pipe", "ignore"] });
   if (result.status !== 0) return [];

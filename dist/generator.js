@@ -109,8 +109,10 @@ function readDependencyCommits(gitCwd, range) {
         args.push(untilRef);
         if (range.sinceTimestamp !== undefined)
             args.push(`--since=${range.sinceTimestamp}`);
-        if (range.untilTimestamp !== undefined)
-            args.push(`--until=${range.untilTimestamp}`);
+        // An explicit cutoff is the caller's bound; it wins over the window's own end.
+        const upper = range.cutoff ?? range.untilTimestamp;
+        if (upper !== undefined)
+            args.push(`--until=${upper}`);
     }
     const result = spawnSync("git", args, { cwd: gitCwd, encoding: "utf-8", stdio: ["ignore", "pipe", "ignore"] });
     if (result.status !== 0)

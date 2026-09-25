@@ -817,6 +817,26 @@ describe("dependency-updates: an explicit --until cutoff", () => {
     }
   });
 
+  it("applies an explicit cutoff on the time-bounded path too, even without until", () => {
+    const dir = gitRepo();
+    try {
+      commitIn(dir, "build(deps): bump before from 1.0.0 to 1.0.1 (#1)", "2026-09-12T10:00:00Z");
+      commitIn(dir, "build(deps): bump after from 1.0.0 to 1.0.1 (#2)", "2026-09-14T10:00:00Z");
+      const result = createChangelog({
+        items: [],
+        version: "2026.9.15",
+        since: "2026-09-11T00:00:00Z",
+        dependencyUpdates: true,
+        gitCwd: dir,
+        dependencyCutoff: "2026-09-13T00:00:00Z",
+      });
+      ok(result.markdown.includes("Bump before"), result.markdown);
+      ok(!result.markdown.includes("Bump after"), "a commit after the cutoff must stay out without a tag range");
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
   it("keeps a bump inside the tag range whose commit date is later than the tag's, when until only comes from the tag", () => {
     const dir = gitRepo();
     try {
