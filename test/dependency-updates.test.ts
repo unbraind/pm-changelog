@@ -11,7 +11,7 @@ import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
-import { createChangelog, parseDependencyCommit, resolveGithubOwnerRepo } from "../src/index.ts";
+import { buildChangelogDocument, createChangelog, createChangelogSummary, parseDependencyCommit, resolveGithubOwnerRepo } from "../src/index.ts";
 import type { PmItem } from "../src/index.ts";
 
 // ---------------------------------------------------------------------------
@@ -102,9 +102,9 @@ describe("parseDependencyCommit", () => {
     equal(parseDependencyCommit("Merge pull request #129"), undefined);
   });
 
-  it("returns undefined when a matching subject lacks ': ' after the prefix", () => {
-    // The regex matches build(deps): but the subject has no colon-space separator
-    // after the conventional prefix, so the description cannot be extracted.
+  it("returns undefined when a deps-scoped subject lacks the ': bump ' separator", () => {
+    // Dependabot always writes "<type>(deps): bump "; without the separator the
+    // subject is not Dependabot-shaped and there is no description to extract.
     equal(parseDependencyCommit("build(deps):bump"), undefined);
   });
 });
@@ -645,6 +645,152 @@ describe("dependency-updates: error handling", () => {
       });
 
       ok(result.markdown.includes("Bump jscpd"), "must collect commits in single-window mode with empty releaseWindows");
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+});
+// ---------------------------------------------------------------------------
+// Review round 1 (Greptile, pm-changelog#210): exact ranges and every output
+// ---------------------------------------------------------------------------
+describe("dependency-updates: release ranges and outputs", () => {
+  it("rejects deps-scoped commits that are not Dependabot bumps", () => {
+    equal(parseDependencyCommit("fix(deps): correct loader (#7)"), undefined);
+    equal(parseDependencyCommit("chore(deps): pin the lockfile"), undefined);
+    ok(parseDependencyCommit("chore(deps): bump yaml from 2.9.0 to 2.9.1 (#130)"));
+  });
+
+  it("reads a pending release, whose tag does not exist yet, up to HEAD", () => {
+    const dir = gitRepo();
+    try {
+      gitIn(dir, ["tag", "v2026.09.18"]);
+      commitIn(dir, "build(deps-dev): bump jscpd from 5.2.0 to 5.3.0 (#129)");
+      const result = createChangelog({
+        items: [],
+        releaseWindows: [
+          { heading: "2026.9.25 - 2026-09-25", releaseTag: "v2026.09.25", since: "2026-09-18T00:00:00Z", sinceExclusive: true },
+          { heading: "2026.9.18 - 2026-09-18", releaseTag: "v2026.09.18" },
+        ],
+        dependencyUpdates: true,
+        gitCwd: dir,
+      });
+      ok(result.markdown.includes("## 2026.9.25 - 2026-09-25\n\n### Dependencies\n\n- Bump jscpd"), result.markdown);
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
+  it("bounds a single release by its tags, not by commit dates", () => {
+    const dir = gitRepo();
+    try {
+      // Tagged ON a dependency commit: the previous release shipped it.
+      commitIn(dir, "build(deps): bump yaml from 2.9.0 to 2.9.1 (#130)", "2026-09-18T10:00:00Z");
+      gitIn(dir, ["tag", "v2026.09.18"]);
+      commitIn(dir, "build(deps-dev): bump jscpd from 5.2.0 to 5.3.0 (#129)", "2026-09-19T10:00:00Z");
+      gitIn(dir, ["tag", "v2026.09.23"]);
+      // After the release, but dated inside its window.
+      commitIn(dir, "build(deps-dev): bump @types/node from 26.5.1 to 26.6.2 (#132)", "2026-09-20T10:00:00Z");
+      const result = createChangelog({
+        items: [],
+        version: "2026.9.23",
+        date: "2026-09-23",
+        since: "2026-09-18T10:00:00Z",
+        until: "2026-09-23T00:00:00Z",
+        dependencyUpdates: true,
+        gitCwd: dir,
+        dependencySinceRef: "v2026.09.18",
+        dependencyUntilRef: "v2026.09.23",
+      });
+      ok(result.markdown.includes("Bump jscpd"), result.markdown);
+      ok(!result.markdown.includes("Bump yaml"), "the previous release's own commit must not repeat");
+      ok(!result.markdown.includes("Bump @types/node"), "a commit after the release tag must not leak in");
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
+  it("falls back to the window's time bounds within the newer tag's history when the older tag is orphaned", () => {
+    const dir = gitRepo();
+    try {
+      // An orphaned tag: on a side branch the release history never contains.
+      gitIn(dir, ["checkout", "--quiet", "-b", "rewritten"]);
+      commitIn(dir, "build(deps): bump orphan from 1.0.0 to 1.0.1 (#1)", "2026-09-10T10:00:00Z");
+      gitIn(dir, ["tag", "v2026.09.10"]);
+      gitIn(dir, ["checkout", "--quiet", "main"]);
+      commitIn(dir, "build(deps): bump early from 1.0.0 to 1.0.1 (#2)", "2026-09-05T10:00:00Z");
+      commitIn(dir, "build(deps): bump inside from 1.0.0 to 1.0.1 (#3)", "2026-09-12T10:00:00Z");
+      gitIn(dir, ["tag", "v2026.09.15"]);
+      const windows = [
+        { heading: "2026.9.15 - 2026-09-15", releaseTag: "v2026.09.15", since: "2026-09-10T12:00:00Z", sinceExclusive: true, until: "2026-09-15T00:00:00Z" },
+        { heading: "2026.9.10 - 2026-09-10", releaseTag: "v2026.09.10", until: "2026-09-10T12:00:00Z" },
+      ];
+      const result = createChangelog({ items: [], releaseWindows: windows, dependencyUpdates: true, gitCwd: dir });
+      const newest = result.markdown.slice(result.markdown.indexOf("## 2026.9.15"), result.markdown.indexOf("## 2026.9.10"));
+      ok(newest.includes("Bump inside"), result.markdown);
+      ok(!newest.includes("Bump early"), "a commit dated before the window must stay out");
+      ok(!newest.includes("Bump orphan"), "a commit outside the newer tag's history must stay out");
+      // Without time bounds an orphaned start leaves no safe window at all.
+      const unbounded = createChangelog({
+        items: [],
+        releaseWindows: [{ ...windows[0], since: undefined }, windows[1]],
+        dependencyUpdates: true,
+        gitCwd: dir,
+      });
+      ok(!unbounded.markdown.includes("Bump inside"), unbounded.markdown);
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
+  it("escapes markdown in commit descriptions, keeping the generated PR link", () => {
+    const dir = gitRepo();
+    try {
+      commitIn(dir, "build(deps): bump [evil](https://evil.example) from *1* to _2_ (#9)");
+      const result = createChangelog({
+        items: [],
+        version: "1.0.0",
+        dependencyUpdates: true,
+        gitCwd: dir,
+        itemUrlBase: "https://github.com/unbraind/pm-csv/blob/main/.agents/pm",
+      });
+      ok(result.markdown.includes("- Bump \\[evil\\](https://evil.example) from \\*1\\* to \\_2\\_ ([#9](https://github.com/unbraind/pm-csv/pull/9))"), result.markdown);
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
+  it("leaves release and milestone grouping without dependency sections", () => {
+    const dir = gitRepo();
+    try {
+      commitIn(dir, "build(deps): bump yaml from 2.9.0 to 2.9.1 (#130)");
+      const items = [{ ...closedItem("pmc-1", "Grouped item", "2026-09-15T00:00:00Z"), release: "1.0.0" }];
+      for (const groupBy of ["release", "milestone"] as const) {
+        const result = createChangelog({ items, groupBy, dependencyUpdates: true, gitCwd: dir });
+        ok(!result.markdown.includes("### Dependencies"), result.markdown);
+      }
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
+  it("lists dependency-only releases in the structured document and the summary", () => {
+    const dir = gitRepo();
+    try {
+      commitIn(dir, "build(deps): bump yaml from 2.9.0 to 2.9.1 (#130)");
+      commitIn(dir, "chore(deps): bump the codeql-action group with 2 updates");
+      const options = { items: [], version: "1.0.0", date: "2026-09-25", dependencyUpdates: true, gitCwd: dir };
+      const document = buildChangelogDocument(options);
+      equal(document.releases.length, 1);
+      equal(document.releases[0].item_count, 0);
+      equal(JSON.stringify(document.releases[0].dependencies), JSON.stringify([
+        { subject: "chore(deps): bump the codeql-action group with 2 updates", description: "Bump the codeql-action group with 2 updates" },
+        { subject: "build(deps): bump yaml from 2.9.0 to 2.9.1 (#130)", description: "Bump yaml from 2.9.0 to 2.9.1", pr_number: 130 },
+      ]));
+      const summary = createChangelogSummary(options);
+      equal(JSON.stringify(summary.map((entry) => [entry.category, entry.id, entry.title])), JSON.stringify([
+        ["Dependencies", undefined, "Bump the codeql-action group with 2 updates"],
+        ["Dependencies", "#130", "Bump yaml from 2.9.0 to 2.9.1"],
+      ]));
     } finally {
       rmSync(dir, { recursive: true, force: true });
     }

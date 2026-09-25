@@ -84,6 +84,10 @@ interface CliOptions {
   respectItemRelease: boolean;
   excludeTags: string[];
   dependencyUpdates: boolean;
+  /** Previous release tag from the release context, bounding the single-window dependency range. */
+  dependencySinceRef?: string;
+  /** Current release tag from the release context, ending the single-window dependency range. */
+  dependencyUntilRef?: string;
   mode: "replace" | "prepend";
   check: boolean;
   checkDiff: boolean;
@@ -553,6 +557,11 @@ function parseArgs(args: string[]): CliOptions {
     }
   }
 
+  // Release and milestone grouping come from item metadata, not git windows,
+  // so there is no range to read dependency commits from.
+  if (options.dependencyUpdates && options.groupBy !== "version") {
+    throw new Error("--dependency-updates reads git release windows and cannot be combined with --group-by release or milestone");
+  }
   return options;
 }
 
@@ -700,6 +709,8 @@ function applyReleaseContext(options: CliOptions): void {
   options.date = options.date ?? context.date;
   options.since = context.since;
   options.until = context.until;
+  options.dependencySinceRef = context.previousTag;
+  options.dependencyUntilRef = context.releaseTag;
 }
 
 /** Load pm items from stdin, a JSON file, or the real pm CLI, in that order of
@@ -829,6 +840,8 @@ function buildGenerationOptions(options: CliOptions, items: PmItem[]) {
     gitCwd: options.dependencyUpdates
       ? (options.pmCwd ? resolve(options.pmCwd) : process.cwd())
       : undefined,
+    dependencySinceRef: options.dependencySinceRef,
+    dependencyUntilRef: options.dependencyUntilRef,
   };
 }
 
@@ -1028,13 +1041,13 @@ Options:
                             version window it belongs to: keep it when it matches --version
                             regardless of timestamps, drop it otherwise (already shipped
                             elsewhere). --all-release-tags always honors the field.
-      --dependency-updates  Read Dependabot-shaped git commits (build(deps): bump ...,
-                            chore(deps-dev): bump ...) for each release window and render
-                            them in a ### Dependencies section. A window with no closed
-                            items but >=1 dependency commit still produces its version
-                            section. PR links are derived from --item-url-base when it is
-                            a GitHub URL. Opt-in: without this flag output is byte-identical
-                            to today.
+      --dependency-updates  List Dependabot commits (build(deps): bump ...) between the
+                            previous and current release tags in a ### Dependencies section
+                            per release; a release with no closed items but such commits
+                            still gets its heading. A pending release reads to HEAD. PR links
+                            come from --item-url-base when it is a GitHub URL. Not combinable
+                            with --group-by release or milestone. Without this flag, output
+                            is byte-identical.
       --group-by <mode>     version, release, or milestone (default: version)
       --section-by <mode>   Within-release grouping: category, type, status, or label (default: category)
       --conventional        Use Conventional-Commits headings (Features/Bug Fixes/...) for category grouping

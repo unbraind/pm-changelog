@@ -196,6 +196,14 @@ export interface GenerateChangelogOptions {
      * root or `process.cwd()` suffices. Absent → dependency commits cannot be
      * read even when `dependencyUpdates` is set. */
     gitCwd?: string;
+    /** Git ref (the previous release tag) the single-window `--dependency-updates`
+     * range starts after, from `--since-previous-tag`. Absent → the range falls
+     * back to the `since` timestamp. */
+    dependencySinceRef?: string;
+    /** Git ref (the release tag) the single-window `--dependency-updates` range
+     * ends at, from `--until-release-tag`. Absent, or not yet created because the
+     * release is still pending → `HEAD`. */
+    dependencyUntilRef?: string;
 }
 /** A truthy `breaking` flag may live directly on a pm item or in its metadata.
  * Used only by the opt-in `--breaking-changes` / `--suggest-semver` features. */
@@ -277,8 +285,6 @@ export interface WriteChangelogResult {
     itemCount: number;
     bytes: number;
 }
-/** A heading and the items rendered beneath it, the intermediate structure
- * every grouping mode reduces to before markdown is emitted. */
 /** A parsed Dependabot commit subject, used by the opt-in
  * `--dependency-updates` feature to render a `### Dependencies` section for
  * release windows that contain only dependency bumps and no closed pm items.
@@ -332,6 +338,17 @@ export interface ChangelogDocumentRelease {
     contributors?: string[];
     /** Present only when `--breaking-changes` is set: items detected as breaking. */
     breaking_changes?: ChangelogDocumentItem[];
+    /** Present only when `--dependency-updates` found Dependabot commits in this release. */
+    dependencies?: ChangelogDocumentDependency[];
+}
+/** One Dependabot commit as it appears in the structured `--changelog-json` document. */
+export interface ChangelogDocumentDependency {
+    /** The full git commit subject. */
+    subject: string;
+    /** The subject with its conventional-commit prefix and PR suffix removed. */
+    description: string;
+    /** The pull request number from the subject's trailing `(#NNN)`, when present. */
+    pr_number?: number;
 }
 /** Structured changelog produced by the opt-in `--changelog-json` flag. */
 export interface ChangelogDocument {

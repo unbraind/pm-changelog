@@ -125,6 +125,7 @@ export default defineExtension({
                 const wantsJsonFormat = normalizedFormat === "json";
                 const limitValue = parseLimitOption(ctx.options);
                 const groupBy = groupByOption;
+                const dependencyUpdates = refuseDependencyGrouping(ctx.options, groupBy);
                 const sectionBy = sectionByOption;
                 const mode = modeOption;
                 const statuses = ctx.options["status"]
@@ -202,8 +203,10 @@ export default defineExtension({
                     itemRefStyle: itemRefStyleOption(ctx.options),
                     respectItemRelease: booleanOption(ctx.options, "respect-item-release", "respectItemRelease"),
                     excludeTags: excludeTagsOption(ctx.options),
-                    dependencyUpdates: booleanOption(ctx.options, "dependency-updates", "dependencyUpdates"),
-                    gitCwd: booleanOption(ctx.options, "dependency-updates", "dependencyUpdates") ? ctx.pm_root : undefined,
+                    dependencyUpdates,
+                    gitCwd: dependencyUpdates ? ctx.pm_root : undefined,
+                    dependencySinceRef: releaseContext.previousTag,
+                    dependencyUntilRef: releaseContext.releaseTag,
                 };
                 if (allReleaseTags) {
                     try {
@@ -338,6 +341,7 @@ export default defineExtension({
                 { long: "--item-ref-style", value_name: "style", description: "How item IDs render: auto (default), label (neutral/public-safe), toon (force blob link), github (public issue/PR link from gh:owner/repo#N provenance tag)" },
                 { long: "--exclude-tag", value_name: "list", description: "Omit items carrying any of these comma-separated tags (ignore convention, e.g. changelog:ignore)" },
                 { long: "--respect-item-release", description: "Treat an item release field as the authority for its single version window: keep it when it matches the release version regardless of timestamps, drop it otherwise (--all-release-tags always honors the field)" },
+                { long: "--dependency-updates", description: "Add a Dependencies section listing the Dependabot commits in the release's git window (not combinable with --group-by release or milestone)" },
             ],
         };
         api.registerExporter("changelog", async (ctx) => {
@@ -349,6 +353,7 @@ export default defineExtension({
             if (groupByOption !== "version" && groupByOption !== "release" && groupByOption !== "milestone") {
                 throw new PmCliError("--group-by must be 'version', 'release', or 'milestone'", EXIT_CODE.USAGE);
             }
+            const dependencyUpdates = refuseDependencyGrouping(ctx.options, groupByOption);
             const releaseNotes = booleanOption(ctx.options, "release-notes", "releaseNotes");
             const releaseVersion = stringOption(ctx.options, "release-version", "releaseVersion");
             const sinceOption = stringOption(ctx.options, "since", "since");
@@ -383,6 +388,10 @@ export default defineExtension({
                 itemRefStyle: itemRefStyleOption(ctx.options),
                 respectItemRelease: booleanOption(ctx.options, "respect-item-release", "respectItemRelease"),
                 excludeTags: excludeTagsOption(ctx.options),
+                dependencyUpdates,
+                gitCwd: dependencyUpdates ? ctx.pm_root : undefined,
+                dependencySinceRef: releaseContext.previousTag,
+                dependencyUntilRef: releaseContext.releaseTag,
             });
             const outputPath = stringOption(ctx.options, "output", "output");
             if (format === "json") {
@@ -494,6 +503,16 @@ function withTagHistoryDiagnostics(resolve) {
         }
         throw error;
     }
+}
+/** Refuse `--dependency-updates` with release or milestone grouping: those
+ * sections come from item metadata, not git release windows, so no commit
+ * range belongs to any of them. Shared by `changelog generate` and `export`. */
+function refuseDependencyGrouping(options, groupBy) {
+    const dependencyUpdates = booleanOption(options, "dependency-updates", "dependencyUpdates");
+    if (dependencyUpdates && groupBy !== "version") {
+        throw new PmCliError("--dependency-updates reads git release windows and cannot be combined with --group-by release or milestone", EXIT_CODE.USAGE);
+    }
+    return dependencyUpdates;
 }
 /** Render release-context option failures as real CLI usage errors.
  * The SDK host converts ordinary thrown errors into warnings, which would let

@@ -33,6 +33,7 @@ export type {
 export type {
   ChangelogAttributionProvenance,
   ChangelogDocument,
+  ChangelogDocumentDependency,
   ChangelogDocumentItem,
   ChangelogDocumentRelease,
   ChangelogDocumentSection,

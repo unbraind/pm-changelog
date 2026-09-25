@@ -55,7 +55,6 @@ test("parser maps every supported option family without subprocess coverage", ()
     "--since-version", "1.0.0", "--mode", "prepend", "--include-empty", "--include-links",
     "--no-links", "--item-url-base", "https://example.test/items", "--item-ref-style", "GITHUB",
     "--respect-item-release", "--exclude-tags", "skip, private",
-    "--dependency-updates",
   ]);
   assert.equal(options.output, "out.md");
   assert.deepEqual(options.pmArgs, ["--json"]);
@@ -66,7 +65,6 @@ test("parser maps every supported option family without subprocess coverage", ()
   assert.equal(options.itemRefStyle, "github");
   assert.equal(options.includeLinks, false);
   assert.equal(options.pendingRelease, false);
-  assert.equal(options.dependencyUpdates, true);
   assert.equal(options.format, "md");
   assert.equal(options.mode, "prepend");
 });
@@ -106,6 +104,16 @@ test("argument helpers cover normalization, aliases, validation, and suggestions
   assert.throws(() => cliTestSurface.requireAnyValue([], 0, "--pm-arg"), /requires a value/);
   assert.equal(cliTestSurface.requireAnyValue(["--json"], 0, "--pm-arg"), "--json");
   assert.throws(() => cliTestSurface.parseArgs(["--unknown"]), /Unknown option/);
+});
+
+test("--dependency-updates parses with version grouping and is refused with release or milestone grouping", () => {
+  assert.equal(cliTestSurface.parseArgs(["--dependency-updates"]).dependencyUpdates, true);
+  for (const groupBy of ["release", "milestone"]) {
+    assert.throws(
+      () => cliTestSurface.parseArgs(["--dependency-updates", "--group-by", groupBy]),
+      /cannot be combined with --group-by release or milestone/,
+    );
+  }
 });
 
 test("in-process main renders summary, document, semver, and markdown modes", async (t) => {

@@ -181,6 +181,29 @@ test("changelog exporter rejects unsupported formats", async () => {
   );
 });
 
+test("both changelog commands accept --dependency-updates and refuse it with release or milestone grouping", async () => {
+  const { commands } = await activateChangelog();
+  assert.ok((await registeredFlagLongs("changelog export")).includes("--dependency-updates"));
+  const exported = await runRegisteredCommandForTest(commands, {
+    command: "changelog export",
+    options: { "release-version": "2099.1.1", date: "2099-01-01", "dependency-updates": true },
+    pmRoot: TRACKER_ROOT,
+  });
+  assert.equal(typeof (commandResult(exported) as { changelog?: unknown }).changelog, "string");
+  for (const command of ["changelog generate", "changelog export"]) {
+    for (const groupBy of ["release", "milestone"]) {
+      await assert.rejects(
+        () => runRegisteredCommandForTest(commands, {
+          command,
+          options: { stdout: true, "group-by": groupBy, "dependency-updates": true },
+          pmRoot: TRACKER_ROOT,
+        }),
+        /cannot be combined with --group-by release or milestone/,
+      );
+    }
+  }
+});
+
 test("changelog generate rejects unsupported formats before workspace reads", async () => {
   const { commands } = await activateChangelog();
   await assert.rejects(

@@ -57,7 +57,8 @@ export declare function buildChangelogDocument(options: GenerateChangelogOptions
  * `sectionBy: "category"` the `category` field is the keep-a-changelog category
  * (Added/Changed/Fixed/...); with `sectionBy: "type"` it is the title-cased item
  * type (Feature/Issue/Task/...); with `sectionBy: "label"` an item may appear
- * once per tag.
+ * once per tag. With `--dependency-updates`, each Dependabot commit follows as a
+ * `Dependencies` entry whose id is its `#PR` number.
  */
 export declare function createChangelogSummary(options: GenerateChangelogOptions): ChangelogSummaryEntry[];
 /**

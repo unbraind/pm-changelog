@@ -89,11 +89,19 @@ npx pm-changelog --stdout --exclude-tag changelog:ignore  # keep tagged items ou
 A daily release fires whenever a commit landed since the last tag, and Dependabot merges are commits,
 but sections are built from closed pm items. Without help, a dependency-only release gets an empty
 notes file and no `CHANGELOG.md` section at all. `--dependency-updates` reads each release window's
-commits from git (`git log --no-merges`, using the same tag windows `--all-release-tags` and
-`--since-previous-tag --until-release-tag` already derive) and adds a `### Dependencies` section,
-listed last, with one bullet per Dependabot-shaped subject (`<type>(deps|deps-dev): bump …`).
-A window with no closed items but at least one such commit still gets its version heading.
-Other commit subjects are ignored, because items remain the source of truth for everything else.
+commits from git (`git log --no-merges`) and adds a `### Dependencies` section, listed last, with one
+bullet per Dependabot subject (`<type>(deps|deps-dev): bump …`). A window with no closed items but at
+least one such commit still gets its version heading. Other commit subjects, including hand-written
+`fix(deps): …` commits, are ignored: items remain the source of truth for everything else.
+
+The range is exact: the commits between the previous release tag and this one (`--all-release-tags`
+windows, or the tags `--since-previous-tag --until-release-tag` resolve), so a bump tagged into the
+previous release never repeats. A release that is still pending reads up to `HEAD`. If the previous tag
+is not an ancestor of this one (orphaned by a history rewrite), the window's time bounds select commits
+within this release's own history instead. The bumps also appear in `--changelog-json` (as
+`dependencies` on each release) and `--summary` (as `Dependencies` entries), and
+`pm changelog export` accepts the flag too. It cannot be combined with `--group-by release` or
+`milestone`, whose sections come from item metadata rather than git windows.
 
 ```bash
 npx pm-changelog --stdout --since-previous-tag --until-release-tag --release-version-from-package \
