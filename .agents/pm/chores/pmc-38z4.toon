@@ -6,15 +6,16 @@ status: open
 priority: 1
 tags[4]: agent-readiness,release,sdk,toolchain
 created_at: "2026-09-26T21:50:50.783Z"
-updated_at: "2026-09-26T21:56:33.419Z"
+updated_at: "2026-09-26T22:08:45.219Z"
 assignee: codex
 author: codex
 acceptance_criteria: "package manifest and lockfile resolve PM CLI 2026.9.26 and pm-ops 2026.9.26; release gate, strict PM health, and isolated npm and Bun package smoke checks pass with measured coverage; PR links this item and exact-head checks and bot reviews are recorded separately; merge-driver launcher matches the published pm-ops template and the pending ancestor-install fix remains linked to pm-ops PR 124"
-notes[4]{created_at,author,text}:
+notes[5]{created_at,author,text}:
   "2026-09-26T21:52:49.477Z",codex,Full release gate failed on template byte-identity after copying the unmerged pm-ops PR 124 launcher. Switched to published pm-ops 2026.9.26 template; ancestor-install fix remains upstream.
   "2026-09-26T21:56:33.395Z",codex,"Local npm run release:check passed: 523/523 tests, 0 skips, 100% lines/branches/functions over 12 reported sources, 158/158 documented declarations, and 0 production audit vulnerabilities. Statement coverage is not independently measured; see open pmc-ilrh."
   "2026-09-26T21:56:33.395Z",codex,"Packed candidate installed in isolated npm and Bun 1.3.5 workspaces with PM CLI 2026.9.26. Each initialized a tracker, created and closed a real task, generated CHANGELOG.md containing that task, and Bun also executed the package CLI directly. Temporary workspaces removed."
   "2026-09-26T21:56:33.395Z",codex,Strict PM health ok with pre-existing provenance_value_domain_invalid advisory. Published pm-ops 2026.9.26 template matches byte-for-byte; ancestor lookup fix is pending unmerged pm-ops PR 124.
+  "2026-09-26T22:08:45.161Z",codex,"Greptile PR 215 discussion_r4112946837 identified missing coverage for the published launcher broken-install branch. Added real child-checkout fixtures for both an incomplete local pm-ops directory and a dangling link; each fails closed with MODULE_NOT_FOUND and registers no Git driver. Targeted test passed 7/7. Full release gate rerun passed 524/524 tests, 0 skips, 100% reported lines branches functions, 158 documented declarations, and 0 production audit vulnerabilities. Statement coverage remains independently unmeasured."
 files[2]{path,scope,note}:
   package.json,project,Package toolchain pin
   scripts/prepare-merge-driver.ts,project,Merge driver prepare launcher
