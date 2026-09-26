@@ -1,0 +1,25 @@
+id: pmc-38z4
+title: Certify pm-changelog against PM CLI SDK 2026.9.26
+description: "Refresh the development PM CLI SDK and pm-ops toolchain to the current published versions, retain a fail-closed merge-driver prepare hook, and validate the release and real install paths."
+type: Chore
+status: open
+priority: 1
+tags[4]: agent-readiness,release,sdk,toolchain
+created_at: "2026-09-26T21:50:50.783Z"
+updated_at: "2026-09-26T21:56:33.419Z"
+assignee: codex
+author: codex
+acceptance_criteria: "package manifest and lockfile resolve PM CLI 2026.9.26 and pm-ops 2026.9.26; release gate, strict PM health, and isolated npm and Bun package smoke checks pass with measured coverage; PR links this item and exact-head checks and bot reviews are recorded separately; merge-driver launcher matches the published pm-ops template and the pending ancestor-install fix remains linked to pm-ops PR 124"
+notes[4]{created_at,author,text}:
+  "2026-09-26T21:52:49.477Z",codex,Full release gate failed on template byte-identity after copying the unmerged pm-ops PR 124 launcher. Switched to published pm-ops 2026.9.26 template; ancestor-install fix remains upstream.
+  "2026-09-26T21:56:33.395Z",codex,"Local npm run release:check passed: 523/523 tests, 0 skips, 100% lines/branches/functions over 12 reported sources, 158/158 documented declarations, and 0 production audit vulnerabilities. Statement coverage is not independently measured; see open pmc-ilrh."
+  "2026-09-26T21:56:33.395Z",codex,"Packed candidate installed in isolated npm and Bun 1.3.5 workspaces with PM CLI 2026.9.26. Each initialized a tracker, created and closed a real task, generated CHANGELOG.md containing that task, and Bun also executed the package CLI directly. Temporary workspaces removed."
+  "2026-09-26T21:56:33.395Z",codex,Strict PM health ok with pre-existing provenance_value_domain_invalid advisory. Published pm-ops 2026.9.26 template matches byte-for-byte; ancestor lookup fix is pending unmerged pm-ops PR 124.
+files[2]{path,scope,note}:
+  package.json,project,Package toolchain pin
+  scripts/prepare-merge-driver.ts,project,Merge driver prepare launcher
+tests[1]{command,scope,timeout_seconds,provenance{author,created_at,source_kind,source_ref}}:
+  "npm run release:check",project,900,codex,"2026-09-26T21:50:50.783Z",local_mutation,chore/pm-changelog-cli-sdk-2026-9-26
+docs[1]{path,scope,note}:
+  docs/development.md,project,Package release workflow
+body: "Package owner for the fleet PM toolchain refresh. Companion fleet certification item: pm-cli-website-5s6z in unbraind/pm-cli-companion. Keep release, coverage, and review gates independent."
