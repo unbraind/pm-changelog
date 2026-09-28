@@ -6,10 +6,13 @@ status: open
 priority: 1
 tags[4]: agent-readiness,release,sdk,toolchain
 created_at: "2026-09-26T21:50:50.783Z"
-updated_at: "2026-09-26T22:08:45.219Z"
-assignee: codex
+updated_at: "2026-09-28T06:31:45.703Z"
+assignee: claude-hub
+claim_principal: claude-hub
 author: codex
-acceptance_criteria: "package manifest and lockfile resolve PM CLI 2026.9.26 and pm-ops 2026.9.26; release gate, strict PM health, and isolated npm and Bun package smoke checks pass with measured coverage; PR links this item and exact-head checks and bot reviews are recorded separately; merge-driver launcher matches the published pm-ops template and the pending ancestor-install fix remains linked to pm-ops PR 124"
+acceptance_criteria: "package manifest and lockfile resolve PM CLI 2026.9.26 and pm-ops 2026.9.28; release gate, strict PM health, and isolated npm and Bun package smoke checks pass with measured coverage; PR links this item and exact-head checks and bot reviews are recorded separately; merge-driver launcher matches the published pm-ops template and the ancestor-install fix from pm-ops PR 124 is adopted through pm-ops 2026.9.28"
+comments[1]{created_at,author,text}:
+  "2026-09-28T06:31:45.703Z",claude-hub,"2026-09-28: pinned pm-ops 2026.9.28 and re-copied its templates/prepare-merge-driver.ts in f3d0c55 (pm-ops#124: the omit-dev skip now checks every Node resolution path for an incomplete hoisted pm-ops). release:check and changelog:check pass on this branch. Acceptance criteria updated from pm-ops 2026.9.26 to 2026.9.28 after the claim takeover."
 notes[5]{created_at,author,text}:
   "2026-09-26T21:52:49.477Z",codex,Full release gate failed on template byte-identity after copying the unmerged pm-ops PR 124 launcher. Switched to published pm-ops 2026.9.26 template; ancestor-install fix remains upstream.
   "2026-09-26T21:56:33.395Z",codex,"Local npm run release:check passed: 523/523 tests, 0 skips, 100% lines/branches/functions over 12 reported sources, 158/158 documented declarations, and 0 production audit vulnerabilities. Statement coverage is not independently measured; see open pmc-ilrh."
