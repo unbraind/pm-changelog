@@ -15,9 +15,9 @@
 import { describe, it } from "node:test";
 import { deepEqual, equal, ok, throws } from "node:assert/strict";
 import { execFileSync } from "node:child_process";
-import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { join, parse } from "node:path";
 
 import {
   assertReleaseTagHistory,
@@ -126,6 +126,9 @@ describe("release-context: resolveReleaseContext", () => {
       writeFileSync(join(dir, "package.json"), `${JSON.stringify({ name: "x", version: "9.8.7" }, null, 2)}\n`, "utf-8");
       const ctx = resolveReleaseContext({ cwd: dir, versionFromPackage: true });
       equal(ctx.version, "9.8.7");
+      const nested = join(dir, "nested", "child");
+      mkdirSync(nested, { recursive: true });
+      equal(resolveReleaseContext({ cwd: nested, versionFromPackage: true }).version, "9.8.7");
     } finally {
       rmSync(dir, { recursive: true, force: true });
     }
@@ -153,18 +156,15 @@ describe("release-context: resolveReleaseContext", () => {
   });
 
   it("throws when release-version-from-package finds no package.json", () => {
-    // A tmpdir with no package.json in any ancestor walks up to the filesystem
-    // root and returns undefined, so readPackageVersion throws.
-    const dir = mkdtempSync(join(tmpdir(), "pm-changelog-rc-nopkg-"));
-    try {
-      // Move into a subdir with no package.json; /tmp itself has none.
-      throws(
-        () => resolveReleaseContext({ cwd: dir, versionFromPackage: true }),
-        /requires a package.json in the current directory or an ancestor/,
-      );
-    } finally {
-      rmSync(dir, { recursive: true, force: true });
-    }
+    // A shared temporary directory can contain another workspace's package.json.
+    // Exercise the terminal missing-file case at the filesystem root instead,
+    // without reading or modifying unrelated ancestor package metadata.
+    const root = parse(tmpdir()).root;
+    equal(existsSync(join(root, "package.json")), false, "the missing-package fixture requires no root package metadata");
+    throws(
+      () => resolveReleaseContext({ cwd: root, versionFromPackage: true }),
+      /requires a package.json in the current directory or an ancestor/,
+    );
   });
 
   it("throws when package.json has a non-string version field", () => {
