@@ -1,5 +1,11 @@
 # Changelog
 
+## Unreleased
+
+### Fixed
+
+- Keep installed usage documentation links portable and the dependency-updates table row valid ([pmc-mwnu](https://github.com/unbraind/pm-changelog/blob/main/.agents/pm/issues/pmc-mwnu.toon))
+
 ## 2026.9.25 - 2026-09-25
 
 ### Added
