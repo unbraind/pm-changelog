@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+### Fixed
+
+- Keep installed usage documentation links portable and the dependency-updates table row valid ([pmc-mwnu](https://github.com/unbraind/pm-changelog/blob/main/.agents/pm/issues/pmc-mwnu.toon))
+
 ### Other
 
 - Auto-merge green Dependabot updates and group the pm toolchain into one daily PR ([pmc-y0a5](https://github.com/unbraind/pm-changelog/blob/main/.agents/pm/tasks/pmc-y0a5.toon))
