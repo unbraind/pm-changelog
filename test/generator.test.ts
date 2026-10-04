@@ -2616,6 +2616,22 @@ process.stdout.write(readFileSync(resolve(process.cwd(), "fixture.json"), "utf-8
   assert.match(stdout, /- Fix runner status export \(pm-2\)/);
 });
 
+/** Pack the built distribution without scanning checkout dependencies during install. */
+function packExtension(directory: string, environment: NodeJS.ProcessEnv): string {
+  const output = execFileSync(process.platform === "win32" ? "npm.cmd" : "npm", [
+    "pack", "--ignore-scripts", "--json", "--pack-destination", directory,
+  ], {
+    cwd: process.cwd(),
+    env: environment,
+    encoding: "utf-8",
+    shell: process.platform === "win32",
+  });
+  const packages = JSON.parse(output) as readonly { filename: string }[];
+  assert.equal(packages.length, 1);
+  assert.ok(packages[0].filename.endsWith(".tgz"));
+  return join(directory, packages[0].filename);
+}
+
 test("pm package install activates changelog command", (t) => {
   const dir = mkdtempSync(join(tmpdir(), "pm-changelog-install-"));
   t.after(() =>
@@ -2706,7 +2722,7 @@ test("pm package install activates changelog command", (t) => {
     env: pmEnv,
     encoding: "utf-8",
   });
-  execFileSync(pmBin, ["install", process.cwd(), "--project", "--json"], {
+  execFileSync(pmBin, ["package", "install", packExtension(dir, pmEnv), "--project", "--json"], {
     cwd: dir,
     env: pmEnv,
     encoding: "utf-8",
@@ -2720,7 +2736,7 @@ test("pm package install activates changelog command", (t) => {
   // Scoped renderer ownership proves that only changelog command marker results
   // can reach the toon/json callbacks, so no renderer warning reaches an
   // isolated doctor. The one warning that does is unrelated to ownership: this
-  // fixture installs the package from a local directory, which has no GitHub
+  // fixture installs the package from a local archive, which has no GitHub
   // release feed, and pm-cli 2026.9.8 (GH-1219) began reporting that skipped
   // update probe instead of counting it as covered. Asserting the exact list
   // rather than tolerating warnings keeps a renderer-ownership regression —
@@ -2848,8 +2864,9 @@ test("pm package install activates changelog command", (t) => {
   );
 });
 
-test("pm extension command works when only node cli entrypoint is available", () => {
+test("pm extension command works when only node cli entrypoint is available", (t) => {
   const dir = mkdtempSync(join(tmpdir(), "pm-changelog-node-cli-"));
+  t.after(() => rmSync(dir, { recursive: true, force: true, maxRetries: 5, retryDelay: 100 }));
   const pmCli = join(process.cwd(), "node_modules", "@unbrained", "pm-cli", "dist", "cli.js");
   const pmBin = join(process.cwd(), "node_modules", ".bin", "pm");
   const pmEnv: NodeJS.ProcessEnv = {
@@ -2863,7 +2880,7 @@ test("pm extension command works when only node cli entrypoint is available", ()
     env: pmEnv,
     encoding: "utf-8",
   });
-  execFileSync(pmBin, ["install", process.cwd(), "--project", "--json"], {
+  execFileSync(pmBin, ["package", "install", packExtension(dir, pmEnv), "--project", "--json"], {
     cwd: dir,
     env: pmEnv,
     encoding: "utf-8",
