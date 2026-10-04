@@ -1,5 +1,11 @@
 # Changelog
 
+## Unreleased
+
+### Other
+
+- Auto-merge green Dependabot updates and group the pm toolchain into one daily PR ([pmc-y0a5](https://github.com/unbraind/pm-changelog/blob/main/.agents/pm/tasks/pmc-y0a5.toon))
+
 ## 2026.9.25 - 2026-09-25
 
 ### Added
