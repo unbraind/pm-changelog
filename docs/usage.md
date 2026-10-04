@@ -145,12 +145,12 @@ pending release being prepared can include that work before its tag exists.
 Explicit release declarations remain authoritative; tags with no tracker
 documents retain historical timestamp placement. Membership reads use Git blobs
 and the public pm SDK parser, and malformed evidence fails generation.
-This behavior is tracked in [pmc-3jq8](../.agents/pm/issues/pmc-3jq8.toon).
+This behavior is tracked in [pmc-3jq8](https://github.com/unbraind/pm-changelog/blob/main/.agents/pm/issues/pmc-3jq8.toon).
 Tagged items use their tag's settings and schema files, so later schema changes
 do not invalidate historical metadata. Repository-root and symlinked tracker
 paths are supported; schema references outside the tagged repository cannot
 provide versioned evidence and fail generation. These compatibility guarantees
-are tracked in [pmc-j6cb](../.agents/pm/issues/pmc-j6cb.toon).
+are tracked in [pmc-j6cb](https://github.com/unbraind/pm-changelog/blob/main/.agents/pm/issues/pmc-j6cb.toon).
 
 Pure API inputs and standalone `--input`/`--stdin` documents retain timestamp
 placement because they need not describe the local tracker. SDK callers can opt
@@ -330,7 +330,7 @@ and its history untouched in the tracker. Both flags are reported by `--explain`
 | `--changelog-json` | false | Print the full structured changelog document (releases -> sections -> items) as JSON to stdout. Distinct from `--json` (CI summary) |
 | `--explain` | false | Emit item-selection diagnostics (`selection_report`) showing stage counts, exclusion reasons, sample items, completion-timestamp attribution provenance (`attribution_provenance`: authoritative `completed_at` vs inferred fallback counts and sample ids), and actionable hints |
 | `--breaking-changes` | false | Emit an additional `Breaking Changes` section per release listing items detected as breaking (a truthy `breaking` flag, a `breaking`/`breaking-change` tag, or the standalone word `breaking` in type/title; negated phrasings like `non-breaking` are ignored) |
-| `--dependency-updates` | false | Add a `### Dependencies` section (listed last) to each release, with one bullet per Dependabot commit (`<type>(deps|deps-dev): bump …`) between the previous and current release tags; a pending release reads to `HEAD`, and a history-rewritten previous tag falls back to the window's time bounds. A release with no closed items but such commits still gets its version heading. Also emitted in `--changelog-json` and `--summary`, and accepted by `pm changelog export`. PR numbers link to GitHub only when `--item-url-base` is a `https://github.com/<owner>/<repo>/…` URL. Not combinable with `--group-by release` or `milestone` |
+| `--dependency-updates` | false | Add a `### Dependencies` section (listed last) to each release, with one bullet per Dependabot commit (`<type>(deps\|deps-dev): bump …`) between the previous and current release tags; a pending release reads to `HEAD`, and a history-rewritten previous tag falls back to the window's time bounds. A release with no closed items but such commits still gets its version heading. Also emitted in `--changelog-json` and `--summary`, and accepted by `pm changelog export`. PR numbers link to GitHub only when `--item-url-base` is a `https://github.com/<owner>/<repo>/…` URL. Not combinable with `--group-by release` or `milestone` |
 | `--suggest-semver` | false | Print a suggested semver bump (`major`/`minor`/`patch`/`none`) as JSON to stdout; never writes the changelog. Computed from the same visible release sections as the output (respects `--limit`/`--since-version`). Also embedded in `--changelog-json` output |
 | `--body-preview <n>` | - | Append the first N characters of each item's body to its entry (single-lined, truncated with an ellipsis when longer). Loads bodies via `--include-body`; falls back to the item `description` when the body is empty |
 | `--emoji-prefix` | false | Prefix section headings with conventional emoji (`Added 🎉`, `Fixed 🐛`, ...); unknown headings pass through unchanged |
