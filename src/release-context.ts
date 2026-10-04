@@ -1,6 +1,6 @@
 import { execFileSync } from "node:child_process";
 import { existsSync, readFileSync } from "node:fs";
-import { dirname, join, resolve } from "node:path";
+import { dirname, join, parse, resolve } from "node:path";
 
 import type { ChangelogReleaseWindow } from "./types.ts";
 
@@ -22,6 +22,19 @@ export interface ReleaseContextOptions {
   sincePreviousTag?: boolean;
   until?: string;
   untilReleaseTag?: boolean;
+  /**
+   * Inclusive upper bound for the upward `package.json` search behind
+   * `versionFromPackage`. The search starts at `cwd`, ascends parent by
+   * parent, and stops after examining this directory; metadata above the
+   * boundary is never consulted, so a caller can scope the search to a
+   * checkout or fixture root instead of depending on filesystem-root
+   * metadata it does not control. The boundary must be `cwd` itself or one of
+   * its ancestors; anything else fails closed with a RangeError rather than
+   * silently widening the search back to the filesystem root. Defaults to the
+   * filesystem root of the resolved `cwd`, preserving the historical
+   * whole-tree search.
+   */
+  packageSearchBoundary?: string;
 }
 
 /** Inputs for deriving the full set of release windows from a repo's git tags,
@@ -225,7 +238,8 @@ export function resolveReleaseContext(options: ReleaseContextOptions): ReleaseCo
   if (tagDerivedFlags.length > 0) {
     assertReleaseTagHistory({ cwd, requiredBy: tagDerivedFlags });
   }
-  const version = options.version ?? (options.versionFromPackage ? readPackageVersion(cwd) : undefined);
+  const version = options.version ??
+    (options.versionFromPackage ? readPackageVersion(cwd, options.packageSearchBoundary) : undefined);
   const releaseTag = version ? findExistingTag(cwd, releaseTagCandidates(version)) : undefined;
   const previousTag = options.sincePreviousTag ? findPreviousTag(cwd, releaseTag) : undefined;
   const releaseTimestamp = releaseTag ? tryGitCommitTimestamp(cwd, releaseTag) : undefined;
@@ -454,10 +468,11 @@ function resolvePendingReleaseTag(options: ReleaseTagHistoryOptions, existingTag
   return { name: canonical, timestamp, pending: true };
 }
 
-/** Read the nearest package.json's version, throwing when absent or blank so a
- * release never silently generates an unversioned section. */
-function readPackageVersion(cwd: string): string {
-  const packageJsonPath = findPackageJson(cwd);
+/** Read the nearest package.json's version within the optional inclusive
+ * search boundary, throwing when absent or blank so a release never silently
+ * generates an unversioned section. */
+function readPackageVersion(cwd: string, stopBoundary: string | undefined): string {
+  const packageJsonPath = findPackageJson(cwd, stopBoundary);
   if (!packageJsonPath) {
     throw new Error("--release-version-from-package requires a package.json in the current directory or an ancestor");
   }
@@ -469,15 +484,34 @@ function readPackageVersion(cwd: string): string {
 }
 
 /** Walk upward for the nearest package.json, so the command works from a
- * subdirectory of the package as well as its root. */
-function findPackageJson(start: string): string | undefined {
-  let current = start;
+ * subdirectory of the package as well as its root. `start` is resolved
+ * first, so a relative path cannot anchor the search to whatever directory
+ * the process happens to run in (a relative TMPDIR is the concrete case).
+ * The walk examines `stopBoundary` and every directory below it, then stops;
+ * it defaults to the filesystem root of the resolved start so the historical
+ * whole-tree search is unchanged for callers that pass no boundary. A
+ * boundary that is not the start or one of its ancestors would never
+ * terminate the walk, so it fails closed with a RangeError instead of
+ * silently reading unrelated ancestor metadata. */
+function findPackageJson(start: string, stopBoundary: string | undefined): string | undefined {
+  const resolvedStart = resolve(start);
+  const stop = resolve(stopBoundary ?? parse(resolvedStart).root);
+  let probe = resolvedStart;
+  while (probe !== stop) {
+    const parent = dirname(probe);
+    if (parent === probe) {
+      throw new RangeError(
+        `--release-version-from-package search boundary ${stop} is not an ancestor of ${resolvedStart}`,
+      );
+    }
+    probe = parent;
+  }
+  let current = resolvedStart;
   while (true) {
     const candidate = join(current, "package.json");
     if (existsSync(candidate)) return candidate;
-    const parent = dirname(current);
-    if (parent === current) return undefined;
-    current = parent;
+    if (current === stop) return undefined;
+    current = dirname(current);
   }
 }
 
