@@ -2,9 +2,9 @@
 
 PM item: [pmc-38z4](https://github.com/unbraind/pm-changelog/blob/main/.agents/pm/chores/pmc-38z4.toon).
 
-Exact development pins: `@unbrained/pm-cli` and `pm-ops` 2026.10.4, `@types/node` 26.6.4, `typescript` 7.0.2, `typescript5` alias `npm:typescript@5.9.3` (the script requires its parser API). Runtime floors remain unchanged. Dependabot #214, #216, #217, #218 are consolidated, including CodeQL SHA `1c5b675653bb5c22dbe9b12b556ec555138e09fd` with its `# v4` comment.
+Exact development pins: `@unbrained/pm-cli` and `pm-ops` 2026.10.4, `@types/node` 26.6.4, `typescript` 7.0.2, `typescript5` alias `npm:typescript@5.9.3` (the script requires its parser API). Runtime floors remain unchanged. Dependabot #214, #216, #217, #218 are consolidated, including CodeQL is advanced from Dependabot #214 to newer SHA `2892aa5e19bbd11bc0cff5427e3b750a04d9e3c2` with its exact `# v4.38.2` comment (also present in pm-slack-standup Dependabot #103).
 
-The launcher is copied byte-for-byte from `node_modules/pm-ops/templates/prepare-merge-driver.ts`. A real file in `NODE_PATH` exercises the new inconclusive filesystem-probe refusal. Two integration fixtures now pack their built distribution with `npm pack --ignore-scripts --json --pack-destination <fixture>` and install that archive, preserving activation, doctor and output assertions while avoiding incomplete checkout scans.
+The launcher is copied byte-for-byte from `node_modules/pm-ops/templates/prepare-merge-driver.ts`. A real file in `NODE_PATH` exercises the new inconclusive filesystem-probe refusal. Two integration fixtures now pack their built distribution with `npm pack --ignore-scripts --pack-destination <fixture>` and install that archive, preserving activation, doctor and output assertions while avoiding incomplete checkout scans.
 
 ## Security and health
 
@@ -58,3 +58,12 @@ planned: 0
 ```
 
 This is zero-case preview evidence. No GitHub issue writes or scheduled sync were performed. PR checks and substantive bot reviews must be assessed separately at the final head; the orchestrator owns merging and PM closure.
+
+## Review follow-up
+
+Managed extension payloads are clone-local installed distributions and are excluded from Git. Reproduce the read-only preview with `npx -y @unbrained/pm-cli@2026.10.4 package install npm:pm-github@2026.10.4 --project`, then `npx -y @unbrained/pm-cli@2026.10.4 github sync --repo unbraind/pm-changelog --dry-run`. The installed version and zero-case receipt above remain the evidence; no write-path acceptance is claimed.
+
+The Node 22/npm 10 integration failure reproduced locally: npm runs `prepare` during `pack --ignore-scripts`, and the fixture tracker is outside the source Git checkout. Packaging now uses a separate environment without fixture `PM_PATH`/`PM_GLOBAL_PATH`; installation retains the original isolated environment and assertions.
+Packaging also discovers the single actual tarball instead of parsing stdout, because npm 10 lifecycle output precedes its JSON metadata.
+
+Review-corrected Node 22.23.1/npm 10.9.8 packed acceptance passes 2/2, zero skips; final locked full gate repeats 527/527 with unchanged 100% measured lines/branches/functions. Fixture cleanup still fails if removal cannot complete, with bounded retries increased for asynchronous fixture writes on the loaded host. Valid upstream apply-path findings are tracked in open [pmc-xndl](https://github.com/unbraind/pm-changelog/blob/main/.agents/pm/issues/pmc-xndl.toon); excluding their generated distribution does not fix those upstream defects.

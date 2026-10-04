@@ -22,3 +22,6 @@ coverage/
 # have no value once the merge has landed. Deliberately outside any `pm-cli:`
 # fence, which the CLI rewrites.
 .agents/pm/merge-receipts/
+
+# Managed extension distributions are installed locally; version and preview receipts live in docs.
+.agents/pm/extensions/

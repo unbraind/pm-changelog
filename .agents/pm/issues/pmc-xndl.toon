@@ -1,0 +1,11 @@
+id: pmc-xndl
+title: Track published pm-github apply-path limitations exposed by certification review
+description: "PR #221 Greptile statically identified cancellation status omission, repeat export duplicates, closed-item status loss, project draft duplication after partial failure, and skipped pull-only default GitHub-preference changes in installed pm-github 2026.10.4. Generated installed distributions are removed from consumer Git scope; fixes and synthetic write-path acceptance belong in canonical pm-github work. This certification authorizes only read-only preview, which was a zero-case."
+type: Issue
+status: open
+priority: 1
+tags: []
+created_at: "2026-10-04T12:10:47.382Z"
+updated_at: "2026-10-04T12:10:47.382Z"
+author: codex-sol
+body: ""

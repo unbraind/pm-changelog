@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { execFileSync, spawnSync } from "node:child_process";
-import { chmodSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { chmodSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import test from "node:test";
@@ -2618,18 +2618,24 @@ process.stdout.write(readFileSync(resolve(process.cwd(), "fixture.json"), "utf-8
 
 /** Pack the built distribution without scanning checkout dependencies during install. */
 function packExtension(directory: string, environment: NodeJS.ProcessEnv): string {
-  const output = execFileSync(process.platform === "win32" ? "npm.cmd" : "npm", [
-    "pack", "--ignore-scripts", "--json", "--pack-destination", directory,
+  // npm 10 runs prepare during pack despite --ignore-scripts. Its cwd is the
+  // source checkout, so it must discover that tracker, not the install fixture.
+  const packEnvironment = { ...environment };
+  for (const key of Object.keys(packEnvironment)) {
+    if (["PM_PATH", "PM_GLOBAL_PATH"].includes(key.toUpperCase())) delete packEnvironment[key];
+  }
+  execFileSync(process.platform === "win32" ? "npm.cmd" : "npm", [
+    "pack", "--ignore-scripts", "--pack-destination", directory,
   ], {
     cwd: process.cwd(),
-    env: environment,
-    encoding: "utf-8",
+    env: packEnvironment,
+    stdio: ["ignore", "ignore", "pipe"],
     shell: process.platform === "win32",
   });
-  const packages = JSON.parse(output) as readonly { filename: string }[];
-  assert.equal(packages.length, 1);
-  assert.ok(packages[0].filename.endsWith(".tgz"));
-  return join(directory, packages[0].filename);
+  // Lifecycle output can precede npm metadata; discover the actual archive.
+  const archives = readdirSync(directory).filter((entry) => entry.endsWith(".tgz"));
+  assert.equal(archives.length, 1);
+  return join(directory, archives[0]);
 }
 
 test("pm package install activates changelog command", (t) => {
@@ -2638,7 +2644,7 @@ test("pm package install activates changelog command", (t) => {
     rmSync(dir, {
       recursive: true,
       force: true,
-      maxRetries: 5,
+      maxRetries: 20,
       retryDelay: 100,
     })
   );
@@ -2866,7 +2872,7 @@ test("pm package install activates changelog command", (t) => {
 
 test("pm extension command works when only node cli entrypoint is available", (t) => {
   const dir = mkdtempSync(join(tmpdir(), "pm-changelog-node-cli-"));
-  t.after(() => rmSync(dir, { recursive: true, force: true, maxRetries: 5, retryDelay: 100 }));
+  t.after(() => rmSync(dir, { recursive: true, force: true, maxRetries: 20, retryDelay: 100 }));
   const pmCli = join(process.cwd(), "node_modules", "@unbrained", "pm-cli", "dist", "cli.js");
   const pmBin = join(process.cwd(), "node_modules", ".bin", "pm");
   const pmEnv: NodeJS.ProcessEnv = {
