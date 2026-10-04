@@ -15,6 +15,19 @@ export interface ReleaseContextOptions {
     sincePreviousTag?: boolean;
     until?: string;
     untilReleaseTag?: boolean;
+    /**
+     * Inclusive upper bound for the upward `package.json` search behind
+     * `versionFromPackage`. The search starts at `cwd`, ascends parent by
+     * parent, and stops after examining this directory; metadata above the
+     * boundary is never consulted, so a caller can scope the search to a
+     * checkout or fixture root instead of depending on filesystem-root
+     * metadata it does not control. The boundary must be `cwd` itself or one of
+     * its ancestors; anything else fails closed with a RangeError rather than
+     * silently widening the search back to the filesystem root. Defaults to the
+     * filesystem root of the resolved `cwd`, preserving the historical
+     * whole-tree search.
+     */
+    packageSearchBoundary?: string;
 }
 /** Inputs for deriving the full set of release windows from a repo's git tags,
  * used to rebuild an entire changelog history in one pass. `pending*` describes

@@ -17,7 +17,7 @@ import { deepEqual, equal, ok, throws } from "node:assert/strict";
 import { execFileSync } from "node:child_process";
 import { existsSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
-import { join, parse } from "node:path";
+import { join, resolve } from "node:path";
 
 import {
   assertReleaseTagHistory,
@@ -156,15 +156,68 @@ describe("release-context: resolveReleaseContext", () => {
   });
 
   it("throws when release-version-from-package finds no package.json", () => {
-    // A shared temporary directory can contain another workspace's package.json.
-    // Exercise the terminal missing-file case at the filesystem root instead,
-    // without reading or modifying unrelated ancestor package metadata.
-    const root = parse(tmpdir()).root;
-    equal(existsSync(join(root, "package.json")), false, "the missing-package fixture requires no root package metadata");
-    throws(
-      () => resolveReleaseContext({ cwd: root, versionFromPackage: true }),
-      /requires a package.json in the current directory or an ancestor/,
-    );
+    // The upward search must not depend on host metadata: a shared temporary
+    // tree or the filesystem root can hold another workspace's package.json
+    // (a real /tmp/package.json broke this fixture's predecessor, and a root
+    // package.json breaks any filesystem-root variant). Build a fixture the
+    // test owns, plant a decoy package.json directly above the injected
+    // search boundary, and require the same missing-package error: finding
+    // the decoy would prove the walk ignored the boundary, and reaching the
+    // filesystem root would depend on metadata this test does not control.
+    // Resolving tmpdir() first keeps the fixture absolute under a relative
+    // TMPDIR, where a relative path would anchor the search to process.cwd().
+    const fixtureRoot = mkdtempSync(join(resolve(tmpdir()), "pm-changelog-rc-missing-"));
+    try {
+      writeFileSync(
+        join(fixtureRoot, "package.json"),
+        `${JSON.stringify({ name: "decoy-above-boundary", version: "0.0.0" }, null, 2)}\n`,
+        "utf-8",
+      );
+      const boundary = join(fixtureRoot, "boundary");
+      const leaf = join(boundary, "child", "grandchild");
+      mkdirSync(leaf, { recursive: true });
+      equal(
+        existsSync(join(boundary, "package.json")),
+        false,
+        "the boundary chain owns every directory between leaf and boundary, none holding package.json",
+      );
+      throws(
+        () => resolveReleaseContext({ cwd: leaf, versionFromPackage: true, packageSearchBoundary: boundary }),
+        /requires a package.json in the current directory or an ancestor/,
+      );
+    } finally {
+      rmSync(fixtureRoot, { recursive: true, force: true });
+    }
+  });
+
+  it("includes the boundary directory itself in the package search", () => {
+    // The boundary is inclusive: a package.json at the boundary directory is
+    // the nearest match when the walk starts exactly there, so scoping the
+    // search never hides a package.json that sits at its own root.
+    const dir = mkdtempSync(join(resolve(tmpdir()), "pm-changelog-rc-boundpkg-"));
+    try {
+      writeFileSync(join(dir, "package.json"), `${JSON.stringify({ name: "x", version: "3.2.1" }, null, 2)}\n`, "utf-8");
+      equal(resolveReleaseContext({ cwd: dir, versionFromPackage: true, packageSearchBoundary: dir }).version, "3.2.1");
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
+  it("fails closed when the package search boundary is not an ancestor of cwd", () => {
+    // A boundary outside the start's ancestor chain can never terminate the
+    // upward walk, so it must fail closed immediately rather than silently
+    // falling back to a search that reads unrelated ancestor metadata. A
+    // descendant path (not an ancestor) reaches the probe guard on every
+    // host without touching any file outside the fixture.
+    const dir = mkdtempSync(join(resolve(tmpdir()), "pm-changelog-rc-badbound-"));
+    try {
+      throws(
+        () => resolveReleaseContext({ cwd: dir, versionFromPackage: true, packageSearchBoundary: join(dir, "descendant") }),
+        /search boundary .* is not an ancestor of /,
+      );
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
   });
 
   it("throws when package.json has a non-string version field", () => {

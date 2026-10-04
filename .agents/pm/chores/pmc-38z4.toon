@@ -6,15 +6,20 @@ status: in_progress
 priority: 1
 tags[4]: agent-readiness,release,sdk,toolchain
 created_at: "2026-09-26T21:50:50.783Z"
-updated_at: "2026-10-02T22:57:22.580Z"
+updated_at: "2026-10-04T08:44:52.779Z"
+assignee: pi-glm
+claim_principal: pi-glm
 author: codex
 acceptance_criteria: "package manifest and lockfile resolve PM CLI 2026.9.26 and pm-ops 2026.9.28; release gate, strict PM health, and isolated npm and Bun package smoke checks pass with measured coverage; PR links this item and exact-head checks and bot reviews are recorded separately; merge-driver launcher matches the published pm-ops template and the ancestor-install fix from pm-ops PR 124 is adopted through pm-ops 2026.9.28"
-comments[5]{created_at,author,text}:
+actual_result: "npm ci and npm run release:check PASS: 526/526 tests, zero skipped, 100% measured lines/branches/functions across 12 sources, 158 documented declarations; audit:prod, pack:dry-run, changelog:check, verify:release-changelog-date and verify:release-publish-attestation green. Focused missing-package boundary fixture passes 1/1 and prepare-merge-driver launcher suite passes 7/7, including under a relative TMPDIR. The missing-package release-context fixture is now host-independent: the code under test accepts an inclusive packageSearchBoundary stop for the upward package.json search (non-ancestor boundary fails closed with RangeError), and the test owns a fixture whose boundary chain contains no package.json while a decoy package.json sits directly above the boundary; the same missing-package error is required on every host. package.json resolves @unbrained/pm-cli 2026.9.26 and pm-ops 2026.9.28; the merge-driver launcher remains the published pm-ops template byte for byte. Independent statements stay unmeasured in pmc-ilrh; canonical probe robustness stays in pm-ops#135. Final-head CI and substantive review receipts are tracked separately on PR 215; item stays in_progress and is released, never closed."
+comments[7]{created_at,author,text}:
   "2026-09-28T06:31:45.703Z",claude-hub,"2026-09-28: pinned pm-ops 2026.9.28 and re-copied its templates/prepare-merge-driver.ts in f3d0c55 (pm-ops#124: the omit-dev skip now checks every Node resolution path for an incomplete hoisted pm-ops). release:check and changelog:check pass on this branch. Acceptance criteria updated from pm-ops 2026.9.26 to 2026.9.28 after the claim takeover."
   "2026-10-02T22:09:23.594Z",codex-sol,"Restart by codex-sol: retained head 440b9e6 is pushed and clean. Existing bot replies and resolutions preserved. Revalidating release:check plus the exact CI legacy provenance baseline. Published pm-ops 2026.9.28 is already adopted; the stale PR description will be aligned with that state. Statement metric gap stays in pmc-ilrh; canonical probe robustness stays in pm-ops#135."
   "2026-10-02T22:14:49.209Z",codex-sol,"Restart full gate exposed one existing fixture failure (523/524): missing-package test assumed shared tmpdir ancestors contained no package.json, but host /tmp/package.json exists. Replaced the temporary-directory assumption with a real filesystem-root missing-file fixture and an explicit absence assertion; same missing-package exception is required. Scoped test passes. Initial launcher linked test failed before npm ci due missing dependencies, then passed 7/7 after install. Exact CI provenance baseline (32 events) passes unchanged. Re-running full release gate after the fixture correction."
   "2026-10-02T22:38:09.306Z",codex-sol,"Full retry passed 524/524 tests but the unchanged 100% gate correctly failed at 99.97% lines/99.94% branches: moving the missing-package fixture to filesystem root left the upward-search assignments unexercised. Extended the existing positive version test with a nested/child cwd that resolves its real parent package.json. Both focused cases pass; no thresholds or coverage scope changed. Running full release:check again."
   "2026-10-02T22:57:21.558Z",codex-sol,"npm ci and npm run release:check PASS: 524/524 tests, zero skipped, 100% measured lines/branches/functions across 12 sources, 158 documented declarations, audit/pack/changelog/date/attestation green. Exact unchanged CI health provenance baseline passes. Linked launcher tests pass 7/7 and focused missing-package test passes. Existing positive version test now verifies ancestor lookup; missing-package fixture explicitly checks filesystem-root absence. Independent statements remain unmeasured in open pmc-ilrh. History prefixes are preserved. Final-head CI and bot receipts remain separate; item stays in_progress and is released, never closed."
+  "2026-10-04T08:44:41.353Z",pi-glm,"Greptile P1 + cubic P2 findings (PR 215 third-round, unresolved): the missing-package fixture still depended on host metadata — first on a clean shared tmpdir, then on the filesystem root, and a relative TMPDIR made parse(tmpdir()).root empty and could select the checkout's own package.json. Fixed test-first: resolveReleaseContext gains an optional packageSearchBoundary (inclusive stop for the upward package.json search; a non-ancestor boundary fails closed with RangeError instead of silently walking to /), and the missing-package test now builds a fixture it owns (resolved tmpdir, so a relative TMPDIR anchors correctly), plants a decoy package.json directly ABOVE the boundary, and requires the same missing-package error from a path inside the boundary with no package.json anywhere up to it — deterministic on every host, including one where /tmp/package.json or /package.json exists. The red test failed against e20220f (found the decoy, no throw) and passes after the fix. Boundary-inclusive and invalid-boundary regression tests added."
+  "2026-10-04T08:44:48.697Z",pi-glm,"Restart validation (pi-glm): npm ci and npm run release:check PASS — 526/526 tests, zero skipped; 100% measured lines/branches/functions across all 12 sources; 158 documented declarations; audit:prod, pack, changelog:check, release-changelog-date and publish-attestation green. Scoped linked tests pass: focused missing-package fixture 1/1 and prepare-merge-driver launcher suite 7/7; both also pass with a relative TMPDIR (TMPDIR=reltmp). No production API changed: packageSearchBoundary is a new optional ReleaseContextOptions field with the historical default (filesystem root of the resolved cwd) byte-compatible for existing callers."
 notes[5]{created_at,author,text}:
   "2026-09-26T21:52:49.477Z",codex,Full release gate failed on template byte-identity after copying the unmerged pm-ops PR 124 launcher. Switched to published pm-ops 2026.9.26 template; ancestor-install fix remains upstream.
   "2026-09-26T21:56:33.395Z",codex,"Local npm run release:check passed: 523/523 tests, 0 skips, 100% lines/branches/functions over 12 reported sources, 158/158 documented declarations, and 0 production audit vulnerabilities. Statement coverage is not independently measured; see open pmc-ilrh."
@@ -32,7 +37,7 @@ files[4]:
     scope: project
   - path: test/release-context.test.ts
     scope: project
-tests[3]:
+tests[4]:
   - command: "npm run release:check"
     scope: project
     timeout_seconds: 900
@@ -53,6 +58,13 @@ tests[3]:
     provenance:
       author: codex-sol
       created_at: "2026-10-02T22:14:49.802Z"
+      source_kind: local_mutation
+      source_ref: land-215
+  - command: "node --test --test-name-pattern=\"package search boundary\" test/release-context.test.ts"
+    scope: project
+    provenance:
+      author: pi-glm
+      created_at: "2026-10-04T08:44:52.732Z"
       source_kind: local_mutation
       source_ref: land-215
 docs[2]:
