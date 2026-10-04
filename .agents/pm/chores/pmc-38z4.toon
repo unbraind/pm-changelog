@@ -1,16 +1,16 @@
 id: pmc-38z4
-title: Certify pm-changelog against PM CLI SDK 2026.9.26
+title: Certify pm-changelog on PM CLI/SDK 2026.10.4 and consolidate pending dependency updates
 description: "Refresh the development PM CLI SDK and pm-ops toolchain to the current published versions, retain a fail-closed merge-driver prepare hook, and validate the release and real install paths."
 type: Chore
 status: in_progress
 priority: 1
 tags[4]: agent-readiness,release,sdk,toolchain
 created_at: "2026-09-26T21:50:50.783Z"
-updated_at: "2026-10-04T08:53:42.902Z"
+updated_at: "2026-10-04T12:20:51.577Z"
 author: codex
-acceptance_criteria: "package manifest and lockfile resolve PM CLI 2026.9.26 and pm-ops 2026.9.28; release gate, strict PM health, and isolated npm and Bun package smoke checks pass with measured coverage; PR links this item and exact-head checks and bot reviews are recorded separately; merge-driver launcher matches the published pm-ops template and the ancestor-install fix from pm-ops PR 124 is adopted through pm-ops 2026.9.28"
-actual_result: "npm ci and npm run release:check PASS: 526/526 tests, zero skipped, 100% measured lines/branches/functions across 12 sources, 158 documented declarations; audit:prod, pack:dry-run, changelog:check, verify:release-changelog-date and verify:release-publish-attestation green. Focused missing-package boundary fixture passes 1/1 and prepare-merge-driver launcher suite passes 7/7, including under a relative TMPDIR. The missing-package release-context fixture is now host-independent: the code under test accepts an inclusive packageSearchBoundary stop for the upward package.json search (non-ancestor boundary fails closed with RangeError), and the test owns a fixture whose boundary chain contains no package.json while a decoy package.json sits directly above the boundary; the same missing-package error is required on every host. package.json resolves @unbrained/pm-cli 2026.9.26 and pm-ops 2026.9.28; the merge-driver launcher remains the published pm-ops template byte for byte. Independent statements stay unmeasured in pmc-ilrh; canonical probe robustness stays in pm-ops#135. codex-sol's claim was released before pi-glm claimed the item; this pi-glm claim is released at the end of its verification pass, and the item remains in_progress and is not closed. Final-head CI and substantive review receipts are tracked separately on PR 215."
-comments[7]{created_at,author,text}:
+acceptance_criteria: Package manifest and lockfile resolve exact PM CLI/SDK 2026.10.4 and pm-ops 2026.10.4; consolidated pending dependency and action updates are present; full release gate and real npm/Bun packed tracker acceptance pass at unchanged measured coverage thresholds; strict PM health passes within the existing baseline; launcher matches the published pm-ops template; independent statement coverage remains separately tracked by pmc-ilrh; exact-head CI and substantive bot reviews are recorded separately for orchestrator merge approval
+actual_result: "PM CLI/SDK and pm-ops 2026.10.4 exact pins; Dependabot #214/#216/#217/#218 consolidated. Full locked npm run release:check PASS: 527/527 tests, zero skipped, 100% measured lines/branches/functions across 12 sources, 158 documented declarations; audit:prod, pack:dry-run, changelog:check, release-date and publish-attestation all green. npm audit and npm audit --omit=dev both zero vulnerabilities; alerts []. Packed real-tracker dogfood via npm npx and native Bun bunx generate/export PASS: 160 closed items, Markdown 12602 bytes and JSON byte-identical; scratch deleted. Managed pm-github 2026.10.4 dry-run preview: 0 synced/0 skipped/0 planned (zero-case, no provenance-linked items). npx pm health PASS with unchanged legacy role-domain warning count 32. Independent statements remain unmeasured in pmc-ilrh. Final-head CI and substantive reviews remain separate; orchestrator owns merging and closure. Review-corrected Node 22/npm 10 packed integration PASS 2/2; final full release gate repeats PASS 527/527 at unchanged 100% measured three-metric scope. Acceptance criteria corrected to current pins. Generated managed extension distributions remain clone-local/ignored; upstream apply limitations are tracked by pmc-xndl, not fixed or write-tested. Portable HOME command replaces a rejected absolute host path; final exact-head commit-history audit and CI are separate."
+comments[14]{created_at,author,text}:
   "2026-09-28T06:31:45.703Z",claude-hub,"2026-09-28: pinned pm-ops 2026.9.28 and re-copied its templates/prepare-merge-driver.ts in f3d0c55 (pm-ops#124: the omit-dev skip now checks every Node resolution path for an incomplete hoisted pm-ops). release:check and changelog:check pass on this branch. Acceptance criteria updated from pm-ops 2026.9.26 to 2026.9.28 after the claim takeover."
   "2026-10-02T22:09:23.594Z",codex-sol,"Restart by codex-sol: retained head 440b9e6 is pushed and clean. Existing bot replies and resolutions preserved. Revalidating release:check plus the exact CI legacy provenance baseline. Published pm-ops 2026.9.28 is already adopted; the stale PR description will be aligned with that state. Statement metric gap stays in pmc-ilrh; canonical probe robustness stays in pm-ops#135."
   "2026-10-02T22:14:49.209Z",codex-sol,"Restart full gate exposed one existing fixture failure (523/524): missing-package test assumed shared tmpdir ancestors contained no package.json, but host /tmp/package.json exists. Replaced the temporary-directory assumption with a real filesystem-root missing-file fixture and an explicit absence assertion; same missing-package exception is required. Scoped test passes. Initial launcher linked test failed before npm ci due missing dependencies, then passed 7/7 after install. Exact CI provenance baseline (32 events) passes unchanged. Re-running full release gate after the fixture correction."
@@ -18,24 +18,45 @@ comments[7]{created_at,author,text}:
   "2026-10-02T22:57:21.558Z",codex-sol,"npm ci and npm run release:check PASS: 524/524 tests, zero skipped, 100% measured lines/branches/functions across 12 sources, 158 documented declarations, audit/pack/changelog/date/attestation green. Exact unchanged CI health provenance baseline passes. Linked launcher tests pass 7/7 and focused missing-package test passes. Existing positive version test now verifies ancestor lookup; missing-package fixture explicitly checks filesystem-root absence. Independent statements remain unmeasured in open pmc-ilrh. History prefixes are preserved. Final-head CI and bot receipts remain separate; item stays in_progress and is released, never closed."
   "2026-10-04T08:44:41.353Z",pi-glm,"Greptile P1 + cubic P2 findings (PR 215 third-round, unresolved): the missing-package fixture still depended on host metadata — first on a clean shared tmpdir, then on the filesystem root, and a relative TMPDIR made parse(tmpdir()).root empty and could select the checkout's own package.json. Fixed test-first: resolveReleaseContext gains an optional packageSearchBoundary (inclusive stop for the upward package.json search; a non-ancestor boundary fails closed with RangeError instead of silently walking to /), and the missing-package test now builds a fixture it owns (resolved tmpdir, so a relative TMPDIR anchors correctly), plants a decoy package.json directly ABOVE the boundary, and requires the same missing-package error from a path inside the boundary with no package.json anywhere up to it — deterministic on every host, including one where /tmp/package.json or /package.json exists. The red test failed against e20220f (found the decoy, no throw) and passes after the fix. Boundary-inclusive and invalid-boundary regression tests added."
   "2026-10-04T08:44:48.697Z",pi-glm,"Restart validation (pi-glm): npm ci and npm run release:check PASS — 526/526 tests, zero skipped; 100% measured lines/branches/functions across all 12 sources; 158 documented declarations; audit:prod, pack, changelog:check, release-changelog-date and publish-attestation green. Scoped linked tests pass: focused missing-package fixture 1/1 and prepare-merge-driver launcher suite 7/7; both also pass with a relative TMPDIR (TMPDIR=reltmp). No production API changed: packageSearchBoundary is a new optional ReleaseContextOptions field with the historical default (filesystem root of the resolved cwd) byte-compatible for existing callers."
+  "2026-10-04T10:49:38.002Z",codex-sol,"Isolated worktree certification by codex-sol: consolidate Dependabot #214/#216/#217/#218, exact published dev pins, canonical launcher, full CI gate, packed real-tracker npm/Bun dogfood and read-only GitHub preview. No merge or publication; item remains open for orchestrator verification."
+  "2026-10-04T10:56:40.032Z",codex-sol,"Published pins: CLI/SDK and pm-ops 2026.10.4; @types/node 26.6.4; TypeScript 7.0.2; parser alias npm:typescript@5.9.3 retained on its required API major with exact pin. Security alert query returned []; npm audit and npm audit --omit=dev both found zero vulnerabilities. Installed managed pm-github 2026.10.4; github sync --repo unbraind/pm-changelog --dry-run reports no provenance-linked items and synced=0/skipped=0/planned=0 (zero-case preview). Independent statement metric remains tracked by pmc-ilrh."
+  "2026-10-04T10:59:13.574Z",codex-sol,"Linked launcher run through pm test --run --only-last --progress --pm-context schema --override-linked-pm-context passed 7/7 tests with zero skips. The initial inherited receipt was untrusted on this branch, so tests were acknowledged; an attempted none/source context was correctly refused, then schema/source executed successfully. Full release gate runs directly under flock and its observed result will be recorded explicitly."
+  "2026-10-04T11:06:14.106Z",codex-sol,"Initial full gate: 524/526 passed, zero skipped; two end-to-end fixtures failed because CLI 2026.10.4 correctly refuses incomplete local-source scans at 10000 entries. Updated those fixtures to install npm packed distributions while preserving activation/doctor/output assertions. Canonical pm-ops template also adds a filesystem-error refusal branch: adding a real NODE_PATH file/ENOTDIR fixture to cover it; no template edits or threshold changes. Real tracker dogfood passed npm and native Bun: 160 closed items; Markdown 12602 bytes and JSON byte-identical; scratch removed."
+  "2026-10-04T11:16:28.952Z",codex-sol,"Focused real acceptance passed 3/3 with zero skips: both packed installation/CLI activation fixtures plus real malformed global lookup path. Rerunning full release gate without changing thresholds."
+  "2026-10-04T11:23:06.049Z",codex-sol,"Full gate green: 527/527, zero skips, 100% measured lines/branches/functions, 12 sources; linked final launcher suite passed 8/8. Evidence in docs/certification-2026.10.4.md. Releasing claim for orchestrator while leaving item in_progress and open; CI/reviews are evaluated separately at the pushed PR head."
+  "2026-10-04T12:20:47.598Z",codex-sol,"Review round 1: corrected stale acceptance criteria to 2026.10.4. npm 10 still runs prepare during pack --ignore-scripts; packaging now removes fixture PM_PATH/PM_GLOBAL_PATH from its separate environment and discovers the actual single tarball instead of parsing lifecycle stdout. Node 22.23.1/npm 10.9.8 packed integration PASS 2/2 zero skips; final locked full gate PASS 527/527 with unchanged 100% measured lines/branches/functions across 12 sources, 158 declarations and all release checks green. Generated pm-github distribution is clone-local/ignored; exact install and zero-case preview receipts remain documented. Valid upstream apply limitations remain open in pmc-xndl and are not fixed or write-tested. CodeQL advanced to exact v4.38.2. Initial pushed review commit failed identity audit because a linked command used a literal host home path; rebuilding only this unmerged review commit with a portable HOME command and its valid PM history, then re-auditing exact head."
 notes[5]{created_at,author,text}:
   "2026-09-26T21:52:49.477Z",codex,Full release gate failed on template byte-identity after copying the unmerged pm-ops PR 124 launcher. Switched to published pm-ops 2026.9.26 template; ancestor-install fix remains upstream.
   "2026-09-26T21:56:33.395Z",codex,"Local npm run release:check passed: 523/523 tests, 0 skips, 100% lines/branches/functions over 12 reported sources, 158/158 documented declarations, and 0 production audit vulnerabilities. Statement coverage is not independently measured; see open pmc-ilrh."
   "2026-09-26T21:56:33.395Z",codex,"Packed candidate installed in isolated npm and Bun 1.3.5 workspaces with PM CLI 2026.9.26. Each initialized a tracker, created and closed a real task, generated CHANGELOG.md containing that task, and Bun also executed the package CLI directly. Temporary workspaces removed."
   "2026-09-26T21:56:33.395Z",codex,Strict PM health ok with pre-existing provenance_value_domain_invalid advisory. Published pm-ops 2026.9.26 template matches byte-for-byte; ancestor lookup fix is pending unmerged pm-ops PR 124.
   "2026-09-26T22:08:45.161Z",codex,"Greptile PR 215 discussion_r4112946837 identified missing coverage for the published launcher broken-install branch. Added real child-checkout fixtures for both an incomplete local pm-ops directory and a dangling link; each fails closed with MODULE_NOT_FOUND and registers no Git driver. Targeted test passed 7/7. Full release gate rerun passed 524/524 tests, 0 skips, 100% reported lines branches functions, 158 documented declarations, and 0 production audit vulnerabilities. Statement coverage remains independently unmeasured."
-files[4]:
+files[9]:
+  - path: .github/workflows/codeql.yml
+    scope: project
+    note: Dependabot exact SHA
+  - path: .gitignore
+    scope: project
+  - path: docs/certification-2026.10.4.md
+    scope: project
+  - path: package-lock.json
+    scope: project
+    note: Updated dependency graph
   - path: package.json
     scope: project
-    note: Package toolchain pin
+    note: Exact certification pins
   - path: scripts/prepare-merge-driver.ts
     scope: project
-    note: Merge driver prepare launcher
+    note: Canonical published pm-ops template
+  - path: test/generator.test.ts
+    scope: project
+    note: Packed installation compatibility
   - path: test/prepare-merge-driver.test.ts
     scope: project
+    note: Real invalid global lookup fixture for canonical refusal
   - path: test/release-context.test.ts
     scope: project
-tests[4]:
+tests[8]:
   - command: "npm run release:check"
     scope: project
     timeout_seconds: 900
@@ -65,7 +86,53 @@ tests[4]:
       created_at: "2026-10-04T08:44:52.732Z"
       source_kind: local_mutation
       source_ref: land-215
-docs[2]:
+  - command: node --test --test-concurrency=1 test/prepare-merge-driver.test.ts
+    scope: project
+    timeout_seconds: 120
+    pm_context_mode: schema
+    workspace_context_mode: source
+    provenance:
+      author: codex-sol
+      created_at: "2026-10-04T10:59:11.282Z"
+      source_kind: local_mutation
+      source_ref: chore/pm-changelog-pm-cli-2026-10-4
+    note: Canonical published launcher acceptance; passed 7/7 zero skips
+  - command: "flock /tmp/claude-1000/heavy-gate.lock npm run release:check"
+    scope: project
+    timeout_seconds: 2400
+    pm_context_mode: schema
+    workspace_context_mode: source
+    provenance:
+      author: codex-sol
+      created_at: "2026-10-04T10:59:12.839Z"
+      source_kind: local_mutation
+      source_ref: chore/pm-changelog-pm-cli-2026-10-4
+    note: Full CI release gate; direct run evidence recorded in actual_result because tracker-isolating runner changes runtime context
+  - command: "flock /tmp/claude-1000/heavy-gate.lock node --test --test-name-pattern=\"pm package install activates|only node cli|invalid global lookup\" test/generator.test.ts test/prepare-merge-driver.test.ts"
+    scope: project
+    timeout_seconds: 2400
+    pm_context_mode: schema
+    workspace_context_mode: source
+    provenance:
+      author: codex-sol
+      created_at: "2026-10-04T11:08:41.113Z"
+      source_kind: local_mutation
+      source_ref: chore/pm-changelog-pm-cli-2026-10-4
+    note: Focused compatibility acceptance using actual packed artifacts and filesystem refusal
+  - command: "PATH=\"$HOME/.nvm/versions/node/v22.23.1/bin:$PATH\" flock /tmp/claude-1000/heavy-gate.lock node --test --test-name-pattern=\"pm package install activates|only node cli\" test/generator.test.ts"
+    scope: project
+    timeout_seconds: 2400
+    pm_context_mode: schema
+    workspace_context_mode: source
+    provenance:
+      author: codex-sol
+      created_at: "2026-10-04T12:20:49.428Z"
+      source_kind: local_mutation
+      source_ref: chore/pm-changelog-pm-cli-2026-10-4
+docs[3]:
+  - path: docs/certification-2026.10.4.md
+    scope: project
+    note: Exact commands and observed certification evidence
   - path: docs/development.md
     scope: project
     note: Package release workflow
