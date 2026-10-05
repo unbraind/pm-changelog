@@ -82,7 +82,7 @@ function renderCommandResult(context: { result?: unknown } | undefined): string 
 
 export default defineExtension({
   name: "pm-changelog",
-  version: "2026.10.4",
+  version: "2026.10.5",
 
   activate(api) {
     api.registerCommand({
