@@ -5,7 +5,7 @@ import { stdin } from "node:process";
 import { fileURLToPath } from "node:url";
 import { resolvePmRoot } from "@unbrained/pm-cli/sdk";
 import { createUnifiedDiff, DEFAULT_MAX_DIFF_LINES } from "./diff.js";
-import { buildChangelogDocument, createChangelog, createChangelogSummary, explainChangelogSelection, formatInferredSources, formatSummaryLine, mergeChangelog, parsePmItemsJson, readPmItems, suggestSemver, writeChangelog, } from "./generator.js";
+import { buildChangelogDocument, createChangelog, createChangelogSummary, explainChangelogSelection, formatInferredSources, formatSummaryLine, lintChangelogEntries, parseChangelogEntryFrom, mergeChangelog, parsePmItemsJson, readPmItems, suggestSemver, writeChangelog, } from "./generator.js";
 import { resolveGenerationReleaseWindows, resolveReleaseContext, resolveReleaseTagWindowResolution, } from "./release-context.js";
 import { resolveGitReleaseMembership } from "./release-membership.js";
 // Compatibility aliases for value-taking options. Kept intentionally small and
@@ -35,6 +35,7 @@ const VALUE_OPTIONS = new Set([
     "--pm-root",
     "--release-tag-pattern",
     "--release-version",
+    "--entry-from",
     "--section-by",
     "--since",
     "--since-version",
@@ -89,6 +90,7 @@ const KNOWN_OPTIONS = [
     "--release-version",
     "--release-version-from-package",
     "--respect-item-release",
+    "--entry-from",
     "--section-by",
     "--set-output",
     "--since",
@@ -115,6 +117,10 @@ async function main(args = process.argv.slice(2)) {
     const generationOptions = buildGenerationOptions(options, items);
     if (options.allReleaseTags && !options.input && !options.stdin) {
         generationOptions.releaseMembership = await resolveGitReleaseMembership(generationOptions, resolvePmRoot(options.pmCwd ? resolve(options.pmCwd) : process.cwd(), options.pmRoot));
+    }
+    if (options.check) {
+        for (const warning of lintChangelogEntries(generationOptions))
+            console.error(`Warning: ${warning}`);
     }
     const selectionReport = options.explain ? explainChangelogSelection(generationOptions) : undefined;
     // OPT-IN (`--format json` without `--summary`): alias for the structured
@@ -382,6 +388,9 @@ function parseArgs(args) {
                 break;
             case "--group-by":
                 options.groupBy = parseGroupBy(requireValue(normalizedArgs, ++i, rawArg));
+                break;
+            case "--entry-from":
+                options.entryFrom = parseChangelogEntryFrom(requireValue(normalizedArgs, ++i, rawArg));
                 break;
             case "--section-by":
                 options.sectionBy = parseSectionBy(requireValue(normalizedArgs, ++i, rawArg));
@@ -709,6 +718,7 @@ function buildGenerationOptions(options, items) {
         includeStatuses: options.statuses,
         groupBy: options.groupBy,
         sectionBy: options.sectionBy,
+        entryFrom: options.entryFrom,
         conventional: options.conventional,
         contributors: options.contributors,
         limit: options.limit,
@@ -745,6 +755,7 @@ function buildSummary(options, result, output = result.output, selectionReport) 
         itemCount: result.itemCount,
         bytes: result.bytes,
         check: options.check,
+        ...(options.entryFrom ? { entry_from: options.entryFrom } : {}),
         markdown: options.stdout ? result.markdown : undefined,
     };
     if (selectionReport)
@@ -911,6 +922,7 @@ Options:
                             with --group-by release or milestone. Without this flag, output
                             is byte-identical.
       --group-by <mode>     version, release, or milestone (default: version)
+      --entry-from <field>  Prefer title (default) or close_reason; blank resolution falls back to title
       --section-by <mode>   Within-release grouping: category, type, status, or label (default: category)
       --conventional        Use Conventional-Commits headings (Features/Bug Fixes/...) for category grouping
       --contributors        Append a Contributors list per release from item assignee/author

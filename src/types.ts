@@ -18,6 +18,8 @@ export interface PmItem {
   id?: string;
   title: string;
   body?: string;
+  /** Resolution prose recorded by pm close or pm update --close-reason. */
+  close_reason?: string;
   /** Long-form prose. In pm workspaces the item body is stored in
    * `description`; `body` is frequently empty. The opt-in `--body-preview`
    * feature falls back to this when `body` is empty. Never affects default
@@ -68,6 +70,9 @@ export interface ChangelogSummaryEntry {
 /** Which item field separates one top-level changelog section from the next. */
 export type ChangelogGroupBy = "version" | "release" | "milestone";
 
+/** Item field preferred for entry prose, with title as the fallback. */
+export type ChangelogEntryFrom = "title" | "close_reason";
+
 /** Within-release grouping selector for the opt-in `--section-by` flag.
  * `"category"` is the default and reproduces the historical
  * keep-a-changelog grouping (Added/Changed/Fixed/...) byte-for-byte. */
@@ -108,6 +113,8 @@ export interface ChangelogReleaseWindow {
  * a feature here can never change an existing repo's changelog by itself. */
 export interface GenerateChangelogOptions {
   items: PmItem[];
+  /** OPT-IN: prefer close_reason for entry prose; blank/absent values use title. */
+  entryFrom?: ChangelogEntryFrom;
   title?: string;
   version?: string;
   date?: string;
@@ -392,6 +399,8 @@ export interface ChangelogDocumentDependency {
 export interface ChangelogDocument {
   title: string;
   group_by: ChangelogGroupBy;
+  /** Present when an explicit entry source was requested. */
+  entry_from?: ChangelogEntryFrom;
   section_by: ChangelogSectionBy;
   item_count: number;
   releases: ChangelogDocumentRelease[];

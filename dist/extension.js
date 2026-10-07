@@ -1,7 +1,7 @@
 import { writeFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { defineExtension, getActiveExtensionRegistrations, listAllItemMetadata, locateItem, readLocatedItem, readSettings, resolveItemTypeRegistry, EXIT_CODE, PmCliError, } from "@unbrained/pm-cli/sdk";
-import { buildChangelogDocument, createChangelog, createChangelogSummary, explainChangelogSelection, formatSummaryLine, mergeChangelog, suggestSemver, writeChangelog } from "./generator.js";
+import { buildChangelogDocument, createChangelog, createChangelogSummary, explainChangelogSelection, formatSummaryLine, lintChangelogEntries, parseChangelogEntryFrom, mergeChangelog, suggestSemver, writeChangelog } from "./generator.js";
 import { MissingTagHistoryError, resolveGenerationReleaseWindows, resolveReleaseContext, resolveReleaseTagWindowResolution, } from "./release-context.js";
 import { resolveGitReleaseMembership } from "./release-membership.js";
 const BODY_ENRICHMENT_DEPENDENCIES = {
@@ -70,6 +70,7 @@ export default defineExtension({
                 { long: "--all-release-tags", description: "Rebuild full history from git release tag windows" },
                 { long: "--release-tag-pattern", value_name: "glob", description: "Git tag glob for --all-release-tags (default: v*)" },
                 { long: "--status", value_name: "list", description: "Comma-separated statuses (default: closed)" },
+                { long: "--entry-from", value_name: "field", description: "Prefer title (default) or close_reason; blank resolution falls back to title" },
                 { long: "--group-by", value_name: "mode", description: "version, release, or milestone (default: version)" },
                 { long: "--section-by", value_name: "mode", description: "Within-release grouping: category, type, status, or label (default: category)" },
                 { long: "--conventional", description: "Use Conventional-Commits headings (Features/Bug Fixes/...) for category grouping" },
@@ -188,6 +189,7 @@ export default defineExtension({
                     includeStatuses: statuses,
                     groupBy,
                     sectionBy,
+                    entryFrom: entryFromOption(ctx.options),
                     conventional: booleanOption(ctx.options, "conventional", "conventional"),
                     contributors: booleanOption(ctx.options, "contributors", "contributors"),
                     limit: limitValue,
@@ -216,6 +218,10 @@ export default defineExtension({
                     catch (error) {
                         throw new PmCliError(`Cannot verify release membership: ${String(error)}`, EXIT_CODE.GENERIC_FAILURE);
                     }
+                }
+                if (Boolean(ctx.options["check"])) {
+                    for (const warning of lintChangelogEntries(generationOptions))
+                        console.error(`Warning: ${warning}`);
                 }
                 // pm-cli 2026.9.5 owns `--explain` as root-help expansion, so the
                 // extension cannot declare that spelling. Selection diagnostics stay
@@ -334,6 +340,7 @@ export default defineExtension({
                 { long: "--until", value_name: "date", description: "Include items changed on or before this date" },
                 { long: "--until-release-tag", description: "Derive --until from the current release tag when it exists" },
                 { long: "--status", value_name: "list", description: "Comma-separated statuses (default: closed)" },
+                { long: "--entry-from", value_name: "field", description: "Prefer title (default) or close_reason; blank resolution falls back to title" },
                 { long: "--group-by", value_name: "mode", description: "version, release, or milestone (default: version)" },
                 { long: "--include-empty", description: "Emit an empty release section when no items match" },
                 { long: "--include-links", description: "Include item URLs in generated entries (default: false)" },
@@ -382,6 +389,7 @@ export default defineExtension({
                 until: releaseContext.until,
                 includeStatuses: statuses,
                 groupBy: groupByOption,
+                entryFrom: entryFromOption(ctx.options),
                 includeEmpty: booleanOption(ctx.options, "include-empty", "includeEmpty"),
                 includeLinks: booleanOption(ctx.options, "include-links", "includeLinks"),
                 includeMetadata: booleanOption(ctx.options, "include-metadata", "includeMetadata"),
@@ -537,6 +545,19 @@ function stringOption(options, kebabKey, camelKey) {
 }
 function booleanOption(options, kebabKey, camelKey) {
     return Boolean(options[kebabKey] ?? options[camelKey]);
+}
+/** Read and validate the optional entry source on generate and export, preserving
+ * the absent option and reporting invalid values as host usage failures. */
+function entryFromOption(options) {
+    const value = stringOption(options, "entry-from", "entryFrom");
+    if (value === undefined)
+        return undefined;
+    try {
+        return parseChangelogEntryFrom(value);
+    }
+    catch (error) {
+        throw new PmCliError(String(error), EXIT_CODE.USAGE);
+    }
 }
 /** OPT-IN (`--item-ref-style`): how each entry cites its pm item. Rejects any
  * spelling outside the four supported styles rather than silently falling back,
