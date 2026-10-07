@@ -1,5 +1,11 @@
 # Changelog
 
+## Unreleased
+
+### Fixed
+
+- Make node-entrypoint fixture teardown reliable ([pmc-node-teardown-226](https://github.com/unbraind/pm-changelog/blob/main/.agents/pm/tasks/pmc-node-teardown-226.toon))
+
 ## 2026.10.5 - 2026-10-05
 
 ### Fixed

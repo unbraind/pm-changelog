@@ -2,11 +2,13 @@ id: pmc-node-teardown-226
 title: Make node-entrypoint fixture teardown reliable
 description: "Own https://github.com/unbraind/pm-changelog/issues/226: identify late fixture writers, isolate their lifecycle, prove regression failure without the fix, and pass Node and Bun release gates plus repeated acceptance."
 type: Task
-status: in_progress
+status: closed
 priority: 1
 tags[2]: regression,testing
 created_at: "2026-10-07T11:04:45.301Z"
-updated_at: "2026-10-07T11:33:46.984Z"
+updated_at: "2026-10-07T12:19:24.177Z"
+closed_at: "2026-10-07T12:19:23.699Z"
+completed_at: "2026-10-07T12:19:23.699Z"
 author: codex-sol
 comments[7]{created_at,author,text}:
   "2026-10-07T11:04:57.059Z",codex-sol,"Read issue 226 and related closed items; no active duplicate owns this recurrence. Investigating detached PM telemetry/search workers and inherited environment before changing the fixture. Plan: observe late writes locally, add deterministic regression and isolation fix, prove regression fails without fix, then 50-run stress and both exact-threshold release gates."
@@ -31,4 +33,5 @@ docs[3]:
   - path: "https://github.com/unbraind/pm-cli/issues/1423"
     scope: project
     note: upstream detached flush worker lifecycle
+close_reason: "Merged in #227 (1d4f493). Root cause: the detached pm telemetry-flush worker outlived execFileSync and recreated the fixture global root; the fixture now opts out of telemetry. Orchestrator verified 2/2 focused tests, a fail-on-revert run of the detached-worker test, and npm+Bun release:check (533 tests, 100% coverage). CodeRabbit's single finding was withdrawn after reply. Upstream lifecycle issue: unbraind/pm-cli#1423."
 body: ""
