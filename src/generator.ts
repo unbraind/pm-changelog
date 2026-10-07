@@ -2,8 +2,10 @@ import { spawnSync } from "node:child_process";
 import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import { createRequire } from "node:module";
 import { dirname, resolve } from "node:path";
+import { isDeepStrictEqual } from "node:util";
 
-import { resolveCompletionTimestamp } from "@unbrained/pm-cli/sdk";
+import { inspectCompleteListResult, resolveCompletionTimestamp } from "@unbrained/pm-cli/sdk";
+import { certifyCompleteListResult } from "@unbrained/pm-cli/sdk/runtime";
 import type { CompletionTimestampSource } from "@unbrained/pm-cli/sdk";
 
 import type {
@@ -793,14 +795,66 @@ export function writeChangelog(options: WriteChangelogOptions): WriteChangelogRe
   };
 }
 
-/** Parse pm JSON, accepting either a bare array or the `{ items: [...] }`
- * envelope, since which one pm emits depends on the command and version.
- * Permissive on purpose: this is the shape parser for caller-supplied pm
- * documents (`--input`, `--stdin`), not the gate for live CLI reads. */
+/** Parse caller-supplied pm JSON, preserving receipt-free intentional subsets.
+ * Envelopes with explicit read metadata are inspected by the public SDK before
+ * their items can reach generation. Defaults adapt missing legacy proof fields
+ * solely for this explicit-signal inspection; they do not certify the document
+ * as the whole workspace. Caller status/date selection is outside this policy.
+ * Bare arrays and receipt-free `{ items }` documents remain caller-owned subsets.
+ * @throws {IncompleteListAllError} when supplied receipts cannot prove intact delivery. */
 export function parsePmItemsJson(raw: string): PmItem[] {
   const parsed = JSON.parse(raw) as unknown;
   if (Array.isArray(parsed)) return parsed as PmItem[];
-  if (isRecord(parsed) && Array.isArray(parsed.items)) return parsed.items as PmItem[];
+  if (isRecord(parsed) && Array.isArray(parsed.items)) {
+    const receiptKeys = [
+      "count", "total", "has_more", "next_cursor", "truncated", "applied_limit",
+      "completeness", "projection", "omission_receipt", "read_output",
+      "output_budget_truncation", "output_budget_exceeded", "read_session", "complete_list",
+    ];
+    if (receiptKeys.some((key) => key in parsed)) {
+      const callerScope = { status: "all", exclude_terminal: false, strict_read: true, no_truncate: true };
+      const inspection = inspectCompleteListResult({
+        count: parsed.items.length,
+        total: parsed.items.length,
+        has_more: false,
+        next_cursor: null,
+        truncated: false,
+        completeness: { status: "complete", unreadable_item_count: 0, unreadable_directory_count: 0 },
+        projection: { mode: "full", fields: null },
+        omission_receipt: { has_omissions: false, omitted_field_group_count: 0, omitted_field_groups: [] },
+        read_output: {
+          contract_version: 1, command: "list", requested_dimensions: ["include", "amount", "cost"],
+          within_budget: true, strings_compacted: false, rows_compacted: false, result_omitted: false,
+        },
+        ...parsed,
+        // The SDK inspects unfiltered whole workspaces; this parser inspects
+        // delivery of the caller's chosen scope, without issuing a certificate.
+        filters: callerScope,
+      });
+      if (!inspection.ok) {
+        throw new IncompleteListAllError(
+          inspection.findings.map((finding) => `${finding.code}: ${finding.message}`), parsed,
+        );
+      }
+      if ("complete_list" in parsed) {
+        // The SDK re-issues certificates instead of reading a supplied one, so a
+        // claimed certificate must equal the one issued for these exact rows
+        // and receipts; `complete_list: false` or a contradicted claim refuses.
+        let issued: unknown;
+        try {
+          issued = certifyCompleteListResult({ ...parsed, filters: callerScope }).complete_list;
+        } catch {
+          issued = undefined; // receipts that cannot be certified cannot back a claim
+        }
+        if (!isDeepStrictEqual(parsed.complete_list, issued)) {
+          throw new IncompleteListAllError(
+            ["complete_list_invalid: the supplied complete_list certificate is not the one the SDK issues for the delivered rows and receipts"], parsed,
+          );
+        }
+      }
+    }
+    return parsed.items as PmItem[];
+  }
   throw new Error("Expected pm JSON to be an array or an object with an items array");
 }
 
@@ -906,7 +960,7 @@ function incompleteListAllSignals(record: Record<string, unknown>): string[] {
  * Unlike {@link parsePmItemsJson} this rejects the legacy bare-array answer:
  * an array carries no receipt, so it cannot prove completeness, and consuming
  * it silently is exactly the 2026.8.14 failure mode. This is the parser for
- * live CLI reads; caller-supplied documents keep the permissive one. The
+ * live CLI reads; caller-supplied documents use explicit-receipt inspection. The
  * optional `read_output` compaction receipt (omitted by pm >=2026.9.18 on an
  * uncompacted read, always present on pm <=2026.9.17) is not consulted:
  * completeness is proven by the envelope signals alone, so both envelope
