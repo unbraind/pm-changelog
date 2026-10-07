@@ -99,6 +99,28 @@ Close items before final changelog generation so `CHANGELOG.md` includes the com
 
 ## Temporary Install Test
 
+The node-entrypoint acceptance fixture owns separate project and global PM roots
+and explicitly sets `PM_TELEMETRY_DISABLED=1` for its child commands. PM CLI
+telemetry flushes run in detached processes, so `execFileSync` completion does
+not mean those writers have finished. A syscall trace for issue #226 showed a
+flush worker recreating the deleted fixture root and writing telemetry state
+after teardown. Cleanup retries alone cannot prevent that recreation.
+
+The regression enables telemetry in fixture settings and opts into test events,
+then verifies the CLI launches no detached telemetry worker and creates neither
+telemetry runtime artifacts nor an installation identity. A Node preload probe
+records actual worker launches and delays their startup. Removing the opt-out
+therefore exposes a worker that outlives the foreground command; the regression
+cleanup terminates and waits for every observed worker before removing its
+roots. Its negative control uses a loopback endpoint. Persistent process or
+directory cleanup errors still fail the test.
+
+Run these checks directly after building:
+
+```bash
+node --test --test-name-pattern='node-entrypoint fixture suppresses delayed telemetry|^pm extension command works when only node cli entrypoint is available$' test/generator.test.ts
+```
+
 Use a clean folder to prove pm package installation:
 
 ```bash
