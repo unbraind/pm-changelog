@@ -70,7 +70,16 @@ test("caller input completeness: real receipts protect full history on stdin and
     ["cursor alone", { next_cursor: "next" }, "page_incomplete"],
     ["truncation alone", { truncated: true }, "page_incomplete"],
     ["malformed receipt", { read_output: null }, "read_output_missing"],
+    ["negative certificate", { complete_list: false }, "complete_list_invalid"],
+    ["certificate denying source completeness", { complete_list: { ...complete.complete_list, source_complete: false } }, "complete_list_invalid"],
+    ["certificate contradicting delivered rows", { complete_list: { ...complete.complete_list, item_count: 99 } }, "complete_list_invalid"],
   ];
+  // A genuine certificate copied onto rows whose receipts were stripped proves nothing.
+  await t.test("a certificate without certifiable receipts refuses before generation", () => {
+    const forged = JSON.stringify({ items: complete.items, complete_list: complete.complete_list });
+    assert.throws(() => parsePmItemsJson(forged),
+      (error: unknown) => error instanceof IncompleteListAllError && error.message.includes("complete_list_invalid"));
+  });
   for (const [name, override, signal] of cases) {
     const raw = JSON.stringify({ ...complete, ...override });
     await t.test(`${name}: SDK inspection refuses before generation`, () => {

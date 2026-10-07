@@ -2,8 +2,10 @@ import { spawnSync } from "node:child_process";
 import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import { createRequire } from "node:module";
 import { dirname, resolve } from "node:path";
+import { isDeepStrictEqual } from "node:util";
 
 import { inspectCompleteListResult, resolveCompletionTimestamp } from "@unbrained/pm-cli/sdk";
+import { certifyCompleteListResult } from "@unbrained/pm-cli/sdk/runtime";
 import type { CompletionTimestampSource } from "@unbrained/pm-cli/sdk";
 
 import type {
@@ -810,6 +812,7 @@ export function parsePmItemsJson(raw: string): PmItem[] {
       "output_budget_truncation", "output_budget_exceeded", "read_session", "complete_list",
     ];
     if (receiptKeys.some((key) => key in parsed)) {
+      const callerScope = { status: "all", exclude_terminal: false, strict_read: true, no_truncate: true };
       const inspection = inspectCompleteListResult({
         count: parsed.items.length,
         total: parsed.items.length,
@@ -826,12 +829,28 @@ export function parsePmItemsJson(raw: string): PmItem[] {
         ...parsed,
         // The SDK inspects unfiltered whole workspaces; this parser inspects
         // delivery of the caller's chosen scope, without issuing a certificate.
-        filters: { status: "all", exclude_terminal: false, strict_read: true, no_truncate: true },
+        filters: callerScope,
       });
       if (!inspection.ok) {
         throw new IncompleteListAllError(
           inspection.findings.map((finding) => `${finding.code}: ${finding.message}`), parsed,
         );
+      }
+      if ("complete_list" in parsed) {
+        // The SDK re-issues certificates instead of reading a supplied one, so a
+        // claimed certificate must equal the one issued for these exact rows
+        // and receipts; `complete_list: false` or a contradicted claim refuses.
+        let issued: unknown;
+        try {
+          issued = certifyCompleteListResult({ ...parsed, filters: callerScope }).complete_list;
+        } catch {
+          issued = undefined; // receipts that cannot be certified cannot back a claim
+        }
+        if (!isDeepStrictEqual(parsed.complete_list, issued)) {
+          throw new IncompleteListAllError(
+            ["complete_list_invalid: the supplied complete_list certificate is not the one the SDK issues for the delivered rows and receipts"], parsed,
+          );
+        }
       }
     }
     return parsed.items as PmItem[];
