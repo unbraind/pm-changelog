@@ -1,9 +1,10 @@
 import assert from "node:assert/strict";
 import { execFileSync, spawnSync } from "node:child_process";
-import { chmodSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSync } from "node:fs";
+import { chmodSync, existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import test from "node:test";
+import { setTimeout as delay } from "node:timers/promises";
 import { pathToFileURL } from "node:url";
 
 import {
@@ -2870,16 +2871,115 @@ test("pm package install activates changelog command", (t) => {
   );
 });
 
+/** Keep fixture telemetry from spawning writers that outlive synchronous CLI calls. */
+function nodeEntrypointEnvironment(dir: string, inherited: NodeJS.ProcessEnv): NodeJS.ProcessEnv {
+  return {
+    ...inherited,
+    PM_GLOBAL_PATH: join(dir, "global-pm"),
+    PM_PATH: join(dir, ".agents", "pm"),
+    // PM's telemetry flush uses a detached, unreferenced child. execFileSync
+    // waits only for the foreground CLI, so even a successful rmSync can be
+    // followed by that worker recreating the fixture's global PM root.
+    PM_TELEMETRY_DISABLED: "1",
+  };
+}
+
+test("node-entrypoint fixture suppresses delayed telemetry workers even with test-event opt-in", (t) => {
+  const dir = mkdtempSync(join(tmpdir(), "pm-changelog-node-telemetry-"));
+  const workerLog = join(dir, "telemetry-workers.jsonl");
+  // Observe actual CLI spawns through Node's public module API. Hold any flush
+  // worker at startup so a reverted fix deterministically leaves a live writer
+  // after execFileSync returns, without sending telemetry to a remote service.
+  const probe = join(dir, "telemetry-worker-probe.cjs");
+  writeFileSync(probe, `
+const fs = require("node:fs");
+const cp = require("node:child_process");
+const spawn = cp.spawn;
+cp.spawn = function(command, args, options) {
+  const child = spawn.call(this, command, args, options);
+  if (options?.detached && args?.some(arg => /[\\\\/]telemetry-flush\\.js$/.test(arg))) {
+    fs.appendFileSync(process.env.PM_CHANGELOG_WORKER_LOG, JSON.stringify(child.pid) + "\\n");
+  }
+  return child;
+};
+require("node:module").syncBuiltinESMExports();
+if (process.env.PM_TELEMETRY_FLUSH_CHILD === "1") {
+  Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, 2000);
+}
+`);
+  t.after(async () => {
+    // The negative control must reap its observed workers before removing the
+    // fixture. Do not kill unobserved processes or hide persistent failures.
+    const pids: number[] = existsSync(workerLog)
+      ? readFileSync(workerLog, "utf-8").trim().split("\n").map(line => JSON.parse(line))
+      : [];
+    for (const pid of pids) {
+      try { process.kill(pid, "SIGTERM"); }
+      catch (error) { if ((error as NodeJS.ErrnoException).code !== "ESRCH") throw error; }
+      const deadline = Date.now() + 5000;
+      for (;;) {
+        try { process.kill(pid, 0); }
+        catch (error) {
+          if ((error as NodeJS.ErrnoException).code === "ESRCH") break;
+          throw error;
+        }
+        assert.ok(Date.now() < deadline, "observed telemetry worker must exit before cleanup");
+        await delay(20);
+      }
+    }
+    rmSync(dir, { recursive: true, force: true, maxRetries: 20, retryDelay: 100 });
+  });
+  const pmEnv = nodeEntrypointEnvironment(dir, {
+    ...process.env,
+    DO_NOT_TRACK: "0",
+    PM_NO_TELEMETRY: "0",
+    PM_TELEMETRY_DISABLED: "0",
+    PM_TELEMETRY_SOURCE_CONTEXT: "test",
+    PM_TELEMETRY_SEND_TEST_EVENTS: "1",
+    // Exercise the detached path even when the surrounding test runner opts
+    // into inline flushing. The worker probe keeps the negative control local.
+    NODE_ENV: "production",
+    VITEST: undefined,
+    VITEST_WORKER_ID: undefined,
+    PM_TELEMETRY_INLINE_FLUSH: "0",
+    PM_TELEMETRY_FLUSH_CHILD: "0",
+    PM_TELEMETRY_OTEL_DISABLED: "1",
+    NODE_OPTIONS: `--require=${JSON.stringify(probe)}`,
+    PM_CHANGELOG_WORKER_LOG: workerLog,
+  });
+  mkdirSync(pmEnv.PM_GLOBAL_PATH!, { recursive: true });
+  const settingsPath = join(pmEnv.PM_GLOBAL_PATH!, "settings.json");
+  writeFileSync(settingsPath, JSON.stringify({
+    telemetry: {
+      enabled: true,
+      first_run_prompt_completed: true,
+      installation_id: "",
+      endpoint: "http://127.0.0.1:1/telemetry",
+    },
+  }));
+  const pmCli = join(process.cwd(), "node_modules", "@unbrained", "pm-cli", "dist", "cli.js");
+  const initialized = JSON.parse(execFileSync(process.execPath, [pmCli, "init", "fixture", "--json"], {
+    cwd: dir,
+    env: pmEnv,
+    encoding: "utf-8",
+  }));
+  assert.equal(initialized.ok, true);
+  assert.equal(existsSync(workerLog), false,
+    "the fixture must not launch detached telemetry workers that can write after teardown");
+  assert.equal(existsSync(join(pmEnv.PM_GLOBAL_PATH!, "runtime", "telemetry")), false,
+    "no telemetry queue or flush artifacts may be created in the removable fixture");
+  assert.equal(JSON.parse(readFileSync(settingsPath, "utf-8")).telemetry.installation_id, "");
+  assert.equal(existsSync(join(pmEnv.PM_PATH!, "settings.json")), true);
+  rmSync(dir, { recursive: true, force: true, maxRetries: 20, retryDelay: 100 });
+  assert.equal(existsSync(dir), false);
+});
+
 test("pm extension command works when only node cli entrypoint is available", (t) => {
   const dir = mkdtempSync(join(tmpdir(), "pm-changelog-node-cli-"));
   t.after(() => rmSync(dir, { recursive: true, force: true, maxRetries: 20, retryDelay: 100 }));
   const pmCli = join(process.cwd(), "node_modules", "@unbrained", "pm-cli", "dist", "cli.js");
   const pmBin = join(process.cwd(), "node_modules", ".bin", "pm");
-  const pmEnv: NodeJS.ProcessEnv = {
-    ...process.env,
-    PM_GLOBAL_PATH: join(dir, "global-pm"),
-    PM_PATH: join(dir, ".agents", "pm"),
-  };
+  const pmEnv = nodeEntrypointEnvironment(dir, process.env);
 
   execFileSync(pmBin, ["init", "pm-cli-website", "--json"], {
     cwd: dir,

@@ -1,0 +1,34 @@
+id: pmc-node-teardown-226
+title: Make node-entrypoint fixture teardown reliable
+description: "Own https://github.com/unbraind/pm-changelog/issues/226: identify late fixture writers, isolate their lifecycle, prove regression failure without the fix, and pass Node and Bun release gates plus repeated acceptance."
+type: Task
+status: in_progress
+priority: 1
+tags[2]: regression,testing
+created_at: "2026-10-07T11:04:45.301Z"
+updated_at: "2026-10-07T11:33:46.984Z"
+author: codex-sol
+comments[7]{created_at,author,text}:
+  "2026-10-07T11:04:57.059Z",codex-sol,"Read issue 226 and related closed items; no active duplicate owns this recurrence. Investigating detached PM telemetry/search workers and inherited environment before changing the fixture. Plan: observe late writes locally, add deterministic regression and isolation fix, prove regression fails without fix, then 50-run stress and both exact-threshold release gates."
+  "2026-10-07T11:06:50.784Z",codex-sol,"Local strace of the unchanged focused test proved a late writer even though the test passed: the test process removed the fixture root successfully at 13:05:33.866476; detached telemetry-flush.js PID 3236749 then recreated global-pm settings, locks and runtime/telemetry/state.json at 13:05:34.025600 through 13:05:34.049659, exiting at 13:05:34.062529. PM runtime scheduleTelemetryFlush uses detached=true, stdio=ignore and unref; synchronous foreground completion therefore does not wait for it. Retries cannot prevent recreation after a successful removal. Baseline focused test: 1/1; this is direct late-write evidence, not a local reproduction of the CI ENOTEMPTY exception. Fix at the fixture source: explicitly disable telemetry for every fixture child, keeping both PM roots and node-entrypoint assertions."
+  "2026-10-07T11:08:01.764Z",codex-sol,"Added shared node-entrypoint fixture environment with explicit PM_TELEMETRY_DISABLED=1 for init, pack/install, create and node-entrypoint generation. Regression seeds enabled telemetry, clears inherited opt-outs and explicitly opts into test events, then asserts no telemetry runtime artifacts or installation identity. Its inline-flush negative control uses a loopback refused endpoint so reverting the flag cannot leak a detached writer or send external telemetry. Removed only the opt-out flag: focused regression failed 0/1 with no telemetry queue or flush artifacts may be created in the removable fixture (actual true, expected false); restored flag and previously verified focused checks 2/2. Normal acceptance assertions and isolated roots retained; cleanup errors remain fatal."
+  "2026-10-07T11:11:26.285Z",codex-sol,"Strengthened the regression to exercise the actual detached launch path, replacing the earlier inline negative control. A Node preload observes telemetry-flush.js spawns through the public child_process API and delays actual flush-worker startup by 2 seconds. Removing only PM_TELEMETRY_DISABLED launched a worker that survived the foreground init (476 ms); regression failed 0/1 on the explicit no-detached-workers assertion. Its teardown terminated observed worker PIDs and awaited their exit before removal, with no cleanup failure. Restoring the flag passed 1/1. Telemetry settings stay enabled, inherited opt-outs are cleared, test events are opted in, the endpoint is loopback, and OTEL delivery is disabled in the negative control. Initial npm gate passed 533/533 and 100/100/100; rerunning after this regression refinement."
+  "2026-10-07T11:16:35.912Z",codex-sol,Focused checks through pm test passed 2/2 (no skipped tests). Post-fix acceptance stress through pm test passed 50/50 on Node 24.19.0 in 227 seconds; every iteration ran the original node-entrypoint acceptance test with its existing assertions and strict teardown. Updated the linked loop with cache-directory preparation so the command is reproducible in a fresh checkout; the verified 50-iteration test loop itself is unchanged. Node 22 focused check results are captured separately before final gates. npm and Bun full release checks are linked next.
+  "2026-10-07T11:21:57.008Z",codex-sol,"Final-source verification passed: npm run release:check and bun run release:check through pm test each ran 533/533 tests with zero failures/skips, 100% lines/branches/functions across all 12 configured sources, and zero production audit vulnerabilities. Node 22.23.1 focused acceptance and delayed-worker regression passed 2/2, supplementing Node 24.19.0 evidence. A post-fix strace of the original acceptance test passed 1/1, observed zero telemetry-flush worker launches, one successful fixture-root removal and zero later mkdir/rename calls under that root. Local baseline proved late recreation rather than reproducing the hosted ENOTEMPTY exception. No production CLI implementation or coverage thresholds changed. Task remains in_progress for PR review; committed-head gates will be repeated before push."
+  "2026-10-07T11:33:46.288Z",claude-orchestrator,"Orchestrator verification: focused tests pass 2/2; removing only PM_TELEMETRY_DISABLED from nodeEntrypointEnvironment fails the detached-worker test (1 fail). Root cause is upstream lifecycle behaviour (the detached telemetry-flush worker writes under PM_GLOBAL_PATH after the CLI exits and can recreate a deleted temp root), filed as https://github.com/unbraind/pm-cli/issues/1423."
+files[1]{path,scope}:
+  test/generator.test.ts,project
+tests[4]{command,scope,timeout_seconds,provenance{author,created_at,source_kind,source_ref}}:
+  node --test --test-name-pattern='node-entrypoint fixture suppresses delayed telemetry|^pm extension command works when only node cli entrypoint is available$' test/generator.test.ts,project,120,codex-sol,"2026-10-07T11:11:26.884Z",local_mutation,fix/node-entrypoint-teardown
+  "mkdir -p node_modules/.cache/issue226 && for iteration in $(seq 1 50); do node --test --test-name-pattern='^pm extension command works when only node cli entrypoint is available$' test/generator.test.ts > node_modules/.cache/issue226/stress-last.log 2>&1 || { cat node_modules/.cache/issue226/stress-last.log; exit 1; }; if [ $((iteration % 10)) -eq 0 ]; then echo \"$iteration/50 passed\"; fi; done",project,600,codex-sol,"2026-10-07T11:16:35.357Z",local_mutation,fix/node-entrypoint-teardown
+  "npm run release:check",project,900,codex-sol,"2026-10-07T11:16:35.357Z",local_mutation,fix/node-entrypoint-teardown
+  "bun run release:check",project,900,codex-sol,"2026-10-07T11:16:35.357Z",local_mutation,fix/node-entrypoint-teardown
+docs[3]:
+  - path: docs/development.md
+    scope: project
+  - path: "https://github.com/unbraind/pm-changelog/issues/226"
+    scope: project
+  - path: "https://github.com/unbraind/pm-cli/issues/1423"
+    scope: project
+    note: upstream detached flush worker lifecycle
+body: ""
