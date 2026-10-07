@@ -104,10 +104,13 @@ export declare function readPmItems(options?: ReadPmItemsOptions): PmItem[];
  * on; check mode never touches the file, so a failing gate leaves the committed
  * changelog intact. */
 export declare function writeChangelog(options: WriteChangelogOptions): WriteChangelogResult;
-/** Parse pm JSON, accepting either a bare array or the `{ items: [...] }`
- * envelope, since which one pm emits depends on the command and version.
- * Permissive on purpose: this is the shape parser for caller-supplied pm
- * documents (`--input`, `--stdin`), not the gate for live CLI reads. */
+/** Parse caller-supplied pm JSON, preserving receipt-free intentional subsets.
+ * Envelopes with explicit read metadata are inspected by the public SDK before
+ * their items can reach generation. Defaults adapt missing legacy proof fields
+ * solely for this explicit-signal inspection; they do not certify the document
+ * as the whole workspace. Caller status/date selection is outside this policy.
+ * Bare arrays and receipt-free `{ items }` documents remain caller-owned subsets.
+ * @throws {IncompleteListAllError} when supplied receipts cannot prove intact delivery. */
 export declare function parsePmItemsJson(raw: string): PmItem[];
 /** Typed failure for a whole-tracker `pm list` answer whose completeness receipt
  * proves the answer is not the whole workspace. Thrown (never logged) so the
@@ -129,7 +132,7 @@ export declare class IncompleteListAllError extends Error {
  * Unlike {@link parsePmItemsJson} this rejects the legacy bare-array answer:
  * an array carries no receipt, so it cannot prove completeness, and consuming
  * it silently is exactly the 2026.8.14 failure mode. This is the parser for
- * live CLI reads; caller-supplied documents keep the permissive one. The
+ * live CLI reads; caller-supplied documents use explicit-receipt inspection. The
  * optional `read_output` compaction receipt (omitted by pm >=2026.9.18 on an
  * uncompacted read, always present on pm <=2026.9.17) is not consulted:
  * completeness is proven by the envelope signals alone, so both envelope

@@ -104,6 +104,36 @@ Read JSON from a previous step:
 pm --output-budget unbounded --output-limit unbounded list --all --json | npx pm-changelog --stdin --stdout
 ```
 
+Both `--stdin` and `--input items.json` share the exported `parsePmItemsJson`
+policy. A PM envelope's supplied read metadata is inspected with the public
+SDK's `inspectCompleteListResult`. Pagination/continuation, mismatched counts,
+unreadable sources, omitted fields/results, reduced projections, compacted
+strings/rows, and session suppression cause a nonzero refusal before generation
+or file writes. The diagnostic includes SDK findings and supplied count/total
+values; an existing full `CHANGELOG.md` stays intact. There is no flag to bypass
+an explicit partial receipt. Complete envelopes and legacy complete receipts
+are accepted; status/date filters and changelog selection options do not count
+as incomplete retrieval.
+
+The SDK's whole-workspace certificate requires all statuses and full modern
+proof fields. Caller-selected input uses its public inspector instead: absent
+legacy receipt fields get intact-delivery defaults for inspection, and upstream
+scope filters are excluded from whole-workspace checks. This adaptation does
+not certify the input as the complete tracker or add such a claim to the output.
+Explicit receipt fields override the defaults, including malformed values.
+
+For an intentional caller-selected subset, supply a bare array (or a legacy
+receipt-free `{ "items": [...] }` document):
+
+```bash
+npx pm-changelog --input selected-items.json --stdout --version 1.2.0
+```
+
+The caller owns that subset's scope. A bare array cannot prove whole-tracker
+completeness, so when replacing a full changelog, supply all intended history.
+To recover from a refused PM envelope, re-read the chosen scope without paging,
+omissions, or output compaction rather than discarding its receipts.
+
 Use a pinned or wrapped pm executable:
 
 ```bash

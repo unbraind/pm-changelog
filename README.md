@@ -46,6 +46,15 @@ The standalone CLI accepts both `--flag value` and `--flag=value` for value
 options, and supports `--release-version` as a compatibility alias for
 `--version` (matching `pm changelog generate` syntax).
 
+Caller-supplied `--stdin` and `--input` JSON refuses envelopes whose explicit
+pagination, source completeness, field omission, or compaction receipts report
+unsafe delivery. Refusal exits nonzero before writing, preserving an existing
+changelog. The public pm SDK (peer minimum `2026.10.4`) inspects these receipts. Ordinary status/date
+filters select the caller's scope and do not imply incomplete retrieval.
+Bare arrays and receipt-free `{ "items": [...] }` documents retain their
+intentional subset contract: the caller owns their scope and must supply the
+full intended history when replacing a changelog. See [JSON input](docs/usage.md).
+
 Date precedence is explicit: `--date` is an unconditional override, then an
 existing release tag supplies its commit date, then `--date-fallback` or
 `--date-from-version` applies only while that tag is absent. With none of those,
