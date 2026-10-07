@@ -4,6 +4,7 @@
 
 ### Fixed
 
+- Refuse explicit partial-read envelopes supplied to changelog generation ([pmc-n4qu](https://github.com/unbraind/pm-changelog/blob/main/.agents/pm/issues/pmc-n4qu.toon))
 - Make node-entrypoint fixture teardown reliable ([pmc-node-teardown-226](https://github.com/unbraind/pm-changelog/blob/main/.agents/pm/tasks/pmc-node-teardown-226.toon))
 
 ## 2026.10.5 - 2026-10-05

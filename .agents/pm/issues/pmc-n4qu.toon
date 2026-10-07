@@ -2,11 +2,13 @@ id: pmc-n4qu
 title: Refuse explicit partial-read envelopes supplied to changelog generation
 description: "Implement https://github.com/unbraind/pm-changelog/issues/224 using the public SDK completeness validator while preserving intentional bare-array subsets and status/date selection."
 type: Issue
-status: in_progress
+status: closed
 priority: 1
 tags[3]: correctness,regression,sdk
 created_at: "2026-10-07T12:47:52.397Z"
-updated_at: "2026-10-07T15:54:22.369Z"
+updated_at: "2026-10-07T17:37:43.282Z"
+closed_at: "2026-10-07T17:37:42.670Z"
+completed_at: "2026-10-07T17:37:42.670Z"
 author: codex-sol
 comments[7]{created_at,author,text}:
   "2026-10-07T12:48:39.040Z",codex-sol,"Built-package reproduction of #224: paginated and row-compacted stdin returned exit 0 and replaced retained full history with one item. Plan: refuse explicit unsafe envelope receipts with the public SDK inspector; preserve receipt-free subsets and ordinary status/date filters. The SDK certificate targets a stricter whole unfiltered workspace contract, so caller-selected scope needs an adapter rather than certification as the whole workspace."
@@ -30,4 +32,5 @@ tests[3]{command,scope,provenance{author,created_at,source_kind,source_ref}}:
 docs[2]{path,scope}:
   docs/usage.md,project
   README.md,project
+close_reason: "Merged in #229 (878bf76). Caller --stdin/--input envelopes that declare themselves incomplete (pagination, count mismatch, unreadable source, compaction, omissions, projections, sessions) are refused through the public SDK inspector before generation, and a supplied complete_list certificate must equal the one the SDK issues for the delivered rows. The existing CHANGELOG stays byte-identical on refusal; bare arrays keep their subset contract. Orchestrator verification: built-CLI check (partial envelope exit 1, file untouched; bare array writes), parse-level revert checks for both the inspector and the certificate rule, npm+Bun release:check (595 tests, coverage thresholds met), CodeRabbit full review at ec5320f: no actionable comments."
 body: ""
