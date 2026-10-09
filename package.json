@@ -105,7 +105,7 @@
     "@types/node": "26.6.4",
     "@unbrained/pm-cli": "2026.10.5",
     "marked": "18.0.14",
-    "pm-ops": "2026.10.4",
+    "pm-ops": "2026.10.5",
     "typescript": "7.0.2",
     "typescript5": "npm:typescript@5.9.3"
   },
