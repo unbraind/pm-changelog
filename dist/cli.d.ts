@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 import type { Readable } from "node:stream";
-import type { ChangelogGroupBy, ChangelogItemRefStyle, ChangelogReleaseWindow, ChangelogSelectionReport, ChangelogSectionBy, PmItem } from "./types.ts";
+import type { ChangelogEntryFrom, ChangelogGroupBy, ChangelogItemRefStyle, ChangelogReleaseWindow, ChangelogSelectionReport, ChangelogSectionBy, PmItem } from "./types.ts";
 interface CliOptions {
     output: string;
     stdout: boolean;
@@ -27,6 +27,7 @@ interface CliOptions {
     statuses?: string[];
     groupBy: ChangelogGroupBy;
     sectionBy: ChangelogSectionBy;
+    entryFrom?: ChangelogEntryFrom;
     summary: boolean;
     format: "md" | "json";
     conventional: boolean;
@@ -128,6 +129,7 @@ declare function buildGenerationOptions(options: CliOptions, items: PmItem[]): {
     includeStatuses: string[] | undefined;
     groupBy: ChangelogGroupBy;
     sectionBy: ChangelogSectionBy;
+    entryFrom: ChangelogEntryFrom | undefined;
     conventional: boolean;
     contributors: boolean;
     limit: number | undefined;

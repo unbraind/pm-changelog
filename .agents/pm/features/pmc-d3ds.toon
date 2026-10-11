@@ -2,28 +2,88 @@ id: pmc-d3ds
 title: "A defect-shaped item title renders backwards under a Fixed heading, and there is no second field to draw the entry from"
 description: "pm-changelog projects the item title directly into the changelog entry. Issue trackers want a defect-shaped title that names what is wrong, and Keep a Changelog wants an entry under Fixed that describes the change. Those two conventions produce opposite sentences from the same string, so a repo must pick one and be wrong in the other place. This surfaced in review twice in one session with contradictory guidance: pm-linear was told to make a title defect-shaped, and pm-changelog was told the resulting entry describes the defect rather than the fix. Both reviews were right about their own surface. The generator has no field other than title to draw from, so neither convention can be satisfied without breaking the other."
 type: Feature
-status: open
+status: in_progress
 priority: 2
 tags[2]: changelog,dx
 created_at: "2026-08-26T19:15:29.547Z"
-updated_at: "2026-08-26T19:15:29.547Z"
+updated_at: "2026-10-11T06:37:18.934Z"
 deadline: "2026-09-09T00:00:00.000Z"
-assignee: claude
 author: claude
 estimated_minutes: 240
 acceptance_criteria: "The generator can source an entry from a field other than title, with an explicit opt-in flag and a documented fallback to title when the field is absent; the choice is recorded so changelog check and generation agree; a test proves an item with a defect-shaped title and a fix-shaped alternate field renders the alternate under Fixed"
 dependencies[1]{id,kind,created_at,author,source_kind,author_source}:
   pmc-n07l,related,"2026-08-26T19:15:29.547Z",claude,"cli:create:dep",detected
-comments[1]{created_at,author,text}:
+comments[19]{created_at,author,text}:
   "2026-08-26T19:15:29.547Z",claude,"Worked around in the immediate case by retitling pmc-n07l to a change-shaped sentence, which matches this repo's existing entries. That workaround costs the tracker its defect-shaped title."
+  "2026-10-07T21:10:46.419Z",codex-sol,"Baseline reproduced against the built dist package with a real scratch tracker: closing an Issue titled \"The comment-sync test is root-sensitive\" with close_reason \"Make the comment-sync test independent of the root directory\" still emits the defect title beneath Fixed. The canonical whole-tracker read delivers close_reason. Design: explicit --entry-from close_reason (default title), whitespace-only/absent resolution falls back to title; share selection across markdown, summary, structured output and check. Check emits advisory diagnostics for visible closed Fixed items with a recognized present-tense defect title and no usable close_reason; recovery uses pm update <id> --close-reason plus --entry-from close_reason for generation/check."
+  "2026-10-07T21:11:08.198Z",codex-sol,"Baseline verification correction: the first scratch probe used an invalid pmBin/pmArgs pairing and failed before reading; the immediately repeated probe used the installed pm resolver and succeeded. It confirmed close_reason is delivered and the built generator emits the original defect title under Fixed. No code was changed before the successful reproduction."
+  "2026-10-07T21:15:07.423Z",codex-sol,"Implemented opt-in close_reason prose across standalone generation/check, extension generate/export, summaries, structured JSON and breaking-change entries. Explicit source is recorded in JSON output. The original tracker title remains the classifier/order/semver input. Real tracker tests cover default byte identity, resolution recovery, blank and absent fallback, escaping, filters, warnings and check drift; validation is underway."
+  "2026-10-07T21:17:04.089Z",codex-sol,"Acceptance tests now pass against real scratch trackers and built CLI: resolution prose under Fixed, default byte identity, title retention, blank/absent legacy fallback, escaping, filters, summary/JSON agreement, advisory warnings without drift failure, and extension generate/export/check. pm SDK intentionally rejects blank close_reason updates, so legacy fallback fixtures edit only disposable stored documents after a real SDK close. No SDK mocks or new schema field are needed. Next: behavioral revert proof followed by unchanged release thresholds under npm and Bun."
+  "2026-10-07T21:18:31.936Z",codex-sol,"Behavioral revert proof passed: replacing only resolveEntryTitle resolution selection with the old title behavior, rebuilding dist, and running node --test --test-name-pattern=\"built entry-from renders resolution\" test/entry-from.test.ts produced one assertion failure on the Fixed bullet (exit 1). Independently returning an empty diagnostic list from lintChangelogEntries, rebuilding, and running node --test --test-name-pattern=\"check warns without drift\" test/entry-from.test.ts produced one missing-warning assertion failure (exit 1). Both modules loaded and fixtures executed; no load failures. Restored implementation and rebuilt dist before rerunning acceptance."
+  "2026-10-07T21:23:18.770Z",codex-sol,"First npm release gate: all 599 tests passed, but branch coverage was 99.94% overall (100% required). The sole missed branch was lint suppression for non-category grouping, tested only through built subprocess code; added a direct assertion using real tracker rows so source coverage measures it. Also excluded leading resolution verbs from the warning heuristic and added a fix-shaped-title counterexample. Thresholds are unchanged."
+  "2026-10-07T21:26:12.252Z",codex-sol,"Linked acceptance run succeeded: pm test pmc-d3ds --run --progress --only-last --timeout 120 executed node --test test/entry-from.test.ts with all four real-tracker cases passing. Automatic test-result tracking is disabled in this project, so this comment records the receipt. An earlier run requested pm-context none with the source workspace and was correctly refused before execution; the successful run used the default isolated schema context. Implementation and behavioral revert proof are complete; npm and Bun release gates will now verify the committed implementation at the existing 100% lines/branches/functions thresholds."
+  "2026-10-07T21:33:20.663Z",codex-sol,"Release validation passed on implementation commit bdb6d92e585d5de5e14e27f3cbfaf16475b7ce88: npm run release:check and bun run release:check each exited 0 with 599/599 tests, zero skips, and 100% lines/branches/functions across the configured 12-source-file gate. Both also passed typecheck, 163 documented declarations, zero production audit vulnerabilities, package dry-run, changelog drift, release-date and publish-attestation checks. Revert probes failed on behavioral assertions and restored acceptance passed 4/4, including the successful pm-linked run. No new pm SDK defects were found; blank close_reason updates are rejected by policy and automatic test-result tracking is disabled here, both handled explicitly in fixtures and comments. The warning is a conservative English heuristic. Claim released; item remains unclosed for orchestrator verification. Final commit records only tracker evidence; authored implementation and built artifacts remain identical to the validated commit."
+  "2026-10-08T02:11:13.336Z",claude-orchestrator,"CodeRabbit 4213865262 (valid): the default (no --entry-from) path normalized titles with toSingleLine, so a stored title with repeated spaces rendered differently and existing changelogs could fail --check. The default path now returns item.title byte-for-byte; toSingleLine applies only to a selected close_reason. New test fails on revert."
+  "2026-10-08T02:14:44.380Z",claude-orchestrator,"Correction to the previous comment: CodeRabbit 4213865262 is NOT valid and the attempted change was reverted. Main already renders titles through toSingleLine (src/generator.ts:2021 escapeItemTitleMarkdown(toSingleLine(item.title)) and the summaries at :573/:584), so the PR's default path is byte-identical to main; returning item.title unchanged broke the existing 'createChangelog omits item links unless explicitly enabled' multiline-title test."
+  "2026-10-11T05:00:18.268Z",codex-agent,"Fetched the reviewed PR branch and fast-forwarded the existing worktree to c8e7c037db23e9b10ac43a77603836d309de5871. Main at 5af8dd760714d3249d00f84291b9a417f44d61f3 is already merged; git merge origin/main reports already up to date. There are no conflicted files. Main updates only package.json and package-lock.json for pm-cli, pm-ops and marked. Preserve both dependency updates and reviewed resolution-prose behavior, including existing single-line title normalization. Re-run both behavior-only revert probes and all three required release gates without changing thresholds."
+  "2026-10-11T05:08:02.007Z",codex-agent,"Dependency install passed: npm ci audited 49 packages with zero vulnerabilities; installed pm-cli and pm-ops 2026.10.5 plus marked 18.1.0 match main. First linked acceptance attempt hit the 240-second runner timeout after the first case passed; category timeout=1, assertion_failure=0, automatic evidence tracking disabled. The host was heavily loaded. This is missing evidence, not approval; retry with timeout 1200 after behavioral probes. The standalone acceptance run continues. Evidence-link syntax required repeated --add flags; rejected positional and comma-bearing attempts made no changes."
+  "2026-10-11T05:12:00.902Z",codex-agent,"Behavior-only revert proof rerun on the merged dependencies: replacing only the usable close_reason return in resolveEntryTitle with toSingleLine(item.title), rebuilding, then node --test --test-name-pattern=\"built entry-from renders resolution\" test/entry-from.test.ts exited 1 with 1 loaded test, 1 assertion failure, 0 skips: the Fixed bullet lacked the resolution. Independently replacing only lintChangelogEntries body with return [], rebuilding, then node --test --test-name-pattern=\"check warns without drift\" test/entry-from.test.ts exited 1 with 1 loaded test, 1 assertion failure, 0 skips: defect_title warning missing. No module-load failures. Restored source and rebuilt dist; no implementation or generated-artifact diff remains. Baseline acceptance passed 4/4, 0 skips. Now rerun linked acceptance and required release checks."
+  "2026-10-11T05:24:21.533Z",codex-agent,"Restored linked acceptance passed: pm test pmc-d3ds --run --progress --only-index 2 --timeout 1200 exited 0, 4/4 tests, 0 failed/cancelled/skipped/todo. Linked-command selection ran 1 of 4 commands and excluded 3; those exclusions are not test-suite skips. Schema isolation matched context; automatic evidence tracking remains disabled, so this comment records the receipt. The earlier 240-second timeout remains recorded separately. Required full release checks continue."
+  "2026-10-11T05:32:52.577Z",codex-agent,"The npm full gate reported 11 failures in unchanged generator-redos subprocess probes, each reaching the five-second startup deadline under heavy host load. The regression harness separates startup and operation budgets; no feature/source changes or timeout/coverage-threshold changes are being made. Inspect final failure messages and preserve the complete gate receipt; Bun and isolated-HOME runs are still required. Restored linked acceptance remains 4/4 passing with zero test skips."
+  "2026-10-11T05:45:17.998Z",codex-agent,"npm run release:check exited 1 on merged head c8e7c037db23e9b10ac43a77603836d309de5871: 599 tests, 49 suites, 588 passed, 11 failed, 0 cancelled/skipped/todo. All 11 failures are generator-redos worker did not start within 5000ms; no operation CPU-budget failure. Runtime report shows 100.00% lines/branches/functions, but the failed coverage command did not finish its success-only inventory check, and later audit/pack/changelog/date/attestation stages were short-circuited. Typecheck and docstring 163 declarations passed. Bun full gate has started unchanged; startup-deadline follow-up will stay outside this feature implementation."
+  "2026-10-11T06:11:00.593Z",codex-agent,"bun run release:check exited 1: 599 tests, 49 suites, 589 passed, 10 failed, 0 cancelled/skipped/todo. All 10 failures are unchanged ReDoS worker startup deadlines; extract-release passed its existing operation budgets. Runtime lines/branches/functions report 100.00%, but the full gate is failed and downstream release stages were short-circuited. Startup-readiness follow-up is pmc-redos-startup-231; no implementation or threshold changes. The exact required isolated-HOME npm gate is now running with global and system Git configuration disabled."
+  "2026-10-11T06:37:15.621Z",codex-agent,"Maintenance verification complete against c8e7c037db23e9b10ac43a77603836d309de5871, which already merges main 5af8dd760714d3249d00f84291b9a417f44d61f3: no conflicted files, no rebase, and no authored source/test/docs/manifest/lock/dist/CHANGELOG differences after rebuilds. Required full gates exited 1: npm 599 tests, 588 pass, 11 fail; Bun 599, 589, 10; isolated HOME with global/system Git config disabled 599, 588, 11. Every failure is a 5000ms ReDoS worker startup deadline; all runs have 0 cancelled/skipped/todo and 100.00% reported lines/branches/functions. Failed coverage commands did not finish success-only inventory reconciliation; full release validation remains failed. Separate audit:prod passed with zero vulnerabilities; pack:dry-run passed with 42 files and rebuilt dist; changelog:check, release-date and publish-attestation verifiers passed. Typecheck and docstring passed with 163 declarations. Baseline and restored linked acceptance each passed 4/4, 0 test skips; linked selection excluded 3 other commands, and its earlier 240-second timeout is separately recorded. Both one-test behavior-only revert probes failed loaded assertions as intended, then source/dist were restored. Follow-up pmc-redos-startup-231 remains open; no threshold or harness change enters this feature. No new PM SDK defect found; list-open is deprecated and automatic linked result recording is disabled here. The advisory warning remains English-specific; no fresh external approval was obtained. Releasing the claim without closing; final changelog regeneration and read-only history checks follow these last writes. No push, merge, tag or publish action performed."
 notes[1]{created_at,author,text}:
   "2026-08-26T19:15:29.547Z",claude,"Both review findings that motivated this are legitimate on their own surface; the conflict is in the generator, not in either reviewer."
 learnings[1]{created_at,author,text}:
   "2026-08-26T19:15:29.547Z",claude,"When two conventions disagree about the same string, the defect is usually the single string, not either convention."
-files[1]{path,scope}:
+files[8]{path,scope}:
+  package-lock.json,project
+  package.json,project
+  src/cli.ts,project
+  src/extension.ts,project
   src/generator.ts,project
-tests[1]{command,scope}:
-  npm test,project
-docs[1]{path,scope,note}:
-  "https://keepachangelog.com/en/1.1.0/",project,the changelog convention the entry side must satisfy
+  src/index.ts,project
+  src/types.ts,project
+  test/entry-from.test.ts,project
+tests[5]:
+  - command: npm test
+    scope: project
+  - command: node --test test/entry-from.test.ts
+    scope: project
+    provenance:
+      author: codex-sol
+      created_at: "2026-10-07T21:15:06.508Z"
+      source_kind: local_mutation
+      source_ref: feat/defect-title-rendering
+  - command: "npm run release:check"
+    scope: project
+    provenance:
+      author: codex-sol
+      created_at: "2026-10-07T21:33:19.373Z"
+      source_kind: local_mutation
+      source_ref: feat/defect-title-rendering
+  - command: "bun run release:check"
+    scope: project
+    provenance:
+      author: codex-sol
+      created_at: "2026-10-07T21:33:19.373Z"
+      source_kind: local_mutation
+      source_ref: feat/defect-title-rendering
+  - command: "env HOME=$(mktemp -d) GIT_CONFIG_GLOBAL=/dev/null GIT_CONFIG_NOSYSTEM=1 npm run release:check"
+    scope: project
+    timeout_seconds: 7200
+    provenance:
+      author: codex-agent
+      created_at: "2026-10-11T05:40:29.695Z"
+      source_kind: local_mutation
+      source_ref: feat/defect-title-rendering
+docs[3]:
+  - path: docs/usage.md
+    scope: project
+  - path: "https://keepachangelog.com/en/1.1.0/"
+    scope: project
+    note: the changelog convention the entry side must satisfy
+  - path: README.md
+    scope: project
 body: "Likely shape: an --entry-from <field> flag accepting close_reason first, since a closed issue already states its resolution there and the pm CLI records it as part of the close transition. Items without the field fall back to title so no existing repo changes behaviour."

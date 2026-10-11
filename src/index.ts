@@ -7,6 +7,8 @@ export {
   formatSummaryLine,
   generateChangelog,
   IncompleteListAllError,
+  lintChangelogEntries,
+  parseChangelogEntryFrom,
   mergeChangelog,
   parseDependencyCommit,
   parseListAllItemsJson,
@@ -33,6 +35,7 @@ export type {
 export type {
   ChangelogAttributionProvenance,
   ChangelogDocument,
+  ChangelogEntryFrom,
   ChangelogDocumentDependency,
   ChangelogDocumentItem,
   ChangelogDocumentRelease,

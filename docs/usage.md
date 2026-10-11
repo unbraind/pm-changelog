@@ -421,3 +421,26 @@ pm changelog generate --release-version-from-package --since-previous-tag --unti
 Item links are omitted by default so public CI jobs do not accidentally publish private tracker URLs. Pass `--include-links` or `includeLinks: true` only when item URLs are safe to expose. When links are included, credentials, query strings, and fragments are stripped before markdown is emitted.
 
 Pass `--item-url-base` or `itemUrlBase` to make item IDs themselves clickable links pointing directly to the `.toon` files in the repository. The tool derives the correct type subdirectory (`issues/`, `tasks/`, `chores/`, `features/`, `epics/`) from each item's type automatically — no configuration per type is needed.
+
+## Resolution summaries
+
+Use `--entry-from close_reason` to publish fix prose while preserving a defect-shaped
+tracker title. The field is recorded by `pm close` and can be corrected with
+`pm update <id> --close-reason "Describe the fix"`.
+
+```bash
+npx pm-changelog --entry-from close_reason --mode replace
+npx pm-changelog --entry-from close_reason --mode replace --check
+pm changelog generate --entry-from close_reason
+pm changelog export --entry-from close_reason
+```
+
+Persist the flag in generation, check, and release-notes scripts together. The default is
+`title`; absent, empty, whitespace-only, or non-string resolutions fall back to title.
+The choice affects prose across all entry formats, while category, ordering, selection,
+and semver continue to use tracker metadata and the original title. Explicit choices are
+recorded as `entry_from` in standalone JSON receipts and structured documents; SDK callers
+set `entryFrom`. A check warning on stderr identifies visible closed Fixed entries with a
+recognized English defect title and no resolution, and prints the update command above.
+Warnings are advisory and keep the drift exit status unchanged. See the
+[full source and warning contract](../README.md#resolution-prose-for-release-notes).

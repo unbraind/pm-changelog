@@ -372,7 +372,7 @@ export function buildChangelogDocument(options) {
     const { visibleSections, sectionBy } = selectChangelogSections(options);
     const releases = visibleSections.map((section) => {
         const sectionGroups = groupSectionItems(section, sectionBy, options)
-            .map((group) => ({ heading: group.heading, items: group.items.map(toDocumentItem) }));
+            .map((group) => ({ heading: group.heading, items: group.items.map((item) => toDocumentItem(item, options)) }));
         return {
             heading: section.heading,
             version: sectionVersionKey(section.heading),
@@ -380,7 +380,7 @@ export function buildChangelogDocument(options) {
             sections: sectionGroups,
             contributors: options.contributors ? collectContributors(section.items) : undefined,
             breaking_changes: options.breakingChanges
-                ? section.items.filter(isBreakingItem).map(toDocumentItem)
+                ? section.items.filter(isBreakingItem).map((item) => toDocumentItem(item, options))
                 : undefined,
             dependencies: section.dependencyCommits?.map((commit) => ({
                 subject: commit.subject,
@@ -392,6 +392,7 @@ export function buildChangelogDocument(options) {
     return {
         title: options.title ?? DEFAULT_TITLE,
         group_by: options.groupBy ?? "version",
+        ...(options.entryFrom ? { entry_from: options.entryFrom } : {}),
         section_by: sectionBy,
         item_count: visibleSections.reduce((sum, section) => sum + section.items.length, 0),
         releases,
@@ -424,7 +425,7 @@ export function createChangelogSummary(options) {
         if (section.items.length > 0) {
             for (const group of groupSectionItems(section, sectionBy, options)) {
                 for (const item of group.items) {
-                    entries.push(toSummaryEntry(section.heading, version, group.heading, item));
+                    entries.push(toSummaryEntry(section.heading, version, group.heading, item, options));
                 }
             }
         }
@@ -453,23 +454,23 @@ export function formatSummaryLine(entry) {
 }
 /** Project an item onto one `--summary` row, keeping its title single-lined so
  * each entry stays exactly one line. */
-function toSummaryEntry(heading, version, category, item) {
+function toSummaryEntry(heading, version, category, item, options) {
     return {
         heading,
         version,
         category,
         id: item.id,
-        title: toSingleLine(item.title),
+        title: resolveEntryTitle(item, options),
         type: typeof item.type === "string" ? item.type : undefined,
         status: typeof item.status === "string" ? item.status : undefined,
     };
 }
 /** Project an item onto its `--changelog-json` form, narrowing the tracker row
  * to the fields the structured document publishes. */
-function toDocumentItem(item) {
+function toDocumentItem(item, options) {
     return {
         id: item.id,
-        title: toSingleLine(item.title),
+        title: resolveEntryTitle(item, options),
         type: item.type,
         status: item.status,
         priority: item.priority,
@@ -1799,10 +1800,52 @@ function buildSelectionHints(input) {
     }
     return hints;
 }
+/** Validate the explicit entry source for standalone and extension commands. */
+export function parseChangelogEntryFrom(value) {
+    if (value === "title" || value === "close_reason")
+        return value;
+    throw new Error("--entry-from must be 'title' or 'close_reason'");
+}
+/** Resolve entry prose without mutating the tracker title or its classification.
+ * Empty, whitespace-only and non-string resolutions fall back to title. */
+function resolveEntryTitle(item, options) {
+    if (options.entryFrom === "close_reason" && typeof item.close_reason === "string" && item.close_reason.trim()) {
+        return toSingleLine(item.close_reason);
+    }
+    return toSingleLine(item.title);
+}
+/** Advisory check diagnostics for visible closed Fixed items lacking resolution
+ * prose. The conservative English heuristic recognizes present-tense failures
+ * and broken states; it is not a grammar validator. Grouping by another field
+ * has no Fixed heading and therefore emits no warning. */
+export function lintChangelogEntries(options) {
+    const { visibleSections, sectionBy } = selectChangelogSections(options);
+    if (sectionBy !== "category")
+        return [];
+    const warnings = [];
+    const seen = new Set();
+    for (const item of visibleSections.flatMap((section) => section.items)) {
+        if (seen.has(item))
+            continue;
+        seen.add(item);
+        if (String(item.status).toLowerCase() !== "closed" || classifyItem(item) !== "Fixed")
+            continue;
+        if (typeof item.close_reason === "string" && item.close_reason.trim())
+            continue;
+        const title = toSingleLine(item.title);
+        if (/^(?:fix(?:ed)?|correct(?:ed)?|repair(?:ed)?|resolve(?:d)?|prevent(?:ed)?|make|ensure)\b/i.test(title))
+            continue;
+        if (!/\b(?:(?:is|are) (?:root-sensitive|broken|missing|incorrect|wrong|unusable|impossible|not)\b|fails?|crashes?|cannot|can't|does not|doesn't)\b/i.test(title))
+            continue;
+        const id = item.id || "<id>";
+        warnings.push(`defect_title: ${id}: closed Fixed entry describes a defect without resolution prose. Run pm update ${id} --close-reason "Describe the fix", then use --entry-from close_reason for generation and --check.`);
+    }
+    return warnings;
+}
 /** Render one item as its changelog bullet text, appending only the parts the
  * enabled options asked for. */
 function formatItem(item, options) {
-    const title = escapeItemTitleMarkdown(toSingleLine(item.title));
+    const title = escapeItemTitleMarkdown(resolveEntryTitle(item, options));
     const id = formatItemId(item, options);
     const metadata = formatItemMetadata(item, options);
     const link = options.includeLinks ? formatLink(item.url) : "";

@@ -93,6 +93,41 @@ npx pm-changelog --stdout --respect-item-release    # honor each item's release 
 npx pm-changelog --stdout --exclude-tag changelog:ignore  # keep tagged items out of the changelog entirely
 ```
 
+### Resolution prose for release notes
+
+Keep a defect description in the tracker title and put the fix in `close_reason`,
+using `pm close <id> "Describe the fix"` or `pm update <id> --close-reason "Describe the fix"`.
+Opt in with `--entry-from close_reason` on every generation, check, and release-notes
+command (including the scripts in `package.json`). For example:
+
+```bash
+pm update <id> --close-reason "Make the comment-sync test independent of the root directory"
+npx pm-changelog --entry-from close_reason --mode replace
+npx pm-changelog --entry-from close_reason --mode replace --check
+pm changelog generate --entry-from close_reason
+pm changelog export --entry-from close_reason
+```
+
+Under Fixed, an Issue titled "The comment-sync test is root-sensitive" then renders
+"Make the comment-sync test independent of the root directory". The title stays in the
+tracker and still determines classification, ordering, and semver signals. The selected
+field supplies prose in every category, markdown, summary, structured JSON, and breaking
+change entry. Markdown escaping and single-line normalization apply to the resolution too.
+Only `title` (the default) and `close_reason` are supported; missing, empty, whitespace-only,
+or non-string resolutions fall back to title. Omitting the flag preserves existing output.
+The standalone `--json` receipt and structured document record an explicit source as
+`entry_from`; SDK callers use `entryFrom: "close_reason"`.
+
+`--check` also emits an advisory `defect_title` warning on stderr for visible closed Fixed
+items with no usable `close_reason` and a recognized English present-tense failure or broken
+state (such as "fails", "cannot", "is broken", or "is root-sensitive"). This conservative
+heuristic is not a grammar validator. Leading resolution verbs such as "Fix" and "Correct"
+are excluded. It follows the same status, tag, time, release, and
+visibility filters as generation, and applies to conventional/emoji Fixed headings too.
+Grouping by type, status, or label has no Fixed heading and produces no warning. The warning
+leaves markdown, JSON stdout, and the drift exit code unchanged. Follow its `pm update <id>
+--close-reason "Describe the fix"` recovery and use `--entry-from close_reason` consistently.
+
 ### Dependency updates: releases that ship only Dependabot bumps
 
 A daily release fires whenever a commit landed since the last tag, and Dependabot merges are commits,

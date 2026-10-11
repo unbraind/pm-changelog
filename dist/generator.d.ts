@@ -1,4 +1,4 @@
-import type { ChangelogDocument, ChangelogSelectionReport, ChangelogSummaryEntry, DependencyCommit, GeneratedChangelog, GenerateChangelogOptions, MergeChangelogOptions, MergeChangelogResult, PmItem, ReadPmItemsOptions, SemverSuggestion, WriteChangelogOptions, WriteChangelogResult } from "./types.ts";
+import type { ChangelogDocument, ChangelogEntryFrom, ChangelogSelectionReport, ChangelogSummaryEntry, DependencyCommit, GeneratedChangelog, GenerateChangelogOptions, MergeChangelogOptions, MergeChangelogResult, PmItem, ReadPmItemsOptions, SemverSuggestion, WriteChangelogOptions, WriteChangelogResult } from "./types.ts";
 type PmCommand = {
     bin: string;
     argsPrefix: string[];
@@ -185,6 +185,13 @@ export declare function compareVersionStrings(a: string, b: string): number;
  * report so the two can never drift apart.
  */
 export declare function formatInferredSources(sources: Record<string, number>): string;
+/** Validate the explicit entry source for standalone and extension commands. */
+export declare function parseChangelogEntryFrom(value: string): ChangelogEntryFrom;
+/** Advisory check diagnostics for visible closed Fixed items lacking resolution
+ * prose. The conservative English heuristic recognizes present-tense failures
+ * and broken states; it is not a grammar validator. Grouping by another field
+ * has no Fixed heading and therefore emits no warning. */
+export declare function lintChangelogEntries(options: GenerateChangelogOptions): string[];
 /**
  * OPT-IN (`--suggest-semver`): classify the in-scope items into breaking /
  * feature / fix / other and recommend a semver bump. Emitted as JSON or a
