@@ -1,19 +1,20 @@
 id: pmc-redos-startup-231
 title: ReDoS validation workers time out before parser execution on busy hosts
-description: "The unchanged full release gate on the merged resolution-prose branch ran 599 tests: 588 passed and all 11 ReDoS probes failed with worker did not start within 5000ms. Heavy shared-host load delayed module startup before the already-loaded parser CPU budget could be measured. Existing pmc-zoqj addressed operation CPU timing and descheduling; this follow-up concerns startup readiness. Keep the 250ms parser CPU budget and independently bounded hang detection; reproduce under loaded and unloaded validation conditions before proposing a separate harness change."
+description: "The unchanged full release gate on the merged resolution-prose branch ran 599 tests: 588 passed and all 11 ReDoS probes failed with worker did not start within 5000ms. Heavy shared-host load may have delayed module startup before the already-loaded parser CPU budget could be measured. Existing pmc-zoqj addressed operation CPU timing and descheduling; this follow-up concerns startup readiness. Keep the 250ms parser CPU budget and independently bounded hang detection; reproduce under loaded and unloaded validation conditions before proposing a separate harness change."
 type: Issue
 status: open
 priority: 2
 tags[3]: performance,tests,validation
 created_at: "2026-10-11T05:46:21.190Z"
-updated_at: "2026-10-11T06:35:53.252Z"
+updated_at: "2026-10-11T09:57:53.737Z"
 author: codex-agent
 acceptance_criteria: "Preserve every hostile input and assertion, the 250ms CPU budget and independent hang detection; demonstrate startup handling under loaded and unloaded conditions; keep any fix separate from PR 231."
 repro_steps: "Run npm run release:check unchanged while the shared validation host is heavily loaded; inspect generator-redos worker startup errors."
 expected_result: Parser probes reach readiness and enforce their CPU and hang budgets without treating scheduler-delayed module startup as parser failure.
 actual_result: All 11 workers failed the 5000ms startup deadline in the npm release gate; no operation CPU-budget failure was reported.
-comments[1]{created_at,author,text}:
+comments[2]{created_at,author,text}:
   "2026-10-11T06:35:53.252Z",codex-agent,"Confirmed unchanged full-gate receipts on merged head c8e7c037db23e9b10ac43a77603836d309de5871: npm 599 tests / 588 pass / 11 fail; Bun 599 / 589 / 10; fresh HOME with global and system Git config disabled 599 / 588 / 11. All failures are worker did not start within 5000ms, before the parser operation budget is measured; every run has 0 cancelled/skipped/todo. One Bun extract-release probe passed its unchanged budgets. Heavy shared-host load was observed during validation. Existing pmc-zoqj covers operation CPU timing, not this startup readiness failure. No production implementation, timeout or coverage threshold change is included here; this follow-up remains open for separate investigation."
+  "2026-10-11T09:57:53.737Z",claude-hub,"Wording qualified per review: host load is a hypothesis until the loaded/unloaded comparison in the acceptance criteria exists."
 files[2]{path,scope}:
   test/generator-redos-worker.ts,project
   test/generator-redos.test.ts,project
