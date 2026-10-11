@@ -4,6 +4,7 @@
 
 ### Fixed
 
+- A defect-shaped item title renders backwards under a Fixed heading, and there is no second field to draw the entry from ([pmc-d3ds](https://github.com/unbraind/pm-changelog/blob/main/.agents/pm/features/pmc-d3ds.toon))
 - Refuse explicit partial-read envelopes supplied to changelog generation ([pmc-n4qu](https://github.com/unbraind/pm-changelog/blob/main/.agents/pm/issues/pmc-n4qu.toon))
 - Make node-entrypoint fixture teardown reliable ([pmc-node-teardown-226](https://github.com/unbraind/pm-changelog/blob/main/.agents/pm/tasks/pmc-node-teardown-226.toon))
 
