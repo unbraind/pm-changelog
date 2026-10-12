@@ -4,7 +4,7 @@
 
 ### Added
 
-- Changelog entries can use resolution prose, and defect-shaped titles produce a generation warning ([pmc-d3ds](https://github.com/unbraind/pm-changelog/blob/main/.agents/pm/features/pmc-d3ds.toon))
+- Changelog entries can use resolution prose, and --check warns about defect-shaped titles ([pmc-d3ds](https://github.com/unbraind/pm-changelog/blob/main/.agents/pm/features/pmc-d3ds.toon))
 
 ### Fixed
 
