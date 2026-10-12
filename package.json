@@ -102,7 +102,7 @@
     "@unbrained/pm-cli": ">=2026.10.4"
   },
   "devDependencies": {
-    "@types/node": "26.6.4",
+    "@types/node": "26.6.5",
     "@unbrained/pm-cli": "2026.10.9",
     "marked": "18.1.0",
     "pm-ops": "2026.10.6",
