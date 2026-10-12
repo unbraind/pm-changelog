@@ -1,16 +1,21 @@
 id: pmc-d3ds
-title: "A defect-shaped item title renders backwards under a Fixed heading, and there is no second field to draw the entry from"
+title: "Changelog entries can use resolution prose, and --check warns about defect-shaped titles"
 description: "pm-changelog projects the item title directly into the changelog entry. Issue trackers want a defect-shaped title that names what is wrong, and Keep a Changelog wants an entry under Fixed that describes the change. Those two conventions produce opposite sentences from the same string, so a repo must pick one and be wrong in the other place. This surfaced in review twice in one session with contradictory guidance: pm-linear was told to make a title defect-shaped, and pm-changelog was told the resulting entry describes the defect rather than the fix. Both reviews were right about their own surface. The generator has no field other than title to draw from, so neither convention can be satisfied without breaking the other."
 type: Feature
-status: in_progress
+status: closed
 priority: 2
 tags[2]: changelog,dx
 created_at: "2026-08-26T19:15:29.547Z"
-updated_at: "2026-10-11T06:37:18.934Z"
+updated_at: "2026-10-12T05:39:16.586Z"
 deadline: "2026-09-09T00:00:00.000Z"
+closed_at: "2026-10-11T23:30:06.036Z"
+completed_at: "2026-10-11T23:30:06.036Z"
 author: claude
 estimated_minutes: 240
 acceptance_criteria: "The generator can source an entry from a field other than title, with an explicit opt-in flag and a documented fallback to title when the field is absent; the choice is recorded so changelog check and generation agree; a test proves an item with a defect-shaped title and a fix-shaped alternate field renders the alternate under Fixed"
+resolution: "Implemented and merged in https://github.com/unbraind/pm-changelog/pull/231: changelog entries can use resolution prose and warn about defect-shaped titles under --check"
+expected_result: "Meets its recorded acceptance criteria: The generator can source an entry from a field other than title, with an explicit opt-in flag and a documented fallback to title when the field is absent; the choice is recorded so changelog check and generation agree; a test proves an item with a defect-shaped title and a fix-shaped alternate field renders the alternate under Fixed"
+actual_result: "Merged in https://github.com/unbraind/pm-changelog/pull/231 at head 00d9739586e6. Its required test (22) and test (26) checks were green at that head, and every CodeRabbit review thread on the PR was resolved. Per the implementing agent's report, the local release gates on the merged head were npm 588/11/0, Bun 589/10/0 and isolated-HOME npm 588/11/0 (passed/failed/skipped), with every local failure a ReDoS-probe worker startup timeout under shared-host load, tracked in pmc-redos-startup-231."
 dependencies[1]{id,kind,created_at,author,source_kind,author_source}:
   pmc-n07l,related,"2026-08-26T19:15:29.547Z",claude,"cli:create:dep",detected
 comments[19]{created_at,author,text}:
@@ -78,12 +83,15 @@ tests[5]:
       created_at: "2026-10-11T05:40:29.695Z"
       source_kind: local_mutation
       source_ref: feat/defect-title-rendering
-docs[3]:
+docs[4]:
   - path: docs/usage.md
+    scope: project
+  - path: "https://github.com/unbraind/pm-changelog/pull/231/checks"
     scope: project
   - path: "https://keepachangelog.com/en/1.1.0/"
     scope: project
     note: the changelog convention the entry side must satisfy
   - path: README.md
     scope: project
+close_reason: "Delivered by https://github.com/unbraind/pm-changelog/pull/231 (merged); changelog entries can use resolution prose and warn about defect-shaped titles under --check"
 body: "Likely shape: an --entry-from <field> flag accepting close_reason first, since a closed issue already states its resolution there and the pm CLI records it as part of the close transition. Items without the field fall back to title so no existing repo changes behaviour."

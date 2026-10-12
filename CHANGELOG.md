@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+### Added
+
+- Changelog entries can use resolution prose, and --check warns about defect-shaped titles ([pmc-d3ds](https://github.com/unbraind/pm-changelog/blob/main/.agents/pm/features/pmc-d3ds.toon))
+
 ### Fixed
 
 - Refuse explicit partial-read envelopes supplied to changelog generation ([pmc-n4qu](https://github.com/unbraind/pm-changelog/blob/main/.agents/pm/issues/pmc-n4qu.toon))
