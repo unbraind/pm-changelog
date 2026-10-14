@@ -76,7 +76,15 @@ export function checkItemLinks(markdown: string, pmRoot: string, itemUrlBase: st
   const prefix = `${itemUrlBase.replace(/\/$/, "")}/`;
   for (const url of markdownLinkTargets(markdown)) {
     if (!url.startsWith(prefix)) continue;
-    const itemPath = decodeURIComponent(url.slice(prefix.length).split(/[?#]/, 1)[0]);
+    const rawPath = url.slice(prefix.length).split(/[?#]/, 1)[0]!;
+    let itemPath: string;
+    try {
+      itemPath = decodeURIComponent(rawPath);
+    } catch {
+      // A malformed escape (e.g. %ZZ in retained history) must name the link,
+      // not surface as a bare "URI malformed".
+      throw new Error(`Changelog item link has an invalid encoding: ${rawPath}`);
+    }
     const path = resolve(pmRoot, itemPath);
     if (!existsSync(path) || !statSync(path).isFile()) {
       throw new Error(`Changelog item link has no tracker file: ${itemPath}`);

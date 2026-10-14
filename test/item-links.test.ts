@@ -264,3 +264,17 @@ test("link targets match the former regex exactly and stay linear on hostile mar
     assert.ok(performance.now() - started < 1_000, "hostile destinations and titles must scan in linear time");
   }
 });
+
+test("link checks name a link whose path has a malformed percent escape", () => {
+  const root = mkdtempSync(join(tmpdir(), "pm-changelog-bad-escape-"));
+  try {
+    const pmRoot = join(root, ".agents", "pm");
+    mkdirSync(join(pmRoot, "issues"), { recursive: true });
+    assert.throws(
+      () => checkItemLinks(`- [x](${base}/issues/%ZZ.toon)`, pmRoot, base),
+      /Changelog item link has an invalid encoding: issues\/%ZZ\.toon/,
+    );
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
