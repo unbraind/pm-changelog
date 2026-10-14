@@ -61,3 +61,5 @@ export type {
   WriteChangelogOptions,
   WriteChangelogResult,
 } from "./types.ts";
+
+export { checkItemLinks } from "./item-links.ts";

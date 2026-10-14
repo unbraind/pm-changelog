@@ -258,6 +258,7 @@ describe("generator: item references and links", () => {
   it("renders a toon blob link under itemUrlBase and maps item type to a directory", () => {
     const result = createChangelog({
       items: [item({ id: "pm-1", title: "Add feature", type: "story", updated_at: "2026-06-01T00:00:00Z" })],
+      itemTypeFolders: { story: "stories" },
       itemRefStyle: "toon",
       itemUrlBase: "https://example.com/blob",
     });

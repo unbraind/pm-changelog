@@ -56,6 +56,7 @@ interface CliOptions {
     /** The explicit --until, kept apart from the tag-derived until the release context fills in. */
     dependencyCutoff?: string;
     mode: "replace" | "prepend";
+    checkLinks: boolean;
     check: boolean;
     checkDiff: boolean;
     explain: boolean;

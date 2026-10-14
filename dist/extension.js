@@ -447,7 +447,8 @@ export default defineExtension({
 async function listWorkspaceItemMetadata(pmRoot) {
     const settings = await readSettings(pmRoot);
     const registry = resolveItemTypeRegistry(settings, getActiveExtensionRegistrations());
-    return listAllItemMetadata(pmRoot, settings.item_format, registry.type_to_folder, undefined, settings.schema);
+    const items = await listAllItemMetadata(pmRoot, settings.item_format, registry.type_to_folder, undefined, settings.schema);
+    return items.map((item) => ({ ...item, itemFolder: registry.type_to_folder[item.type] }));
 }
 /**
  * Best-effort enrichment of item metadata with the on-disk body, used so
