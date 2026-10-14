@@ -24,11 +24,39 @@ export function resolveItemFolder(item: PmItem, folders?: Readonly<Record<string
   return folder;
 }
 
+/**
+ * Yield every `](target)` link target in one linear pass.
+ *
+ * Equivalent to matching `/\]\(([^)\s]+)\)/g`, which CodeQL flags as polynomial
+ * on untrusted input such as many repetitions of `](!`. When a scan stops at
+ * whitespace or the end of input, every `](` inside the scanned span would stop
+ * at the same character, so resuming there loses no match and keeps the work
+ * linear.
+ *
+ * @param markdown - Rendered changelog markdown.
+ * @returns Link targets in document order.
+ */
+export function* markdownLinkTargets(markdown: string): Generator<string> {
+  let from = 0;
+  for (;;) {
+    const open = markdown.indexOf("](", from);
+    if (open === -1) return;
+    const start = open + 2;
+    let end = start;
+    while (end < markdown.length && markdown[end] !== ")" && !/\s/.test(markdown[end]!)) end += 1;
+    if (end > start && markdown[end] === ")") {
+      yield markdown.slice(start, end);
+      from = end + 1;
+    } else {
+      from = Math.max(end, start);
+    }
+  }
+}
+
 /** Fail if a tracker link is absent, is a directory, or escapes the pm root, including symlinks. */
 export function checkItemLinks(markdown: string, pmRoot: string, itemUrlBase: string): void {
   const prefix = `${itemUrlBase.replace(/\/$/, "")}/`;
-  for (const match of markdown.matchAll(/\]\(([^)\s]+)\)/g)) {
-    const url = match[1];
+  for (const url of markdownLinkTargets(markdown)) {
     if (!url.startsWith(prefix)) continue;
     const itemPath = decodeURIComponent(url.slice(prefix.length));
     const path = resolve(pmRoot, itemPath);

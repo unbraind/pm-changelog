@@ -7,6 +7,7 @@ import test from "node:test";
 import { getActiveExtensionRegistrations, readSettings, resolveItemTypeRegistry, runCreate, runWithActiveExtensions } from "@unbrained/pm-cli/sdk";
 import { cliTestSurface } from "../src/cli.ts";
 import { checkItemLinks, createChangelog, readPmItems } from "../src/index.ts";
+import { markdownLinkTargets } from "../src/item-links.ts";
 
 const base = "https://example.test/blob/main/.agents/pm";
 
@@ -124,4 +125,20 @@ test("link validity rejects missing files, directories, traversal and symlinks o
   } finally {
     rmSync(directory, { recursive: true, force: true });
   }
+});
+
+test("link targets match the former regex exactly and stay linear on hostile markdown", () => {
+  // The regex CodeQL flagged as polynomial (js/polynomial-redos), kept here only as the oracle.
+  const oracle = (markdown: string): string[] => [...markdown.matchAll(/\]\(([^)\s]+)\)/g)].map((match) => match[1]!);
+  const samples = [
+    "- [a](https://x/a.toon) and [b](https://x/b.toon)",
+    "](no-close", "]()", "]( spaced)", "](a](b)", "](a b)(c)", "]]((x)", "](\u00a0x)", "](x\ny)", "[t](u)](v)", "",
+  ];
+  for (const sample of samples) assert.deepEqual([...markdownLinkTargets(sample)], oracle(sample), JSON.stringify(sample));
+  const hostile = `](${"](!".repeat(200_000)}`;
+  const started = performance.now();
+  assert.deepEqual([...markdownLinkTargets(hostile)], []);
+  // The polynomial regex needs minutes here; the scanner needs milliseconds. A 1 s bound
+  // still catches the regression while tolerating a loaded runner or coverage instrumentation.
+  assert.ok(performance.now() - started < 1_000, "hostile '](!' repetition must scan in linear time");
 });
