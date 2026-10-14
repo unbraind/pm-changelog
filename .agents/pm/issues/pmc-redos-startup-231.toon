@@ -6,15 +6,18 @@ status: open
 priority: 2
 tags[3]: performance,tests,validation
 created_at: "2026-10-11T05:46:21.190Z"
-updated_at: "2026-10-11T09:57:53.737Z"
+updated_at: "2026-10-14T13:29:44.730Z"
 author: codex-agent
 acceptance_criteria: "Preserve every hostile input and assertion, the 250ms CPU budget and independent hang detection; demonstrate startup handling under loaded and unloaded conditions; keep any fix separate from PR 231."
 repro_steps: "Run npm run release:check unchanged while the shared validation host is heavily loaded; inspect generator-redos worker startup errors."
 expected_result: Parser probes reach readiness and enforce their CPU and hang budgets without treating scheduler-delayed module startup as parser failure.
 actual_result: All 11 workers failed the 5000ms startup deadline in the npm release gate; no operation CPU-budget failure was reported.
-comments[2]{created_at,author,text}:
+comments[5]{created_at,author,text}:
   "2026-10-11T06:35:53.252Z",codex-agent,"Confirmed unchanged full-gate receipts on merged head c8e7c037db23e9b10ac43a77603836d309de5871: npm 599 tests / 588 pass / 11 fail; Bun 599 / 589 / 10; fresh HOME with global and system Git config disabled 599 / 588 / 11. All failures are worker did not start within 5000ms, before the parser operation budget is measured; every run has 0 cancelled/skipped/todo. One Bun extract-release probe passed its unchanged budgets. Heavy shared-host load was observed during validation. Existing pmc-zoqj covers operation CPU timing, not this startup readiness failure. No production implementation, timeout or coverage threshold change is included here; this follow-up remains open for separate investigation."
   "2026-10-11T09:57:53.737Z",claude-hub,"Wording qualified per review: host load is a hypothesis until the loaded/unloaded comparison in the acceptance criteria exists."
+  "2026-10-14T11:37:30.865Z",codex-agent,"Additional maintenance evidence: the unchanged npm release gate passed 598 of 599 tests, with only summary-format failing worker readiness at the existing 5000 ms deadline during overlapping package gates. The same named test passed in isolation (1 of 1, zero skips) in about 2.35 seconds without changing any startup, CPU, hang, or coverage budget. This remains a separate test-stability follow-up; no harness changes are included in the maintenance caller PR."
+  "2026-10-14T12:59:25.805Z",codex-agent,"Additional reproduction: a second unchanged full npm gate passed 598/599 tests, with only extract-release failing to reach readiness within 5000 ms. No operation CPU-budget assertion failed. The failing operation differed from the first maintenance attempt, and the isolated startup control had passed. The harness and its deadlines remain unchanged."
+  "2026-10-14T13:29:44.730Z",codex-agent,"Final maintenance validation: the complete npm gate passed all 599 tests without package-gate overlap; the complete Bun gate also passed 599/599. Both had zero failures and zero skips, with startup, operation CPU, hang, and coverage budgets unchanged. The two earlier npm startup failures remain useful reproductions, so this separate stability issue stays open; no harness or runtime changes were made."
 files[2]{path,scope}:
   test/generator-redos-worker.ts,project
   test/generator-redos.test.ts,project
