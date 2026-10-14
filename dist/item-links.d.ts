@@ -4,13 +4,14 @@ export declare function builtinItemFolder(type: string | undefined): string | un
 /** Resolve custom folders only from registry metadata; never pluralize a type. */
 export declare function resolveItemFolder(item: PmItem, folders?: Readonly<Record<string, string>>): string;
 /**
- * Yield every `](target)` link target in one linear pass.
+ * Yield `](target)` link targets, including optional CommonMark titles, in linear time.
  *
- * Equivalent to matching `/\]\(([^)\s]+)\)/g`, which CodeQL flags as polynomial
- * on untrusted input such as many repetitions of `](!`. When a scan stops at
- * whitespace or the end of input, every `](` inside the scanned span would stop
- * at the same character, so resuming there loses no match and keeps the work
- * linear.
+ * Destination scans resume at their stopping character. Title lookahead stops
+ * at the next unescaped delimiter, including any later opener of the same style
+ * (which follows whitespace and cannot be escaped). Lookahead spans therefore
+ * do not overlap within a title style; the three styles bound total work to a
+ * constant number of input passes. Failed titles resume at the destination end
+ * to retain later links. Untitled links without whitespace keep the old behavior.
  *
  * @param markdown - Rendered changelog markdown.
  * @returns Link targets in document order.

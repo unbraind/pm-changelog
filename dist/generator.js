@@ -645,7 +645,7 @@ export function readPmItems(options = {}) {
     const definitions = JSON.parse(schema.stdout);
     const folders = Object.fromEntries([...definitions.builtin, ...definitions.custom, ...definitions.extension]
         .map((definition) => [definition.name, definition.folder]));
-    return items.map((item) => ({ ...item, itemFolder: folders[String(item.type)] }));
+    return items.map((item) => ({ ...item, itemFolder: item.itemFolder ?? folders[String(item.type)] }));
 }
 /** Preserve host/wrapper arguments while dropping list-only output budgets rejected by schema. */
 function schemaCommandPrefix(args) {
@@ -2248,8 +2248,12 @@ function labelItemRef(id) {
 function toonItemRef(item, id, itemUrlBase, options) {
     const base = itemUrlBase.replace(/\/$/, "");
     const typeDir = resolveItemFolder(item, options.itemTypeFolders);
-    const url = `${base}/${typeDir.split("/").map(encodeURIComponent).join("/")}/${encodeURIComponent(id)}.toon`;
+    const url = `${base}/${typeDir.split("/").map(encodeItemPathSegment).join("/")}/${encodeItemPathSegment(id)}.toon`;
     return ` ([${escapeMarkdown(id)}](${url}))`;
+}
+/** Encode a URL path segment, including parentheses that delimit Markdown links. */
+function encodeItemPathSegment(segment) {
+    return encodeURIComponent(segment).replace(/[()]/g, (parenthesis) => parenthesis === "(" ? "%28" : "%29");
 }
 /** Public GitHub issue/PR link from the item's provenance tag, or `undefined`.
  * `/issues/N` resolves to the PR view too, so one form covers issues and PRs. */

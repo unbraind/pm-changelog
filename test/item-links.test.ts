@@ -4,6 +4,7 @@ import { chmodSync, existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, sy
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import test from "node:test";
+import { lexer, walkTokens } from "marked";
 import { getActiveExtensionRegistrations, readSettings, resolveItemTypeRegistry, runCreate, runWithActiveExtensions } from "@unbrained/pm-cli/sdk";
 import { cliTestSurface } from "../src/cli.ts";
 import { checkItemLinks, createChangelog, readPmItems } from "../src/index.ts";
@@ -92,7 +93,7 @@ process.exit(result.status ?? 1);
     await cliTestSurface.main(inProcess);
     await cliTestSurface.main(inProcess.filter((arg) => arg !== "--pm-cwd" && arg !== f.cwd));
     await cliTestSurface.main([...inProcess, "--mode", "prepend"]);
-    writeFileSync(output, readFileSync(output, "utf8") + `\n## 0.0.0 - 2025-01-01\n\n[missing](${base}/reviewfindings/absent.toon)\n`);
+    writeFileSync(output, readFileSync(output, "utf8") + `\n## 0.0.0 - 2025-01-01\n\n[missing](${base}/reviewfindings/absent.toon "tracker item")\n`);
     const prepend = generate(f, ["--output", output, "--mode", "prepend", "--check-links"]);
     assert.equal(prepend.status, 1);
     assert.match(prepend.stderr, /no tracker file/);
@@ -127,6 +128,102 @@ test("link validity rejects missing files, directories, traversal and symlinks o
   }
 });
 
+test("schema lookup preserves existing folders for archived and still-registered custom items", async () => {
+  const f = await fixture();
+  try {
+    const wrapper = join(f.cwd, "archived-items.ts");
+    writeFileSync(wrapper, `#!/usr/bin/env node
+import { spawnSync } from "node:child_process";
+const result = spawnSync(process.execPath, [process.env.PM_CHANGELOG_TEST_CLI, ...process.argv.slice(2)], { encoding: "utf8", env: process.env });
+if (result.status !== 0) { process.stderr.write(result.stderr); process.exit(result.status ?? 1); }
+if (process.argv.includes("list") && !process.argv.includes("schema")) {
+  const output = JSON.parse(result.stdout);
+  output.items.push(
+    { id: "archived", title: "Archived custom item", type: "RemovedType", itemFolder: "archives", status: "closed" },
+    { id: "registered", title: "Supplied custom folder", type: "ReviewFinding", itemFolder: "archives", status: "closed" }
+  );
+  output.count = output.total = output.items.length;
+  process.stdout.write(JSON.stringify(output));
+} else process.stdout.write(result.stdout);
+`);
+    chmodSync(wrapper, 0o755);
+    mkdirSync(join(f.pmRoot, "archives"));
+    for (const id of ["archived", "registered"]) writeFileSync(join(f.pmRoot, "archives", `${id}.toon`), "fixture");
+    const items = readPmItems({ cwd: f.cwd, pmRoot: f.pmRoot, pmBin: wrapper,
+      env: { ...f.env, PM_CHANGELOG_TEST_CLI: join(process.cwd(), "node_modules", "@unbrained", "pm-cli", "dist", "cli.js") } });
+    assert.equal(items.find((item) => item.id === "archived")?.itemFolder, "archives");
+    assert.equal(items.find((item) => item.id === "registered")?.itemFolder, "archives");
+    assert.equal(items.find((item) => item.type === "ReviewFinding" && item.id !== "registered")?.itemFolder, "review-findings");
+    const generated = createChangelog({ items, itemUrlBase: base });
+    assert.match(generated.markdown, /\/archives\/archived\.toon/);
+    assert.match(generated.markdown, /\/archives\/registered\.toon/);
+    checkItemLinks(generated.markdown, f.pmRoot, base);
+  } finally {
+    rmSync(f.cwd, { recursive: true, force: true });
+  }
+});
+
+test("generated links encode parentheses in every folder segment and item id", async () => {
+  const f = await fixture();
+  try {
+    const itemFolder = "reviews(qa)/closed)";
+    const id = "item(qa)";
+    mkdirSync(join(f.pmRoot, itemFolder), { recursive: true });
+    writeFileSync(join(f.pmRoot, itemFolder, `${id}.toon`), "fixture");
+    const items = [{ id, title: "Parenthesized path", type: "ReviewFinding", itemFolder, status: "closed" }];
+    const generated = createChangelog({ items, itemUrlBase: base });
+    const expected = `${base}/reviews%28qa%29/closed%29/item%28qa%29.toon`;
+    assert.deepEqual([...markdownLinkTargets(generated.markdown)], [expected]);
+    const renderedLinks: string[] = [];
+    walkTokens(lexer(generated.markdown), (token) => { if (token.type === "link") renderedLinks.push(token.href); });
+    assert.deepEqual(renderedLinks, [expected]);
+    checkItemLinks(generated.markdown, f.pmRoot, base);
+    const input = join(f.cwd, "parenthesized-items.json");
+    writeFileSync(input, JSON.stringify(items));
+    const command = generate(f, ["--input", input, "--stdout", "--check-links"]);
+    assert.equal(command.status, 0, command.stderr);
+    assert.ok(command.stdout.includes(expected));
+  } finally {
+    rmSync(f.cwd, { recursive: true, force: true });
+  }
+});
+
+test("link checks validate destinations with double-quoted, single-quoted and parenthesized titles", () => {
+  const directory = mkdtempSync(join(tmpdir(), "pm-changelog-titled-links-"));
+  try {
+    writeFileSync(join(directory, "present.toon"), "fixture");
+    for (const title of ['"tracker item"', "'tracker item'", "(tracker item)"]) {
+      const markdown = `[item](${base}/present.toon ${title})`;
+      assert.deepEqual([...markdownLinkTargets(markdown)], [`${base}/present.toon`]);
+      checkItemLinks(markdown, directory, base);
+      assert.throws(() => checkItemLinks(`[item](${base}/missing.toon ${title})`, directory, base), /no tracker file/);
+    }
+  } finally {
+    rmSync(directory, { recursive: true, force: true });
+  }
+});
+
+test("link checks strip literal query and fragment suffixes before decoding and preserve containment", () => {
+  const directory = mkdtempSync(join(tmpdir(), "pm-changelog-url-suffixes-"));
+  const pmRoot = join(directory, "tracker");
+  mkdirSync(pmRoot);
+  for (const file of ["present.toon", "encoded?#.toon"]) writeFileSync(join(pmRoot, file), "fixture");
+  writeFileSync(join(directory, "outside.toon"), "fixture");
+  symlinkSync(join(directory, "outside.toon"), join(pmRoot, "symlink.toon"));
+  try {
+    for (const suffix of ["#L2", "?raw=1", "?raw=1#L2", "#L2?raw=1", "?q=%ZZ#fragment"]) {
+      checkItemLinks(`[item](${base}/present.toon${suffix})`, pmRoot, base);
+      checkItemLinks(`[encoded](${base}/encoded%3F%23.toon${suffix})`, pmRoot, base);
+      assert.throws(() => checkItemLinks(`[missing](${base}/missing.toon${suffix})`, pmRoot, base), /no tracker file/);
+      for (const path of ["../outside.toon", "%2e%2e/outside.toon", "symlink.toon"]) {
+        assert.throws(() => checkItemLinks(`[escape](${base}/${path}${suffix})`, pmRoot, base), /escapes the pm root/);
+      }
+    }
+  } finally {
+    rmSync(directory, { recursive: true, force: true });
+  }
+});
+
 test("link targets match the former regex exactly and stay linear on hostile markdown", () => {
   // The regex CodeQL flagged as polynomial (js/polynomial-redos), kept here only as the oracle.
   const oracle = (markdown: string): string[] => [...markdown.matchAll(/\]\(([^)\s]+)\)/g)].map((match) => match[1]!);
@@ -135,10 +232,35 @@ test("link targets match the former regex exactly and stay linear on hostile mar
     "](no-close", "]()", "]( spaced)", "](a](b)", "](a b)(c)", "]]((x)", "](\u00a0x)", "](x\ny)", "[t](u)](v)", "",
   ];
   for (const sample of samples) assert.deepEqual([...markdownLinkTargets(sample)], oracle(sample), JSON.stringify(sample));
-  const hostile = `](${"](!".repeat(200_000)}`;
-  const started = performance.now();
-  assert.deepEqual([...markdownLinkTargets(hostile)], []);
+  const titledSamples = [
+    '[a](https://x/a.toon "title")', "[a](https://x/a.toon 'title')", "[a](https://x/a.toon (title))",
+    '[a](u "") [b](v \'\') [c](w ())',
+    '[a](u "escaped \\\"quote\\\" and ](text")',
+    "[a](u 'escaped \\'quote\\'')", "[a](u (escaped \\(paren\\)))",
+    '[a](u\t"title" \t) [b](v\n\'title\'\n)',
+    '[a](u )',
+    '[bad](u "unterminated [good](v)', '[bad](u "closed" junk) [good](v)',
+    '[bad](u invalid) [good](v)',
+    '[bad](u "trailing\\', '[bad](u (unterminated',
+  ];
+  for (const sample of titledSamples) {
+    const expected: string[] = [];
+    walkTokens(lexer(sample), (token) => { if (token.type === "link") expected.push(token.href); });
+    assert.deepEqual([...markdownLinkTargets(sample)], expected, JSON.stringify(sample));
+  }
+  // Preserve the old scanner's empty-destination behavior and reject unescaped
+  // parentheses in titles as CommonMark requires (marked accepts nested ones).
+  assert.deepEqual([...markdownLinkTargets('[empty]( "title")')], []);
+  assert.deepEqual([...markdownLinkTargets('[bad](u (nested (title))) [good](v)')], ["v"]);
+  const hostileInputs = [
+    `](${"](!".repeat(200_000)}`,
+    ...['"', "'", "("].map((delimiter) => `](u ${delimiter}`.repeat(20_000)),
+  ];
   // The polynomial regex needs minutes here; the scanner needs milliseconds. A 1 s bound
   // still catches the regression while tolerating a loaded runner or coverage instrumentation.
-  assert.ok(performance.now() - started < 1_000, "hostile '](!' repetition must scan in linear time");
+  for (const hostile of hostileInputs) {
+    const started = performance.now();
+    assert.deepEqual([...markdownLinkTargets(hostile)], []);
+    assert.ok(performance.now() - started < 1_000, "hostile destinations and titles must scan in linear time");
+  }
 });

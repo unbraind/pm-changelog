@@ -25,13 +25,14 @@ export function resolveItemFolder(item: PmItem, folders?: Readonly<Record<string
 }
 
 /**
- * Yield every `](target)` link target in one linear pass.
+ * Yield `](target)` link targets, including optional CommonMark titles, in linear time.
  *
- * Equivalent to matching `/\]\(([^)\s]+)\)/g`, which CodeQL flags as polynomial
- * on untrusted input such as many repetitions of `](!`. When a scan stops at
- * whitespace or the end of input, every `](` inside the scanned span would stop
- * at the same character, so resuming there loses no match and keeps the work
- * linear.
+ * Destination scans resume at their stopping character. Title lookahead stops
+ * at the next unescaped delimiter, including any later opener of the same style
+ * (which follows whitespace and cannot be escaped). Lookahead spans therefore
+ * do not overlap within a title style; the three styles bound total work to a
+ * constant number of input passes. Failed titles resume at the destination end
+ * to retain later links. Untitled links without whitespace keep the old behavior.
  *
  * @param markdown - Rendered changelog markdown.
  * @returns Link targets in document order.
@@ -44,9 +45,26 @@ export function* markdownLinkTargets(markdown: string): Generator<string> {
     const start = open + 2;
     let end = start;
     while (end < markdown.length && markdown[end] !== ")" && !/\s/.test(markdown[end]!)) end += 1;
-    if (end > start && markdown[end] === ")") {
+    let close = end;
+    while (close < markdown.length && /\s/.test(markdown[close]!)) close += 1;
+    const delimiter = markdown[close];
+    if (close > end && (delimiter === '"' || delimiter === "'" || delimiter === "(")) {
+      let titleEnd = close + 1;
+      while (titleEnd < markdown.length) {
+        const character = markdown[titleEnd];
+        if (character === "\\") titleEnd += 2;
+        else if (character === delimiter || (delimiter === "(" && character === ")")) break;
+        else titleEnd += 1;
+      }
+      close = titleEnd;
+      if (markdown[close] === (delimiter === "(" ? ")" : delimiter)) {
+        close += 1;
+        while (close < markdown.length && /\s/.test(markdown[close]!)) close += 1;
+      }
+    }
+    if (end > start && markdown[close] === ")") {
       yield markdown.slice(start, end);
-      from = end + 1;
+      from = close + 1;
     } else {
       from = Math.max(end, start);
     }
@@ -58,7 +76,7 @@ export function checkItemLinks(markdown: string, pmRoot: string, itemUrlBase: st
   const prefix = `${itemUrlBase.replace(/\/$/, "")}/`;
   for (const url of markdownLinkTargets(markdown)) {
     if (!url.startsWith(prefix)) continue;
-    const itemPath = decodeURIComponent(url.slice(prefix.length));
+    const itemPath = decodeURIComponent(url.slice(prefix.length).split(/[?#]/, 1)[0]);
     const path = resolve(pmRoot, itemPath);
     if (!existsSync(path) || !statSync(path).isFile()) {
       throw new Error(`Changelog item link has no tracker file: ${itemPath}`);
