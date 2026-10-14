@@ -3,4 +3,5 @@ export { assertReleaseTagHistory, MISSING_TAG_HISTORY_ERROR_CODE, MissingTagHist
 export { resolveGitReleaseMembership } from "./release-membership.ts";
 export type { AssertReleaseTagHistoryOptions, ReleaseTagWindowResolution, } from "./release-context.ts";
 export type { ChangelogAttributionProvenance, ChangelogDocument, ChangelogEntryFrom, ChangelogDocumentDependency, ChangelogDocumentItem, ChangelogDocumentRelease, ChangelogDocumentSection, ChangelogGroupBy, ChangelogReleaseWindow, ChangelogSelectionReport, ChangelogSection, ChangelogSectionBy, ChangelogSummaryEntry, ChangelogMergeAction, ChangelogOutputMode, DependencyCommit, GeneratedChangelog, GenerateChangelogOptions, MergeChangelogOptions, MergeChangelogResult, PmItem, PmItemStatus, ReadPmItemsOptions, SemverBump, SemverSuggestion, WriteChangelogOptions, WriteChangelogResult, } from "./types.ts";
+export { checkItemLinks } from "./item-links.ts";
 //# sourceMappingURL=index.d.ts.map

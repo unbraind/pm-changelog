@@ -444,3 +444,23 @@ set `entryFrom`. A check warning on stderr identifies visible closed Fixed entri
 recognized English defect title and no resolution, and prints the update command above.
 Warnings are advisory and keep the drift exit status unchanged. See the
 [full source and warning contract](../README.md#resolution-prose-for-release-notes).
+
+### Registered item folders and link checks
+
+Tracker reads resolve custom item folders through the same pm host's `schema list`
+metadata, including extension registrations. The extension uses the active SDK
+`resolveItemTypeRegistry().type_to_folder` map. Built-in folders retain their
+existing names. No custom folder is inferred from its type name.
+
+For caller-supplied items, pass the tracker's registry map as `itemTypeFolders`
+to `createChangelog`, or retain the `itemFolder` metadata from `readPmItems`.
+Unknown custom types without folder metadata fail with a diagnostic instead of
+emitting a guessed link. JSON input can carry `itemFolder` on each custom row.
+
+Use `--check-links` together with `--item-url-base` to verify every emitted
+tracker link points to an existing file inside the pm root. It also checks
+retained history in prepend mode, rejects paths and symlinks outside the root,
+and fails before writing output. The package's `changelog:check` runs this check.
+Public GitHub issue references and neutral labels have no tracker links to check.
+The exported `checkItemLinks(markdown, pmRoot, itemUrlBase)` performs the same
+validation for programmatic consumers.

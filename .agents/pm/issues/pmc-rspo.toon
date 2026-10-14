@@ -1,0 +1,56 @@
+id: pmc-rspo
+title: Link custom-type items to their registered tracker folders
+description: "Custom-type changelog links currently guess lowercase plus s instead of using registered tracker folders. Resolve canonical folders, add real tracker regression coverage and an optional link validity gate. Reported by pm-review PR 9."
+type: Issue
+status: in_progress
+priority: 1
+tags: []
+created_at: "2026-10-14T13:45:19.109Z"
+updated_at: "2026-10-14T14:21:09.555Z"
+author: codex-agent
+comments[6]{created_at,author,text}:
+  "2026-10-14T13:48:13.704Z",codex-agent,"The pinned SDK exposes resolveItemTypeRegistry().type_to_folder, and the same CLI exposes project plus extension definitions through schema list. Use registry-derived itemFolder metadata for custom rows, preserve known built-in folders for standalone inputs, and fail rather than guess unknown custom folders. Add --check-links for generated and prepended tracker links, including root containment."
+  "2026-10-14T13:56:18.566Z",codex-agent,"Fleet source audit: pm-review ReviewFinding uses review-findings; pm-rl EvalResult, GateEpisode and MergeOutcome use eval-results, gate-episodes and merge-outcomes; pm-starter StarterNote uses starter-notes. pm-presets AgentRun/Card, pm-ts-starter Spike and pm-web Bug currently resolve to the same folders as the old rule. Current origin/main in pm-vcs and pm-jev has no registered custom folder mismatch. pm-review canonicalFindingLinks remains compatible and becomes redundant after dependency upgrades. The pinned CLI rejects universal list output controls on schema list; the schema call omits those controls."
+  "2026-10-14T13:57:21.903Z",codex-agent,"Behavioral revert proof: restored only the old lowercase-plus-s folder derivation inside toonItemRef, rebuilt dist, then ran node --test test/item-links.test.ts test/custom-types.test.ts. Exit 1: 0/3 passed, 3 failed. The real-tracker path-existence assertion rejected extensionfindings instead of extension-findings; the extension command regression rejected changesets instead of change-records. Restored the implementation and rebuilt dist. Positive focused tests and pm test pmc-rspo --run --progress passed 3/3, with no skips or cancellations."
+  "2026-10-14T14:05:33.483Z",codex-agent,"The isolated npm gate passed all 601 tests, with zero failures/skips/cancellations. Coverage found one unexecuted CLI branch: link checking with no explicit pm-cwd. Extended the real tracker test to check the same absolute pm root with the default cwd; thresholds remain unchanged at 100 percent lines, branches and functions. Re-running the complete release gate."
+  "2026-10-14T14:13:27.556Z",codex-agent,"Isolated npm release:check passed: 601/601 tests; zero failures, skipped, canceled or todo; 100 percent measured lines/branches/functions across all 13 required source files; 168 documented declarations; zero production audit vulnerabilities. Packaging, dogfood changelog links/drift, release date and publish attestation checks passed. Exact command: env -u PM_PATH -u PM_AUTHOR HOME=$(mktemp -d) GIT_CONFIG_GLOBAL=/dev/null GIT_CONFIG_NOSYSTEM=1 npm run release:check. Running the same isolated gate through bun run release:check next."
+  "2026-10-14T14:21:08.242Z",codex-agent,"Final delivery gates passed under isolated identity. npm run release:check and bun run release:check each passed 601/601 tests with zero failures/skips/cancellations/todo and 100 percent measured lines/branches/functions across all 13 required source files. Both production audits reported zero vulnerabilities; docstrings, pack dry-run, dogfood changelog drift/link validation, release date and publish attestation checks passed. Exact isolation prefix for each runner: env -u PM_PATH -u PM_AUTHOR HOME=$(mktemp -d) GIT_CONFIG_GLOBAL=/dev/null GIT_CONFIG_NOSYSTEM=1. Scope remains the registered-folder fix and optional link validation. Consumer dependency bumps and removing the compatible pm-review workaround remain follow-up release work. Releasing the claim without closing the item, then regenerating/checking the package changelog before the SteveBot commit and PR."
+files[11]{path,scope}:
+  package.json,project
+  src/cli.ts,project
+  src/extension.ts,project
+  src/generator.ts,project
+  src/index.ts,project
+  src/item-links.ts,project
+  src/types.ts,project
+  test/custom-types.test.ts,project
+  test/generator-coverage.test.ts,project
+  test/generator.test.ts,project
+  test/item-links.test.ts,project
+tests[3]:
+  - command: node --test test/item-links.test.ts test/custom-types.test.ts
+    scope: project
+    provenance:
+      author: codex-agent
+      created_at: "2026-10-14T13:55:16.695Z"
+      source_kind: local_mutation
+      source_ref: fix/custom-type-item-folders
+  - command: "env -u PM_PATH -u PM_AUTHOR HOME=$(mktemp -d) GIT_CONFIG_GLOBAL=/dev/null GIT_CONFIG_NOSYSTEM=1 npm run release:check"
+    scope: project
+    timeout_seconds: 2400
+    provenance:
+      author: codex-agent
+      created_at: "2026-10-14T13:56:55.009Z"
+      source_kind: local_mutation
+      source_ref: fix/custom-type-item-folders
+  - command: "env -u PM_PATH -u PM_AUTHOR HOME=$(mktemp -d) GIT_CONFIG_GLOBAL=/dev/null GIT_CONFIG_NOSYSTEM=1 bun run release:check"
+    scope: project
+    timeout_seconds: 2400
+    provenance:
+      author: codex-agent
+      created_at: "2026-10-14T13:56:57.539Z"
+      source_kind: local_mutation
+      source_ref: fix/custom-type-item-folders
+docs[1]{path,scope}:
+  docs/usage.md,project
+body: ""
