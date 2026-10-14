@@ -3,7 +3,7 @@ import { resolve } from "node:path";
 import { defineExtension, getActiveExtensionRegistrations, listAllItemMetadata, locateItem, readLocatedItem, readSettings, resolveItemTypeRegistry, EXIT_CODE, PmCliError, } from "@unbrained/pm-cli/sdk";
 import { buildChangelogDocument, createChangelog, createChangelogSummary, explainChangelogSelection, formatSummaryLine, lintChangelogEntries, parseChangelogEntryFrom, mergeChangelog, suggestSemver, writeChangelog } from "./generator.js";
 import { MissingTagHistoryError, resolveGenerationReleaseWindows, resolveReleaseContext, resolveReleaseTagWindowResolution, } from "./release-context.js";
-import { resolveGitReleaseMembership } from "./release-membership.js";
+import { resolveGitReleaseHistory } from "./release-membership.js";
 const BODY_ENRICHMENT_DEPENDENCIES = {
     readSettings,
     resolveItemTypeRegistry,
@@ -213,7 +213,7 @@ export default defineExtension({
                 };
                 if (allReleaseTags) {
                     try {
-                        generationOptions.releaseMembership = await resolveGitReleaseMembership(generationOptions, ctx.pm_root);
+                        Object.assign(generationOptions, await resolveGitReleaseHistory(generationOptions, ctx.pm_root));
                     }
                     catch (error) {
                         throw new PmCliError(`Cannot verify release membership: ${String(error)}`, EXIT_CODE.GENERIC_FAILURE);

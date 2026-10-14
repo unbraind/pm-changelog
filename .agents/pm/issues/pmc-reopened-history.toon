@@ -1,0 +1,53 @@
+id: pmc-reopened-history
+title: Preserve shipped entries when completed items are reopened and closed again
+description: "pm-cli PR 1473 reuses canonical privacy item pm-geywoc. pm-changelog 2026.10.13 replaces its original released 2026.10.14 entry with the new completion under Unreleased, erasing shipped history. Retain immutable tagged prose and completion occurrences independently of current status; do not duplicate unchanged completions in later tags."
+type: Issue
+status: closed
+priority: 1
+tags: []
+created_at: "2026-10-14T19:22:30.214Z"
+updated_at: "2026-10-14T19:42:44.902Z"
+closed_at: "2026-10-14T19:42:08.086Z"
+completed_at: "2026-10-14T19:42:08.086Z"
+author: codex
+estimated_minutes: 180
+acceptance_criteria: "Real Git fixtures cover reopen while open, reclose, title/category changes, repeated tags and CLI/extension; exact coverage and package gates pass; pm-cli consumes published fix."
+parent: pmc-3jq8
+risk: medium
+confidence: high
+resolution: "Added shared Git release-history reconstruction for CLI, extension and API consumers, with completion-aware containment, original tagged prose and type folders, idempotence and schema-scoped immutable blob caching."
+expected_result: Earlier shipped entries remain in their containing releases; new completions stay pending until contained; current explicit declarations and legacy/schema evidence remain valid.
+actual_result: "Native linked tests both pass, including the complete release gate: all608 tests pass with100 percent line/branch/function coverage, complete docstrings, package/audit/changelog/date/attestation checks. Unchanged baseline loses original prose while candidate retains both entries. Full pm-cli history renders in55 seconds with cache-equivalent bytes. Earlier startup and missing-branch failures retained; no thresholds or timeouts changed. Publication and exact-head hosted review remain required before downstream acceptance."
+affected_version: 2026.10.13
+component: release-history
+comments[4]{created_at,author,text}:
+  "2026-10-14T19:22:30.214Z",codex,"Duplicate check: full live 182-item corpus complete with no unreadable documents or omissions; reviewed open/in-progress lists and request-specific search. Existing completed containment/schema/status work does not support multiple shipped completion occurrences. New upstream owner for pm-cli PR 1473."
+  "2026-10-14T19:28:15.811Z",codex,"The new real-Git regression passes through pure generation, standalone CLI and installed extension command registration. It preserves original shipped title/category when open after reopening, new closure in Unreleased, and three occurrences across repeated tags without duplication. Initial fixture attempts exposed missing required description and strict SDK metadata typing; corrected fixture data without changing runtime schema or quality thresholds. Full package coverage and real pm-cli consumer generation are running."
+  "2026-10-14T19:32:26.059Z",codex,"Independent unchanged-base consumer proof: baseline emits one recurrence entry and drops original prose; candidate emits two entries and retains both. Full pm-cli generation also restored prior immutable occurrences. The first implementation completed that corpus in about five minutes and repeatedly decoded unchanged tagged blobs; added schema-scoped immutable blob caching before delivery. Initial whole-package run retained 607 passes, one existing worker-start deadline failure under concurrent validation, and one missing completion-mismatch branch; adjusted the recurrence fixture so its new completion predates a tag that still contains the old completion, proving the missing containment case without changing thresholds."
+  "2026-10-14T19:42:44.902Z",codex,"Native linked verification run test-local-mv8in51h-c0hs7u completed2/2 selected commands with exit0: real Git membership regressions and the full package release gate. The release gate passes all608 tests with100 percent line/branch/function coverage plus type/docstring/audit/package/changelog/date/attestation checks. Automatic test-result persistence is disabled by current upstream settings; this compact result is recorded in this comment and immutable close evidence rather than claiming automatic recording. The claim has been released; hosted exact-head review and publication are the remaining delivery gates."
+files[17]{path,scope,note}:
+  dist/cli.js,project,Immutable completion occurrences and shared SDK adapters
+  dist/cli.js.map,project,Immutable completion occurrences and shared SDK adapters
+  dist/extension.js,project,Immutable completion occurrences and shared SDK adapters
+  dist/extension.js.map,project,Immutable completion occurrences and shared SDK adapters
+  dist/index.d.ts,project,Immutable completion occurrences and shared SDK adapters
+  dist/index.d.ts.map,project,Immutable completion occurrences and shared SDK adapters
+  dist/index.js,project,Immutable completion occurrences and shared SDK adapters
+  dist/index.js.map,project,Immutable completion occurrences and shared SDK adapters
+  dist/release-membership.d.ts,project,Immutable completion occurrences and shared SDK adapters
+  dist/release-membership.d.ts.map,project,Immutable completion occurrences and shared SDK adapters
+  dist/release-membership.js,project,Immutable completion occurrences and shared SDK adapters
+  dist/release-membership.js.map,project,Immutable completion occurrences and shared SDK adapters
+  src/cli.ts,project,Immutable completion occurrences and shared SDK adapters
+  src/extension.ts,project,Immutable completion occurrences and shared SDK adapters
+  src/index.ts,project,Immutable completion occurrences and shared SDK adapters
+  src/release-membership.ts,project,Immutable completion occurrences and shared SDK adapters
+  test/release-membership.test.ts,project,Immutable completion occurrences and shared SDK adapters
+tests[2]{command,scope,timeout_seconds,provenance{author,created_at,source_kind,source_ref}}:
+  node --test test/release-membership.test.ts,project,240,codex,"2026-10-14T19:26:48.276Z",local_mutation,fix/reopened-release-history
+  "npm run release:check",project,900,codex,"2026-10-14T19:26:48.276Z",local_mutation,fix/reopened-release-history
+docs[2]{path,scope,note}:
+  CHANGELOG.md,project,Occurrence history API and package generated release notes
+  docs/usage.md,project,Occurrence history API and package generated release notes
+close_reason: Preserve immutable shipped completion occurrences across canonical item reopenings
+body: ""

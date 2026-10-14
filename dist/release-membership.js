@@ -17,10 +17,27 @@ import { createChangelog } from "./generator.js";
  * The returned map records only corrections and never mutates tracker data.
  */
 export async function resolveGitReleaseMembership(options, pmRoot) {
+    return (await resolveGitReleaseEvidence(options, pmRoot, false)).releaseMembership;
+}
+/** Preserve earlier shipped completions when a canonical item is reopened.
+ * Historical copies carry their containing release tag, so ordinary pure
+ * generation applies the same status, exclusion, grouping and visibility rules.
+ * Current explicit release declarations remain authoritative. */
+export async function resolveGitReleaseHistory(options, pmRoot) {
+    return resolveGitReleaseEvidence(options, pmRoot, true);
+}
+/** Read tag evidence once for placement and optional prior occurrences. */
+async function resolveGitReleaseEvidence(options, pmRoot, preserveHistory) {
     const assignments = new Map();
+    const historical = [];
+    const seen = new Set(options.items.map((item) => `${item.id}\0${Date.parse(item.completed_at ?? item.closed_at ?? "")}`));
+    const parsedBySchema = new Map();
+    const currentItems = new Map(options.items.filter((item) => item.id
+        && !item.release?.trim() && !String(item.metadata?.release ?? "").trim()).map((item) => [item.id, item]));
+    const result = { items: [...options.items], releaseMembership: assignments };
     const windows = options.releaseWindows;
     if (!windows?.length || !existsSync(resolve(pmRoot, "settings.json")))
-        return assignments;
+        return result;
     let cwd;
     try {
         cwd = execFileSync("git", ["rev-parse", "--show-toplevel"], {
@@ -37,7 +54,7 @@ export async function resolveGitReleaseMembership(options, pmRoot) {
     for (const window of [...windows].reverse()) {
         const original = sections.find((section) => section.heading === window.heading).items;
         const candidates = [...pending, ...original.filter((item) => item.id && !item.release?.trim() && !String(item.metadata?.release ?? "").trim())];
-        if (candidates.length === 0)
+        if (candidates.length === 0 && (!preserveHistory || currentItems.size === 0))
             continue;
         if (!window.releaseTag || !window.until) {
             for (const item of pending)
@@ -45,7 +62,7 @@ export async function resolveGitReleaseMembership(options, pmRoot) {
             pending = [];
             continue;
         }
-        const ids = new Set(candidates.map((item) => item.id));
+        const ids = new Set(preserveHistory ? currentItems.keys() : candidates.map((item) => item.id));
         const tree = execFileSync("git", ["ls-tree", "-r", "-z", window.releaseTag, "--", "."], {
             cwd, encoding: "utf8", maxBuffer: 64 * 1024 * 1024, stdio: ["ignore", "pipe", "pipe"],
         });
@@ -74,27 +91,62 @@ export async function resolveGitReleaseMembership(options, pmRoot) {
                 throw new Error(`Release item ${id} in ${window.releaseTag} is not a Git blob`);
             if (blobs.has(id))
                 throw new Error(`Release tag ${window.releaseTag} contains duplicate item ${id}`);
-            blobs.set(id, { hash: hash, format: extension === ".toon" ? "toon" : "json_markdown" });
+            blobs.set(id, { hash: hash, format: extension === ".toon" ? "toon" : "json_markdown", folder: dirname(path.slice(trackerPrefix.length)) });
         }
         // Before a tracker existed, absence is not evidence against a historical
         // completion. Keep those original placements while retaining pending work
         // already proven absent from a newer tracker-bearing release.
         if (!hasTrackerItems)
             continue;
-        let statuses = new Map();
+        const taggedItems = new Map();
         if (blobs.size > 0) {
-            const output = execFileSync("git", ["cat-file", "--batch"], {
-                cwd,
-                input: [...blobs.values()].map((blob) => blob.hash).join("\n") + "\n",
-                maxBuffer: 64 * 1024 * 1024,
-                stdio: ["pipe", "pipe", "pipe"],
-            });
-            statuses = parseReleaseItemStatuses(output, blobs, await readTaggedSchema(cwd, trackerPath, treeObjects));
+            const schema = await readTaggedSchema(cwd, trackerPath, treeObjects);
+            const schemaKey = JSON.stringify(schema);
+            let cache = parsedBySchema.get(schemaKey);
+            if (!cache) {
+                cache = new Map();
+                parsedBySchema.set(schemaKey, cache);
+            }
+            /** Immutable blob identity scoped by the tagged schema and document id. */
+            const cacheKey = (id, blob) => `${id}:${blob.format}:${blob.hash}`;
+            const missing = new Map([...blobs].filter(([id, blob]) => !cache.has(cacheKey(id, blob))));
+            if (missing.size > 0) {
+                const output = execFileSync("git", ["cat-file", "--batch"], {
+                    cwd,
+                    input: [...missing.values()].map((blob) => blob.hash).join("\n") + "\n",
+                    maxBuffer: 64 * 1024 * 1024,
+                    stdio: ["pipe", "pipe", "pipe"],
+                });
+                for (const [id, item] of parseReleaseItems(output, missing, schema))
+                    cache.set(cacheKey(id, missing.get(id)), item);
+            }
+            for (const [id, blob] of blobs)
+                taggedItems.set(id, { ...cache.get(cacheKey(id, blob)), itemFolder: blob.folder });
+        }
+        if (preserveHistory) {
+            for (const [id, tagged] of taggedItems) {
+                const current = currentItems.get(id);
+                const completion = tagged.completed_at ?? tagged.closed_at;
+                const currentCompletion = current.completed_at ?? current.closed_at;
+                // Updated-at alone does not establish a separate completion occurrence.
+                if (!completion || (tagged.status === current.status?.toLowerCase()
+                    && (!currentCompletion || Date.parse(currentCompletion) <= Date.parse(completion))))
+                    continue;
+                const key = `${id}\0${Date.parse(completion)}`;
+                if (seen.has(key))
+                    continue;
+                seen.add(key);
+                historical.push({ ...tagged, release: window.releaseTag });
+            }
         }
         const originalIds = new Set(original.map((item) => item.id));
         pending = candidates.filter((item) => {
-            const taggedStatus = statuses.get(item.id);
-            if (taggedStatus === undefined || taggedStatus !== item.status?.toLowerCase())
+            const tagged = taggedItems.get(item.id);
+            if (!tagged || tagged.status !== item.status?.toLowerCase())
+                return true;
+            const completion = item.completed_at ?? item.closed_at;
+            const taggedCompletion = tagged.completed_at ?? tagged.closed_at;
+            if (completion && taggedCompletion && Date.parse(completion) !== Date.parse(taggedCompletion))
                 return true;
             if (!originalIds.has(item.id))
                 assignments.set(item.id, window.heading);
@@ -105,7 +157,8 @@ export async function resolveGitReleaseMembership(options, pmRoot) {
     // an older release when no containing tag exists.
     for (const item of pending)
         assignments.set(item.id, null);
-    return assignments;
+    result.items.push(...historical);
+    return result;
 }
 /**
  * Reconstruct only the tagged settings and their four schema documents in an
@@ -166,7 +219,11 @@ async function readTaggedSchema(cwd, trackerPath, treeObjects) {
  * rather than treating a partial read as evidence that work was unreleased.
  */
 export function parseReleaseItemStatuses(output, blobs, schema) {
-    const statuses = new Map();
+    return new Map([...parseReleaseItems(output, blobs, schema)].map(([id, item]) => [id, item.status]));
+}
+/** Decode complete historical item metadata with the same strict blob checks. */
+function parseReleaseItems(output, blobs, schema) {
+    const items = new Map();
     let offset = 0;
     for (const [id, blob] of blobs) {
         const end = output.indexOf(10, offset);
@@ -181,11 +238,12 @@ export function parseReleaseItemStatuses(output, blobs, schema) {
         const document = parseItemDocument(content, { format: blob.format, schema });
         if (document.metadata.id !== id)
             throw new Error(`Release item filename and document identity disagree: ${id}`);
-        statuses.set(id, document.metadata.status.toLowerCase());
+        items.set(id, { ...document.metadata, status: document.metadata.status.toLowerCase(),
+            body: document.body, itemFolder: blob.folder });
         offset = end + size + 2;
     }
     if (offset !== output.length)
         throw new Error("Unexpected trailing Git blob data in release membership response");
-    return statuses;
+    return items;
 }
 //# sourceMappingURL=release-membership.js.map

@@ -21,7 +21,7 @@ import {
   resolveReleaseContext,
   resolveReleaseTagWindowResolution,
 } from "./release-context.ts";
-import { resolveGitReleaseMembership } from "./release-membership.ts";
+import { resolveGitReleaseHistory } from "./release-membership.ts";
 import type { ChangelogEntryFrom, ChangelogGroupBy, ChangelogItemRefStyle, ChangelogSectionBy, GenerateChangelogOptions, PmItem } from "./types.ts";
 
 /**
@@ -263,7 +263,7 @@ export default defineExtension({
         };
         if (allReleaseTags) {
           try {
-            generationOptions.releaseMembership = await resolveGitReleaseMembership(generationOptions, ctx.pm_root);
+            Object.assign(generationOptions, await resolveGitReleaseHistory(generationOptions, ctx.pm_root));
           } catch (error) {
             throw new PmCliError(`Cannot verify release membership: ${String(error)}`, EXIT_CODE.GENERIC_FAILURE);
           }
