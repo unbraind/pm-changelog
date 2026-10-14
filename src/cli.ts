@@ -29,7 +29,7 @@ import {
   resolveReleaseContext,
   resolveReleaseTagWindowResolution,
 } from "./release-context.ts";
-import { resolveGitReleaseMembership } from "./release-membership.ts";
+import { resolveGitReleaseHistory } from "./release-membership.ts";
 import type {
   ChangelogEntryFrom,
   ChangelogGroupBy,
@@ -216,9 +216,9 @@ async function main(args: string[] = process.argv.slice(2)): Promise<void> {
   const outputPath = resolve(options.output);
   const generationOptions: GenerateChangelogOptions = buildGenerationOptions(options, items);
   if (options.allReleaseTags && !options.input && !options.stdin) {
-    generationOptions.releaseMembership = await resolveGitReleaseMembership(
+    Object.assign(generationOptions, await resolveGitReleaseHistory(
       generationOptions, resolvePmRoot(options.pmCwd ? resolve(options.pmCwd) : process.cwd(), options.pmRoot),
-    );
+    ));
   }
   if (options.check) {
     for (const warning of lintChangelogEntries(generationOptions)) console.error(`Warning: ${warning}`);

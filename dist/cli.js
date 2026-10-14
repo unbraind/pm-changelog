@@ -8,7 +8,7 @@ import { checkItemLinks } from "./item-links.js";
 import { createUnifiedDiff, DEFAULT_MAX_DIFF_LINES } from "./diff.js";
 import { buildChangelogDocument, createChangelog, createChangelogSummary, explainChangelogSelection, formatInferredSources, formatSummaryLine, lintChangelogEntries, parseChangelogEntryFrom, mergeChangelog, parsePmItemsJson, readPmItems, suggestSemver, writeChangelog, } from "./generator.js";
 import { resolveGenerationReleaseWindows, resolveReleaseContext, resolveReleaseTagWindowResolution, } from "./release-context.js";
-import { resolveGitReleaseMembership } from "./release-membership.js";
+import { resolveGitReleaseHistory } from "./release-membership.js";
 // Compatibility aliases for value-taking options. Kept intentionally small and
 // explicit so default behavior remains stable.
 const OPTION_ALIASES = {
@@ -118,7 +118,7 @@ async function main(args = process.argv.slice(2)) {
     const outputPath = resolve(options.output);
     const generationOptions = buildGenerationOptions(options, items);
     if (options.allReleaseTags && !options.input && !options.stdin) {
-        generationOptions.releaseMembership = await resolveGitReleaseMembership(generationOptions, resolvePmRoot(options.pmCwd ? resolve(options.pmCwd) : process.cwd(), options.pmRoot));
+        Object.assign(generationOptions, await resolveGitReleaseHistory(generationOptions, resolvePmRoot(options.pmCwd ? resolve(options.pmCwd) : process.cwd(), options.pmRoot)));
     }
     if (options.check) {
         for (const warning of lintChangelogEntries(generationOptions))

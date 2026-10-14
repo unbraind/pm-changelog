@@ -182,6 +182,21 @@ paths are supported; schema references outside the tagged repository cannot
 provide versioned evidence and fail generation. These compatibility guarantees
 are tracked in [pmc-j6cb](https://github.com/unbraind/pm-changelog/blob/main/.agents/pm/issues/pmc-j6cb.toon).
 
+Reopening a canonical item also preserves its earlier shipped completions. The
+original title, category, body and type folder come from the first tag containing
+that completion; unchanged later tags do not repeat it. A new completion stays
+pending until a tag contains that completion, even when an older tag already
+contains the same item in a closed state. Only `completed_at` or `closed_at`
+establishes a distinct occurrence; administrative `updated_at` changes do not. Dated current completions require a
+matching dated tag record; an undated closed snapshot cannot prove that occurrence.
+Explicit current release declarations retain their existing authoritative behavior.
+Tracked in [pmc-reopened-history](https://github.com/unbraind/pm-changelog/blob/main/.agents/pm/issues/pmc-reopened-history.toon).
+
+API callers needing both occurrence preservation and membership verification can
+use `createChangelog({ ...options, ...await resolveGitReleaseHistory(options, pmRoot) })`.
+Import `resolveGitReleaseHistory` from `pm-changelog`; it returns a new item array
+plus placement corrections without mutating the tracker or caller input.
+
 Pure API inputs and standalone `--input`/`--stdin` documents retain timestamp
 placement because they need not describe the local tracker. SDK callers can opt
 into the same verification by passing
