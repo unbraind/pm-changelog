@@ -395,3 +395,25 @@ test("reopened canonical items retain each shipped occurrence and original prose
   ]);
   equal((await resolveGitReleaseHistory({ items: [third] }, pmRoot)).items.length, 1);
 });
+
+test("a dated completion cannot match an undated closed tag snapshot", async (t) => {
+  const root = createRepository();
+  t.after(() => rmSync(root, { recursive: true, force: true }));
+  writeFileSync(join(root, ".agents/pm/tasks/pm-test.toon"), serializeItemDocument({
+    metadata: {
+      id: "pm-test", title: "Legacy undated closure", description: "Release fixture", type: "Task", status: "closed",
+      priority: 2, tags: [], author: "Test", created_at: "2026-09-10T04:00:00Z", updated_at: "2026-09-10T05:00:00Z",
+    }, body: "",
+  }, { format: "toon" }));
+  git(root, ["commit", "-am", "Legacy closed record"], "2026-09-10T07:00:00Z");
+  git(root, ["tag", "v2026.9.10"]);
+  const options = {
+    items: [{ id: "pm-test", title: "New dated completion", status: "closed", completed_at: "2026-09-10T06:00:00Z" }],
+    releaseWindows: resolveReleaseTagWindows({ cwd: root }),
+  };
+  const history = await resolveGitReleaseHistory(options, join(root, ".agents/pm"));
+  deepEqual([...history.releaseMembership], [["pm-test", "Unreleased"]]);
+  const generated = createChangelog({ ...options, ...history });
+  equal(generated.itemCount, 1);
+  equal(generated.sections.find((section) => section.items.length)!.heading, "Unreleased");
+});

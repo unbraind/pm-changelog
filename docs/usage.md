@@ -187,7 +187,8 @@ original title, category, body and type folder come from the first tag containin
 that completion; unchanged later tags do not repeat it. A new completion stays
 pending until a tag contains that completion, even when an older tag already
 contains the same item in a closed state. Only `completed_at` or `closed_at`
-establishes a distinct occurrence; administrative `updated_at` changes do not.
+establishes a distinct occurrence; administrative `updated_at` changes do not. Dated current completions require a
+matching dated tag record; an undated closed snapshot cannot prove that occurrence.
 Explicit current release declarations retain their existing authoritative behavior.
 Tracked in [pmc-reopened-history](https://github.com/unbraind/pm-changelog/blob/main/.agents/pm/issues/pmc-reopened-history.toon).
 

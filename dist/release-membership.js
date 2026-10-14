@@ -146,7 +146,7 @@ async function resolveGitReleaseEvidence(options, pmRoot, preserveHistory) {
                 return true;
             const completion = item.completed_at ?? item.closed_at;
             const taggedCompletion = tagged.completed_at ?? tagged.closed_at;
-            if (completion && taggedCompletion && Date.parse(completion) !== Date.parse(taggedCompletion))
+            if (preserveHistory && completion && (!taggedCompletion || Date.parse(completion) !== Date.parse(taggedCompletion)))
                 return true;
             if (!originalIds.has(item.id))
                 assignments.set(item.id, window.heading);

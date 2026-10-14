@@ -158,7 +158,7 @@ async function resolveGitReleaseEvidence(
       if (!tagged || tagged.status !== item.status?.toLowerCase()) return true;
       const completion = item.completed_at ?? item.closed_at;
       const taggedCompletion = tagged.completed_at ?? tagged.closed_at;
-      if (completion && taggedCompletion && Date.parse(completion) !== Date.parse(taggedCompletion)) return true;
+      if (preserveHistory && completion && (!taggedCompletion || Date.parse(completion) !== Date.parse(taggedCompletion))) return true;
       if (!originalIds.has(item.id)) assignments.set(item.id!, window.heading);
       return false;
     });
