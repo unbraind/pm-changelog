@@ -103,7 +103,7 @@
   },
   "devDependencies": {
     "@types/node": "26.6.5",
-    "@unbrained/pm-cli": "2026.10.11",
+    "@unbrained/pm-cli": "2026.10.12",
     "marked": "18.1.0",
     "pm-ops": "2026.10.6",
     "typescript": "7.0.2",
