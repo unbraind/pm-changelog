@@ -3,7 +3,7 @@ import { resolve } from "node:path";
 import { defineExtension, getActiveExtensionRegistrations, listAllItemMetadata, locateItem, readLocatedItem, readSettings, resolveItemTypeRegistry, EXIT_CODE, PmCliError, } from "@unbrained/pm-cli/sdk";
 import { buildChangelogDocument, createChangelog, createChangelogSummary, explainChangelogSelection, formatSummaryLine, lintChangelogEntries, parseChangelogEntryFrom, mergeChangelog, suggestSemver, writeChangelog } from "./generator.js";
 import { MissingTagHistoryError, resolveGenerationReleaseWindows, resolveReleaseContext, resolveReleaseTagWindowResolution, } from "./release-context.js";
-import { resolveGitReleaseMembership } from "./release-membership.js";
+import { resolveGitReleaseHistory } from "./release-membership.js";
 const BODY_ENRICHMENT_DEPENDENCIES = {
     readSettings,
     resolveItemTypeRegistry,
@@ -37,7 +37,7 @@ function renderCommandResult(context) {
 }
 export default defineExtension({
     name: "pm-changelog",
-    version: "2026.10.13",
+    version: "2026.10.15",
     activate(api) {
         api.registerCommand({
             name: "changelog generate",
@@ -213,7 +213,7 @@ export default defineExtension({
                 };
                 if (allReleaseTags) {
                     try {
-                        generationOptions.releaseMembership = await resolveGitReleaseMembership(generationOptions, ctx.pm_root);
+                        Object.assign(generationOptions, await resolveGitReleaseHistory(generationOptions, ctx.pm_root));
                     }
                     catch (error) {
                         throw new PmCliError(`Cannot verify release membership: ${String(error)}`, EXIT_CODE.GENERIC_FAILURE);
@@ -447,7 +447,8 @@ export default defineExtension({
 async function listWorkspaceItemMetadata(pmRoot) {
     const settings = await readSettings(pmRoot);
     const registry = resolveItemTypeRegistry(settings, getActiveExtensionRegistrations());
-    return listAllItemMetadata(pmRoot, settings.item_format, registry.type_to_folder, undefined, settings.schema);
+    const items = await listAllItemMetadata(pmRoot, settings.item_format, registry.type_to_folder, undefined, settings.schema);
+    return items.map((item) => ({ ...item, itemFolder: registry.type_to_folder[item.type] }));
 }
 /**
  * Best-effort enrichment of item metadata with the on-disk body, used so

@@ -49,6 +49,7 @@ const items = [
     title: "Fix runner status export",
     status: "closed",
     type: "bug",
+    itemFolder: "bugs",
     release: "1.2.0",
     updated_at: "2026-05-17T09:00:00Z",
   },

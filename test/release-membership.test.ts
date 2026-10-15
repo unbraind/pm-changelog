@@ -11,7 +11,7 @@ import { activateExtensionForTest, runRegisteredCommandForTest } from "@unbraine
 import { createChangelog, explainChangelogSelection } from "../src/generator.ts";
 import { cliTestSurface } from "../src/cli.ts";
 import extension from "../src/extension.ts";
-import { parseReleaseItemStatuses, resolveGitReleaseMembership } from "../src/release-membership.ts";
+import { parseReleaseItemStatuses, resolveGitReleaseHistory, resolveGitReleaseMembership } from "../src/release-membership.ts";
 import { resolveReleaseTagWindows } from "../src/release-context.ts";
 import type { PmItem } from "../src/types.ts";
 
@@ -102,6 +102,9 @@ test("membership preserves declarations and explicit omission and pending-window
   const options = { items: [item], releaseWindows };
   for (const declared of [{ ...item, release: "2026.9.10" }, { ...item, metadata: { release: "2026.9.10" } }]) {
     equal((await resolveGitReleaseMembership({ ...options, items: [declared] }, pmRoot)).size, 0);
+    const declaredHistory = await resolveGitReleaseHistory({ ...options, items: [declared] }, pmRoot);
+    deepEqual(declaredHistory.items, [declared]);
+    equal(declaredHistory.releaseMembership.size, 0);
     equal(createChangelog({ ...options, items: [declared], releaseMembership: new Map([["pm-test", null]]) }).itemCount, 1);
   }
   equal((await resolveGitReleaseMembership({ items: [item] }, pmRoot)).size, 0);
@@ -321,4 +324,96 @@ test("membership reports the tracker root when Git has no working tree", async (
   writeFileSync(join(root, "settings.json"), JSON.stringify(SETTINGS_DEFAULTS));
   await rejects(resolveGitReleaseMembership({ items: [], releaseWindows: [{ heading: "tag", releaseTag: "v2026.9.10" }] }, root),
     (error: Error) => error.message.includes(`Cannot locate the Git work tree for ${root}`) && error.message.includes("git rev-parse"));
+});
+
+
+test("reopened canonical items retain each shipped occurrence and original prose", async (t) => {
+  const root = createRepository();
+  t.after(() => rmSync(root, { recursive: true, force: true }));
+  const pmRoot = join(root, ".agents/pm");
+  const first: PmItem = {
+    id: "pm-test", title: "Original shipped feature", type: "Task", status: "closed",
+    tags: ["feature"], completed_at: "2026-09-10T05:00:00Z",
+  };
+  /** Write the observable tracker state, including changes made by reopening. */
+  const persist = (item: PmItem): void => {
+    writeFileSync(join(pmRoot, "tasks/pm-test.toon"), serializeItemDocument({
+      metadata: { id: "pm-test", title: item.title, type: "Task", status: item.status ?? "open",
+        description: "Reopened history fixture", priority: 2, author: "Test", created_at: "2026-09-10T04:00:00Z",
+        updated_at: "2026-09-10T05:00:00Z", tags: item.tags ?? [],
+        ...(item.completed_at ? { completed_at: item.completed_at } : {}) }, body: "",
+    }, { format: "toon" }));
+  };
+  persist(first);
+  git(root, ["commit", "-am", "Ship original feature"], "2026-09-10T07:00:00Z");
+  git(root, ["tag", "v2026.9.10"]);
+  git(root, ["commit", "--allow-empty", "-m", "No new occurrence"], "2026-09-11T07:00:00Z");
+  git(root, ["tag", "v2026.9.11"]);
+  const reopened: PmItem = { id: "pm-test", title: "Fix new recurrence", type: "Task", status: "open", tags: ["bug"] };
+  persist(reopened);
+  const windows = resolveReleaseTagWindows({ cwd: root });
+  const legacy = { ...first, completed_at: undefined, closed_at: "2026-09-10T05:00:00.000Z" };
+  const legacyHistory = await resolveGitReleaseHistory({ items: [legacy], releaseWindows: windows }, pmRoot);
+  equal(createChangelog({ ...legacyHistory, releaseWindows: windows }).itemCount, 1);
+  equal(legacyHistory.releaseMembership.size, 0);
+  const openHistory = await resolveGitReleaseHistory({ items: [reopened], releaseWindows: windows }, pmRoot);
+  const openChangelog = createChangelog({ ...openHistory, releaseWindows: windows });
+  equal(openChangelog.itemCount, 1);
+  equal(openChangelog.sections.find((section) => section.items.length)!.heading, "2026.9.10 - 2026-09-10");
+  equal(openChangelog.sections.flatMap((section) => section.items)[0]!.title, first.title);
+  const recurrence: PmItem = { ...reopened, status: "closed", completed_at: "2026-09-11T06:00:00Z" };
+  persist(recurrence);
+  const history = await resolveGitReleaseHistory({ items: [recurrence], releaseWindows: windows }, pmRoot);
+  const generated = createChangelog({ ...history, releaseWindows: windows });
+  equal((await resolveGitReleaseHistory({ ...history, releaseWindows: windows }, pmRoot)).items.length, 2);
+  equal(generated.itemCount, 2);
+  equal(generated.sections.find((section) => section.heading === "Unreleased")!.items[0]!.title, recurrence.title);
+  equal(generated.sections.find((section) => section.heading.startsWith("2026.9.10"))!.items[0]!.title, first.title);
+  equal(generated.sections.find((section) => section.heading.startsWith("2026.9.11"))!.items.length, 0);
+  equal(generated.markdown.includes("### Added\n\n- Original shipped feature"), true);
+  equal(generated.markdown.includes("### Fixed\n\n- Fix new recurrence"), true);
+  const output = join(root, "CHANGELOG.md");
+  await cliTestSurface.main(["--all-release-tags", "--pm-cwd", root, "--pm-root", pmRoot, "--output", output]);
+  equal(readFileSync(output, "utf8"), generated.markdown);
+  const activation = await activateExtensionForTest(extension, {
+    name: "pm-changelog", capabilities: ["commands", "schema", "importers", "renderers"],
+  });
+  await runRegisteredCommandForTest(activation.commands, {
+    command: "changelog generate", pmRoot,
+    options: { "all-release-tags": true, output, status: "closed", mode: "replace" },
+  });
+  equal(readFileSync(output, "utf8"), generated.markdown);
+  git(root, ["commit", "-am", "Ship recurrence"], "2026-09-12T07:00:00Z");
+  git(root, ["tag", "v2026.9.12"]);
+  const third: PmItem = { ...recurrence, title: "Fix third occurrence", completed_at: "2026-09-12T06:00:00Z" };
+  const finalWindows = resolveReleaseTagWindows({ cwd: root });
+  const finalHistory = await resolveGitReleaseHistory({ items: [third], releaseWindows: finalWindows }, pmRoot);
+  const final = createChangelog({ ...finalHistory, releaseWindows: finalWindows });
+  equal(final.itemCount, 3);
+  deepEqual(final.sections.filter((section) => section.items.length).map((section) => [section.heading, section.items[0]!.title]), [
+    ["Unreleased", third.title], ["2026.9.12 - 2026-09-12", recurrence.title], ["2026.9.10 - 2026-09-10", first.title],
+  ]);
+  equal((await resolveGitReleaseHistory({ items: [third] }, pmRoot)).items.length, 1);
+});
+
+test("a dated completion cannot match an undated closed tag snapshot", async (t) => {
+  const root = createRepository();
+  t.after(() => rmSync(root, { recursive: true, force: true }));
+  writeFileSync(join(root, ".agents/pm/tasks/pm-test.toon"), serializeItemDocument({
+    metadata: {
+      id: "pm-test", title: "Legacy undated closure", description: "Release fixture", type: "Task", status: "closed",
+      priority: 2, tags: [], author: "Test", created_at: "2026-09-10T04:00:00Z", updated_at: "2026-09-10T05:00:00Z",
+    }, body: "",
+  }, { format: "toon" }));
+  git(root, ["commit", "-am", "Legacy closed record"], "2026-09-10T07:00:00Z");
+  git(root, ["tag", "v2026.9.10"]);
+  const options = {
+    items: [{ id: "pm-test", title: "New dated completion", status: "closed", completed_at: "2026-09-10T06:00:00Z" }],
+    releaseWindows: resolveReleaseTagWindows({ cwd: root }),
+  };
+  const history = await resolveGitReleaseHistory(options, join(root, ".agents/pm"));
+  deepEqual([...history.releaseMembership], [["pm-test", "Unreleased"]]);
+  const generated = createChangelog({ ...options, ...history });
+  equal(generated.itemCount, 1);
+  equal(generated.sections.find((section) => section.items.length)!.heading, "Unreleased");
 });

@@ -7,6 +7,7 @@ import { fileURLToPath } from "node:url";
 
 import { resolvePmRoot } from "@unbrained/pm-cli/sdk";
 
+import { checkItemLinks } from "./item-links.ts";
 import { createUnifiedDiff, DEFAULT_MAX_DIFF_LINES } from "./diff.ts";
 import {
   buildChangelogDocument,
@@ -28,7 +29,7 @@ import {
   resolveReleaseContext,
   resolveReleaseTagWindowResolution,
 } from "./release-context.ts";
-import { resolveGitReleaseMembership } from "./release-membership.ts";
+import { resolveGitReleaseHistory } from "./release-membership.ts";
 import type {
   ChangelogEntryFrom,
   ChangelogGroupBy,
@@ -95,6 +96,7 @@ interface CliOptions {
   /** The explicit --until, kept apart from the tag-derived until the release context fills in. */
   dependencyCutoff?: string;
   mode: "replace" | "prepend";
+  checkLinks: boolean;
   check: boolean;
   checkDiff: boolean;
   explain: boolean;
@@ -150,6 +152,7 @@ const KNOWN_OPTIONS = [
   "--breaking-changes",
   "--changelog-json",
   "--check",
+  "--check-links",
   "--conventional",
   "--contributors",
   "--dependency-updates",
@@ -213,12 +216,20 @@ async function main(args: string[] = process.argv.slice(2)): Promise<void> {
   const outputPath = resolve(options.output);
   const generationOptions: GenerateChangelogOptions = buildGenerationOptions(options, items);
   if (options.allReleaseTags && !options.input && !options.stdin) {
-    generationOptions.releaseMembership = await resolveGitReleaseMembership(
+    Object.assign(generationOptions, await resolveGitReleaseHistory(
       generationOptions, resolvePmRoot(options.pmCwd ? resolve(options.pmCwd) : process.cwd(), options.pmRoot),
-    );
+    ));
   }
   if (options.check) {
     for (const warning of lintChangelogEntries(generationOptions)) console.error(`Warning: ${warning}`);
+  }
+  if (options.checkLinks) {
+    if (!options.itemUrlBase) throw new Error("--check-links requires --item-url-base");
+    const generated = createChangelog(generationOptions);
+    const markdown = options.mode === "prepend" && existsSync(outputPath)
+      ? mergeChangelog(readFileSync(outputPath, "utf-8"), generated.markdown, { title: options.title }).markdown
+      : generated.markdown;
+    checkItemLinks(markdown, resolvePmRoot(options.pmCwd ? resolve(options.pmCwd) : process.cwd(), options.pmRoot), options.itemUrlBase);
   }
   const selectionReport = options.explain ? explainChangelogSelection(generationOptions) : undefined;
 
@@ -370,6 +381,7 @@ function parseArgs(args: string[]): CliOptions {
     includeEmpty: false,
     includeLinks: false,
     mode: "replace",
+    checkLinks: false,
     check: false,
     checkDiff: true,
     explain: false,
@@ -404,6 +416,9 @@ function parseArgs(args: string[]): CliOptions {
         break;
       case "--json":
         options.json = true;
+        break;
+      case "--check-links":
+        options.checkLinks = true;
         break;
       case "--check":
         options.check = true;
@@ -1017,6 +1032,7 @@ Options:
       --json                Print a JSON summary for CI/runners
       --format <md|json>    Output format: md (default) or json for machine-readable output
       --summary             Print a compact one-line-per-change summary (bracketed text or JSON with --format json)
+      --check-links         Fail on missing item files or links outside the pm root
       --check               Do not write; exit 1 when output would change.
                             On drift, also print a unified diff
                             (--- committed vs +++ generated) to stderr

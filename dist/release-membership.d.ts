@@ -1,9 +1,11 @@
 import { SETTINGS_DEFAULTS } from "@unbrained/pm-cli/sdk";
-import type { GenerateChangelogOptions } from "./types.ts";
+import type { GenerateChangelogOptions, PmItem } from "./types.ts";
 /** Immutable Git blob identity and the SDK parser format selected by its path. */
 export interface ReleaseItemBlob {
     hash: string;
     format: "toon" | "json_markdown";
+    /** Physical type folder retained for historical item links. */
+    folder?: string;
 }
 /**
  * Verify timestamp-derived release placement against the tracked item state
@@ -18,6 +20,16 @@ export interface ReleaseItemBlob {
  * The returned map records only corrections and never mutates tracker data.
  */
 export declare function resolveGitReleaseMembership(options: GenerateChangelogOptions, pmRoot: string): Promise<ReadonlyMap<string, string | null>>;
+/** Verified placement plus immutable prior completion occurrences. */
+export interface GitReleaseHistory {
+    items: PmItem[];
+    releaseMembership: ReadonlyMap<string, string | null>;
+}
+/** Preserve earlier shipped completions when a canonical item is reopened.
+ * Historical copies carry their containing release tag, so ordinary pure
+ * generation applies the same status, exclusion, grouping and visibility rules.
+ * Current explicit release declarations remain authoritative. */
+export declare function resolveGitReleaseHistory(options: GenerateChangelogOptions, pmRoot: string): Promise<GitReleaseHistory>;
 /**
  * Decode length-prefixed Git batch blobs with the public SDK item parser.
  * Byte lengths, hashes, separators, and document identities must agree before

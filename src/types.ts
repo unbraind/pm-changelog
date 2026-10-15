@@ -28,6 +28,8 @@ export interface PmItem {
   status?: PmItemStatus;
   priority?: number;
   type?: string;
+  /** Canonical tracker folder from pm schema metadata, populated by readPmItems. */
+  itemFolder?: string;
   tags?: string[];
   release?: string;
   milestone?: string;
@@ -150,8 +152,10 @@ export interface GenerateChangelogOptions {
   includeLinks?: boolean;
   /** Base URL used to construct clickable links for pm item IDs.
    * When set, each item ID in the changelog becomes a hyperlink:
-   * `[pmc-abc]({itemUrlBase}/pmc-abc.toon)` */
+   * `[pmc-abc]({itemUrlBase}/{registeredFolder}/pmc-abc.toon)` */
   itemUrlBase?: string;
+  /** Registry type_to_folder map for caller-supplied custom items. */
+  itemTypeFolders?: Readonly<Record<string, string>>;
   /** OPT-IN: how pm item IDs are rendered as references. Absent → `"auto"`, which
    * reproduces the historical behavior (blob link when `itemUrlBase` is set, else a
    * neutral label). See {@link ChangelogItemRefStyle}. */

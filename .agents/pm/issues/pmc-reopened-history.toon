@@ -1,0 +1,55 @@
+id: pmc-reopened-history
+title: Preserve shipped entries when completed items are reopened and closed again
+description: "pm-cli PR 1473 reuses canonical privacy item pm-geywoc. pm-changelog 2026.10.13 replaces its original released 2026.10.14 entry with the new completion under Unreleased, erasing shipped history. Retain immutable tagged prose and completion occurrences independently of current status; do not duplicate unchanged completions in later tags."
+type: Issue
+status: closed
+priority: 1
+tags: []
+created_at: "2026-10-14T19:22:30.214Z"
+updated_at: "2026-10-14T19:55:34.865Z"
+closed_at: "2026-10-14T19:55:34.320Z"
+completed_at: "2026-10-14T19:55:34.320Z"
+author: codex
+estimated_minutes: 180
+acceptance_criteria: "Real Git fixtures cover reopen while open, reclose, title/category changes, repeated tags and CLI/extension; exact coverage and package gates pass; pm-cli consumes published fix."
+parent: pmc-3jq8
+risk: medium
+confidence: high
+resolution: Preserve immutable earlier occurrences and require the history-preserving path to match a dated current completion to dated tag evidence. Keep the existing placement-only SDK resolver legacy status semantics.
+expected_result: "A dated completion cannot be certified by undated same-ID closure evidence; prior history, legacy SDK callers and all exact package gates remain valid."
+actual_result: "The new real Git regression fails before the change and passes after. Native linked run test-local-mv8j47mb-83ubqt passes both commands, including all609 tests with100 percent line/branch/function coverage and full release checks. Existing schema/status-only API regressions remain unchanged and pass. Automatic test-result persistence remains disabled; compact results are explicitly recorded here. Exact revised-head hosted checks and renewed bot review are required before merge/publication."
+affected_version: 2026.10.13
+component: release-history
+comments[6]{created_at,author,text}:
+  "2026-10-14T19:22:30.214Z",codex,"Duplicate check: full live 182-item corpus complete with no unreadable documents or omissions; reviewed open/in-progress lists and request-specific search. Existing completed containment/schema/status work does not support multiple shipped completion occurrences. New upstream owner for pm-cli PR 1473."
+  "2026-10-14T19:28:15.811Z",codex,"The new real-Git regression passes through pure generation, standalone CLI and installed extension command registration. It preserves original shipped title/category when open after reopening, new closure in Unreleased, and three occurrences across repeated tags without duplication. Initial fixture attempts exposed missing required description and strict SDK metadata typing; corrected fixture data without changing runtime schema or quality thresholds. Full package coverage and real pm-cli consumer generation are running."
+  "2026-10-14T19:32:26.059Z",codex,"Independent unchanged-base consumer proof: baseline emits one recurrence entry and drops original prose; candidate emits two entries and retains both. Full pm-cli generation also restored prior immutable occurrences. The first implementation completed that corpus in about five minutes and repeatedly decoded unchanged tagged blobs; added schema-scoped immutable blob caching before delivery. Initial whole-package run retained 607 passes, one existing worker-start deadline failure under concurrent validation, and one missing completion-mismatch branch; adjusted the recurrence fixture so its new completion predates a tag that still contains the old completion, proving the missing containment case without changing thresholds."
+  "2026-10-14T19:42:44.902Z",codex,"Native linked verification run test-local-mv8in51h-c0hs7u completed2/2 selected commands with exit0: real Git membership regressions and the full package release gate. The release gate passes all608 tests with100 percent line/branch/function coverage plus type/docstring/audit/package/changelog/date/attestation checks. Automatic test-result persistence is disabled by current upstream settings; this compact result is recorded in this comment and immutable close evidence rather than claiming automatic recording. The claim has been released; hosted exact-head review and publication are the remaining delivery gates."
+  "2026-10-14T19:49:51.698Z",codex,"Validated CodeRabbit inline4275487518 against current source with an independent real Git fixture: a dated current closure incorrectly matched an undated closed tag document. The new case fails before the change with an empty correction map rather than required Unreleased placement. Treat missing tagged completion identity as a mismatch when the current identity exists; retain instant-based comparison and genuinely undated input compatibility. Reused this canonical owner via audited reopening, preserving the earlier terminal evidence."
+  "2026-10-14T19:51:58.645Z",codex,The first stricter comparison exposed two existing legacy schema/status-only API regressions. Retain the published resolveGitReleaseMembership placement-only contract and apply occurrence-identity checks in the new history-preserving path consumed by CLI/extension. No existing tests were removed or weakened; the old resolver still supports schema-era undated selected states while the new dated-completion regression stays pending.
+files[17]{path,scope,note}:
+  dist/cli.js,project,Immutable completion occurrences and shared SDK adapters
+  dist/cli.js.map,project,Immutable completion occurrences and shared SDK adapters
+  dist/extension.js,project,Immutable completion occurrences and shared SDK adapters
+  dist/extension.js.map,project,Immutable completion occurrences and shared SDK adapters
+  dist/index.d.ts,project,Immutable completion occurrences and shared SDK adapters
+  dist/index.d.ts.map,project,Immutable completion occurrences and shared SDK adapters
+  dist/index.js,project,Immutable completion occurrences and shared SDK adapters
+  dist/index.js.map,project,Immutable completion occurrences and shared SDK adapters
+  dist/release-membership.d.ts,project,Immutable completion occurrences and shared SDK adapters
+  dist/release-membership.d.ts.map,project,Immutable completion occurrences and shared SDK adapters
+  dist/release-membership.js,project,Immutable completion occurrences and shared SDK adapters
+  dist/release-membership.js.map,project,Immutable completion occurrences and shared SDK adapters
+  src/cli.ts,project,Immutable completion occurrences and shared SDK adapters
+  src/extension.ts,project,Immutable completion occurrences and shared SDK adapters
+  src/index.ts,project,Immutable completion occurrences and shared SDK adapters
+  src/release-membership.ts,project,Immutable completion occurrences and shared SDK adapters
+  test/release-membership.test.ts,project,Immutable completion occurrences and shared SDK adapters
+tests[2]{command,scope,timeout_seconds,provenance{author,created_at,source_kind,source_ref}}:
+  node --test test/release-membership.test.ts,project,240,codex,"2026-10-14T19:26:48.276Z",local_mutation,fix/reopened-release-history
+  "npm run release:check",project,900,codex,"2026-10-14T19:26:48.276Z",local_mutation,fix/reopened-release-history
+docs[2]{path,scope,note}:
+  CHANGELOG.md,project,Occurrence history API and package generated release notes
+  docs/usage.md,project,Occurrence history API and package generated release notes
+close_reason: Reject undated tag evidence for dated completion occurrences after PR243 review
+body: ""

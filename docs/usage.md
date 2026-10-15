@@ -182,6 +182,21 @@ paths are supported; schema references outside the tagged repository cannot
 provide versioned evidence and fail generation. These compatibility guarantees
 are tracked in [pmc-j6cb](https://github.com/unbraind/pm-changelog/blob/main/.agents/pm/issues/pmc-j6cb.toon).
 
+Reopening a canonical item also preserves its earlier shipped completions. The
+original title, category, body and type folder come from the first tag containing
+that completion; unchanged later tags do not repeat it. A new completion stays
+pending until a tag contains that completion, even when an older tag already
+contains the same item in a closed state. Only `completed_at` or `closed_at`
+establishes a distinct occurrence; administrative `updated_at` changes do not. Dated current completions require a
+matching dated tag record; an undated closed snapshot cannot prove that occurrence.
+Explicit current release declarations retain their existing authoritative behavior.
+Tracked in [pmc-reopened-history](https://github.com/unbraind/pm-changelog/blob/main/.agents/pm/issues/pmc-reopened-history.toon).
+
+API callers needing both occurrence preservation and membership verification can
+use `createChangelog({ ...options, ...await resolveGitReleaseHistory(options, pmRoot) })`.
+Import `resolveGitReleaseHistory` from `pm-changelog`; it returns a new item array
+plus placement corrections without mutating the tracker or caller input.
+
 Pure API inputs and standalone `--input`/`--stdin` documents retain timestamp
 placement because they need not describe the local tracker. SDK callers can opt
 into the same verification by passing
@@ -444,3 +459,23 @@ set `entryFrom`. A check warning on stderr identifies visible closed Fixed entri
 recognized English defect title and no resolution, and prints the update command above.
 Warnings are advisory and keep the drift exit status unchanged. See the
 [full source and warning contract](../README.md#resolution-prose-for-release-notes).
+
+### Registered item folders and link checks
+
+Tracker reads resolve custom item folders through the same pm host's `schema list`
+metadata, including extension registrations. The extension uses the active SDK
+`resolveItemTypeRegistry().type_to_folder` map. Built-in folders retain their
+existing names. No custom folder is inferred from its type name.
+
+For caller-supplied items, pass the tracker's registry map as `itemTypeFolders`
+to `createChangelog`, or retain the `itemFolder` metadata from `readPmItems`.
+Unknown custom types without folder metadata fail with a diagnostic instead of
+emitting a guessed link. JSON input can carry `itemFolder` on each custom row.
+
+Use `--check-links` together with `--item-url-base` to verify every emitted
+tracker link points to an existing file inside the pm root. It also checks
+retained history in prepend mode, rejects paths and symlinks outside the root,
+and fails before writing output. The package's `changelog:check` runs this check.
+Public GitHub issue references and neutral labels have no tracker links to check.
+The exported `checkItemLinks(markdown, pmRoot, itemUrlBase)` performs the same
+validation for programmatic consumers.

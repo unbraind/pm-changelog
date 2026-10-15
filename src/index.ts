@@ -27,7 +27,7 @@ export {
   resolveReleaseTagWindowResolution,
   resolveReleaseTagWindows,
 } from "./release-context.ts";
-export { resolveGitReleaseMembership } from "./release-membership.ts";
+export { resolveGitReleaseHistory, resolveGitReleaseMembership } from "./release-membership.ts";
 export type {
   AssertReleaseTagHistoryOptions,
   ReleaseTagWindowResolution,
@@ -61,3 +61,7 @@ export type {
   WriteChangelogOptions,
   WriteChangelogResult,
 } from "./types.ts";
+
+export { checkItemLinks } from "./item-links.ts";
+
+export type { GitReleaseHistory } from "./release-membership.ts";

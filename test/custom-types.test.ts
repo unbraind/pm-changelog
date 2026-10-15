@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import test from "node:test";
@@ -16,7 +16,7 @@ test("generation and export enumerate configured and extension types alongside b
   try {
     for (const args of [
       ["init", "--yes", "--agent-guidance", "skip"],
-      ["schema", "add-type", "Story", "--folder", "stories"],
+      ["schema", "add-type", "Story", "--folder", "custom-stories"],
       ["create", "--title", "Custom story release", "--type", "Story", "--create-mode", "progressive"],
       ["create", "--title", "Built-in task release", "--type", "Task", "--create-mode", "progressive"],
     ]) {
@@ -25,7 +25,7 @@ test("generation and export enumerate configured and extension types alongside b
     const extensionRoot = join(pmRoot, "extensions", "release-types");
     mkdirSync(extensionRoot, { recursive: true });
     writeFileSync(join(extensionRoot, "manifest.json"), JSON.stringify({ name: "release-types", version: "1.0.0", entry: "./index.mjs", capabilities: ["schema"] }));
-    writeFileSync(join(extensionRoot, "index.mjs"), "export function activate(api) { api.registerItemTypes([{ name: 'Changeset', folder: 'changesets' }]); }");
+    writeFileSync(join(extensionRoot, "index.mjs"), "export function activate(api) { api.registerItemTypes([{ name: 'Changeset', folder: 'change-records' }]); }");
     await runWithActiveExtensions({ path: pmRoot }, async () => {
       await runCreate({ title: "Extension changeset release", type: "Changeset", createMode: "progressive", body: "Actual extension body evidence" }, { path: pmRoot });
       await runCreate({ title: "Closed extension delivery", type: "Changeset", createMode: "progressive", status: "closed", closeReason: "Fixture accepted", completedAt: "2026-09-25T00:00:00.000Z" }, { path: pmRoot });
@@ -34,20 +34,25 @@ test("generation and export enumerate configured and extension types alongside b
       });
       assert.deepEqual(activation.failed, []);
       for (const command of ["changelog generate", "changelog export"]) {
-        const defaultRun = await runRegisteredCommandForTest(activation.commands, { command, pmRoot, options: { stdout: true } });
+        const defaultRun = await runRegisteredCommandForTest(activation.commands, { command, pmRoot, options: { stdout: true, "item-url-base": "https://example.test/items" } });
         assert.ok(defaultRun.result !== null && typeof defaultRun.result === "object");
         assert.ok("item_count" in defaultRun.result && defaultRun.result.item_count === 1);
         assert.ok("changelog" in defaultRun.result && typeof defaultRun.result.changelog === "string");
         assert.match(defaultRun.result.changelog, /Closed extension delivery/);
+        assert.match(defaultRun.result.changelog, /\/change-records\//);
+        for (const match of defaultRun.result.changelog.matchAll(/\]\(https:\/\/example\.test\/items\/([^)]+)\)/g)) {
+          assert.ok(existsSync(join(pmRoot, match[1])));
+        }
         assert.doesNotMatch(defaultRun.result.changelog, /Custom story release|Built-in task release|Extension changeset release/);
         const { result } = await runRegisteredCommandForTest(activation.commands, {
-          command, pmRoot, options: { stdout: true, status: "open", "explain-selection": true, "body-preview": 100 },
+          command, pmRoot, options: { stdout: true, status: "open", "item-url-base": "https://example.test/items", "explain-selection": true, "body-preview": 100 },
         });
         assert.ok(result !== null && typeof result === "object");
         assert.ok("item_count" in result);
         assert.equal(result.item_count, 3, command);
         assert.ok("changelog" in result && typeof result.changelog === "string");
         assert.match(result.changelog, /Custom story release/);
+        assert.match(result.changelog, /\/custom-stories\//);
         assert.match(result.changelog, /Built-in task release/);
         assert.match(result.changelog, /Extension changeset release/);
         if (command === "changelog generate") assert.match(result.changelog, /Actual extension body evidence/);

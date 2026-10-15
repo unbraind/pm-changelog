@@ -6,7 +6,9 @@ import { isDeepStrictEqual } from "node:util";
 
 import { inspectCompleteListResult, resolveCompletionTimestamp } from "@unbrained/pm-cli/sdk";
 import { certifyCompleteListResult } from "@unbrained/pm-cli/sdk/runtime";
-import type { CompletionTimestampSource } from "@unbrained/pm-cli/sdk";
+import type { SchemaListResult, CompletionTimestampSource } from "@unbrained/pm-cli/sdk";
+
+import { builtinItemFolder, resolveItemFolder } from "./item-links.ts";
 
 import type {
   ChangelogAttributionProvenance,
@@ -768,7 +770,36 @@ export function readPmItems(options: ReadPmItemsOptions = {}): PmItem[] {
     throw new Error(result.stderr || `${pmBin} list --all --json failed`);
   }
 
-  return parseListAllItemsJson(result.stdout);
+  const items = parseListAllItemsJson(result.stdout);
+  if (items.every((item) => item.itemFolder !== undefined || builtinItemFolder(item.type) !== undefined)) return items;
+
+  // Ask the same host that enumerated the items: it owns project and extension
+  // registrations. Reuse its wrapper, cwd and environment; schema rejects
+  // the list-only universal output controls.
+  const listIndex = args.lastIndexOf("list");
+  const schema = spawnSync(pmBin, [...schemaCommandPrefix(args.slice(0, listIndex)), "schema", "list", "--json"], {
+    cwd: options.cwd, env: options.env, encoding: "utf-8",
+    maxBuffer: options.maxBuffer ?? DEFAULT_PM_JSON_MAX_BUFFER,
+  });
+  if (schema.status !== 0) throw new Error(schema.stderr || "pm schema list --json failed");
+  const definitions = JSON.parse(schema.stdout) as SchemaListResult;
+  const folders = Object.fromEntries([...definitions.builtin, ...definitions.custom, ...definitions.extension]
+    .map((definition) => [definition.name, definition.folder]));
+  return items.map((item) => ({ ...item, itemFolder: item.itemFolder ?? folders[String(item.type)] }));
+}
+
+/** Preserve host/wrapper arguments while dropping list-only output budgets rejected by schema. */
+function schemaCommandPrefix(args: string[]): string[] {
+  const prefix: string[] = [];
+  for (let index = 0; index < args.length; index++) {
+    const arg = args[index];
+    if (["--output-budget", "--output-limit"].includes(arg.split("=")[0])) {
+      if (!arg.includes("=")) index++;
+    } else {
+      prefix.push(arg);
+    }
+  }
+  return prefix;
 }
 
 /** Generate and persist a changelog, or with `check` compare against what is on
@@ -2437,11 +2468,16 @@ function labelItemRef(id: string): string {
 }
 
 /** Internal `.toon` blob link under `itemUrlBase`. */
-function toonItemRef(item: PmItem, id: string, itemUrlBase: string): string {
+function toonItemRef(item: PmItem, id: string, itemUrlBase: string, options: GenerateChangelogOptions): string {
   const base = itemUrlBase.replace(/\/$/, "");
-  const typeDir = itemTypeToDir(item.type);
-  const url = `${base}/${typeDir}/${id}.toon`;
+  const typeDir = resolveItemFolder(item, options.itemTypeFolders);
+  const url = `${base}/${typeDir.split("/").map(encodeItemPathSegment).join("/")}/${encodeItemPathSegment(id)}.toon`;
   return ` ([${escapeMarkdown(id)}](${url}))`;
+}
+
+/** Encode a URL path segment, including parentheses that delimit Markdown links. */
+function encodeItemPathSegment(segment: string): string {
+  return encodeURIComponent(segment).replace(/[()]/g, (parenthesis) => parenthesis === "(" ? "%28" : "%29");
 }
 
 /** Public GitHub issue/PR link from the item's provenance tag, or `undefined`.
@@ -2465,20 +2501,14 @@ function formatItemId(item: PmItem, options: GenerateChangelogOptions): string {
     case "label":
       return labelItemRef(id);
     case "toon":
-      return options.itemUrlBase ? toonItemRef(item, id, options.itemUrlBase) : labelItemRef(id);
+      return options.itemUrlBase ? toonItemRef(item, id, options.itemUrlBase, options) : labelItemRef(id);
     case "github":
       return githubItemRef(item) ?? labelItemRef(id);
     case "auto":
     default:
       // Historical behavior: blob link when itemUrlBase is set, else a label.
-      return options.itemUrlBase ? toonItemRef(item, id, options.itemUrlBase) : labelItemRef(id);
+      return options.itemUrlBase ? toonItemRef(item, id, options.itemUrlBase, options) : labelItemRef(id);
   }
-}
-
-function itemTypeToDir(type: string | undefined): string {
-  const t = (type ?? "issue").toLowerCase();
-  const irregular: Record<string, string> = { story: "stories" };
-  return irregular[t] ?? `${t}s`;
 }
 
 /** Render an item's URL as a markdown link, emitting nothing for anything

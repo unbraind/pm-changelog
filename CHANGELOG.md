@@ -1,5 +1,11 @@
 # Changelog
 
+## 2026.10.14 - 2026-10-14
+
+### Fixed
+
+- Preserve shipped entries when completed items are reopened and closed again ([pmc-reopened-history](https://github.com/unbraind/pm-changelog/blob/main/.agents/pm/issues/pmc-reopened-history.toon))
+
 ## 2026.10.12 - 2026-10-12
 
 ### Added
