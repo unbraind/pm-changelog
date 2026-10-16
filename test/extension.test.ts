@@ -1,6 +1,7 @@
+import { initGitFixture, cloneGitFixture, removeGitFixture } from "./git-fixture.ts";
 import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
-import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { mkdtempSync, readFileSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import test from "node:test";
@@ -263,10 +264,10 @@ test("changelog generate surfaces missing git tag history as a non-zero pm-cli e
   const sourceDir = mkdtempSync(join(tmpdir(), "pm-changelog-ext-shallow-src-"));
   const cloneParent = mkdtempSync(join(tmpdir(), "pm-changelog-ext-shallow-dst-"));
   t.after(() => {
-    rmSync(sourceDir, { recursive: true, force: true });
-    rmSync(cloneParent, { recursive: true, force: true });
+    removeGitFixture(sourceDir);
+    removeGitFixture(cloneParent);
   });
-  execFileSync("git", ["init"], { cwd: sourceDir, encoding: "utf-8" });
+  initGitFixture(sourceDir);
   execFileSync("git", ["config", "user.email", "test@example.com"], { cwd: sourceDir, encoding: "utf-8" });
   execFileSync("git", ["config", "user.name", "Test"], { cwd: sourceDir, encoding: "utf-8" });
   writeFileSync(join(sourceDir, "file.txt"), "one\n", "utf-8");
@@ -274,7 +275,7 @@ test("changelog generate surfaces missing git tag history as a non-zero pm-cli e
   execFileSync("git", ["commit", "-m", "one"], { cwd: sourceDir, encoding: "utf-8" });
   execFileSync("git", ["tag", "v1.0.0"], { cwd: sourceDir, encoding: "utf-8" });
   const cloneDir = join(cloneParent, "clone");
-  execFileSync("git", ["clone", "--depth", "1", "--no-tags", pathToFileURL(sourceDir).toString(), cloneDir], { encoding: "utf-8" });
+  cloneGitFixture(cloneDir, ["--depth", "1", "--no-tags", pathToFileURL(sourceDir).toString()]);
 
   const { commands } = await activateChangelog();
   await assert.rejects(
@@ -392,7 +393,7 @@ test("generate command exercises validation and every result mode through the re
   }
 
   const directory = mkdtempSync(join(tmpdir(), "pm-changelog-extension-modes-"));
-  t.after(() => rmSync(directory, { recursive: true, force: true }));
+  t.after(() => removeGitFixture(directory));
   const output = join(directory, "CHANGELOG.md");
   const baseOptions = {
     status: "open,in_progress,closed,done",
@@ -578,7 +579,7 @@ test("exporter exercises validation, JSON, markdown, stdout, and file modes", as
     /--group-by/,
   );
   const directory = mkdtempSync(join(tmpdir(), "pm-changelog-export-modes-"));
-  t.after(() => rmSync(directory, { recursive: true, force: true }));
+  t.after(() => removeGitFixture(directory));
   const jsonPath = join(directory, "notes.json");
   const markdownPath = join(directory, "notes.md");
   const baseOptions = {

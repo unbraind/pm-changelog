@@ -1,6 +1,7 @@
+import { initGitFixture, cloneGitFixture, removeGitFixture } from "./git-fixture.ts";
 import assert from "node:assert/strict";
 import { execFileSync, spawnSync } from "node:child_process";
-import { chmodSync, existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSync } from "node:fs";
+import { chmodSync, existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import test from "node:test";
@@ -501,9 +502,10 @@ test("createChangelog omits empty release windows by default", () => {
   assert.match(result.markdown, /## 1\.2\.0 - 2026-05-17[\s\S]*pm-1/);
 });
 
-test("resolveReleaseTagWindows derives newest-first git tag windows", () => {
+test("resolveReleaseTagWindows derives newest-first git tag windows", (t) => {
   const dir = mkdtempSync(join(tmpdir(), "pm-changelog-tags-"));
-  execFileSync("git", ["init"], { cwd: dir, encoding: "utf-8" });
+  t.after(() => removeGitFixture(dir));
+  initGitFixture(dir);
   execFileSync("git", ["config", "user.name", "pm changelog test"], { cwd: dir, encoding: "utf-8" });
   execFileSync("git", ["config", "user.email", "pm-changelog@example.com"], { cwd: dir, encoding: "utf-8" });
   const defaultBranch = execFileSync("git", ["branch", "--show-current"], { cwd: dir, encoding: "utf-8" }).trim();
@@ -575,8 +577,8 @@ test("resolveReleaseTagWindows derives newest-first git tag windows", () => {
 
 test("resolveReleaseTagWindows includes orphaned tags only when opted in", (t) => {
   const dir = mkdtempSync(join(tmpdir(), "pm-changelog-orphan-"));
-  t.after(() => rmSync(dir, { recursive: true, force: true }));
-  execFileSync("git", ["init"], { cwd: dir, encoding: "utf-8" });
+  t.after(() => removeGitFixture(dir));
+  initGitFixture(dir);
   execFileSync("git", ["config", "user.name", "pm changelog test"], { cwd: dir, encoding: "utf-8" });
   execFileSync("git", ["config", "user.email", "pm-changelog@example.com"], { cwd: dir, encoding: "utf-8" });
   const defaultBranch = execFileSync("git", ["branch", "--show-current"], { cwd: dir, encoding: "utf-8" }).trim();
@@ -614,9 +616,10 @@ test("resolveReleaseTagWindows includes orphaned tags only when opted in", (t) =
   assert.equal(windows[2].heading, "2026.5.15 - 2026-05-15");
 });
 
-test("resolveReleaseTagWindows keeps unpadded calendar pending headings", () => {
+test("resolveReleaseTagWindows keeps unpadded calendar pending headings", (t) => {
   const dir = mkdtempSync(join(tmpdir(), "pm-changelog-calver-"));
-  execFileSync("git", ["init"], { cwd: dir, encoding: "utf-8" });
+  t.after(() => removeGitFixture(dir));
+  initGitFixture(dir);
   execFileSync("git", ["config", "user.name", "pm changelog test"], { cwd: dir, encoding: "utf-8" });
   execFileSync("git", ["config", "user.email", "pm-changelog@example.com"], { cwd: dir, encoding: "utf-8" });
 
@@ -649,9 +652,10 @@ test("resolveReleaseTagWindows keeps unpadded calendar pending headings", () => 
   assert.equal(windows[1].heading, "2026.5.24 - 2026-05-24");
 });
 
-test("resolveReleaseTagWindows dedupes a pending version against a padded tag", () => {
+test("resolveReleaseTagWindows dedupes a pending version against a padded tag", (t) => {
   const dir = mkdtempSync(join(tmpdir(), "pm-changelog-dedupe-"));
-  execFileSync("git", ["init"], { cwd: dir, encoding: "utf-8" });
+  t.after(() => removeGitFixture(dir));
+  initGitFixture(dir);
   execFileSync("git", ["config", "user.name", "pm changelog test"], { cwd: dir, encoding: "utf-8" });
   execFileSync("git", ["config", "user.email", "pm-changelog@example.com"], { cwd: dir, encoding: "utf-8" });
 
@@ -677,13 +681,14 @@ test("resolveReleaseTagWindows dedupes a pending version against a padded tag", 
   assert.equal(windows[1].heading, "2026.5.24 - 2026-05-24");
 });
 
-test("resolveReleaseTagWindows renders a padded calendar tag with an unpadded heading", () => {
+test("resolveReleaseTagWindows renders a padded calendar tag with an unpadded heading", (t) => {
   // Regression for issue #41: the pm-cli release pipeline tags releases in
   // zero-padded form (`v2026.06.09`) but commits unpadded `## 2026.6.9`
   // headings pre-tag. The post-tag regeneration must reproduce the unpadded
   // heading or `changelog:check` fails on every released repo at HEAD.
   const dir = mkdtempSync(join(tmpdir(), "pm-changelog-padded-heading-"));
-  execFileSync("git", ["init"], { cwd: dir, encoding: "utf-8" });
+  t.after(() => removeGitFixture(dir));
+  initGitFixture(dir);
   execFileSync("git", ["config", "user.name", "pm changelog test"], { cwd: dir, encoding: "utf-8" });
   execFileSync("git", ["config", "user.email", "pm-changelog@example.com"], { cwd: dir, encoding: "utf-8" });
 
@@ -705,9 +710,10 @@ test("resolveReleaseTagWindows renders a padded calendar tag with an unpadded he
   assert.doesNotMatch(windows[0].heading, /2026\.06\.09/);
 });
 
-test("resolveReleaseTagWindows preserves a pre-release suffix while unpadding", () => {
+test("resolveReleaseTagWindows preserves a pre-release suffix while unpadding", (t) => {
   const dir = mkdtempSync(join(tmpdir(), "pm-changelog-padded-suffix-"));
-  execFileSync("git", ["init"], { cwd: dir, encoding: "utf-8" });
+  t.after(() => removeGitFixture(dir));
+  initGitFixture(dir);
   execFileSync("git", ["config", "user.name", "pm changelog test"], { cwd: dir, encoding: "utf-8" });
   execFileSync("git", ["config", "user.email", "pm-changelog@example.com"], { cwd: dir, encoding: "utf-8" });
 
@@ -1362,12 +1368,13 @@ test("CLI stdout JSON includes markdown for runners without writing output", () 
   assert.throws(() => readFileSync(output, "utf-8"));
 });
 
-test("CLI can derive package release version and git tag range", () => {
+test("CLI can derive package release version and git tag range", (t) => {
   const dir = mkdtempSync(join(tmpdir(), "pm-changelog-release-context-"));
+  t.after(() => removeGitFixture(dir));
   const input = join(dir, "items.json");
   const cli = join(process.cwd(), "src", "cli.ts");
   writeFileSync(join(dir, "package.json"), JSON.stringify({ version: "1.2.0" }), "utf-8");
-  execFileSync("git", ["init"], { cwd: dir, encoding: "utf-8" });
+  initGitFixture(dir);
   execFileSync("git", ["config", "user.email", "test@example.com"], { cwd: dir, encoding: "utf-8" });
   execFileSync("git", ["config", "user.name", "Test"], { cwd: dir, encoding: "utf-8" });
   writeFileSync(join(dir, "file.txt"), "one\n", "utf-8");
@@ -1443,12 +1450,13 @@ test("CLI can derive package release version and git tag range", () => {
   assert.doesNotMatch(stdout, /Old release item|Post-release item|## Unreleased/);
 });
 
-test("CLI derives release heading date from existing package tag without limiting the window", () => {
+test("CLI derives release heading date from existing package tag without limiting the window", (t) => {
   const dir = mkdtempSync(join(tmpdir(), "pm-changelog-release-date-"));
+  t.after(() => removeGitFixture(dir));
   const input = join(dir, "items.json");
   const cli = join(process.cwd(), "src", "cli.ts");
   writeFileSync(join(dir, "package.json"), JSON.stringify({ version: "1.3.0" }), "utf-8");
-  execFileSync("git", ["init"], { cwd: dir, encoding: "utf-8" });
+  initGitFixture(dir);
   execFileSync("git", ["config", "user.email", "test@example.com"], { cwd: dir, encoding: "utf-8" });
   execFileSync("git", ["config", "user.name", "Test"], { cwd: dir, encoding: "utf-8" });
   writeFileSync(join(dir, "file.txt"), "one\n", "utf-8");
@@ -1518,7 +1526,7 @@ test("CLI derives release heading date from existing package tag without limitin
 // fallbacks.
 
 function createTagHistorySourceRepo(dir: string): void {
-  execFileSync("git", ["init"], { cwd: dir, encoding: "utf-8" });
+  initGitFixture(dir);
   execFileSync("git", ["config", "user.email", "test@example.com"], { cwd: dir, encoding: "utf-8" });
   execFileSync("git", ["config", "user.name", "Test"], { cwd: dir, encoding: "utf-8" });
   writeFileSync(join(dir, "package.json"), JSON.stringify({ version: "1.2.0" }), "utf-8");
@@ -1547,14 +1555,14 @@ function createShallowClone(t: test.TestContext, cloneArgs: string[]): { sourceD
   const sourceDir = mkdtempSync(join(tmpdir(), "pm-changelog-shallow-src-"));
   const cloneParent = mkdtempSync(join(tmpdir(), "pm-changelog-shallow-dst-"));
   t.after(() => {
-    rmSync(sourceDir, { recursive: true, force: true });
-    rmSync(cloneParent, { recursive: true, force: true });
+    removeGitFixture(sourceDir);
+    removeGitFixture(cloneParent);
   });
   createTagHistorySourceRepo(sourceDir);
   const cloneDir = join(cloneParent, "clone");
   // A file:// URL forces the transport path so --depth/--no-tags are honored
   // (plain local paths are hardlinked and ignore shallow flags).
-  execFileSync("git", ["clone", "--depth", "1", ...cloneArgs, pathToFileURL(sourceDir).toString(), cloneDir], { encoding: "utf-8" });
+  cloneGitFixture(cloneDir, ["--depth", "1", ...cloneArgs, pathToFileURL(sourceDir).toString()]);
   return { sourceDir, cloneDir };
 }
 
@@ -1610,14 +1618,14 @@ test("resolveReleaseContext rejects tag-derived flags in a FULL clone made with 
   const sourceDir = mkdtempSync(join(tmpdir(), "pm-changelog-notags-src-"));
   const cloneParent = mkdtempSync(join(tmpdir(), "pm-changelog-notags-dst-"));
   t.after(() => {
-    rmSync(sourceDir, { recursive: true, force: true });
-    rmSync(cloneParent, { recursive: true, force: true });
+    removeGitFixture(sourceDir);
+    removeGitFixture(cloneParent);
   });
   createTagHistorySourceRepo(sourceDir);
   const cloneDir = join(cloneParent, "clone");
   // Full-depth clone that deliberately excludes tags: not shallow, zero tags,
   // but remote.origin.tagOpt records the exclusion.
-  execFileSync("git", ["clone", "--no-tags", pathToFileURL(sourceDir).toString(), cloneDir], { encoding: "utf-8" });
+  cloneGitFixture(cloneDir, ["--no-tags", pathToFileURL(sourceDir).toString()]);
   assert.equal(gitOutput(cloneDir, ["rev-parse", "--is-shallow-repository"]), "false");
   assert.equal(gitOutput(cloneDir, ["tag", "--list"]), "");
 
@@ -1675,8 +1683,8 @@ test("resolveReleaseContext keeps full-clone and zero-tag first-release behavior
   // Full clone genuinely without any release tags yet (first-release flow):
   // the intentional silent fallback to an unbounded window is preserved.
   const firstDir = mkdtempSync(join(tmpdir(), "pm-changelog-first-release-"));
-  t.after(() => rmSync(firstDir, { recursive: true, force: true }));
-  execFileSync("git", ["init"], { cwd: firstDir, encoding: "utf-8" });
+  t.after(() => removeGitFixture(firstDir));
+  initGitFixture(firstDir);
   execFileSync("git", ["config", "user.email", "test@example.com"], { cwd: firstDir, encoding: "utf-8" });
   execFileSync("git", ["config", "user.name", "Test"], { cwd: firstDir, encoding: "utf-8" });
   writeFileSync(join(firstDir, "file.txt"), "one\n", "utf-8");
@@ -1805,8 +1813,8 @@ test("CLI exposes stable no-tag fallback dates without weakening explicit date p
 
 test("pending all-release-tags output is byte-identical after tagging the release commit", (t) => {
   const directory = mkdtempSync(join(tmpdir(), "pm-changelog-pending-release-"));
-  t.after(() => rmSync(directory, { recursive: true, force: true }));
-  execFileSync("git", ["init"], { cwd: directory, encoding: "utf-8" });
+  t.after(() => removeGitFixture(directory));
+  initGitFixture(directory);
   execFileSync("git", ["config", "user.name", "pm changelog test"], { cwd: directory, encoding: "utf-8" });
   execFileSync("git", ["config", "user.email", "pm-changelog@example.com"], { cwd: directory, encoding: "utf-8" });
   writeFileSync(join(directory, "release.txt"), "release\n", "utf-8");
@@ -1862,8 +1870,8 @@ test("--no-pending-release keeps a never-released package version out of the hea
   // heading asserting a release that never happened. `--no-pending-release`
   // says no release is being cut and restores the Unreleased window.
   const directory = mkdtempSync(join(tmpdir(), "pm-changelog-never-released-"));
-  t.after(() => rmSync(directory, { recursive: true, force: true }));
-  execFileSync("git", ["init"], { cwd: directory, encoding: "utf-8" });
+  t.after(() => removeGitFixture(directory));
+  initGitFixture(directory);
   execFileSync("git", ["config", "user.name", "pm changelog test"], { cwd: directory, encoding: "utf-8" });
   execFileSync("git", ["config", "user.email", "pm-changelog@example.com"], { cwd: directory, encoding: "utf-8" });
   writeFileSync(join(directory, "work.txt"), "work\n", "utf-8");
@@ -1937,8 +1945,8 @@ test("resolveReleaseTagWindows rejects shallow clones but preserves zero-tag pen
   // A full clone with zero tags keeps the pending-version first-release
   // windows (Unreleased + pending) that the release pipeline relies on.
   const firstDir = mkdtempSync(join(tmpdir(), "pm-changelog-pending-first-"));
-  t.after(() => rmSync(firstDir, { recursive: true, force: true }));
-  execFileSync("git", ["init"], { cwd: firstDir, encoding: "utf-8" });
+  t.after(() => removeGitFixture(firstDir));
+  initGitFixture(firstDir);
   execFileSync("git", ["config", "user.email", "test@example.com"], { cwd: firstDir, encoding: "utf-8" });
   execFileSync("git", ["config", "user.name", "Test"], { cwd: firstDir, encoding: "utf-8" });
   writeFileSync(join(firstDir, "file.txt"), "one\n", "utf-8");
@@ -2002,11 +2010,12 @@ test("CLI reports missing tag history instead of a stale changelog in a shallow 
   assert.match(recovered.stdout, /Current release item/);
 });
 
-test("CLI derives release heading date from explicit version tag", () => {
+test("CLI derives release heading date from explicit version tag", (t) => {
   const dir = mkdtempSync(join(tmpdir(), "pm-changelog-explicit-version-date-"));
+  t.after(() => removeGitFixture(dir));
   const input = join(dir, "items.json");
   const cli = join(process.cwd(), "src", "cli.ts");
-  execFileSync("git", ["init"], { cwd: dir, encoding: "utf-8" });
+  initGitFixture(dir);
   execFileSync("git", ["config", "user.email", "test@example.com"], { cwd: dir, encoding: "utf-8" });
   execFileSync("git", ["config", "user.name", "Test"], { cwd: dir, encoding: "utf-8" });
   writeFileSync(join(dir, "file.txt"), "release\n", "utf-8");
@@ -2044,12 +2053,13 @@ test("CLI derives release heading date from explicit version tag", () => {
   assert.match(stdout, /Explicit release item/);
 });
 
-test("CLI matches zero-padded calendar release tags for npm versions", () => {
+test("CLI matches zero-padded calendar release tags for npm versions", (t) => {
   const dir = mkdtempSync(join(tmpdir(), "pm-changelog-calendar-tags-"));
+  t.after(() => removeGitFixture(dir));
   const input = join(dir, "items.json");
   const cli = join(process.cwd(), "src", "cli.ts");
   writeFileSync(join(dir, "package.json"), JSON.stringify({ version: "2026.5.24-12" }), "utf-8");
-  execFileSync("git", ["init"], { cwd: dir, encoding: "utf-8" });
+  initGitFixture(dir);
   execFileSync("git", ["config", "user.email", "test@example.com"], { cwd: dir, encoding: "utf-8" });
   execFileSync("git", ["config", "user.name", "Test"], { cwd: dir, encoding: "utf-8" });
   writeFileSync(join(dir, "file.txt"), "one\n", "utf-8");
@@ -2528,7 +2538,7 @@ process.stdout.write(${JSON.stringify(realEnvelopeWith({ truncated: true }))});
       (error: unknown) => error instanceof IncompleteListAllError && error.message.includes("truncated=true"),
     );
   } finally {
-    rmSync(dir, { recursive: true, force: true });
+    removeGitFixture(dir);
   }
 });
 
@@ -2643,12 +2653,7 @@ function packExtension(directory: string, environment: NodeJS.ProcessEnv): strin
 test("pm package install activates changelog command", (t) => {
   const dir = mkdtempSync(join(tmpdir(), "pm-changelog-install-"));
   t.after(() =>
-    rmSync(dir, {
-      recursive: true,
-      force: true,
-      maxRetries: 20,
-      retryDelay: 100,
-    })
+    removeGitFixture(dir)
   );
   const pmBin = join(process.cwd(), "node_modules", ".bin", "pm");
   const appData = join(dir, "app-data");
@@ -2928,7 +2933,7 @@ if (process.env.PM_TELEMETRY_FLUSH_CHILD === "1") {
         await delay(20);
       }
     }
-    rmSync(dir, { recursive: true, force: true, maxRetries: 20, retryDelay: 100 });
+    removeGitFixture(dir);
   });
   const pmEnv = nodeEntrypointEnvironment(dir, {
     ...process.env,
@@ -2971,13 +2976,13 @@ if (process.env.PM_TELEMETRY_FLUSH_CHILD === "1") {
     "no telemetry queue or flush artifacts may be created in the removable fixture");
   assert.equal(JSON.parse(readFileSync(settingsPath, "utf-8")).telemetry.installation_id, "");
   assert.equal(existsSync(join(pmEnv.PM_PATH!, "settings.json")), true);
-  rmSync(dir, { recursive: true, force: true, maxRetries: 20, retryDelay: 100 });
+  removeGitFixture(dir);
   assert.equal(existsSync(dir), false);
 });
 
 test("pm extension command works when only node cli entrypoint is available", (t) => {
   const dir = mkdtempSync(join(tmpdir(), "pm-changelog-node-cli-"));
-  t.after(() => rmSync(dir, { recursive: true, force: true, maxRetries: 20, retryDelay: 100 }));
+  t.after(() => removeGitFixture(dir));
   const pmCli = join(process.cwd(), "node_modules", "@unbrained", "pm-cli", "dist", "cli.js");
   const pmBin = join(process.cwd(), "node_modules", ".bin", "pm");
   const pmEnv = nodeEntrypointEnvironment(dir, process.env);
@@ -3277,8 +3282,8 @@ test("resolveReleaseTagWindows keeps an invalid-timestamp pending release leadin
   // cut behind a real tag and create overlapping windows. Run repeatedly to
   // prove the resulting order does not depend on Date.parse(NaN) behavior.
   const dir = mkdtempSync(join(tmpdir(), "pm-changelog-invalid-ts-"));
-  t.after(() => rmSync(dir, { recursive: true, force: true }));
-  execFileSync("git", ["init"], { cwd: dir, encoding: "utf-8" });
+  t.after(() => removeGitFixture(dir));
+  initGitFixture(dir);
   execFileSync("git", ["config", "user.name", "pm changelog test"], { cwd: dir, encoding: "utf-8" });
   execFileSync("git", ["config", "user.email", "pm-changelog@example.com"], { cwd: dir, encoding: "utf-8" });
   // Create a valid tag on main with a parseable timestamp.
@@ -3321,8 +3326,8 @@ test("resolveReleaseTagWindows keeps a stale pending display timestamp open and 
   // being cut behind that tag. The pending window still leads and owns all work
   // after the newest real release boundary.
   const dir = mkdtempSync(join(tmpdir(), "pm-changelog-all-invalid-"));
-  t.after(() => rmSync(dir, { recursive: true, force: true }));
-  execFileSync("git", ["init"], { cwd: dir, encoding: "utf-8" });
+  t.after(() => removeGitFixture(dir));
+  initGitFixture(dir);
   execFileSync("git", ["config", "user.name", "pm changelog test"], { cwd: dir, encoding: "utf-8" });
   execFileSync("git", ["config", "user.email", "pm-changelog@example.com"], { cwd: dir, encoding: "utf-8" });
 
@@ -3361,8 +3366,8 @@ test("resolveReleaseTagWindows keeps a stale pending display timestamp open and 
 
 test("resolveReleaseTagWindows uses locale-independent tag-name tie-breaks", (t) => {
   const dir = mkdtempSync(join(tmpdir(), "pm-changelog-name-order-"));
-  t.after(() => rmSync(dir, { recursive: true, force: true }));
-  execFileSync("git", ["init"], { cwd: dir, encoding: "utf-8" });
+  t.after(() => removeGitFixture(dir));
+  initGitFixture(dir);
   execFileSync("git", ["config", "user.name", "pm changelog test"], { cwd: dir, encoding: "utf-8" });
   execFileSync("git", ["config", "user.email", "pm-changelog@example.com"], { cwd: dir, encoding: "utf-8" });
   writeFileSync(join(dir, "file.txt"), "same timestamp\n");
@@ -4392,8 +4397,8 @@ test("an explicitly empty suppressed window list renders no release heading thro
   // falls back to the absent-history single-version section, so silent total
   // item loss is not reachable from any combination of public options.
   const directory = mkdtempSync(join(tmpdir(), "pm-changelog-empty-suppression-"));
-  t.after(() => rmSync(directory, { recursive: true, force: true }));
-  execFileSync("git", ["init"], { cwd: directory, encoding: "utf-8" });
+  t.after(() => removeGitFixture(directory));
+  initGitFixture(directory);
   execFileSync("git", ["config", "user.name", "pm changelog test"], { cwd: directory, encoding: "utf-8" });
   execFileSync("git", ["config", "user.email", "pm-changelog@example.com"], { cwd: directory, encoding: "utf-8" });
   writeFileSync(join(directory, "work.txt"), "work\n", "utf-8");
@@ -4447,8 +4452,8 @@ test("an explicitly empty suppressed window list renders no release heading thro
 
 test("resolveReleaseTagWindows carries deliberate empty suppression into createChangelog", (t) => {
   const directory = mkdtempSync(join(tmpdir(), "pm-changelog-library-suppression-"));
-  t.after(() => rmSync(directory, { recursive: true, force: true }));
-  execFileSync("git", ["init"], { cwd: directory, encoding: "utf-8" });
+  t.after(() => removeGitFixture(directory));
+  initGitFixture(directory);
   execFileSync("git", ["config", "user.name", "pm changelog test"], { cwd: directory, encoding: "utf-8" });
   execFileSync("git", ["config", "user.email", "pm-changelog@example.com"], { cwd: directory, encoding: "utf-8" });
   writeFileSync(join(directory, "work.txt"), "work\n", "utf-8");
@@ -4529,8 +4534,8 @@ test("--no-pending-release routes items declaring the suppressed version to Unre
   // completion time falls inside. The stale declaration in the same run shows
   // the constrained half of the behaviour.
   const directory = mkdtempSync(join(tmpdir(), "pm-changelog-suppressed-forwarding-"));
-  t.after(() => rmSync(directory, { recursive: true, force: true }));
-  execFileSync("git", ["init"], { cwd: directory, encoding: "utf-8" });
+  t.after(() => removeGitFixture(directory));
+  initGitFixture(directory);
   execFileSync("git", ["config", "user.name", "pm changelog test"], { cwd: directory, encoding: "utf-8" });
   execFileSync("git", ["config", "user.email", "pm-changelog@example.com"], { cwd: directory, encoding: "utf-8" });
   const commit = (message: string, date: string): void => {
@@ -4616,8 +4621,8 @@ test("--all-release-tags with zero tags and no version keeps the Unreleased fall
   // unchanged would render a title-only changelog and drop all the work —
   // the exact regression the empty/absent distinction makes possible.
   const directory = mkdtempSync(join(tmpdir(), "pm-changelog-zero-tag-fallback-"));
-  t.after(() => rmSync(directory, { recursive: true, force: true }));
-  execFileSync("git", ["init"], { cwd: directory, encoding: "utf-8" });
+  t.after(() => removeGitFixture(directory));
+  initGitFixture(directory);
   execFileSync("git", ["config", "user.name", "pm changelog test"], { cwd: directory, encoding: "utf-8" });
   execFileSync("git", ["config", "user.email", "pm-changelog@example.com"], { cwd: directory, encoding: "utf-8" });
   writeFileSync(join(directory, "work.txt"), "work\n", "utf-8");

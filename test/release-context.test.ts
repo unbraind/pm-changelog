@@ -1,3 +1,4 @@
+import { initGitFixture, removeGitFixture } from "./git-fixture.ts";
 /**
  * Direct tests for the release-context helpers whose defensive branches are
  * never exercised by real git output. Git always emits parseable `iso-strict`
@@ -15,7 +16,7 @@
 import { describe, it } from "node:test";
 import { deepEqual, equal, ok, throws } from "node:assert/strict";
 import { execFileSync } from "node:child_process";
-import { existsSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, mkdtempSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 
@@ -40,7 +41,7 @@ const TAG = (name: string, timestamp: string): ReleaseTag => ({ name, timestamp 
 /** Create a throwaway git repo with one commit. */
 function gitRepo(): string {
   const dir = mkdtempSync(join(tmpdir(), "pm-changelog-rc-"));
-  gitIn(dir, ["init", "--quiet"]);
+  initGitFixture(dir, ["--quiet"]);
   gitIn(dir, ["config", "user.email", "test@example.com"]);
   gitIn(dir, ["config", "user.name", "Test"]);
   writeFileSync(join(dir, "file.txt"), "one\n", "utf-8");
@@ -58,7 +59,7 @@ function gitIn(dir: string, args: string[]): string {
  * tag placed on it renders a deterministic heading date. */
 function gitRepoAtDate(date: string): string {
   const dir = mkdtempSync(join(tmpdir(), "pm-changelog-rc-date-"));
-  gitIn(dir, ["init", "--quiet"]);
+  initGitFixture(dir, ["--quiet"]);
   gitIn(dir, ["config", "user.email", "test@example.com"]);
   gitIn(dir, ["config", "user.name", "Test"]);
   commitDated(dir, date);
@@ -85,7 +86,7 @@ describe("release-context: assertReleaseTagHistory", () => {
       // Empty requiredBy exercises the default `subject` and the plural `verb`.
       equal(assertReleaseTagHistory({ cwd: dir, requiredBy: [] }), undefined);
     } finally {
-      rmSync(dir, { recursive: true, force: true });
+      removeGitFixture(dir);
     }
   });
 
@@ -104,7 +105,7 @@ describe("release-context: assertReleaseTagHistory", () => {
         /cloned with --no-tags/,
       );
     } finally {
-      rmSync(dir, { recursive: true, force: true });
+      removeGitFixture(dir);
     }
   });
 
@@ -114,7 +115,7 @@ describe("release-context: assertReleaseTagHistory", () => {
       gitIn(dir, ["config", "remote.origin.tagOpt", "--tags"]);
       equal(assertReleaseTagHistory({ cwd: dir, requiredBy: ["--x"] }), undefined);
     } finally {
-      rmSync(dir, { recursive: true, force: true });
+      removeGitFixture(dir);
     }
   });
 });
@@ -130,7 +131,7 @@ describe("release-context: resolveReleaseContext", () => {
       mkdirSync(nested, { recursive: true });
       equal(resolveReleaseContext({ cwd: nested, versionFromPackage: true }).version, "9.8.7");
     } finally {
-      rmSync(dir, { recursive: true, force: true });
+      removeGitFixture(dir);
     }
   });
 
@@ -151,7 +152,7 @@ describe("release-context: resolveReleaseContext", () => {
       equal(ctx.version, "2026.8.9");
       equal(ctx.releaseTag, undefined, "an untagged in-flight version resolves no release tag");
     } finally {
-      rmSync(dir, { recursive: true, force: true });
+      removeGitFixture(dir);
     }
   });
 
@@ -186,7 +187,7 @@ describe("release-context: resolveReleaseContext", () => {
         /requires a package.json in the current directory or an ancestor/,
       );
     } finally {
-      rmSync(fixtureRoot, { recursive: true, force: true });
+      removeGitFixture(fixtureRoot);
     }
   });
 
@@ -199,7 +200,7 @@ describe("release-context: resolveReleaseContext", () => {
       writeFileSync(join(dir, "package.json"), `${JSON.stringify({ name: "x", version: "3.2.1" }, null, 2)}\n`, "utf-8");
       equal(resolveReleaseContext({ cwd: dir, versionFromPackage: true, packageSearchBoundary: dir }).version, "3.2.1");
     } finally {
-      rmSync(dir, { recursive: true, force: true });
+      removeGitFixture(dir);
     }
   });
 
@@ -216,7 +217,7 @@ describe("release-context: resolveReleaseContext", () => {
         /search boundary .* is not an ancestor of /,
       );
     } finally {
-      rmSync(dir, { recursive: true, force: true });
+      removeGitFixture(dir);
     }
   });
 
@@ -229,7 +230,7 @@ describe("release-context: resolveReleaseContext", () => {
         /does not contain a valid version field/,
       );
     } finally {
-      rmSync(dir, { recursive: true, force: true });
+      removeGitFixture(dir);
     }
   });
 
@@ -242,7 +243,7 @@ describe("release-context: resolveReleaseContext", () => {
         /does not contain a valid version field/,
       );
     } finally {
-      rmSync(dir, { recursive: true, force: true });
+      removeGitFixture(dir);
     }
   });
 
@@ -254,7 +255,7 @@ describe("release-context: resolveReleaseContext", () => {
       equal(ctx.releaseTag, undefined);
       equal(ctx.date, undefined);
     } finally {
-      rmSync(dir, { recursive: true, force: true });
+      removeGitFixture(dir);
     }
   });
 
@@ -271,7 +272,7 @@ describe("release-context: resolveReleaseContext", () => {
       equal(ctx.releaseTag, "v1.2.3");
       ok(ctx.date !== undefined, "a tagged release resolves a heading date");
     } finally {
-      rmSync(dir, { recursive: true, force: true });
+      removeGitFixture(dir);
     }
   });
 });
@@ -284,7 +285,7 @@ describe("release-context: resolveReleaseTagWindows", () => {
       // No matching tags and no pending version yields an empty list.
       equal(windows.length, 0);
     } finally {
-      rmSync(dir, { recursive: true, force: true });
+      removeGitFixture(dir);
     }
   });
 
@@ -294,7 +295,7 @@ describe("release-context: resolveReleaseTagWindows", () => {
       const windows = resolveReleaseTagWindows({ cwd: dir, pendingVersion: "2026.9.9" });
       equal(windows[0]?.heading, "2026.9.9");
     } finally {
-      rmSync(dir, { recursive: true, force: true });
+      removeGitFixture(dir);
     }
   });
 
@@ -306,7 +307,7 @@ describe("release-context: resolveReleaseTagWindows", () => {
       const windows = resolveReleaseTagWindows({ cwd: dir, pendingVersion: "2026.9.9", pendingTimestamp: "not-a-date" });
       ok(windows.length > 0);
     } finally {
-      rmSync(dir, { recursive: true, force: true });
+      removeGitFixture(dir);
     }
   });
 
@@ -330,7 +331,7 @@ describe("release-context: pending tag spelling", () => {
       ok(windows.length > 0, "a pending version produces a window");
       equal(windows[windows.length - 1]?.releaseTag, "v2026.9.9");
     } finally {
-      rmSync(dir, { recursive: true, force: true });
+      removeGitFixture(dir);
     }
   });
 });
@@ -375,7 +376,7 @@ describe("release-context: pendingRelease suppression", () => {
       equal(suppressed[0]?.until, undefined);
       equal(suppressed[0]?.releaseTag, undefined, "no fabricated release tag survives suppression");
     } finally {
-      rmSync(dir, { recursive: true, force: true });
+      removeGitFixture(dir);
     }
   });
 
@@ -409,7 +410,7 @@ describe("release-context: pendingRelease suppression", () => {
       equal(released[1]?.heading, "2026.6.1 - 2026-06-01");
       equal(released[2]?.heading, "2026.5.1 - 2026-05-01");
     } finally {
-      rmSync(dir, { recursive: true, force: true });
+      removeGitFixture(dir);
     }
   });
 
@@ -435,7 +436,7 @@ describe("release-context: pendingRelease suppression", () => {
       equal(resolution.windows.length, 0);
       equal(resolution.suppressedPendingRelease, "v2026.7.30");
     } finally {
-      rmSync(dir, { recursive: true, force: true });
+      removeGitFixture(dir);
     }
   });
 
@@ -460,7 +461,7 @@ describe("release-context: pendingRelease suppression", () => {
       // forward it and keep declaration routing honest end to end.
       equal(resolution.suppressedPendingRelease, "v2026.7.1");
     } finally {
-      rmSync(dir, { recursive: true, force: true });
+      removeGitFixture(dir);
     }
   });
 
@@ -487,7 +488,7 @@ describe("release-context: pendingRelease suppression", () => {
       equal(noop.suppressedPendingRelease, undefined);
       deepEqual(noop.windows, resolveReleaseTagWindows({ cwd: dir }));
     } finally {
-      rmSync(dir, { recursive: true, force: true });
+      removeGitFixture(dir);
     }
   });
 

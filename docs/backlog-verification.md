@@ -92,3 +92,53 @@ Thresholds, measured inventory, dependencies, 250ms parser CPU budget, and
 worker startup/watchdog limits are unchanged. These results do not supply an
 independent statement percentage or invalidate intermittent startup failures.
 The later receipt update changes only documentation and tracker comments.
+
+
+## Review round 1: Git fixture teardown and release placement
+
+CI run 38850408252, job `test (22)`, failed after the dependency release-range
+assertions, during removal of a nonempty Git metadata directory. Its stack
+identifies the teardown race but cannot identify the concurrent writer.
+Automatic Git maintenance/GC or fsmonitor is the likely source. The dependency
+suite on the starting PR head is byte-identical to `origin/main`, so the same
+unguarded lifecycle exists on main; a failing main run was not reproduced.
+
+`test/git-fixture.ts` now owns repository initialization, cloning, and cleanup.
+Initialization uses command overrides and persists `gc.auto=0`,
+`maintenance.auto=false`, and `core.fsmonitor=false` in local configuration,
+including bare repositories. Clones persist these overrides before their
+initial fetch. Production Git subprocesses therefore inherit the same policy.
+Every suite that initializes or clones Git fixtures uses this helper, and
+previously unregistered generator-fixture cleanup now runs after each test.
+Removal uses recursive, forced cleanup with five retries and a 50ms retry delay.
+
+The backlog test slices the expected release body at the next level-two heading
+before checking the issue ID. A negative control retained the expected version
+heading and moved its issue body beneath a following `Unreleased` heading in
+the built generator: the test failed 0/1 with its section-membership assertion.
+Restoring the generator passed. Independently omitting persisted Git fixture
+configuration made the real-repository policy regression fail; restoring it
+passed. The focused suite and its linked pm run each passed 3/3.
+
+`node --test test/dependency-updates.test.ts` passed 30/30 independent iterations,
+each with 37 tests in eight suites: 1110/1110 test executions, zero failures,
+cancellations, skips, or todos, under Node 24.19.0. The finite stress run is
+supporting evidence, not proof that every filesystem race is impossible.
+
+
+All three complete review-round gates passed at unchanged thresholds:
+
+| Command | Tests | Failed / cancelled / skipped / todo |
+| --- | --- | --- |
+| `npm run release:check` | 612/612; 49 suites | 0 / 0 / 0 / 0 |
+| Fresh-home `npm run release:check` | 612/612; 49 suites | 0 / 0 / 0 / 0 |
+| Fresh-home `bun run release:check` | 612/612; 49 suites | 0 / 0 / 0 / 0 |
+
+The fresh-home runs use `HOME="$(mktemp -d)"`, `GIT_CONFIG_GLOBAL=/dev/null`,
+and `GIT_CONFIG_NOSYSTEM=1`. Each gate reports exact 100% measured lines,
+branches, and functions over the same 13 source files, with 169 documented
+declarations. Production audit, package dry run, changelog/link checks,
+version-date verification, and publish-attestation verification all pass.
+Independent statement coverage remains open as pmc-ilrh. The clean-home health
+result satisfies the repository's existing CI warning predicate, and the
+changed item's append-only history verifies against its current document.

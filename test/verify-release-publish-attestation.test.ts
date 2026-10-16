@@ -1,3 +1,4 @@
+import { initGitFixture, removeGitFixture } from "./git-fixture.ts";
 /**
  * Convergence tests for the publish-attestation gate.
  *
@@ -18,7 +19,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { execFileSync } from "node:child_process";
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, writeFileSync } from "node:fs";
 import { readFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { dirname, resolve } from "node:path";
@@ -164,11 +165,11 @@ function withTrackedFixture<T>(prefix: string, file: string, contents: string, u
   try {
     mkdirSync(resolve(fixture, dirname(file)), { recursive: true });
     writeFileSync(resolve(fixture, file), contents);
-    execFileSync("git", ["-c", "init.defaultBranch=main", "init", "-q"], { cwd: fixture });
+    initGitFixture(fixture, ["-q", "--initial-branch=main"]);
     execFileSync("git", ["add", file], { cwd: fixture });
     return use(fixture);
   } finally {
-    rmSync(fixture, { recursive: true, force: true });
+    removeGitFixture(fixture);
   }
 }
 

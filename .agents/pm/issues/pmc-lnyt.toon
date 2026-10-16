@@ -2,36 +2,58 @@ id: pmc-lnyt
 title: The version-derived release date refuses the same-day suffix the release workflow actually emits
 description: "The release workflow tags a second release on one day as v2026.8.24-2 and stamps that version into package.json. calendarDateFromVersion required a strict YYYY.M.D and threw on anything else, so the date-from-version flag failed hard on exactly the day a package released twice. That turns a stale heading date, which is what the flag exists to remove, into a broken release. Found by CodeRabbit on the fleet rollout of that flag, on pm-beads pull request 79, before any package could hit it. Verified directly against the published 2026.8.17 binary, where a suffixed release version exits 1 with the parser message rather than producing a heading. The suffix distinguishes releases, not days, so it is parsed and discarded and the date is the calendar day while the suffix survives in the version heading itself. Non-numeric suffixes such as a beta spelling are still refused, because those are prerelease identifiers rather than same-day counters and inventing a date for them would be a guess, and an impossible calendar date is still refused even when it carries a suffix."
 type: Issue
-status: open
+status: in_progress
 priority: 1
 tags[3]: changelog,regression,release
 created_at: "2026-08-24T10:27:09.257Z"
-updated_at: "2026-10-16T04:22:19.122Z"
+updated_at: "2026-10-16T04:52:38.002Z"
 deadline: "2026-08-31T00:00:00.000Z"
 author: "harness:claude-code"
 estimated_minutes: 40
 acceptance_criteria: "A suffixed calendar version derives the calendar day and keeps its suffix in the heading, a non-numeric suffix is still refused, and an impossible date is still refused with or without a suffix"
 dependencies[1]{id,kind,created_at,author,source_kind,author_source}:
   pmc-q22j,related,"2026-08-24T10:27:09.257Z","harness:claude-code","cli:create:dep",detected
-comments[5]{created_at,author,text}:
+comments[11]{created_at,author,text}:
   "2026-08-24T10:27:09.257Z","harness:claude-code","Caught on the fleet rollout before it could break a release, rather than after."
   "2026-10-16T04:04:35.117Z",codex-agent,"Current-main audit at aafea5d (package 2026.10.15): Already fixed; integration regression added here. `50b84c5`, included in `v2026.8.22`. `src/release-context.ts:273` accepts numeric `-N` and validates the calendar date. `test/generator.test.ts:1729` rejects nonnumeric suffixes and impossible dates. The new built-CLI regression also asserts the suffix survives in the heading. No item is closed; verification and closure remain with the orchestrator."
   "2026-10-16T04:05:04.229Z",codex-agent,"Revert proof on the current baseline: removing only numeric -N acceptance from calendarDateFromVersion and rebuilding makes node --test test/release-backlog.test.ts fail 0/1 with the calendar-version error for 2001.2.3-2. Restoring and rebuilding passes 1/1; the heading preserves -2 and derives 2001-02-03."
   "2026-10-16T04:08:43.410Z",codex-agent,"Pinned-host linked verification: pm test pmc-lnyt --run --match \"node --test\" --progress passed. Command: node --test test/release-backlog.test.ts; 1/1 tests, zero failures/cancelled/skipped/todo. Focused combined verification passed 63/63; suffix and invalid-date controls passed 2/2. Test-result tracking is disabled in project settings, so this comment preserves the run receipt without changing that policy."
   "2026-10-16T04:22:19.122Z",codex-agent,"Release-gate receipt on code commit 443ab9e: npm run release:check and bun run release:check both passed 610/610 tests, 49 suites, zero failures/cancelled/skipped/todo. Each used a fresh home with GIT_CONFIG_GLOBAL=/dev/null and GIT_CONFIG_NOSYSTEM=1. Both report exact 100% measured lines/branches/functions across 13 source files, 169 documented declarations, and passing production audit, package dry run, changelog/date and canonical attestation checks. Thresholds, source scope, CPU and worker startup/watchdog budgets are unchanged. Independent statements remain unmeasured; the known startup-readiness issue remains open. No item is closed."
+  "2026-10-16T04:30:13.427Z",codex-agent,"Review round 1 for PR 247: CI job test (22) failed only during recursive Git fixture cleanup with ENOTEMPTY. The same unguarded Git setup and removal exist on origin/main; background maintenance is a plausible writer, not proven by the log. Plan: shared fixture initialization and clone configuration disabling automatic GC, maintenance and fsmonitor; shared bounded cleanup retries for every Git fixture; release-section assertion plus Unreleased mutation proof; 30 dependency-suite iterations and unchanged npm, Bun and isolated-identity release gates."
+  "2026-10-16T04:32:38.378Z",codex-agent,"Negative controls passed: omitting persisted Git fixture configuration makes the real-repository policy test fail (exit 1); restoring it passes. Temporarily changing the built generator to retain the expected version heading while moving its issue body beneath the following Unreleased heading makes the backlog regression fail with the section-membership assertion (0/1, exit 1). Restored focused tests pass 3/3 with zero skips. Background-writer identity cannot be recovered from the CI teardown stack. Dependency suite source on the starting branch is identical to origin/main, including the vulnerable cleanup. Repository-local configuration and command overrides now cover all fixture init/clone paths; generator fixtures without teardown now register shared cleanup."
+  "2026-10-16T04:38:05.001Z",codex-agent,"Dependency stress proof complete: for iteration in $(seq 1 30); do node --test test/dependency-updates.test.ts; done passed 30/30 independent runs, each 37/37 tests across 8 suites (1110/1110 total), with zero failures, cancellations, skips or todos. Runtime Node 24.19.0. The unchanged dependency suite on origin/main has the same vulnerable lifecycle; this establishes a pre-existing race exposure, not a reproduced failure on main. Focused linked pm execution also passed 3/3. Full release gates are in progress."
+  "2026-10-16T04:39:32.408Z",codex-agent,"First complete npm run release:check passed: 612/612 tests, 49 suites, zero failures/cancellations/skips/todos, exact 100% measured lines/branches/functions across 13 source files, 169 documented declarations; audit, package dry run, changelog/link check, release-date check and publish-attestation check all passed at unchanged thresholds. Next reproduce the full npm gate under a fresh home with global/system Git configuration disabled, then run the full Bun gate."
+  "2026-10-16T04:44:45.046Z",codex-agent,"The required CI-identity reproduction also passed: env HOME=\"$(mktemp -d)\" GIT_CONFIG_GLOBAL=/dev/null GIT_CONFIG_NOSYSTEM=1 npm run release:check completed with 612/612 tests in 49 suites, zero failures/cancellations/skips/todos, exact 100% measured lines/branches/functions, and every subsequent gate passed. Clean-home project health satisfies the existing CI warning predicate; normal-shell strict health additionally detects a newer globally installed extension, which is absent in the clean-home check. No dependency pin, history record, health policy or threshold was changed. Full Bun gate is next."
+  "2026-10-16T04:52:35.178Z",codex-agent,"Review round 1 complete: normal npm, fresh-home npm (global/system Git config disabled), and fresh-home bun run release:check all passed, each 612/612 tests in 49 suites with zero failures/cancellations/skips/todos, exact 100% lines/branches/functions over the unchanged 13-source inventory and 169 documented declarations. All audits, packaging, changelog/link, date and attestation checks passed. Dependency stress: 30/30 runs, 37 tests each, 1110/1110 total. Negative controls: omitted persisted Git policy fails; issue body moved beneath following Unreleased heading fails 0/1 on section membership; restored focused and linked tests pass 3/3. Evidence and limitations are recorded in docs/backlog-verification.md. No runtime behavior, dependency pin, gate threshold or worker deadline changed. Leave item in progress and unclaimed for orchestrator review; push and final-head CI observation follow. No pm CLI/SDK defect encountered."
 notes[1]{created_at,author,text}:
   "2026-08-24T10:27:09.257Z","harness:claude-code",Reverting only the parser while keeping the test fails one test; restoring passes 390.
 learnings[1]{created_at,author,text}:
   "2026-08-24T10:27:09.257Z","harness:claude-code","A validator written against the version format a package normally has will refuse the format its own release workflow emits in the less common case; check the workflow, not the current version."
-files[3]:
+files[11]:
   - path: src/release-context.ts
+    scope: project
+  - path: test/dependency-updates.test.ts
+    scope: project
+  - path: test/extension.test.ts
     scope: project
   - path: test/generator.test.ts
     scope: project
     note: regression test for the same-day suffix; fails when the parser change is reverted
+  - path: test/git-fixture.test.ts
+    scope: project
+  - path: test/git-fixture.ts
+    scope: project
+  - path: test/prepare-merge-driver.test.ts
+    scope: project
   - path: test/release-backlog.test.ts
     scope: project
-tests[2]:
+  - path: test/release-context.test.ts
+    scope: project
+  - path: test/release-membership.test.ts
+    scope: project
+  - path: test/verify-release-publish-attestation.test.ts
+    scope: project
+tests[3]:
   - command: npm test
     scope: project
   - command: node --test test/release-backlog.test.ts
@@ -41,6 +63,13 @@ tests[2]:
     provenance:
       author: codex-agent
       created_at: "2026-10-16T04:05:07.023Z"
+      source_kind: local_mutation
+      source_ref: fix/release-date-and-backlog
+  - command: node --test test/git-fixture.test.ts test/release-backlog.test.ts
+    scope: project
+    provenance:
+      author: codex-agent
+      created_at: "2026-10-16T04:32:08.910Z"
       source_kind: local_mutation
       source_ref: fix/release-date-and-backlog
 docs[2]:
