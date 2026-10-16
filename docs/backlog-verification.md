@@ -76,3 +76,19 @@ the child before resolving, so a timed-out probe cannot overlap the next one.
 Keep the full suite and coverage run as acceptance alongside the loaded/unloaded
 comparison. The lifecycle refactor and its negative controls exceed a small
 timeout edit; raising the single constant alone would leave them unverified.
+
+## Release-gate receipts
+
+Code commit `443ab9e` passed both complete gates under Node 24.19.0, npm
+11.17.0, and Bun 1.3.5. Each run used a fresh home with global and system Git
+configuration disabled.
+
+| Command | Tests | Fail / cancelled / skipped / todo | Coverage | Other checks |
+| --- | --- | --- | --- | --- |
+| `npm run release:check` | 610/610; 49 suites | 0 / 0 / 0 / 0 | Exact 100% lines, branches, functions; 13 source files | 169 documented declarations; production audit, pack, changelog, date and attestation pass |
+| `bun run release:check` | 610/610; 49 suites | 0 / 0 / 0 / 0 | Exact 100% lines, branches, functions; 13 source files | Same remaining checks pass |
+
+Thresholds, measured inventory, dependencies, 250ms parser CPU budget, and
+worker startup/watchdog limits are unchanged. These results do not supply an
+independent statement percentage or invalidate intermittent startup failures.
+The later receipt update changes only documentation and tracker comments.
