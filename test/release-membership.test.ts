@@ -1,3 +1,4 @@
+import { initGitFixture, removeGitFixture } from "./git-fixture.ts";
 import { deepEqual, equal, rejects, throws } from "node:assert/strict";
 import { execFileSync } from "node:child_process";
 import { mkdirSync, mkdtempSync, readFileSync, renameSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
@@ -43,7 +44,7 @@ function createRepository(): string {
   const root = mkdtempSync(join(tmpdir(), "pm-changelog-membership-"));
   mkdirSync(join(root, ".agents/pm/tasks"), { recursive: true });
   writeFileSync(join(root, ".agents/pm/settings.json"), JSON.stringify(SETTINGS_DEFAULTS));
-  git(root, ["init", "-b", "main"]);
+  initGitFixture(root, ["-b", "main"]);
   git(root, ["config", "user.name", "Test"]);
   git(root, ["config", "user.email", "test@example.com"]);
   writeItem(root, "open");
@@ -87,13 +88,13 @@ test("a completion predating an unrelated tag is released only by the first cont
     equal(generated.itemCount, 1);
     equal(generated.sections.find((section) => section.items.length === 1)!.heading, "2026.9.11 - 2026-09-11");
   } finally {
-    rmSync(root, { recursive: true, force: true });
+    removeGitFixture(root);
   }
 });
 
 test("membership preserves declarations and explicit omission and pending-window intent", async (t) => {
   const root = createRepository();
-  t.after(() => rmSync(root, { recursive: true, force: true }));
+  t.after(() => removeGitFixture(root));
   git(root, ["commit", "--allow-empty", "-m", "Release"], "2026-09-10T07:00:00Z");
   git(root, ["tag", "v2026.9.10"]);
   const pmRoot = join(root, ".agents/pm");
@@ -131,7 +132,7 @@ test("membership preserves declarations and explicit omission and pending-window
 
 test("membership reads Markdown blobs, ignores nested package documents, and handles untracked items", async (t) => {
   const root = createRepository();
-  t.after(() => rmSync(root, { recursive: true, force: true }));
+  t.after(() => removeGitFixture(root));
   rmSync(join(root, ".agents/pm/tasks/pm-test.toon"));
   writeItem(root, "closed", "json_markdown");
   writeFileSync(join(root, ".agents/pm/settings.json"), JSON.stringify({ ...SETTINGS_DEFAULTS, item_format: "json_markdown" }));
@@ -163,7 +164,7 @@ test("membership reads Markdown blobs, ignores nested package documents, and han
 
 test("tags without tracker documents retain historical timestamp placement", async (t) => {
   const root = createRepository();
-  t.after(() => rmSync(root, { recursive: true, force: true }));
+  t.after(() => removeGitFixture(root));
   git(root, ["rm", ".agents/pm/tasks/pm-test.toon"]);
   git(root, ["commit", "-m", "Pre-tracker release"], "2026-09-10T07:00:00Z");
   git(root, ["tag", "v2026.9.10"]);
@@ -176,7 +177,7 @@ test("tags without tracker documents retain historical timestamp placement", asy
 
 test("Git links cannot masquerade as release item documents", async (t) => {
   const root = createRepository();
-  t.after(() => rmSync(root, { recursive: true, force: true }));
+  t.after(() => removeGitFixture(root));
   const head = git(root, ["rev-parse", "HEAD"]);
   git(root, ["update-index", "--add", "--cacheinfo", `160000,${head},.agents/pm/tasks/pm-link.toon`]);
   git(root, ["commit", "-m", "Git link"], "2026-09-10T07:00:00Z");
@@ -189,7 +190,7 @@ test("Git links cannot masquerade as release item documents", async (t) => {
 
 test("Git batch decoding rejects truncated, mismatched, and ambiguous evidence", async (t) => {
   const root = createRepository();
-  t.after(() => rmSync(root, { recursive: true, force: true }));
+  t.after(() => removeGitFixture(root));
   const { schema } = await readSettings(join(root, ".agents/pm"));
   const content = readFileSync(join(root, ".agents/pm/tasks/pm-test.toon"));
   const hash = "a".repeat(40);
@@ -210,7 +211,7 @@ test("Git batch decoding rejects truncated, mismatched, and ambiguous evidence",
 test("repository-root and symlinked trackers retain correct Git path membership", async (t) => {
   const root = createRepository();
   const aliasRoot = mkdtempSync(join(tmpdir(), "pm-changelog-root-alias-"));
-  t.after(() => { rmSync(aliasRoot, { recursive: true, force: true }); rmSync(root, { recursive: true, force: true }); });
+  t.after(() => { removeGitFixture(aliasRoot); removeGitFixture(root); });
   renameSync(join(root, ".agents/pm/tasks"), join(root, "tasks"));
   renameSync(join(root, ".agents/pm/settings.json"), join(root, "settings.json"));
   git(root, ["add", "."]);
@@ -228,7 +229,7 @@ test("repository-root and symlinked trackers retain correct Git path membership"
 
 test("historical inline and file-backed schemas survive current schema evolution", async (t) => {
   const root = createRepository();
-  t.after(() => rmSync(root, { recursive: true, force: true }));
+  t.after(() => removeGitFixture(root));
   const pmRoot = join(root, ".agents/pm");
   const historicalSchema = { ...SETTINGS_DEFAULTS.schema, statuses: [...SETTINGS_DEFAULTS.schema.statuses, { id: "reviewed", roles: ["active" as const] }] };
   const document = {
@@ -267,7 +268,7 @@ test("historical inline and file-backed schemas survive current schema evolution
 
 test("historical schema evidence fails closed for malformed documents and escaping paths", async (t) => {
   const root = createRepository();
-  t.after(() => rmSync(root, { recursive: true, force: true }));
+  t.after(() => removeGitFixture(root));
   const pmRoot = join(root, ".agents/pm");
   const settingsPath = join(pmRoot, "settings.json");
   const samples = [
@@ -319,8 +320,8 @@ test("historical schema evidence fails closed for malformed documents and escapi
 
 test("membership reports the tracker root when Git has no working tree", async (t) => {
   const root = mkdtempSync(join(tmpdir(), "pm-changelog-bare-"));
-  t.after(() => rmSync(root, { recursive: true, force: true }));
-  git(root, ["init", "--bare"]);
+  t.after(() => removeGitFixture(root));
+  initGitFixture(root, ["--bare"]);
   writeFileSync(join(root, "settings.json"), JSON.stringify(SETTINGS_DEFAULTS));
   await rejects(resolveGitReleaseMembership({ items: [], releaseWindows: [{ heading: "tag", releaseTag: "v2026.9.10" }] }, root),
     (error: Error) => error.message.includes(`Cannot locate the Git work tree for ${root}`) && error.message.includes("git rev-parse"));
@@ -329,7 +330,7 @@ test("membership reports the tracker root when Git has no working tree", async (
 
 test("reopened canonical items retain each shipped occurrence and original prose", async (t) => {
   const root = createRepository();
-  t.after(() => rmSync(root, { recursive: true, force: true }));
+  t.after(() => removeGitFixture(root));
   const pmRoot = join(root, ".agents/pm");
   const first: PmItem = {
     id: "pm-test", title: "Original shipped feature", type: "Task", status: "closed",
@@ -398,7 +399,7 @@ test("reopened canonical items retain each shipped occurrence and original prose
 
 test("a dated completion cannot match an undated closed tag snapshot", async (t) => {
   const root = createRepository();
-  t.after(() => rmSync(root, { recursive: true, force: true }));
+  t.after(() => removeGitFixture(root));
   writeFileSync(join(root, ".agents/pm/tasks/pm-test.toon"), serializeItemDocument({
     metadata: {
       id: "pm-test", title: "Legacy undated closure", description: "Release fixture", type: "Task", status: "closed",

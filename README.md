@@ -59,8 +59,10 @@ Date precedence is explicit: `--date` is an unconditional override, then an
 existing release tag supplies its commit date, then `--date-fallback` or
 `--date-from-version` applies only while that tag is absent. With none of those,
 generation uses the current UTC calendar date. Release-gated CalVer packages can
-therefore use `--date-from-version` (for example `2026.8.8` becomes
-`2026-08-08`) without masking the authoritative tag date after publication.
+therefore use `--date-from-version` (for example `2026.8.8` or `2026.8.8-2`
+becomes `2026-08-08`) without masking the authoritative tag date after publication.
+The optional numeric `-N` suffix distinguishes same-day releases and stays in
+the version heading. Non-numeric suffixes and impossible calendar dates are rejected.
 `--date-fallback` and `--date-from-version` are mutually exclusive. Explicit
 and fallback date text is rendered verbatim; use `YYYY-MM-DD` for a conventional
 changelog heading.

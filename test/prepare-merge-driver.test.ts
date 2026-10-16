@@ -1,3 +1,4 @@
+import { initGitFixture, removeGitFixture } from "./git-fixture.ts";
 /**
  * Tests for the npm `prepare` hook `scripts/prepare-merge-driver.ts`.
  *
@@ -9,7 +10,7 @@
  */
 import assert from "node:assert/strict";
 import { spawnSync, type SpawnSyncReturns } from "node:child_process";
-import { chmodSync, copyFileSync, mkdirSync, mkdtempSync, readFileSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
+import { chmodSync, copyFileSync, mkdirSync, mkdtempSync, readFileSync, symlinkSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { delimiter, join } from "node:path";
 import test, { after } from "node:test";
@@ -19,7 +20,7 @@ const root = process.cwd();
 const launcher = join(root, "scripts", "prepare-merge-driver.ts");
 const hostPath = `${join(root, "node_modules", ".bin")}${delimiter}${process.env.PATH ?? ""}`;
 const scratch = mkdtempSync(join(tmpdir(), "prepare-merge-driver-"));
-after(() => rmSync(scratch, { recursive: true, force: true }));
+after(() => removeGitFixture(scratch));
 
 // The fixtures use POSIX stub executables and directory symlinks, like pm-ops's own launcher suite.
 const posixOnly = { skip: process.platform === "win32" };
@@ -39,7 +40,7 @@ const declaredDrivers = [
 function checkout(name: string, pmOps: "absent" | "pinned" | "stale" | "broken" | "dangling"): string {
   const directory = join(scratch, name);
   mkdirSync(join(directory, ".agents", "pm"), { recursive: true });
-  assert.equal(spawnSync("git", ["init", "-q"], { cwd: directory }).status, 0);
+  initGitFixture(directory, ["-q"]);
   writeFileSync(join(directory, "package.json"), JSON.stringify({ name, type: "module" }));
   copyFileSync(join(root, ".gitattributes"), join(directory, ".gitattributes"));
   copyFileSync(join(root, ".agents", "pm", "settings.json"), join(directory, ".agents", "pm", "settings.json"));

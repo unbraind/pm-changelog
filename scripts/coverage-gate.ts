@@ -34,8 +34,8 @@ import { isAbsolute, join, relative, resolve, sep } from "node:path";
 /**
  * Minimum acceptable percentage for each coverage dimension Node reports.
  *
- * Statement coverage is not listed because V8 reports statements as lines; the
- * line figure is the statement figure for this runtime.
+ * This gate measures lines, branches, and functions. It does not independently
+ * measure statements; that fourth metric remains tracked by pmc-ilrh.
  */
 interface CoverageThresholds {
   /** Minimum percentage of executable lines that must be covered. */

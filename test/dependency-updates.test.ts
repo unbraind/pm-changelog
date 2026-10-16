@@ -1,3 +1,4 @@
+import { initGitFixture, removeGitFixture } from "./git-fixture.ts";
 /**
  * Tests for the opt-in `--dependency-updates` feature, which reads
  * Dependabot-shaped git commits from each release window and renders them in a
@@ -7,7 +8,7 @@
 import { describe, it } from "node:test";
 import { equal, ok } from "node:assert/strict";
 import { execFileSync } from "node:child_process";
-import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { mkdtempSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
@@ -21,7 +22,7 @@ import type { PmItem } from "../src/index.ts";
 /** Create a throwaway git repo with a single initial commit. */
 function gitRepo(): string {
   const dir = mkdtempSync(join(tmpdir(), "pm-changelog-deps-"));
-  gitIn(dir, ["init", "--quiet", "--initial-branch=main"]);
+  initGitFixture(dir, ["--quiet", "--initial-branch=main"]);
   gitIn(dir, ["config", "user.email", "test@example.com"]);
   gitIn(dir, ["config", "user.name", "Test"]);
   writeFileSync(join(dir, "file.txt"), "initial\n", "utf-8");
@@ -157,7 +158,7 @@ describe("dependency-updates: single window", () => {
       ok(result.markdown.includes("Bump the codeql-action group with 2 updates"), "must list the group bump");
       ok(!result.markdown.includes("No changes."), "must not say No changes when there are dependency commits");
     } finally {
-      rmSync(dir, { recursive: true, force: true });
+      removeGitFixture(dir);
     }
   });
 
@@ -183,7 +184,7 @@ describe("dependency-updates: single window", () => {
         "PR must be a GitHub pull link",
       );
     } finally {
-      rmSync(dir, { recursive: true, force: true });
+      removeGitFixture(dir);
     }
   });
 
@@ -207,7 +208,7 @@ describe("dependency-updates: single window", () => {
       ok(result.markdown.includes("(#129)"), "PR must be an unlinked reference");
       ok(!result.markdown.includes("](https://"), "must not contain any markdown links");
     } finally {
-      rmSync(dir, { recursive: true, force: true });
+      removeGitFixture(dir);
     }
   });
 
@@ -234,7 +235,7 @@ describe("dependency-updates: single window", () => {
       ok(depsIdx !== -1, "must have a Dependencies section");
       ok(addedIdx < depsIdx, "Dependencies must come after item-based sections");
     } finally {
-      rmSync(dir, { recursive: true, force: true });
+      removeGitFixture(dir);
     }
   });
 
@@ -264,7 +265,7 @@ describe("dependency-updates: single window", () => {
       ok(!result.markdown.includes("Merge branch"), "must not include the merge commit");
       ok(!result.markdown.includes("add feature"), "must not include the non-dependency commit");
     } finally {
-      rmSync(dir, { recursive: true, force: true });
+      removeGitFixture(dir);
     }
   });
 });
@@ -308,7 +309,7 @@ describe("dependency-updates: all-release-tags", () => {
       ok(result.markdown.includes("2026.9.18"), "must include the item-based version heading");
       ok(result.markdown.includes("Add initial feature"), "must include the item from the first release");
     } finally {
-      rmSync(dir, { recursive: true, force: true });
+      removeGitFixture(dir);
     }
   });
 
@@ -342,7 +343,7 @@ describe("dependency-updates: all-release-tags", () => {
       ok(result.markdown.includes("2026.9.12"), "must include the oldest version heading");
       ok(result.markdown.includes("Bump actions/checkout from 3 to 4"), "must list the oldest dependency bump");
     } finally {
-      rmSync(dir, { recursive: true, force: true });
+      removeGitFixture(dir);
     }
   });
 
@@ -372,7 +373,7 @@ describe("dependency-updates: all-release-tags", () => {
       ok(!result.markdown.includes("2026.9.20"), "must not include a window with no items and no dependency commits");
       ok(result.markdown.includes("2026.9.18"), "must include the item-based window");
     } finally {
-      rmSync(dir, { recursive: true, force: true });
+      removeGitFixture(dir);
     }
   });
 
@@ -401,7 +402,7 @@ describe("dependency-updates: all-release-tags", () => {
       ok(result.markdown.includes("### Dependencies"), "must include a Dependencies section in Unreleased");
       ok(result.markdown.includes("Bump jscpd"), "must list the dependency bump in Unreleased");
     } finally {
-      rmSync(dir, { recursive: true, force: true });
+      removeGitFixture(dir);
     }
   });
 });
@@ -432,7 +433,7 @@ describe("dependency-updates: flag absent is byte-identical", () => {
 
       equal(withFlag.markdown, without.markdown, "output must be byte-identical when no dependency commits exist");
     } finally {
-      rmSync(dir, { recursive: true, force: true });
+      removeGitFixture(dir);
     }
   });
 
@@ -458,7 +459,7 @@ describe("dependency-updates: flag absent is byte-identical", () => {
       ok(!result.markdown.includes("Bump jscpd"), "must not include dependency commit text without the flag");
       ok(result.markdown.includes("Add feature"), "must still include pm items");
     } finally {
-      rmSync(dir, { recursive: true, force: true });
+      removeGitFixture(dir);
     }
   });
 
@@ -482,7 +483,7 @@ describe("dependency-updates: flag absent is byte-identical", () => {
 
       equal(withFlagNoCwd.markdown, without.markdown, "output with flag but no gitCwd must be byte-identical to without flag");
     } finally {
-      rmSync(dir, { recursive: true, force: true });
+      removeGitFixture(dir);
     }
   });
 });
@@ -507,7 +508,7 @@ describe("dependency-updates: error handling", () => {
       ok(result.markdown.includes("# Changelog"), "must still produce the title");
       ok(!result.markdown.includes("### Dependencies"), "must not have a Dependencies section from a non-repo");
     } finally {
-      rmSync(dir, { recursive: true, force: true });
+      removeGitFixture(dir);
     }
   });
 
@@ -530,7 +531,7 @@ describe("dependency-updates: error handling", () => {
       // by default so the section is filtered out; the result is title-only).
       ok(result.markdown.includes("# Changelog"), "must still produce the title");
     } finally {
-      rmSync(dir, { recursive: true, force: true });
+      removeGitFixture(dir);
     }
   });
 
@@ -553,7 +554,7 @@ describe("dependency-updates: error handling", () => {
       ok(result.markdown.includes("# Changelog"), "must still produce the title");
       ok(!result.markdown.includes("### Dependencies"), "must not have a Dependencies section when git fails");
     } finally {
-      rmSync(dir, { recursive: true, force: true });
+      removeGitFixture(dir);
     }
   });
 
@@ -577,7 +578,7 @@ describe("dependency-updates: error handling", () => {
       ok(result.markdown.includes("Bump taiki-e/install-action from 2.87.16 to 2.87.18"), "must list the no-PR commit");
       ok(!result.markdown.includes("(#"), "must not include a PR reference when none is present");
     } finally {
-      rmSync(dir, { recursive: true, force: true });
+      removeGitFixture(dir);
     }
   });
 
@@ -599,7 +600,7 @@ describe("dependency-updates: error handling", () => {
 
       ok(result.markdown.includes("Bump jscpd"), "must collect commits with only --since");
     } finally {
-      rmSync(dir, { recursive: true, force: true });
+      removeGitFixture(dir);
     }
   });
 
@@ -621,7 +622,7 @@ describe("dependency-updates: error handling", () => {
 
       ok(result.markdown.includes("Bump jscpd"), "must collect commits with only --until");
     } finally {
-      rmSync(dir, { recursive: true, force: true });
+      removeGitFixture(dir);
     }
   });
 
@@ -646,7 +647,7 @@ describe("dependency-updates: error handling", () => {
 
       ok(result.markdown.includes("Bump jscpd"), "must collect commits in single-window mode with empty releaseWindows");
     } finally {
-      rmSync(dir, { recursive: true, force: true });
+      removeGitFixture(dir);
     }
   });
 });
@@ -676,7 +677,7 @@ describe("dependency-updates: release ranges and outputs", () => {
       });
       ok(result.markdown.includes("## 2026.9.25 - 2026-09-25\n\n### Dependencies\n\n- Bump jscpd"), result.markdown);
     } finally {
-      rmSync(dir, { recursive: true, force: true });
+      removeGitFixture(dir);
     }
   });
 
@@ -705,7 +706,7 @@ describe("dependency-updates: release ranges and outputs", () => {
       ok(!result.markdown.includes("Bump yaml"), "the previous release's own commit must not repeat");
       ok(!result.markdown.includes("Bump @types/node"), "a commit after the release tag must not leak in");
     } finally {
-      rmSync(dir, { recursive: true, force: true });
+      removeGitFixture(dir);
     }
   });
 
@@ -738,7 +739,7 @@ describe("dependency-updates: release ranges and outputs", () => {
       });
       ok(!unbounded.markdown.includes("Bump inside"), unbounded.markdown);
     } finally {
-      rmSync(dir, { recursive: true, force: true });
+      removeGitFixture(dir);
     }
   });
 
@@ -755,7 +756,7 @@ describe("dependency-updates: release ranges and outputs", () => {
       });
       ok(result.markdown.includes("- Bump \\[evil\\](https://evil.example) from \\*1\\* to \\_2\\_ ([#9](https://github.com/unbraind/pm-csv/pull/9))"), result.markdown);
     } finally {
-      rmSync(dir, { recursive: true, force: true });
+      removeGitFixture(dir);
     }
   });
 
@@ -769,7 +770,7 @@ describe("dependency-updates: release ranges and outputs", () => {
         ok(!result.markdown.includes("### Dependencies"), result.markdown);
       }
     } finally {
-      rmSync(dir, { recursive: true, force: true });
+      removeGitFixture(dir);
     }
   });
 
@@ -792,7 +793,7 @@ describe("dependency-updates: release ranges and outputs", () => {
         ["Dependencies", "#130", "Bump yaml from 2.9.0 to 2.9.1"],
       ]));
     } finally {
-      rmSync(dir, { recursive: true, force: true });
+      removeGitFixture(dir);
     }
   });
 });
@@ -813,7 +814,7 @@ describe("dependency-updates: an explicit --until cutoff", () => {
         ok(!result.markdown.includes("Bump after"), `a commit after --until must stay out (${dependencyUntilRef})`);
       }
     } finally {
-      rmSync(dir, { recursive: true, force: true });
+      removeGitFixture(dir);
     }
   });
 
@@ -833,7 +834,7 @@ describe("dependency-updates: an explicit --until cutoff", () => {
       ok(result.markdown.includes("Bump before"), result.markdown);
       ok(!result.markdown.includes("Bump after"), "a commit after the cutoff must stay out without a tag range");
     } finally {
-      rmSync(dir, { recursive: true, force: true });
+      removeGitFixture(dir);
     }
   });
 
@@ -857,7 +858,7 @@ describe("dependency-updates: an explicit --until cutoff", () => {
       });
       ok(result.markdown.includes("Bump skewed"), result.markdown);
     } finally {
-      rmSync(dir, { recursive: true, force: true });
+      removeGitFixture(dir);
     }
   });
 });
