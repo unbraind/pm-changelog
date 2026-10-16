@@ -6,24 +6,44 @@ status: open
 priority: 2
 tags[3]: changelog,dx,reviewer-raised
 created_at: "2026-08-15T15:17:40.100Z"
-updated_at: "2026-08-15T15:17:40.100Z"
+updated_at: "2026-10-16T04:09:08.159Z"
 deadline: "2026-09-30T00:00:00.000Z"
-assignee: unassigned
 author: claude-agent
 estimated_minutes: 240
 acceptance_criteria: "A package can attach a release note to one item, regenerate, and see the note in CHANGELOG.md while the tracker title is unchanged. A package that attaches nothing produces byte-identical output to today, proven by regenerating all 20 fleet changelogs and diffing. Precedence is explicit and tested for note present, note empty, note absent, and note on an item excluded by the status or tag filters. The check mode stays deterministic so no package changelog gate starts flapping."
 dependencies[1]{id,kind,created_at,author,source_kind,author_source}:
   pmc-wv37,related,"2026-08-15T15:17:40.100Z",claude-agent,"cli:create:dep",asserted
-comments[1]{created_at,author,text}:
+comments[3]{created_at,author,text}:
   "2026-08-15T15:17:40.100Z",claude-agent,Raised independently by CodeRabbit on pm-beads PR 69 and pm-starter PR 58 on 2026-08-15; both declined per-package with this item as the constructive alternative.
+  "2026-10-16T04:04:46.740Z",codex-agent,"Current-main audit at aafea5d (package 2026.10.15): Already fixed by the opt-in resolution feature. `d29b589` (#231), released in `v2026.10.12` as pmc-d3ds. `src/generator.ts:2060` selects `close_reason` only when requested and falls back to title. `test/entry-from.test.ts:49,84` covers default bytes, fallbacks, filters, and real trackers. Fleet-wide regeneration is not claimed by this backlog audit. No item is closed; verification and closure remain with the orchestrator."
+  "2026-10-16T04:09:02.091Z",codex-agent,"Pinned-host linked verification: pm test pmc-fzs6 --run --match \"node --test\" --progress passed. Command: node --test test/entry-from.test.ts; 4/4 tests, zero failures/cancelled/skipped/todo. Focused combined verification passed 63/63; suffix and invalid-date controls passed 2/2. Test-result tracking is disabled in project settings, so this comment preserves the run receipt without changing that policy."
 notes[1]{created_at,author,text}:
   "2026-08-15T15:17:40.100Z",claude-agent,"Open design question: where the note lives. A dedicated item field needs pm-cli schema support; a conventional tag or a designated docs entry may work today with no upstream dependency. Decide by checking which of these the list-all JSON envelope already exposes cheaply,since the generator reads that envelope and nothing else."
 learnings[1]{created_at,author,text}:
   "2026-08-15T15:17:40.100Z",claude-agent,"When two independent reviewers raise the same wording complaint in different repos,the defect is usually in the generator rather than in either repo."
-files[1]{path,scope,note}:
-  src/index.ts,project,entry text is derived here
-tests[1]{command,scope,timeout_seconds}:
-  npm test,project,300
-docs[1]{path,scope,note}:
-  README.md,project,generator options and entry shape
+files[2]:
+  - path: src/index.ts
+    scope: project
+    note: entry text is derived here
+  - path: test/entry-from.test.ts
+    scope: project
+tests[2]:
+  - command: npm test
+    scope: project
+    timeout_seconds: 300
+  - command: node --test test/entry-from.test.ts
+    scope: project
+    timeout_seconds: 240
+    pm_context_mode: tracker
+    provenance:
+      author: codex-agent
+      created_at: "2026-10-16T04:05:37.912Z"
+      source_kind: local_mutation
+      source_ref: fix/release-date-and-backlog
+docs[2]:
+  - path: docs/backlog-verification.md
+    scope: project
+  - path: README.md
+    scope: project
+    note: generator options and entry shape
 body: "Every changelog bullet pm-changelog emits is the tracker item title. That is right for the tracker and wrong for the changelog, and reviewers keep noticing. Two independent CodeRabbit reviews raised it on the same day, on pm-beads PR 69 and pm-starter PR 58: under a \"Fixed\" heading a defect-shaped title reads to a changelog-only reader as a statement of CURRENT behaviour, and the reader cannot tell which signals now fail the read or that anything changed at all. Both were declined per-package because the Fixed heading already carries \"this was fixed\" (Keep a Changelog names the bug in that section), because the only per-package alternative is retitling the Issue to describe a fix rather than the defect it was filed for, and because all 20 sibling packages render the same shape from the same field so a one-package reword makes that package an outlier. The real fix belongs in pm-changelog: let an item carry an OPTIONAL release note that the generator prefers over the title when present and falls back to the title when absent. Defect-shaped titles stay in the tracker, fix-shaped prose reaches the changelog, and nothing changes for any package that does not opt in."

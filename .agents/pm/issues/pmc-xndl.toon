@@ -6,6 +6,10 @@ status: open
 priority: 1
 tags: []
 created_at: "2026-10-04T12:10:47.382Z"
-updated_at: "2026-10-04T12:10:47.382Z"
+updated_at: "2026-10-16T04:08:23.855Z"
 author: codex-sol
+comments[1]{created_at,author,text}:
+  "2026-10-16T04:04:13.283Z",codex-agent,"Current-main audit at aafea5d (package 2026.10.15): Still open; upstream implementation. Current caller `.github/workflows/pm-github-sync.yml:16` pins pm-github `2026.10.15` at `3015930b351a3d9c1c03ee4a26f8404025287df7`. That version's `index.ts:3904` still POSTs new exports without the planned issue state and does not persist the new issue link in that apply path. A newer pin alone does not prove the five limitations resolved. See design below. Design: Keep the current gated import caller separate from export and project-sync acceptance. In pm-github, use synthetic issues and a disposable project to verify canceled-item selection, create-then-close export status, durable issue provenance before repeat exports, resumable draft creation after a failed local tag/status write, and pull-only default preference. Persist remote identities before subsequent writes; retry from those identities instead of POSTing again. Require a second apply with zero duplicates and fault injection at each remote write/local receipt boundary. Adopt a published repair through the normal dependency/caller update once its nonempty acceptance evidence exists. These cross-system transitions exceed a small package-local change.  No item is closed; verification and closure remain with the orchestrator."
+docs[1]{path,scope}:
+  docs/backlog-verification.md,project
 body: ""

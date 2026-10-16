@@ -63,6 +63,22 @@ writes. Rendering in prepend mode instead produces a file the gate rejects,
 because replace mode also emits an `## Unreleased` section for closed but
 unreleased work and orders released items by their `release:` field.
 
+Both `changelog:full` and `release:notes` pass `--date-from-version`; keep that
+flag when editing either script or the release workflow. An untagged calendar
+version such as `2026.8.8-2` renders `2026.8.8-2 - 2026-08-08`, independently
+of the day generation runs. `test/release-backlog.test.ts` exercises these
+script arguments through the built CLI against a disposable real tracker.
+
+Package-version lookup fixtures use `resolveReleaseContext`'s optional
+`packageSearchBoundary` to own the whole lookup tree. It is an inclusive
+ancestor of `cwd`; metadata above it is ignored and an unrelated boundary
+throws. The default still searches through filesystem root. Plant a decoy
+package above the fixture boundary to prove the missing-package case without
+depending on ambient temporary-directory metadata.
+
+See [backlog verification](backlog-verification.md) for the shipped fixes and
+the remaining statement-coverage, upstream sync, and worker-startup designs.
+
 Verify changelog:
 
 ```bash
