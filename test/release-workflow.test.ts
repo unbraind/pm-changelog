@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
+import { spawnSync } from "node:child_process";
 import { resolve } from "node:path";
 import test from "node:test";
 
@@ -705,4 +706,28 @@ test("npm publication never downgrades provenance", () => {
     workflow,
     /escaped_tag=.*sed 's\/\[\]\[\\\\\.\^\$\*\+\?\(\)\{\}\|\]\/\\\\&\/g'/
   );
+});
+
+test("release version matching preserves numeric captures across toolchain updates", () => {
+  const decide = stepSource("Decide release");
+  const start = decide.indexOf("          version_pattern=");
+  const end = decide.indexOf('            current_year=');
+  assert.ok(start >= 0 && end > start, "release matching must use a literal pattern binding");
+  const condition = decide.slice(start, end);
+  for (const [version, captures] of [
+    ["2026.10.17", "2026|10|17|"],
+    ["2027.1.2-12", "2027|1|2|-12"],
+    ["2027.01.02-3", "2027|01|02|-3"],
+    ["2026x10x17", "invalid"],
+    ["2026.10.17-bad", "invalid"],
+    ["2026.10.17\nextra", "invalid"],
+  ]) {
+    const result = spawnSync("bash", ["-eu", "-c", condition + `
+      printf '%s|%s|%s|%s' "\${BASH_REMATCH[1]}" "\${BASH_REMATCH[2]}" "\${BASH_REMATCH[3]}" "\${BASH_REMATCH[4]}"
+    else
+      printf invalid
+    fi`], { encoding: "utf8", env: { ...process.env, current_version: version } });
+    assert.equal(result.status, 0, result.stderr);
+    assert.equal(result.stdout, captures, version);
+  }
 });
