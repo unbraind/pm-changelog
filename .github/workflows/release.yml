@@ -107,7 +107,10 @@ jobs:
           # publishing/tagging. Resume that exact package version even after a
           # calendar-day rollover instead of inventing a newer date version.
           current_version="$(npm pkg get version | tr -d '"')"
-          if [[ "$current_version" =~ ^([0-9]+)\.([0-9]+)\.([0-9]+)(-[0-9]+)?$ ]]; then
+          # Keep regex metacharacters in a literal binding so the canonical
+          # publish auditor can distinguish the condition from shell commands.
+          version_pattern='^([0-9]+)\.([0-9]+)\.([0-9]+)(-[0-9]+)?$'
+          if [[ "$current_version" =~ $version_pattern ]]; then
             current_year="${BASH_REMATCH[1]}"
             current_month="${BASH_REMATCH[2]}"
             current_day="${BASH_REMATCH[3]}"
