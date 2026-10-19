@@ -4,6 +4,7 @@
 
 ### Fixed
 
+- Publish same-day calendar suffixes with an explicit latest dist-tag ([pmc-udb5](https://github.com/unbraind/pm-changelog/blob/main/.agents/pm/issues/pmc-udb5.toon))
 - Request the full list projection explicitly for whole-tracker changelog reads ([pmc-zfyb](https://github.com/unbraind/pm-changelog/blob/main/.agents/pm/issues/pmc-zfyb.toon))
 
 ## 2026.10.14 - 2026-10-14
@@ -135,6 +136,7 @@
 
 ### Fixed
 
+- The version-derived release date refuses the same-day suffix the release workflow actually emits ([pmc-lnyt](https://github.com/unbraind/pm-changelog/blob/main/.agents/pm/issues/pmc-lnyt.toon))
 - Read the pm workspace with canonical complete reads instead of default budgets ([pmc-n07l](https://github.com/unbraind/pm-changelog/blob/main/.agents/pm/issues/pmc-n07l.toon))
 - Raise pm-changelog source coverage gates to 100/100/100 ([pmc-wvnz](https://github.com/unbraind/pm-changelog/blob/main/.agents/pm/issues/pmc-wvnz.toon))
 - Use canonical unbounded list reads with pm CLI 2026.8.20 ([pmc-6j4o](https://github.com/unbraind/pm-changelog/blob/main/.agents/pm/issues/pmc-6j4o.toon))
