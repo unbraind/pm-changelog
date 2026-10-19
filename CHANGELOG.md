@@ -1,5 +1,11 @@
 # Changelog
 
+## Unreleased
+
+### Fixed
+
+- Request the full list projection explicitly for whole-tracker changelog reads ([pmc-zfyb](https://github.com/unbraind/pm-changelog/blob/main/.agents/pm/issues/pmc-zfyb.toon))
+
 ## 2026.10.14 - 2026-10-14
 
 ### Fixed
