@@ -71,6 +71,13 @@ The workflow skips publishing when there are no commits after the latest release
 - Tags the verified merged commit and removes the temporary release branch.
 - Creates the public GitHub release.
 
+Manual same-day corrections use numeric `-N` counters. npm treats these versions
+as prereleases, so the publisher explicitly selects the `latest` dist-tag.
+Install `pm-changelog@latest` or the exact version to receive such a correction;
+stable SemVer ranges exclude suffixed versions and advance on the next dated
+stable release. The publisher keeps the prepared version when retrying an
+interrupted cut instead of moving a tag or inventing another release date.
+
 The workflow never pushes a release commit directly to `main`, and it never
 publishes npm before the matching version metadata and changelog are present on
 protected `main`. If publication fails after the release PR merges, the next run

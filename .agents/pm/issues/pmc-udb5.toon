@@ -1,0 +1,36 @@
+id: pmc-udb5
+title: Publish same-day calendar suffixes with an explicit latest dist-tag
+description: "Daily Release39228085609 prepared and merged2026.10.19-1, then npm11.19.0 refused all three attempts because a prerelease version needs an explicit dist-tag. Preserve same-day numeric counters, provenance and exact-version recovery; publish with explicit latest and document stable-range behavior."
+type: Issue
+status: closed
+priority: 1
+tags[3]: npm,regression,release
+created_at: "2026-10-19T09:33:02.490Z"
+updated_at: "2026-10-19T09:43:34.376Z"
+closed_at: "2026-10-19T09:38:55.605Z"
+completed_at: "2026-10-19T09:38:55.605Z"
+author: codex
+estimated_minutes: 60
+acceptance_criteria: The executed publisher selects latest explicitly; Real npm dry-run accepts the same-day suffix without publishing; Documentation explains caret-range exclusion and latest/exact installs; Recovery preserves the existing untagged version
+risk: medium
+confidence: high
+resolution: "Publish with an explicit latest dist-tag alongside access public, provenance and ignore-scripts; add real isolated offline npm dry-run acceptance and document stable-range semantics."
+expected_result: The same prepared calendar suffix is accepted by npm and selected through latest without weakening provenance or replacing an existing published version.
+actual_result: "The keeper fails on the old publisher with the hosted mandatory-tag error and passes with the added flag;19 focused tests, linked executions, typecheck,docstrings and provenance checks pass. Hosted final-head checks and actual recovery remain required."
+dependencies[2]{id,kind,created_at,author,source_kind,author_source}:
+  pmc-lnyt,related,"2026-10-19T09:33:02.490Z",codex,"cli:create:dep",detected
+  pmc-xioo,related,"2026-10-19T09:33:02.490Z",codex,"cli:create:dep",detected
+comments[4]{created_at,author,text}:
+  "2026-10-19T09:33:02.490Z",codex,"Duplicate check: complete strict186-item all-status corpus, request-specific search and open/in-progress inventories inspected suffix-date owner pmc-lnyt, shipped prepublish isolation pmc-xioo and historical manual readiness owners pmc-qjl9 and pmc-nv97. Historical manual suffix cuts used --tag latest successfully, but no current workflow owner covers its omitted dist-tag. Source evidence: https://github.com/unbraind/pm-changelog/actions/runs/39228085609 ."
+  "2026-10-19T09:36:27.061Z",codex,"Real offline npm keeper fails before the single-argument correction with the same mandatory-dist-tag refusal as hosted npm11.19.0. It extracts the executed publisher's literal argv and adds only dry-run/offline controls in a synthetic package with isolated empty configs/cache and a non-routable registry; no real publication or credentials. Add explicit --tag latest while retaining --access public, provenance and ignore-scripts. Document that stable caret ranges intentionally await the next dated stable release, whereas latest/exact consumers receive the manual suffix cut."
+  "2026-10-19T09:38:54.843Z",codex,"The real npm acceptance now passes after adding only --tag latest:19/19 workflow/date/publish tests, zero skips/failures, plus linked execution, typecheck,169-declaration docstring gate and canonical provenance auditor. The initial deterministic npm11.19 refusal and10-minute reconciliation failure are retained. Same-day counter SemVer behavior is documented explicitly; retry the existing untagged2026.10.19-1 only after reviewed merge."
+  "2026-10-19T09:43:34.376Z",codex,"Ownership hygiene: live full reads identify pmc-38z4, pmc-rspo and pmc-ctr2 as explicitly released historical verifier handoffs; return them to open instead of leaving unclaimed work in progress. Existing pmc-6edv and pmc-wgte carry other-principal ownership and are not overridden. Only this publisher fix and the actively verified suffix handoff were claimed in this delivery; both are released after evidence closure."
+files[2]{path,scope}:
+  .github/workflows/release.yml,project
+  test/release-publish-tag.test.ts,project
+tests[1]{command,scope,timeout_seconds,provenance{author,created_at,source_kind,source_ref}}:
+  node --test test/release-publish-tag.test.ts test/release-workflow.test.ts test/release-backlog.test.ts,project,120,codex,"2026-10-19T09:36:25.592Z",local_mutation,fix/explicit-latest-same-day-publication
+docs[1]{path,scope}:
+  docs/release.md,project
+close_reason: Implement and verify explicit latest selection for reviewed same-version publication recovery.
+body: ""

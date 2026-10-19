@@ -2,18 +2,24 @@ id: pmc-lnyt
 title: The version-derived release date refuses the same-day suffix the release workflow actually emits
 description: "The release workflow tags a second release on one day as v2026.8.24-2 and stamps that version into package.json. calendarDateFromVersion required a strict YYYY.M.D and threw on anything else, so the date-from-version flag failed hard on exactly the day a package released twice. That turns a stale heading date, which is what the flag exists to remove, into a broken release. Found by CodeRabbit on the fleet rollout of that flag, on pm-beads pull request 79, before any package could hit it. Verified directly against the published 2026.8.17 binary, where a suffixed release version exits 1 with the parser message rather than producing a heading. The suffix distinguishes releases, not days, so it is parsed and discarded and the date is the calendar day while the suffix survives in the version heading itself. Non-numeric suffixes such as a beta spelling are still refused, because those are prerelease identifiers rather than same-day counters and inventing a date for them would be a guess, and an impossible calendar date is still refused even when it carries a suffix."
 type: Issue
-status: in_progress
+status: closed
 priority: 1
 tags[3]: changelog,regression,release
 created_at: "2026-08-24T10:27:09.257Z"
-updated_at: "2026-10-16T04:52:38.002Z"
+updated_at: "2026-10-19T09:41:52.197Z"
 deadline: "2026-08-31T00:00:00.000Z"
+closed_at: "2026-10-19T09:41:50.834Z"
+completed_at: "2026-08-26T18:36:34.000Z"
 author: "harness:claude-code"
 estimated_minutes: 40
 acceptance_criteria: "A suffixed calendar version derives the calendar day and keeps its suffix in the heading, a non-numeric suffix is still refused, and an impossible date is still refused with or without a suffix"
+release: 2026.8.22
+resolution: Retain the already-shipped numeric suffix/date parser and its actual2026.8.22 release attribution; verify current built-CLI and Git fixture contracts without weakening trust policy.
+expected_result: Numeric suffix/date behavior is supported and correctly attributed to its shipped release; reviewed stored regression commands actually execute.
+actual_result: "Both selected linked Node commands execute and pass after explicit reviewed-command acknowledgement. Direct19-test cohort, typecheck, docstrings and provenance gate pass. Git proves50b84c5 inclusion in v2026.8.22. This supersedes the earlier close event that confused a trust refusal with execution."
 dependencies[1]{id,kind,created_at,author,source_kind,author_source}:
   pmc-q22j,related,"2026-08-24T10:27:09.257Z","harness:claude-code","cli:create:dep",detected
-comments[11]{created_at,author,text}:
+comments[15]{created_at,author,text}:
   "2026-08-24T10:27:09.257Z","harness:claude-code","Caught on the fleet rollout before it could break a release, rather than after."
   "2026-10-16T04:04:35.117Z",codex-agent,"Current-main audit at aafea5d (package 2026.10.15): Already fixed; integration regression added here. `50b84c5`, included in `v2026.8.22`. `src/release-context.ts:273` accepts numeric `-N` and validates the calendar date. `test/generator.test.ts:1729` rejects nonnumeric suffixes and impossible dates. The new built-CLI regression also asserts the suffix survives in the heading. No item is closed; verification and closure remain with the orchestrator."
   "2026-10-16T04:05:04.229Z",codex-agent,"Revert proof on the current baseline: removing only numeric -N acceptance from calendarDateFromVersion and rebuilding makes node --test test/release-backlog.test.ts fail 0/1 with the calendar-version error for 2001.2.3-2. Restoring and rebuilding passes 1/1; the heading preserves -2 and derives 2001-02-03."
@@ -25,6 +31,10 @@ comments[11]{created_at,author,text}:
   "2026-10-16T04:39:32.408Z",codex-agent,"First complete npm run release:check passed: 612/612 tests, 49 suites, zero failures/cancellations/skips/todos, exact 100% measured lines/branches/functions across 13 source files, 169 documented declarations; audit, package dry run, changelog/link check, release-date check and publish-attestation check all passed at unchanged thresholds. Next reproduce the full npm gate under a fresh home with global/system Git configuration disabled, then run the full Bun gate."
   "2026-10-16T04:44:45.046Z",codex-agent,"The required CI-identity reproduction also passed: env HOME=\"$(mktemp -d)\" GIT_CONFIG_GLOBAL=/dev/null GIT_CONFIG_NOSYSTEM=1 npm run release:check completed with 612/612 tests in 49 suites, zero failures/cancellations/skips/todos, exact 100% measured lines/branches/functions, and every subsequent gate passed. Clean-home project health satisfies the existing CI warning predicate; normal-shell strict health additionally detects a newer globally installed extension, which is absent in the clean-home check. No dependency pin, history record, health policy or threshold was changed. Full Bun gate is next."
   "2026-10-16T04:52:35.178Z",codex-agent,"Review round 1 complete: normal npm, fresh-home npm (global/system Git config disabled), and fresh-home bun run release:check all passed, each 612/612 tests in 49 suites with zero failures/cancellations/skips/todos, exact 100% lines/branches/functions over the unchanged 13-source inventory and 169 documented declarations. All audits, packaging, changelog/link, date and attestation checks passed. Dependency stress: 30/30 runs, 37 tests each, 1110/1110 total. Negative controls: omitted persisted Git policy fails; issue body moved beneath following Unreleased heading fails 0/1 on section membership; restored focused and linked tests pass 3/3. Evidence and limitations are recorded in docs/backlog-verification.md. No runtime behavior, dependency pin, gate threshold or worker deadline changed. Leave item in progress and unclaimed for orchestrator review; push and final-head CI observation follow. No pm CLI/SDK defect encountered."
+  "2026-10-19T09:33:06.410Z",codex,"Active verification handoff: the live item records the date-parser repair as shipped since v2026.8.22, with current source regression and completed Node22/26 release gates. Today's manual suffix workflow passed both pre-merge and exact merged release verification before a distinct npm dist-tag refusal. Verify the linked suffix regression and close the completed parser scope alongside the new publisher fix; do not describe the shipped parser as still broken."
+  "2026-10-19T09:38:51.179Z",codex,"Independent verification passes linked suffix/date controls and the current19-test publisher/workflow/backlog cohort. Git confirms50b84c5b946bdfd75fe7f6ec66cd9f2bcfdf538c was authored2026-08-26T18:36:34Z and is contained in the existing v2026.8.22 release tag. Pin release attribution to that shipped version and record actual completion rather than misrepresenting this verification as a new date-parser fix. The distinct current npm dist-tag repair is pmc-udb5."
+  "2026-10-19T09:40:02.854Z",codex,"Evidence correction: the direct suffix/date test and19-test cohort passed, but the latest pm test --match node --test receipt refused both stored commands as foreign_source_ref; it did not execute them. The preceding close event incorrectly described that linked result as passing. Reopen only to supersede that closure with the accurate post-acknowledgement verification. Preserve the original receipt and history; do not weaken trust policy or treat this as a date-parser recurrence."
+  "2026-10-19T09:41:49.050Z",codex,"Superseding verification: reviewed the two stored Node test commands, acknowledged them separately through pm test --acknowledge-linked-tests, then reran the selected commands. Both now execute and pass with trusted acknowledged provenance; project trust policy is unchanged. The earlier foreign-source refusal remains recorded, and the premature close event is explicitly superseded by the following corrected close event."
 notes[1]{created_at,author,text}:
   "2026-08-24T10:27:09.257Z","harness:claude-code",Reverting only the parser while keeping the test fails one test; restoring passes 390.
 learnings[1]{created_at,author,text}:
@@ -78,4 +88,5 @@ docs[2]:
   - path: "https://github.com/unbraind/pm-changelog/blob/main/README.md"
     scope: project
     note: flag reference
+close_reason: Complete the verified historical suffix/date handoff with corrected linked-run evidence.
 body: "Reachable whenever a package releases twice in one calendar day, which the workflow supports by design through its max-suffix logic."

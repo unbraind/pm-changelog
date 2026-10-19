@@ -742,7 +742,7 @@ jobs:
             exit 0
           fi
           publish_with_provenance() {
-            npm publish --access public --provenance --ignore-scripts
+            npm publish --access public --provenance --ignore-scripts --tag latest
           }
           attempt=0
           max_attempts=3
