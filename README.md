@@ -55,6 +55,8 @@ Bare arrays and receipt-free `{ "items": [...] }` documents retain their
 intentional subset contract: the caller owns their scope and must supply the
 full intended history when replacing a changelog. See [JSON input](docs/usage.md).
 
+Whole-tracker reads explicitly request the list-local `--full` projection because pm-cli 2026.10.18+ treats `--all` as row scope only and otherwise omits fields needed for changelog generation.
+
 Date precedence is explicit: `--date` is an unconditional override, then an
 existing release tag supplies its commit date, then `--date-fallback` or
 `--date-from-version` applies only while that tag is absent. With none of those,

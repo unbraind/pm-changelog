@@ -684,13 +684,14 @@ export function mergeChangelog(
  * `--pm-path` is unshifted ahead of the caller's global arguments because pm
  * rejects it in trailing position. The host-owned output controls follow the
  * caller arguments so a conflicting `pmArgs` value cannot silently re-bound a
- * correctness-critical whole-tracker read. */
+ * correctness-critical whole-tracker read. `--full` is list-local: `--all`
+ * controls row scope, but no longer selects full fields on pm >=2026.10.18. */
 export function buildPmListArgs(options: ReadPmItemsOptions = {}): string[] {
   const args = [
     ...(options.pmArgs ?? []),
     "--output-budget", "unbounded",
     "--output-limit", "unbounded",
-    "list", "--all", "--json",
+    "list", "--all", "--full", "--json",
   ];
   if (options.includeBody) {
     args.push("--include-body");
@@ -936,8 +937,8 @@ export class IncompleteListAllError extends Error {
  *
  * Since pm 2026.9.18 (pm-g8oh0f, "Omit redundant read receipts when canonical
  * output flags do not compact results") the `read_output` receipt is omitted
- * from an uncompacted read and only attached when the output-budget compaction
- * path engaged, so this gate treats an absent `read_output` as exactly "no
+ * from an uncompacted canonical read; aliases such as `--full` can still
+ * attach it. This gate treats an absent `read_output` as exactly "no
  * compaction receipt happened" and never requires the key. The receipt is not
  * a completeness proof in either direction (pm <=2026.9.17 attached it to
  * complete reads as well), so the gate stays fail-closed through the envelope
@@ -995,8 +996,8 @@ function incompleteListAllSignals(record: Record<string, unknown>): string[] {
  * an array carries no receipt, so it cannot prove completeness, and consuming
  * it silently is exactly the 2026.8.14 failure mode. This is the parser for
  * live CLI reads; caller-supplied documents use explicit-receipt inspection. The
- * optional `read_output` compaction receipt (omitted by pm >=2026.9.18 on an
- * uncompacted read, always present on pm <=2026.9.17) is not consulted:
+ * optional `read_output` receipt (which can record compaction or compatibility
+ * aliases such as `--full`) is not consulted:
  * completeness is proven by the envelope signals alone, so both envelope
  * shapes parse identically.
  *
