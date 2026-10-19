@@ -89,7 +89,7 @@ test("buildPmListArgs centralizes canonical pm runner argument order", () => {
     "--output-limit", "1",
     "--output-budget", "unbounded",
     "--output-limit", "unbounded",
-    "list", "--all", "--json", "--include-body",
+    "list", "--all", "--full", "--json", "--include-body",
   ]);
 });
 
@@ -2154,7 +2154,7 @@ test("readPmItems supports runner wrappers with custom binaries, args, cwd, and 
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 
-if (process.argv.slice(2).join(" ") !== "--pm-path .agents/pm --profile ci --output-budget unbounded --output-limit unbounded list --all --json") process.exit(2);
+if (process.argv.slice(2).join(" ") !== "--pm-path .agents/pm --profile ci --output-budget unbounded --output-limit unbounded list --all --full --json") process.exit(2);
 if (process.env.PM_CHANGELOG_TEST !== "1") process.exit(3);
 process.stdout.write(readFileSync(resolve(process.cwd(), "fixture.json"), "utf-8"));
 `,
@@ -2181,7 +2181,7 @@ test("readPmItems supports pm JSON larger than Node's default spawnSync buffer",
   writeFileSync(
     wrapper,
     `#!/usr/bin/env node
-if (process.argv.slice(2).join(" ") !== "--output-budget unbounded --output-limit unbounded list --all --json") process.exit(2);
+if (process.argv.slice(2).join(" ") !== "--output-budget unbounded --output-limit unbounded list --all --full --json") process.exit(2);
 process.stdout.write(JSON.stringify({ items: [{ id: "pm-large", title: "Large tracker", status: "closed", body: ${JSON.stringify(largeBody)} }], count: 1, total: 1, truncated: false, has_more: false, completeness: { status: "complete", unreadable_item_count: 0, unreadable_directory_count: 0 }, omission_receipt: { has_omissions: false, omitted_field_group_count: 0, omitted_field_groups: [] } }));
 `,
     "utf-8"
@@ -2248,14 +2248,12 @@ test("readPmItems resolves the installed pm-cli executable without PATH", () => 
   assert.ok(result.length > 0, "expected pm items to be returned without PATH");
 });
 
-/** A real canonical `pm list --all --json` envelope captured from the installed CLI
+/** A real canonical `pm list --all --full --json` envelope captured from the installed CLI
  * against this repository's own tracker, cached so the spawn happens once.
  * Mutating one field of this envelope is how the refusal tests drive each
  * signal from the CLI's real answer shape rather than a hand-written mock.
- * The captured shape depends on the installed CLI: pm <=2026.9.17 always
- * attached the `read_output` receipt, while pm >=2026.9.18 (pm-g8oh0f) omits
- * it exactly when the canonical output flags do not compact results, which is
- * the unbounded read performed here. */
+ * The host may attach `read_output` to record the list-local `--full`
+ * compatibility alias even though no output was compacted. */
 let realListAllEnvelope: Record<string, unknown> | undefined;
 
 function captureRealListAllEnvelope(): Record<string, unknown> {
@@ -2265,7 +2263,7 @@ function captureRealListAllEnvelope(): Record<string, unknown> {
       "--pm-path", join(process.cwd(), ".agents", "pm"),
       "--output-budget", "unbounded",
       "--output-limit", "unbounded",
-      "list", "--all", "--json",
+      "list", "--all", "--full", "--json",
     ], {
       encoding: "utf-8",
       maxBuffer: 64 * 1024 * 1024,
@@ -2288,17 +2286,14 @@ function captureRealListAllEnvelope(): Record<string, unknown> {
       omitted_field_group_count: 0,
       omitted_field_groups: [],
     });
-    // pm 2026.9.18 (pm-g8oh0f) omits the read receipt when the canonical output
-    // flags do not compact the result, so under the pinned >=2026.9.18 CLI the
-    // complete unbounded read carries no read_output at all; under pm
-    // <=2026.9.17 the always-attached receipt must instead prove the read was
-    // neither aliased nor compacted. Both envelope shapes are acceptable here.
+    // --full is deliberately local to list; the host records it as an alias
+    // for --output-include full. Its receipt must still prove no compaction.
     if (parsed.read_output !== undefined) {
       const receipt = parsed.read_output as Record<string, unknown>;
       assert.deepEqual(
         receipt.legacy_aliases_used,
-        [],
-        "a legacy-shape receipt must prove no compatibility alias was used",
+        ["--full"],
+        "the full read must use only the list-local projection alias",
       );
       assert.notEqual(receipt.rows_compacted, true, "a legacy-shape receipt must prove no row compaction");
       assert.notEqual(receipt.result_omitted, true, "a legacy-shape receipt must prove the result was not omitted");
@@ -2332,7 +2327,7 @@ function realEnvelopeWith(override: Record<string, unknown>): string {
   return JSON.stringify({ ...captureRealListAllEnvelope(), ...override });
 }
 
-/** A real compacted `pm list --all --json` envelope captured from the installed
+/** A real compacted `pm list --all --full --json` envelope captured from the installed
  * CLI by forcing a tiny output budget against this repository's own tracker,
  * cached so the spawn happens once. pm attaches the `read_output` compaction
  * receipt, the continuation cursor, and the `output_budget_truncation`
@@ -2348,7 +2343,7 @@ function captureRealCompactedListAllEnvelope(): Record<string, unknown> {
       "--pm-path", join(process.cwd(), ".agents", "pm"),
       "--output-budget", "2000",
       "--output-limit", "unbounded",
-      "list", "--all", "--json",
+      "list", "--all", "--full", "--json",
     ], {
       encoding: "utf-8",
       maxBuffer: 64 * 1024 * 1024,
@@ -2470,7 +2465,7 @@ test("parseListAllItemsJson lets every item of a real complete envelope flow thr
   assert.deepEqual(parseListAllItemsJson(JSON.stringify(envelope)), rows);
 });
 
-test("parseListAllItemsJson accepts a legacy always-attached read_output receipt as readily as the receipt-less shape", () => {
+test("parseListAllItemsJson accepts full-projection, legacy and receipt-less read_output shapes", () => {
   const envelope = captureRealListAllEnvelope();
   const rows = envelope.items as unknown[];
   // pm <=2026.9.17 attached this receipt on every read, complete or not; the
@@ -2490,10 +2485,12 @@ test("parseListAllItemsJson accepts a legacy always-attached read_output receipt
     result_omitted: false,
   } as const;
   assert.deepEqual(parseListAllItemsJson(realEnvelopeWith({ read_output: legacyReceipt })), rows);
-  // pm >=2026.9.18 (pm-g8oh0f) omits the receipt when nothing was compacted,
-  // which is exactly the envelope the capture above recorded.
-  assert.equal("read_output" in envelope, false, "the pinned >=2026.9.18 uncompacted read must omit the receipt");
   assert.deepEqual(parseListAllItemsJson(JSON.stringify(envelope)), rows);
+  // A canonical uncompacted host may omit read_output; exercise that shape
+  // independently of the full-projection alias receipt captured above.
+  const withoutReceipt = { ...envelope };
+  delete withoutReceipt.read_output;
+  assert.deepEqual(parseListAllItemsJson(JSON.stringify(withoutReceipt)), rows);
 });
 
 test("parseListAllItemsJson refuses a budget-truncation disclosure whose reason is missing", () => {
@@ -2548,7 +2545,7 @@ test("CLI can run a custom pm binary", () => {
   writeFileSync(
     wrapper,
     `#!/usr/bin/env node
-if (process.argv.slice(2).join(" ") !== "--output-budget unbounded --output-limit unbounded list --all --json") process.exit(2);
+if (process.argv.slice(2).join(" ") !== "--output-budget unbounded --output-limit unbounded list --all --full --json") process.exit(2);
 process.stdout.write(${JSON.stringify(JSON.stringify(completeListAllEnvelope(items)))});
 `,
     "utf-8"
@@ -2588,7 +2585,7 @@ test("CLI passes extra pm arguments and cwd to runner wrappers", () => {
 import { existsSync, readFileSync } from "node:fs";
 import { resolve } from "node:path";
 
-if (process.argv.slice(2).join(" ") !== "--profile ci --workspace release --output-budget unbounded --output-limit unbounded list --all --json") process.exit(2);
+if (process.argv.slice(2).join(" ") !== "--profile ci --workspace release --output-budget unbounded --output-limit unbounded list --all --full --json") process.exit(2);
 if (!existsSync(resolve(process.cwd(), "fixture.json"))) process.exit(3);
 process.stdout.write(readFileSync(resolve(process.cwd(), "fixture.json"), "utf-8"));
 `,

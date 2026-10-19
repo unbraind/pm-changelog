@@ -79,7 +79,8 @@ export declare function mergeChangelog(existingMarkdown: string | undefined, gen
  * `--pm-path` is unshifted ahead of the caller's global arguments because pm
  * rejects it in trailing position. The host-owned output controls follow the
  * caller arguments so a conflicting `pmArgs` value cannot silently re-bound a
- * correctness-critical whole-tracker read. */
+ * correctness-critical whole-tracker read. `--full` is list-local: `--all`
+ * controls row scope, but no longer selects full fields on pm >=2026.10.18. */
 export declare function buildPmListArgs(options?: ReadPmItemsOptions): string[];
 /** Resolve the installed pm CLI entry point without consulting or changing the
  * process-level command memo. Supplying the complete dependency set lets tests
@@ -133,8 +134,8 @@ export declare class IncompleteListAllError extends Error {
  * an array carries no receipt, so it cannot prove completeness, and consuming
  * it silently is exactly the 2026.8.14 failure mode. This is the parser for
  * live CLI reads; caller-supplied documents use explicit-receipt inspection. The
- * optional `read_output` compaction receipt (omitted by pm >=2026.9.18 on an
- * uncompacted read, always present on pm <=2026.9.17) is not consulted:
+ * optional `read_output` receipt (which can record compaction or compatibility
+ * aliases such as `--full`) is not consulted:
  * completeness is proven by the envelope signals alone, so both envelope
  * shapes parse identically.
  *
