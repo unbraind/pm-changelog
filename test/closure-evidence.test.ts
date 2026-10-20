@@ -1,7 +1,7 @@
 /** Evidence policy fixtures follow SDK/fleet rows; no source tracker is mutated. */
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
-import { mkdtempSync, rmSync } from "node:fs";
+import { mkdtempSync, readFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
 import test from "node:test";
@@ -59,6 +59,22 @@ const cases: { name: string; fields: Partial<PmItem>; category: string | null }[
   { name: "missing fields", fields: { close_reason: undefined }, category: "Closed" },
   { name: "fix mentions duplicate symptom", fields: { close_reason: "Fixed duplicate label grouping with regression coverage" }, category: "Fixed" },
   { name: "fix mentions invalid input", fields: { close_reason: "Fixed invalid input handling" }, category: "Fixed" },
+  ...["Invalid timestamps no longer crash export", "Duplicate entries are now deduplicated", "Superseded cache entries are now removed"].map((reason) => ({
+    name: `disposition word in repair prose: ${reason}`, fields: { close_reason: reason, files: [{ path: "src/parser.ts" }] }, category: "Fixed",
+  })),
+  { name: "resolution starts with duplicate symptom", fields: { resolution: "Duplicate entries are now deduplicated", tests: [{ command: "npm test" }] }, category: "Fixed" },
+  ...["Fixed crash when no config file exists", "Fixed export that cannot handle empty input", "Repaired export without a config file", "Corrected parser that can't read empty input", "Fixed parser that doesn't accept null", "Fixed export that will fail on empty input"].map((reason) => ({
+    name: `affirmative repair with symptom: ${reason}`, fields: { close_reason: reason }, category: "Fixed",
+  })),
+  ...["Merged PR #12: export no longer crashes without config", "Delivered commit abcdef1: parser cannot crash on empty input"].map((reason) => ({
+    name: `delivery with symptom: ${reason}`, fields: { actual_result: reason }, category: "Fixed",
+  })),
+  ...["Fixed in planned PR #12", "Fixed in proposed PR #12", "Fixed but not yet merged in PR #12", "Will fix in PR #12", "Cannot be merged in PR #12", "Can't merge PR #12", "Didn't merge PR #12", "Fixed without merged PR #12", "To be delivered in PR #12", "Never shipped PR #12"].map((reason) => ({
+    name: `explicit non-delivery: ${reason}`, fields: { resolution: reason }, category: "Closed",
+  })),
+  ...["Duplicate of fixture-other", "Superseded by fixture-other", "Invalid: malformed report", "Duplicate; tracked elsewhere", "Duplicate, see fixture-other", "Superseded — replaced", "Superseded in favour of fixture-other", "Superseded in favor of fixture-other"].map((reason) => ({
+    name: `terminated disposition: ${reason}`, fields: { close_reason: reason, files: [{ path: "src/parser.ts" }] }, category: null,
+  })),
   ...["not planned", "not_planned", "not-planned", "duplicate", "invalid", "won't fix", "won’t fix", "wontfix", "wont_fix", "superseded"].map((reason) => ({ name: reason, fields: { close_reason: reason }, category: null })),
   { name: "GitHub non-planned timestamp", fields: { close_reason: "Closed on GitHub as not planned on 2026-08-27T00:00:00Z" }, category: null },
   { name: "duplicate prefix", fields: { close_reason: "Closed as duplicate of fixture-other" }, category: null },
@@ -99,6 +115,28 @@ test("historical incident repro stays neutral across projections and entry-from"
   assert.equal(buildChangelogDocument(options).releases[0].sections[0].items[0].title, "Closed: Historical workflow incident");
   assert.equal(createChangelogSummary(options)[0].title, "Closed: Historical workflow incident");
   assert.match(createChangelog({ ...options, conventional: true, emojiPrefix: true, sectionBy: "type" }).markdown, /Closed: Historical workflow incident/);
+});
+
+test("no-git workflow outputs and selection diagnostics report non-change exclusions", (t) => {
+  const cwd = mkdtempSync(join(tmpdir(), "pm-changelog-workflow-"));
+  t.after(() => rmSync(cwd, { recursive: true, force: true }));
+  const githubOutput = join(cwd, "outputs.txt");
+  for (const mode of [[], ["--stdout", "--mode", "prepend"]]) {
+    const result = spawnSync(process.execPath, [resolve("dist/cli.js"), "--stdin", "--json", "--github-output", "--explain", ...mode], {
+      cwd, encoding: "utf8", env: { ...process.env, PATH: "", GITHUB_OUTPUT: githubOutput },
+      input: JSON.stringify([incident, { ...incident, id: "fixture-duplicate", close_reason: "Duplicate of fixture-other" }]),
+    });
+    assert.equal(result.status, 0, result.stderr);
+    assert.equal((JSON.parse(result.stdout) as { excluded_non_change_count: number }).excluded_non_change_count, 1);
+    assert.equal((JSON.parse(result.stdout) as { selection_report: { excluded_counts: { non_change: number } } }).selection_report.excluded_counts.non_change, 1);
+  }
+  assert.deepEqual(readFileSync(githubOutput, "utf8").match(/^excluded_non_change_count=1$/gm), ["excluded_non_change_count=1", "excluded_non_change_count=1"]);
+  const explained = spawnSync(process.execPath, [resolve("dist/cli.js"), "--stdin", "--stdout", "--explain"], {
+    cwd, encoding: "utf8", env: { ...process.env, PATH: "" },
+    input: JSON.stringify([incident, { ...incident, id: "fixture-duplicate", close_reason: "Duplicate of fixture-other" }]),
+  });
+  assert.equal(explained.status, 0, explained.stderr);
+  assert.match(explained.stderr, /excluded\(non_change=1,/);
 });
 
 for (const sectionBy of ["type", "status", "label"] as const) {

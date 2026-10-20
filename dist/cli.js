@@ -817,7 +817,7 @@ function writeSelectionReport(report) {
     console.error("Selection report:"
         + ` input=${report.stage_counts.input}`
         + ` visible=${report.stage_counts.visible_items}`
-        + ` excluded(title=${excluded.missing_title},tag=${excluded.excluded_tag},status=${excluded.status},time=${excluded.time_window},item_release=${excluded.item_release},release_window=${excluded.release_window},visibility=${excluded.hidden_by_visibility})`);
+        + ` excluded(non_change=${excluded.non_change ?? 0},title=${excluded.missing_title},tag=${excluded.excluded_tag},status=${excluded.status},time=${excluded.time_window},item_release=${excluded.item_release},release_window=${excluded.release_window},visibility=${excluded.hidden_by_visibility})`);
     const provenance = report.attribution_provenance;
     if (provenance) {
         const sources = formatInferredSources(provenance.inferred_sources);
@@ -845,6 +845,7 @@ function writeGitHubOutput(summary) {
         `action=${String(summary.action ?? "")}`,
         `changed=${String(summary.changed ?? "")}`,
         `item_count=${String(summary.itemCount ?? "")}`,
+        `excluded_non_change_count=${String(summary.excluded_non_change_count ?? 0)}`,
         `bytes=${String(summary.bytes ?? "")}`,
     ];
     appendFileSync(githubOutput, `${lines.join("\n")}\n`, "utf-8");

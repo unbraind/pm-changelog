@@ -153,7 +153,9 @@ Under Fixed, an Issue titled "The comment-sync test is root-sensitive" then rend
 "Fixed the comment-sync test to be independent of the root directory". The title stays in the
 tracker and still determines ordering; recorded evidence controls whether the issue can
 be a repair. The selected field supplies prose in every category, markdown, summary,
-structured JSON, and breaking change entry. Markdown escaping and single-line normalization apply to the resolution too.
+structured JSON, and breaking change entry, except neutral Closed entries always use
+the title across all output formats, including with `--entry-from close_reason`.
+Markdown escaping and single-line normalization apply to the resolution too.
 Only `title` (the default) and `close_reason` are supported; missing, empty, whitespace-only,
 or non-string resolutions fall back to title. Omitting the flag uses the title; closure
 evidence rules still apply.
