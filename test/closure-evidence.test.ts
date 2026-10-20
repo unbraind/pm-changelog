@@ -101,6 +101,22 @@ test("historical incident repro stays neutral across projections and entry-from"
   assert.match(createChangelog({ ...options, conventional: true, emojiPrefix: true, sectionBy: "type" }).markdown, /Closed: Historical workflow incident/);
 });
 
+for (const sectionBy of ["type", "status", "label"] as const) {
+  test(`neutral closures keep a Closed section under ${sectionBy} grouping`, () => {
+    const options = {
+      items: [{ ...incident, tags: ["fixed", "security"] },
+        { ...incident, id: "fixture-feature", title: "Enable export", type: "Feature", tags: ["feature"] }],
+      sectionBy, conventional: true, emojiPrefix: true,
+    };
+    const generated = createChangelog(options);
+    assert.match(generated.markdown, /### Closed\n/);
+    assert.doesNotMatch(generated.markdown, /### (?:Fixed|Bug Fixes|Issue|Security)\n/);
+    assert.equal(buildChangelogDocument(options).releases[0].sections.find((section) => section.heading === "Closed")?.items.find((item) => item.id === incident.id)?.title, "Closed: Historical workflow incident");
+    assert.equal(createChangelogSummary(options).find((entry) => entry.id === incident.id)?.category, "Closed");
+    assert.equal((generated.markdown.match(/### Closed\n/g) ?? []).length, 1);
+  });
+}
+
 test("full changelog snapshot keeps release attribution, deterministic sorting and retained history", () => {
   const options = {
     items: [incident, { ...incident, id: "fixture-fixed", title: "Parser repair", resolution: "Fixed parser bounds" },

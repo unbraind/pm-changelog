@@ -351,8 +351,18 @@ function selectChangelogSections(options) {
 }
 /** Build the canonical ordered groups for one visible release section. */
 function groupSectionItems(section, sectionBy, options) {
-    if (sectionBy !== "category")
-        return groupByField(section.items, sectionBy);
+    if (sectionBy !== "category") {
+        const neutral = section.items.filter(needsNeutralClosure);
+        const groups = groupByField(section.items.filter((item) => !needsNeutralClosure(item)), sectionBy);
+        if (neutral.length > 0) {
+            const closed = groups.find((group) => group.heading === "Closed");
+            if (closed)
+                closed.items.push(...neutral);
+            else
+                groups.push({ heading: "Closed", items: neutral });
+        }
+        return groups;
+    }
     const grouped = groupByCategory(section.items);
     const result = [];
     for (const category of CATEGORY_ORDER) {
