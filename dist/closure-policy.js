@@ -2,7 +2,8 @@ const ISSUE_TYPES = new Set(["issue", "bug", "bugfix", "defect"]);
 // Dispositions must lead the reason, optionally after a factual closure prefix.
 // Incidental words in repair prose (e.g. "Fixed duplicate grouping") do not count.
 const NON_CHANGE = /^(?:(?:closed|closing|resolved)(?:\s+on\s+github)?\s+(?:as\s+)?)?(?:not[ _-]planned|duplicate|invalid|won['’]?t[ _-]fix|wontfix|superseded|cannot[ _-]+reproduce)(?=\s*$|\s*[.;:,(—–-]|\s+(?:of|by|on|because|due\s+to|in\s+favou?r\s+of)\b)/i;
-const REPAIR = /^(?:fix(?:ed)?|repair(?:ed)?|correct(?:ed)?)\b|^resolv(?:e|ed)\s+(?!(?:as|on|with|completed|closed|done)\b)\S|\b(?:was|were|is|are|has\s+been|have\s+been)\s+(?:fixed|repaired|corrected|resolved(?!\s+(?:as|on|with|completed|closed|done)\b))\b/i;
+// Base-form verbs can describe instructions for future work, not completed repairs.
+const REPAIR = /^(?:fixed|repaired|corrected)\b|^resolved\s+(?!(?:as|on|with|completed|closed|done)\b)\S|\b(?:was|were|is|are|has\s+been|have\s+been)\s+(?:fixed|repaired|corrected|resolved(?!\s+(?:as|on|with|completed|closed|done)\b))\b/i;
 const NEGATED_REPAIR = /\b(?:unproven|unverified|pending|proposed|planned|unmerged)\b|\b(?:not|never|will(?:\s+be)?|to\s+be|cannot(?:\s+be)?|can['’]?t(?:\s+be)?|didn['’]?t|doesn['’]?t|without|(?:may|might|could|should|would|must)\s+(?:have\s+been|be))\s+(?:yet\s+)?(?:fix(?:ed)?|repair(?:ed)?|correct(?:ed)?|resolv(?:e|ed)|merged?|deliver(?:ed)?|ship(?:ped)?|land(?:ed)?)\b/i;
 const DELIVERY = /\b(?:merged|delivered|shipped|landed)\b/i;
 const DELIVERY_REF = /\b(?:PR|pull request)\s+#\d+\b|\bcommit\s+[a-f0-9]{7,40}\b|https:\/\/github\.com\/[^\s/]+\/[^\s/]+\/(?:pull\/\d+|commit\/[a-f0-9]{7,40}\b)|\bmerged\s+(?:(?:in|as|at|via)\s+)?(?:(?:[\w.-]+\/[\w.-]+)?#\d+\b|[a-f0-9]{7,40}\b)/i;

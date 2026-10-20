@@ -112,7 +112,10 @@ prove a repair. Dispositions must lead `close_reason` or `resolution` (optionall
 following “Closed as”, “Resolved as” or “Closed on GitHub as”); incidental words
 like “Fixed duplicate grouping” remain repairs. Affirmative passive wording such
 as “The parser crash was fixed” also records a repair. Negated, hypothetical or pending repair/delivery
-statements do not qualify. Structured delivery links use `url` with `state: merged`
+statements do not qualify. Instructions such as “Fix after the next deploy” or
+“Resolve in a follow-up release” need independent file/test or delivery evidence;
+completed wording such as “Fixed the parser” qualifies on its own.
+Structured delivery links use `url` with `state: merged`
 or `relation: delivered`; string links must name delivery and a PR/commit reference.
 Linked files/tests are recorded evidence, not independent verification that a test
 passed or a repair shipped. Feature/Task category rules are retained.

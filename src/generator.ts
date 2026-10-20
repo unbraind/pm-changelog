@@ -454,16 +454,7 @@ function groupSectionItems(
   sectionBy: ChangelogSectionBy,
   options: GenerateChangelogOptions
 ): ChangelogItemGroup[] {
-  if (sectionBy !== "category") {
-    const neutral = section.items.filter(needsNeutralClosure);
-    const groups = groupByField(section.items.filter((item) => !needsNeutralClosure(item)), sectionBy);
-    if (neutral.length > 0) {
-      const closed = groups.find((group) => group.heading === "Closed");
-      if (closed) closed.items.push(...neutral);
-      else groups.push({ heading: "Closed", items: neutral });
-    }
-    return groups;
-  }
+  if (sectionBy !== "category") return groupByField(section.items, sectionBy);
 
   const grouped = groupByCategory(section.items);
   const result: ChangelogItemGroup[] = [];
@@ -1704,7 +1695,9 @@ function groupByField(
   };
 
   for (const item of items) {
-    if (sectionBy === "type") {
+    if (needsNeutralClosure(item)) {
+      push("Closed", item);
+    } else if (sectionBy === "type") {
       push(titleCase(typeof item.type === "string" && item.type.trim() ? item.type.trim() : "Other"), item);
     } else if (sectionBy === "status") {
       push(titleCase(typeof item.status === "string" && item.status.trim() ? item.status.trim() : "Unknown"), item);

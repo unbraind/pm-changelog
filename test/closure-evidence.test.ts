@@ -35,7 +35,19 @@ const cases: { name: string; fields: Partial<PmItem>; category: string | null }[
   { name: "SDK linked test command", fields: { tests: [{ command: "npm test", scope: "project", timeout_seconds: 240 }] }, category: "Fixed" },
   { name: "SDK linked test path", fields: { tests: [{ path: "test/parser.test.ts" }] }, category: "Fixed" },
   { name: "fix statement", fields: { close_reason: "Fixed exporter format validation; verified with npm test." }, category: "Fixed" },
-  { name: "imperative repair statement", fields: { resolution: "Fix root handling with a bounded parser" }, category: "Fixed" },
+  ...["Resolve in a follow-up release", "Fix after the next deploy", "Repair after the next deploy", "Correct in a follow-up release", "Fix root handling with a bounded parser", "Resolve the root-dependent lookup"].flatMap((reason) => [
+    { name: `future repair close reason: ${reason}`, fields: { close_reason: reason }, category: "Closed" },
+    { name: `future repair resolution: ${reason}`, fields: { resolution: reason }, category: "Closed" },
+  ]),
+  ...[
+    { files: [{ path: "src/parser.ts" }] },
+    { tests: [{ command: "npm test" }] },
+    { actual_result: "Merged in PR #12" },
+    { links: [{ state: "merged", url: "https://github.com/example/project/pull/12" }] },
+    { resolution: "The parser crash was fixed" },
+  ].map((evidence, index) => ({
+    name: `future repair with independent evidence ${index}`, fields: { close_reason: "Fix after the next deploy", ...evidence }, category: "Fixed",
+  })),
   { name: "repair statement", fields: { resolution: "Repaired the parser" }, category: "Fixed" },
   { name: "correction statement", fields: { close_reason: "Corrected release placement" }, category: "Fixed" },
   { name: "resolved statement", fields: { resolution: "Resolved the root-dependent lookup" }, category: "Fixed" },
@@ -231,6 +243,25 @@ test("no-git workflow outputs and selection diagnostics report non-change exclus
 });
 
 for (const sectionBy of ["type", "status", "label"] as const) {
+  test(`neutral closures preserve selected item and group order under ${sectionBy} grouping`, () => {
+    const neutral = { ...incident, id: "fixture-new-neutral", closed_at: "2026-08-30T00:00:00Z", completed_at: "2026-08-30T00:00:00Z" };
+    const repair = { ...incident, id: "fixture-old-repair", type: sectionBy === "type" ? "Closed" : "Issue", tags: ["Closed"], resolution: "Fixed parser bounds" };
+    const open = { ...incident, id: "fixture-open", status: "open", type: "Feature", tags: ["Feature"], closed_at: "2026-08-29T00:00:00Z", completed_at: "2026-08-29T00:00:00Z" };
+    for (const items of [[repair, open, neutral], [neutral, open, repair]]) {
+      const options = { items, sectionBy, includeStatuses: [] };
+      const document = buildChangelogDocument(options);
+      const groups = document.releases[0].sections;
+      assert.deepEqual(groups.map((group) => group.heading), ["Closed", sectionBy === "status" ? "Open" : "Feature"]);
+      assert.deepEqual(groups[0].items.map((item) => item.id), [neutral.id, repair.id]);
+      const summary = createChangelogSummary(options);
+      assert.deepEqual(summary.map((entry) => entry.id), [neutral.id, repair.id, open.id]);
+      const markdown = createChangelog(options).markdown;
+      assert.ok(markdown.indexOf(neutral.id) < markdown.indexOf(repair.id), markdown);
+      assert.ok(markdown.indexOf(repair.id) < markdown.indexOf(open.id), markdown);
+      assert.equal((markdown.match(/### Closed\n/g) ?? []).length, 1);
+    }
+  });
+
   test(`neutral closures keep a Closed section under ${sectionBy} grouping`, () => {
     const options = {
       items: [{ ...incident, tags: ["fixed", "security"] },
@@ -278,6 +309,8 @@ test("no-git stdin and real tracker input apply the evidence rule without a git 
   await runCreate({ title: "Parser repair", type: "Issue", status: "closed", resolution: "The parser crash was fixed", closeReason: "Repair recorded", createMode: "progressive" }, { path: pmRoot });
   await runCreate({ title: "Linked file repair", type: "Issue", status: "closed", file: ["path=src/parser.ts,scope=project"], closeReason: "Recorded implementation", createMode: "progressive" }, { path: pmRoot });
   await runCreate({ title: "Linked test repair", type: "Issue", status: "closed", test: ["command=npm test,scope=project"], closeReason: "Recorded implementation", createMode: "progressive" }, { path: pmRoot });
+  await runCreate({ title: "Deferred deploy repair", type: "Issue", status: "closed", closeReason: "Fix after the next deploy", createMode: "progressive" }, { path: pmRoot });
+  await runCreate({ title: "Follow-up release repair", type: "Issue", status: "closed", resolution: "Resolve in a follow-up release", closeReason: "Recorded follow-up", createMode: "progressive" }, { path: pmRoot });
   // An empty PATH proves the generation path cannot spawn git (or a global pm).
   const noGitEnv = { ...env, PATH: "" };
   const cli = resolve("dist/cli.js");
@@ -292,9 +325,11 @@ test("no-git stdin and real tracker input apply the evidence rule without a git 
   assert.equal(tracker.status, 0, tracker.stderr);
   const receipt = JSON.parse(tracker.stdout) as { markdown: string; excluded_non_change_count: number };
   assert.equal(receipt.excluded_non_change_count, 1);
-  assert.match(receipt.markdown, /### Closed\n\n- Closed: Historical workflow incident/);
+  assert.match(receipt.markdown, /### Closed\n/);
+  assert.match(receipt.markdown, /- Closed: Historical workflow incident/);
   assert.match(receipt.markdown, /### Fixed/);
   for (const title of ["Parser repair", "Linked file repair", "Linked test repair"]) assert.ok(receipt.markdown.includes(`- ${title} (`));
+  for (const title of ["Deferred deploy repair", "Follow-up release repair"]) assert.ok(receipt.markdown.includes(`- Closed: ${title} (`));
   assert.doesNotMatch(receipt.markdown, /Ignore duplicate/);
   for (const mode of [["--changelog-json"], ["--summary", "--format", "json"], ["--suggest-semver"], ["--suggest-semver", "--explain"]]) {
     const projection = spawnSync(process.execPath, [cli, "--stdin", ...mode], { cwd, env: noGitEnv, encoding: "utf8", input: JSON.stringify([incident, { ...incident, id: "fixture-ignored", close_reason: "Invalid" }]) });
@@ -314,7 +349,11 @@ test("no-git stdin and real tracker input apply the evidence rule without a git 
       ? run.result.output : JSON.stringify(run.result);
     assert.match(rendered, /"excluded_non_change_count":\s*1/);
     assert.doesNotMatch(rendered, /Ignore duplicate/);
-    if (!("suggest-semver" in options)) assert.match(rendered, /Closed: Historical workflow incident/);
+    if (!("suggest-semver" in options)) {
+      assert.match(rendered, /Closed: Historical workflow incident/);
+      assert.match(rendered, /Closed: Deferred deploy repair/);
+      assert.match(rendered, /Closed: Follow-up release repair/);
+    }
   }
   const rows = readPmItems({ cwd, pmRoot, env: noGitEnv });
   assert.equal(rows.find((item) => item.id === created.item.id)?.close_reason, incident.close_reason);
