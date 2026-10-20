@@ -63,6 +63,8 @@ Factual “Closed on GitHub as completed on …” records appear under Closed w
 “Closed: <title>”, even with `--entry-from close_reason`. Explicit not-planned,
 duplicate, invalid, won't-fix and superseded closures are omitted; JSON reports
 `excluded_non_change_count` across input before release filtering.
+Neutral closures remain visible but do not recommend a version bump or appear
+in the optional Breaking Changes group.
 
 These rules need only tracker data, so stdin and plain tracker directories work
 without git. Tag-derived release windows and dependency commit notes require git.

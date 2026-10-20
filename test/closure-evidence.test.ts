@@ -13,6 +13,7 @@ import {
   explainChangelogSelection, mergeChangelog, readPmItems, suggestSemver,
 } from "../src/index.ts";
 import { countNonChangeClosures, isNonChangeClosure, needsNeutralClosure } from "../src/closure-policy.ts";
+import { suggestSemverForItems } from "../src/generator.ts";
 import type { PmItem } from "../src/index.ts";
 
 const incident: PmItem = {
@@ -75,6 +76,14 @@ const cases: { name: string; fields: Partial<PmItem>; category: string | null }[
   ...["Duplicate of fixture-other", "Superseded by fixture-other", "Invalid: malformed report", "Duplicate; tracked elsewhere", "Duplicate, see fixture-other", "Superseded — replaced", "Superseded in favour of fixture-other", "Superseded in favor of fixture-other"].map((reason) => ({
     name: `terminated disposition: ${reason}`, fields: { close_reason: reason, files: [{ path: "src/parser.ts" }] }, category: null,
   })),
+  ...["Won't fix because the dependency is unsupported", "Invalid due to an unsupported environment", "Closed as duplicate because another report covers it", "Resolved as not planned due to scope", "Superseded because a replacement shipped", "Won’t fix due to compatibility"].map((reason) => ({
+    name: `explanatory disposition: ${reason}`, fields: { close_reason: reason, files: [{ path: "src/parser.ts" }] }, category: null,
+  })),
+  { name: "explanatory resolution disposition", fields: { resolution: "Won't fix because the dependency is unsupported" }, category: null },
+  { name: "explanatory feature disposition", fields: { type: "Feature", close_reason: "Not planned due to scope" }, category: null },
+  { name: "invalid repair prose stays visible", fields: { close_reason: "Invalid timestamps were fixed", files: [{ path: "src/parser.ts" }] }, category: "Fixed" },
+  { name: "connector prefix is not a disposition", fields: { close_reason: "Invalid becauseValue was fixed", files: [{ path: "src/parser.ts" }] }, category: "Fixed" },
+  { name: "incomplete due connector is not a disposition", fields: { close_reason: "Duplicate due timestamps were fixed", files: [{ path: "src/parser.ts" }] }, category: "Fixed" },
   ...["not planned", "not_planned", "not-planned", "duplicate", "invalid", "won't fix", "won’t fix", "wontfix", "wont_fix", "superseded"].map((reason) => ({ name: reason, fields: { close_reason: reason }, category: null })),
   { name: "GitHub non-planned timestamp", fields: { close_reason: "Closed on GitHub as not planned on 2026-08-27T00:00:00Z" }, category: null },
   { name: "duplicate prefix", fields: { close_reason: "Closed as duplicate of fixture-other" }, category: null },
@@ -108,6 +117,72 @@ for (const fixture of cases) {
     }
   });
 }
+
+for (const fields of [{}, { title: "Breaking parser compatibility" }, { tags: ["breaking"] }, { breaking: true }, { metadata: { breaking: true } }]) {
+  test(`neutral closure has no change signals: ${JSON.stringify(fields)}`, () => {
+    const item = { ...incident, ...fields };
+    const options = { items: [item], breakingChanges: true, suggestSemver: true };
+    const expected = { bump: "none", reason: "no changes", counts: { breaking: 0, feature: 0, fix: 0, other: 0 } };
+    assert.deepEqual(suggestSemver(options), expected);
+    assert.deepEqual(suggestSemverForItems([item]), expected);
+    const document = buildChangelogDocument(options);
+    assert.deepEqual(document.suggested_semver, expected);
+    assert.deepEqual(document.releases[0].breaking_changes, []);
+    assert.equal(document.item_count, 1);
+    assert.match(createChangelog(options).markdown, /### Closed/);
+    assert.doesNotMatch(createChangelog(options).markdown, /### Breaking Changes/);
+  });
+}
+
+test("substantive changes retain semver signals alongside neutral and omitted closures", () => {
+  const neutral = { ...incident, title: "Breaking incident", tags: ["breaking"] };
+  const omitted = { ...neutral, id: "fixture-omitted", close_reason: "Won't fix because unsupported", files: [{ path: "src/parser.ts" }] };
+  const fix = { ...incident, id: "fixture-fix", resolution: "Fixed parser bounds" };
+  const feature = { ...incident, id: "fixture-feature", type: "Feature" };
+  const breaking = { ...fix, id: "fixture-breaking", breaking: true };
+  for (const [change, bump, counts] of [
+    [fix, "patch", { breaking: 0, feature: 0, fix: 1, other: 0 }],
+    [feature, "minor", { breaking: 0, feature: 1, fix: 0, other: 0 }],
+    [breaking, "major", { breaking: 1, feature: 0, fix: 0, other: 0 }],
+  ] as const) {
+    const items = [neutral, omitted, change];
+    const options = { items, breakingChanges: true, suggestSemver: true };
+    for (const suggestion of [suggestSemver(options), suggestSemverForItems(items), buildChangelogDocument(options).suggested_semver]) {
+      assert.equal(suggestion?.bump, bump);
+      assert.deepEqual(suggestion.counts, counts);
+    }
+    assert.deepEqual(buildChangelogDocument(options).releases[0].breaking_changes?.map((item) => item.id), bump === "major" ? [breaking.id] : []);
+  }
+});
+
+test("no-git CLI keeps neutral breaking closures visible without recommending a release", (t) => {
+  const cwd = mkdtempSync(join(tmpdir(), "pm-changelog-signals-"));
+  t.after(() => rmSync(cwd, { recursive: true, force: true }));
+  const input = JSON.stringify([
+    { ...incident, title: "Breaking parser incident", tags: ["breaking"], breaking: true },
+    { ...incident, id: "fixture-omitted", close_reason: "Won't fix because unsupported" },
+  ]);
+  for (const mode of [["--suggest-semver"], ["--changelog-json", "--suggest-semver", "--breaking-changes"], ["--stdout", "--breaking-changes"]]) {
+    const result = spawnSync(process.execPath, [resolve("dist/cli.js"), "--stdin", ...mode], {
+      cwd, encoding: "utf8", env: { ...process.env, PATH: "" }, input,
+    });
+    assert.equal(result.status, 0, result.stderr);
+    if (mode.includes("--stdout")) {
+      assert.match(result.stdout, /### Closed\n\n- Closed: Breaking parser incident/);
+      assert.doesNotMatch(result.stdout, /### Breaking Changes|fixture-omitted/);
+    } else if (mode.includes("--changelog-json")) {
+      const document = JSON.parse(result.stdout) as ReturnType<typeof buildChangelogDocument>;
+      assert.equal(document.suggested_semver?.bump, "none");
+      assert.deepEqual(document.releases[0].breaking_changes, []);
+      assert.equal(document.excluded_non_change_count, 1);
+    } else {
+      const suggestion = JSON.parse(result.stdout) as ReturnType<typeof suggestSemver> & { excluded_non_change_count: number };
+      assert.equal(suggestion.bump, "none");
+      assert.deepEqual(suggestion.counts, { breaking: 0, feature: 0, fix: 0, other: 0 });
+      assert.equal(suggestion.excluded_non_change_count, 1);
+    }
+  }
+});
 
 test("historical incident repro stays neutral across projections and entry-from", () => {
   const options = { items: [incident], entryFrom: "close_reason" as const };

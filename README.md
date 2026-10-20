@@ -120,6 +120,8 @@ The neutral prefix always uses the title, including with `--entry-from close_rea
 and alternate grouping, so factual closure prose never becomes a repair claim.
 Neutral closures stay under Closed with `--section-by type`, `status` or `label`
 too; a `fixed` label cannot bypass the evidence requirement.
+They contribute no semver change counts and never appear in Breaking Changes,
+even when their title, tags or metadata contain breaking signals.
 JSON receipts/documents expose `excluded_non_change_count`, counted across input
 before status/time/release filters. SDK generation/write results expose
 `excludedNonChangeCount`. All projections omit the same non-change items.

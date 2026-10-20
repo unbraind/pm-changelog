@@ -1,7 +1,7 @@
 const ISSUE_TYPES = new Set(["issue", "bug", "bugfix", "defect"]);
 // Dispositions must lead the reason, optionally after a factual closure prefix.
 // Incidental words in repair prose (e.g. "Fixed duplicate grouping") do not count.
-const NON_CHANGE = /^(?:(?:closed|closing|resolved)(?:\s+on\s+github)?\s+(?:as\s+)?)?(?:not[ _-]planned|duplicate|invalid|won['’]?t[ _-]fix|wontfix|superseded)(?=\s*$|\s*[.;:,(—–-]|\s+(?:of|by|on|in\s+favou?r\s+of)\b)/i;
+const NON_CHANGE = /^(?:(?:closed|closing|resolved)(?:\s+on\s+github)?\s+(?:as\s+)?)?(?:not[ _-]planned|duplicate|invalid|won['’]?t[ _-]fix|wontfix|superseded)(?=\s*$|\s*[.;:,(—–-]|\s+(?:of|by|on|because|due\s+to|in\s+favou?r\s+of)\b)/i;
 const REPAIR = /^(?:fix(?:ed)?|repair(?:ed)?|correct(?:ed)?)\b|^resolv(?:e|ed)\s+(?!(?:as|on|with|completed|closed|done)\b)\S/i;
 const NEGATED_REPAIR = /\b(?:unproven|unverified|pending|proposed|planned|unmerged)\b|\b(?:not|never|will(?:\s+be)?|to\s+be|cannot(?:\s+be)?|can['’]?t(?:\s+be)?|didn['’]?t|doesn['’]?t|without)\s+(?:yet\s+)?(?:fix(?:ed)?|repair(?:ed)?|correct(?:ed)?|resolv(?:e|ed)|merge(?:d)?|deliver(?:ed)?|ship(?:ped)?|land(?:ed)?)\b/i;
 const DELIVERY = /\b(?:merged|delivered|shipped|landed)\b/i;

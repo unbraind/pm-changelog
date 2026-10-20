@@ -214,7 +214,8 @@ export declare function visibleChangelogItems(options: GenerateChangelogOptions)
  * output is unexpectedly empty or smaller than expected.
  */
 export declare function explainChangelogSelection(options: GenerateChangelogOptions): ChangelogSelectionReport;
-/** Classify an explicit item set into a semver bump (no option-driven filtering). */
+/** Classify an explicit item set into a semver bump, excluding non-change and
+ * neutral closures even when the caller has not applied option-driven filtering. */
 export declare function suggestSemverForItems(items: PmItem[]): SemverSuggestion;
 export {};
 //# sourceMappingURL=generator.d.ts.map

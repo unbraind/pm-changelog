@@ -2192,7 +2192,8 @@ const HEADING_EMOJI: Record<string, string> = {
 };
 
 /**
- * Detect whether an item is a breaking change. Signals (any one suffices):
+ * Detect whether a substantive item is a breaking change. Neutral closures
+ * never signal a change. Signals (any one suffices):
  *  - a truthy `breaking` flag on the item or in its metadata, OR
  *  - an explicit breaking tag (`breaking`, `breaking-change`, `breaking_change`), OR
  *  - the word "breaking" appearing as a standalone token in the type or title.
@@ -2203,6 +2204,7 @@ const HEADING_EMOJI: Record<string, string> = {
  * Used only by the opt-in `--breaking-changes` / `--suggest-semver` features.
  */
 function isBreakingItem(item: PmItem): boolean {
+  if (needsNeutralClosure(item)) return false;
   if (isTruthyFlag(item.breaking)) return true;
   if (isTruthyFlag(item.metadata?.["breaking"])) return true;
 
@@ -2425,13 +2427,15 @@ export function explainChangelogSelection(options: GenerateChangelogOptions): Ch
   };
 }
 
-/** Classify an explicit item set into a semver bump (no option-driven filtering). */
+/** Classify an explicit item set into a semver bump, excluding non-change and
+ * neutral closures even when the caller has not applied option-driven filtering. */
 export function suggestSemverForItems(items: PmItem[]): SemverSuggestion {
   let breaking = 0;
   let feature = 0;
   let fix = 0;
   let other = 0;
   for (const item of items) {
+    if (isNonChangeClosure(item) || needsNeutralClosure(item)) continue;
     if (isBreakingItem(item)) {
       breaking++;
       continue;
