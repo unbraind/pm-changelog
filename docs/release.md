@@ -61,7 +61,7 @@ linked files/tests, an affirmative repair statement in `resolution`/`close_reaso
 or delivered/merged PR/commit evidence in those fields, `actual_result` or `links`.
 Factual “Closed on GitHub as completed on …” records appear under Closed with
 “Closed: <title>”, even with `--entry-from close_reason`. Explicit not-planned,
-duplicate, invalid, won't-fix and superseded closures are omitted; JSON reports
+duplicate, invalid, won't-fix, superseded and cannot-reproduce closures are omitted; JSON reports
 `excluded_non_change_count` across input before release filtering.
 Neutral closures remain visible but do not recommend a version bump or appear
 in the optional Breaking Changes group.

@@ -39,6 +39,13 @@ const cases: { name: string; fields: Partial<PmItem>; category: string | null }[
   { name: "repair statement", fields: { resolution: "Repaired the parser" }, category: "Fixed" },
   { name: "correction statement", fields: { close_reason: "Corrected release placement" }, category: "Fixed" },
   { name: "resolved statement", fields: { resolution: "Resolved the root-dependent lookup" }, category: "Fixed" },
+  ...["The parser crash was fixed", "Invalid timestamps were fixed", "The export is repaired", "The inputs are corrected", "The crash has been resolved", "The regressions have been fixed"].map((reason) => ({
+    name: `passive repair: ${reason}`, fields: { resolution: reason }, category: "Fixed",
+  })),
+  ...["The parser was not fixed", "The parser was not yet fixed", "The crash has not been repaired", "The crash will be fixed", "The crash was fixed in an unmerged PR", "The crash was fixed in a planned change", "The report was resolved as completed", "The report has been resolved on GitHub", "The parser might have been fixed", "The parser should have been fixed", "The parser could be repaired", "The parser would have been corrected", "The parser may be resolved", "The parser must be fixed"].map((reason) => ({
+    name: `passive non-repair: ${reason}`, fields: { resolution: reason }, category: "Closed",
+  })),
+  { name: "passive close reason", fields: { close_reason: "The parser crash was corrected" }, category: "Fixed" },
   { name: "fleet merged PR short reference", fields: { resolution: "Implemented and merged in #116 (2d52ed1)." }, category: "Fixed" },
   { name: "merged PR in actual result", fields: { actual_result: "Merged in PR #30 at bf091b7" }, category: "Fixed" },
   { name: "commit delivery", fields: { actual_result: "Delivered in commit abcdef1234567" }, category: "Fixed" },
@@ -85,6 +92,14 @@ const cases: { name: string; fields: Partial<PmItem>; category: string | null }[
   { name: "connector prefix is not a disposition", fields: { close_reason: "Invalid becauseValue was fixed", files: [{ path: "src/parser.ts" }] }, category: "Fixed" },
   { name: "incomplete due connector is not a disposition", fields: { close_reason: "Duplicate due timestamps were fixed", files: [{ path: "src/parser.ts" }] }, category: "Fixed" },
   ...["not planned", "not_planned", "not-planned", "duplicate", "invalid", "won't fix", "won’t fix", "wontfix", "wont_fix", "superseded"].map((reason) => ({ name: reason, fields: { close_reason: reason }, category: null })),
+  ...["Cannot reproduce", "cannot-reproduce", "cannot_reproduce", "Cannot  reproduce", "Cannot reproduce because the report lacks a sample", "Closed on GitHub as cannot reproduce on 2026-08-27", "Cannot reproduce: no repro case"].map((reason) => ({
+    name: `cannot reproduce disposition: ${reason}`, fields: { close_reason: reason, files: [{ path: "src/parser.ts" }] }, category: null,
+  })),
+  { name: "cannot reproduce resolution", fields: { resolution: "Cannot reproduce" }, category: null },
+  { name: "cannot reproduce feature", fields: { type: "Feature", resolution: "Cannot reproduce" }, category: null },
+  ...["Cannot reproduceValue was fixed", "Cannot reproduce failures were fixed"].map((reason) => ({
+    name: `cannot reproduce prose boundary: ${reason}`, fields: { close_reason: reason }, category: "Fixed",
+  })),
   { name: "GitHub non-planned timestamp", fields: { close_reason: "Closed on GitHub as not planned on 2026-08-27T00:00:00Z" }, category: null },
   { name: "duplicate prefix", fields: { close_reason: "Closed as duplicate of fixture-other" }, category: null },
   { name: "resolved duplicate", fields: { resolution: "Resolved as duplicate of fixture-other" }, category: null },
@@ -258,8 +273,8 @@ test("no-git stdin and real tracker input apply the evidence rule without a git 
   const init = spawnSync(process.execPath, [pm, "init", "--yes", "--agent-guidance", "skip", "--no-merge-fence"], { cwd, env, encoding: "utf8" });
   assert.equal(init.status, 0, init.stderr);
   const created = await runCreate({ title: incident.title, type: "Issue", status: "closed", closeReason: incident.close_reason, createMode: "progressive" }, { path: pmRoot });
-  await runCreate({ title: "Ignore duplicate", type: "Issue", status: "closed", closeReason: "Duplicate of fixture-other", createMode: "progressive" }, { path: pmRoot });
-  await runCreate({ title: "Parser repair", type: "Issue", status: "closed", resolution: "Fixed parser bounds", closeReason: "Repair recorded", createMode: "progressive" }, { path: pmRoot });
+  await runCreate({ title: "Ignore duplicate", type: "Issue", status: "closed", closeReason: "Cannot reproduce", createMode: "progressive" }, { path: pmRoot });
+  await runCreate({ title: "Parser repair", type: "Issue", status: "closed", resolution: "The parser crash was fixed", closeReason: "Repair recorded", createMode: "progressive" }, { path: pmRoot });
   await runCreate({ title: "Linked file repair", type: "Issue", status: "closed", file: ["path=src/parser.ts,scope=project"], closeReason: "Recorded implementation", createMode: "progressive" }, { path: pmRoot });
   await runCreate({ title: "Linked test repair", type: "Issue", status: "closed", test: ["command=npm test,scope=project"], closeReason: "Recorded implementation", createMode: "progressive" }, { path: pmRoot });
   // An empty PATH proves the generation path cannot spawn git (or a global pm).

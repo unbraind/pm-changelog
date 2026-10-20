@@ -103,14 +103,15 @@ Closed Issue/Bug/Bugfix/Defect items use tracker evidence before type, tags or t
 
 | Recorded closure | Output |
 | --- | --- |
-| Not planned, duplicate, invalid, won't fix, superseded (any closed item type) | Omitted from changelog and release notes |
+| Not planned, duplicate, invalid, won't fix, superseded, cannot reproduce (any closed item type) | Omitted from changelog and release notes |
 | Linked file path or test command/path; affirmative fix/repair/correction/resolution in `close_reason` or `resolution`; or delivered/merged PR or commit in `close_reason`, `resolution`, `actual_result` or `links` | Existing category rules, including Fixed for repairs |
 | Other closed issues, including factual GitHub completion | `### Closed` with `Closed: <title>` |
 
 A title, bug tag, completed timestamp, bare PR URL or GitHub issue link does not
 prove a repair. Dispositions must lead `close_reason` or `resolution` (optionally
 following “Closed as”, “Resolved as” or “Closed on GitHub as”); incidental words
-like “Fixed duplicate grouping” remain repairs. Negated or pending repair/delivery
+like “Fixed duplicate grouping” remain repairs. Affirmative passive wording such
+as “The parser crash was fixed” also records a repair. Negated, hypothetical or pending repair/delivery
 statements do not qualify. Structured delivery links use `url` with `state: merged`
 or `relation: delivered`; string links must name delivery and a PR/commit reference.
 Linked files/tests are recorded evidence, not independent verification that a test

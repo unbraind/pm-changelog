@@ -3,9 +3,9 @@ import type { PmItem } from "./types.ts";
 const ISSUE_TYPES = new Set(["issue", "bug", "bugfix", "defect"]);
 // Dispositions must lead the reason, optionally after a factual closure prefix.
 // Incidental words in repair prose (e.g. "Fixed duplicate grouping") do not count.
-const NON_CHANGE = /^(?:(?:closed|closing|resolved)(?:\s+on\s+github)?\s+(?:as\s+)?)?(?:not[ _-]planned|duplicate|invalid|won['’]?t[ _-]fix|wontfix|superseded)(?=\s*$|\s*[.;:,(—–-]|\s+(?:of|by|on|because|due\s+to|in\s+favou?r\s+of)\b)/i;
-const REPAIR = /^(?:fix(?:ed)?|repair(?:ed)?|correct(?:ed)?)\b|^resolv(?:e|ed)\s+(?!(?:as|on|with|completed|closed|done)\b)\S/i;
-const NEGATED_REPAIR = /\b(?:unproven|unverified|pending|proposed|planned|unmerged)\b|\b(?:not|never|will(?:\s+be)?|to\s+be|cannot(?:\s+be)?|can['’]?t(?:\s+be)?|didn['’]?t|doesn['’]?t|without)\s+(?:yet\s+)?(?:fix(?:ed)?|repair(?:ed)?|correct(?:ed)?|resolv(?:e|ed)|merge(?:d)?|deliver(?:ed)?|ship(?:ped)?|land(?:ed)?)\b/i;
+const NON_CHANGE = /^(?:(?:closed|closing|resolved)(?:\s+on\s+github)?\s+(?:as\s+)?)?(?:not[ _-]planned|duplicate|invalid|won['’]?t[ _-]fix|wontfix|superseded|cannot[ _-]+reproduce)(?=\s*$|\s*[.;:,(—–-]|\s+(?:of|by|on|because|due\s+to|in\s+favou?r\s+of)\b)/i;
+const REPAIR = /^(?:fix(?:ed)?|repair(?:ed)?|correct(?:ed)?)\b|^resolv(?:e|ed)\s+(?!(?:as|on|with|completed|closed|done)\b)\S|\b(?:was|were|is|are|has\s+been|have\s+been)\s+(?:fixed|repaired|corrected|resolved(?!\s+(?:as|on|with|completed|closed|done)\b))\b/i;
+const NEGATED_REPAIR = /\b(?:unproven|unverified|pending|proposed|planned|unmerged)\b|\b(?:not|never|will(?:\s+be)?|to\s+be|cannot(?:\s+be)?|can['’]?t(?:\s+be)?|didn['’]?t|doesn['’]?t|without|(?:may|might|could|should|would|must)\s+(?:have\s+been|be))\s+(?:yet\s+)?(?:fix(?:ed)?|repair(?:ed)?|correct(?:ed)?|resolv(?:e|ed)|merge(?:d)?|deliver(?:ed)?|ship(?:ped)?|land(?:ed)?)\b/i;
 const DELIVERY = /\b(?:merged|delivered|shipped|landed)\b/i;
 const DELIVERY_REF = /(?:\b(?:PR|pull request)\s+#[0-9]+\b|\bcommit\s+[a-f0-9]{7,40}\b|https:\/\/github\.com\/[^\s/]+\/[^\s/]+\/(?:pull\/[0-9]+|commit\/[a-f0-9]{7,40}\b)|\bmerged\s+(?:(?:in|as|at|via)\s+)?(?:(?:[\w.-]+\/[\w.-]+)?#[0-9]+\b|[a-f0-9]{7,40}\b))/i;
 
