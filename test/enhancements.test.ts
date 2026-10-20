@@ -22,7 +22,7 @@ const items: PmItem[] = [
     id: "pm-bug",
     title: "Crash on empty input",
     status: "closed",
-    type: "Issue",
+    type: "Issue", resolution: "Fixed the recorded defect",
     tags: ["bug"],
     assignee: "bob",
     release: "1.2.0",
@@ -308,7 +308,7 @@ test("--suggest-semver recommends major when a breaking change is present", () =
 test("--suggest-semver recommends minor for features only", () => {
   const feats: PmItem[] = [
     { id: "f1", title: "Add A", status: "closed", type: "Feature", tags: ["feature"], updated_at: "2026-05-28T09:00:00Z" },
-    { id: "fx", title: "Fix B", status: "closed", type: "Issue", tags: ["bug"], updated_at: "2026-05-28T08:00:00Z" },
+    { id: "fx", title: "Fix B", status: "closed", type: "Issue", resolution: "Fixed the recorded defect", tags: ["bug"], updated_at: "2026-05-28T08:00:00Z" },
   ];
   const s = suggestSemver({ items: feats });
   assert.equal(s.bump, "minor");
@@ -317,7 +317,7 @@ test("--suggest-semver recommends minor for features only", () => {
 });
 
 test("--suggest-semver recommends patch for fixes only and none when empty", () => {
-  const fixOnly = suggestSemver({ items: [{ id: "x", title: "Fix crash", status: "closed", type: "Issue", tags: ["bug"], updated_at: "2026-05-28T08:00:00Z" }] });
+  const fixOnly = suggestSemver({ items: [{ id: "x", title: "Fix crash", status: "closed", type: "Issue", resolution: "Fixed the recorded defect", tags: ["bug"], updated_at: "2026-05-28T08:00:00Z" }] });
   assert.equal(fixOnly.bump, "patch");
   const empty = suggestSemver({ items: [] });
   assert.equal(empty.bump, "none");
@@ -335,7 +335,7 @@ test("--suggest-semver only surfaces in the document when opted in", () => {
 // ---------------------------------------------------------------------------
 const bodyItems: PmItem[] = [
   { id: "pm-body", title: "Add export", status: "closed", type: "Feature", tags: ["feature"], body: "This adds a CSV export pipeline with streaming support and resumable jobs.", updated_at: "2026-05-28T09:00:00Z" },
-  { id: "pm-short", title: "Tiny fix", status: "closed", type: "Issue", tags: ["bug"], body: "ok", updated_at: "2026-05-28T08:00:00Z" },
+  { id: "pm-short", title: "Tiny fix", status: "closed", type: "Issue", resolution: "Fixed the recorded defect", tags: ["bug"], body: "ok", updated_at: "2026-05-28T08:00:00Z" },
   { id: "pm-nobody", title: "No body item", status: "closed", type: "Task", updated_at: "2026-05-28T07:00:00Z" },
 ];
 
@@ -633,8 +633,8 @@ test("--summary is absent from default createChangelog output", () => {
 // ---------------------------------------------------------------------------
 test("createChangelog --since filters items by date", () => {
   const datedItems: PmItem[] = [
-    { id: "pm-recent", title: "Recent fix", status: "closed", type: "Issue", closed_at: "2026-05-20T00:00:00Z" },
-    { id: "pm-old", title: "Old fix", status: "closed", type: "Issue", closed_at: "2026-04-01T00:00:00Z" },
+    { id: "pm-recent", title: "Recent fix", status: "closed", type: "Issue", resolution: "Fixed the recorded defect", closed_at: "2026-05-20T00:00:00Z" },
+    { id: "pm-old", title: "Old fix", status: "closed", type: "Issue", resolution: "Fixed the recorded defect", closed_at: "2026-04-01T00:00:00Z" },
   ];
   const md = createChangelog({ items: datedItems, version: "1.0.0", date: "2026-05-28", since: "2026-05-01" }).markdown;
   assert.match(md, /Recent fix/);
@@ -645,9 +645,9 @@ test("explainChangelogSelection reports exclude-tag and release-attribution stag
   const report = explainChangelogSelection({
     items: [
       { id: "pm-kept", title: "Ship feature", status: "closed", type: "Feature", closed_at: "2026-07-24T10:00:00Z" },
-      { id: "pm-ignored", title: "Upstream tracker", status: "closed", type: "Issue", closed_at: "2026-07-24T10:00:00Z", tags: ["changelog:ignore"] },
-      { id: "pm-elsewhere", title: "Shipped earlier", status: "closed", type: "Issue", closed_at: "2026-07-24T10:00:00Z", release: "2026.6.1" },
-      { id: "pm-pinned", title: "Closed late but shipped here", status: "closed", type: "Issue", closed_at: "2026-09-01T00:00:00Z", release: "2026.7.24" },
+      { id: "pm-ignored", title: "Upstream tracker", status: "closed", type: "Issue", resolution: "Fixed the recorded defect", closed_at: "2026-07-24T10:00:00Z", tags: ["changelog:ignore"] },
+      { id: "pm-elsewhere", title: "Shipped earlier", status: "closed", type: "Issue", resolution: "Fixed the recorded defect", closed_at: "2026-07-24T10:00:00Z", release: "2026.6.1" },
+      { id: "pm-pinned", title: "Closed late but shipped here", status: "closed", type: "Issue", resolution: "Fixed the recorded defect", closed_at: "2026-09-01T00:00:00Z", release: "2026.7.24" },
     ],
     version: "2026.7.24",
     since: "2026-07-01T00:00:00Z",
@@ -714,7 +714,7 @@ test("release attribution matches an unpadded item release against a zero-padded
   // `release` field can put it in the right window.
   const md = createChangelog({
     items: [
-      { id: "pm-late", title: "Shipped in 2026.6.7, closed late", status: "closed", type: "Issue", release: "2026.6.7", closed_at: "2026-07-24T21:00:00Z" },
+      { id: "pm-late", title: "Shipped in 2026.6.7, closed late", status: "closed", type: "Issue", resolution: "Fixed the recorded defect", release: "2026.6.7", closed_at: "2026-07-24T21:00:00Z" },
     ],
     releaseWindows: paddedTagWindows,
   }).markdown;
@@ -725,7 +725,7 @@ test("release attribution matches an unpadded item release against a zero-padded
 test("release attribution matches a zero-padded item release against an unpadded release tag", () => {
   const md = createChangelog({
     items: [
-      { id: "pm-padded", title: "Declared with the padded tag spelling", status: "closed", type: "Issue", release: "2026.06.07", closed_at: "2026-07-24T21:00:00Z" },
+      { id: "pm-padded", title: "Declared with the padded tag spelling", status: "closed", type: "Issue", resolution: "Fixed the recorded defect", release: "2026.06.07", closed_at: "2026-07-24T21:00:00Z" },
     ],
     releaseWindows: [
       { heading: "Unreleased" },
@@ -739,8 +739,8 @@ test("release attribution matches a zero-padded item release against an unpadded
 test("release-key canonicalization preserves calendar -N disambiguators", () => {
   const md = createChangelog({
     items: [
-      { id: "pm-suffixed", title: "Shipped in the -1 respin", status: "closed", type: "Issue", release: "2026.6.2-1", closed_at: "2026-07-24T21:00:00Z" },
-      { id: "pm-base", title: "Shipped in the base release", status: "closed", type: "Issue", release: "2026.6.2", closed_at: "2026-07-24T21:00:00Z" },
+      { id: "pm-suffixed", title: "Shipped in the -1 respin", status: "closed", type: "Issue", resolution: "Fixed the recorded defect", release: "2026.6.2-1", closed_at: "2026-07-24T21:00:00Z" },
+      { id: "pm-base", title: "Shipped in the base release", status: "closed", type: "Issue", resolution: "Fixed the recorded defect", release: "2026.6.2", closed_at: "2026-07-24T21:00:00Z" },
     ],
     releaseWindows: paddedTagWindows,
   }).markdown;
@@ -754,7 +754,7 @@ test("single-window --respect-item-release accepts a padded/unpadded spelling mi
   // Window version unpadded, item declares padded: still pinned to the window.
   const kept = createChangelog({
     items: [
-      { id: "pm-pinned", title: "Closed late, shipped here", status: "closed", type: "Issue", release: "2026.06.07", closed_at: "2026-09-01T00:00:00Z" },
+      { id: "pm-pinned", title: "Closed late, shipped here", status: "closed", type: "Issue", resolution: "Fixed the recorded defect", release: "2026.06.07", closed_at: "2026-09-01T00:00:00Z" },
     ],
     version: "2026.6.7",
     date: "2026-06-07",
@@ -767,7 +767,7 @@ test("single-window --respect-item-release accepts a padded/unpadded spelling mi
   // A genuinely different release is still dropped.
   const dropped = createChangelog({
     items: [
-      { id: "pm-elsewhere", title: "Shipped in another release", status: "closed", type: "Issue", release: "2026.06.08", closed_at: "2026-06-07T10:00:00Z" },
+      { id: "pm-elsewhere", title: "Shipped in another release", status: "closed", type: "Issue", resolution: "Fixed the recorded defect", release: "2026.06.08", closed_at: "2026-06-07T10:00:00Z" },
     ],
     version: "2026.6.7",
     date: "2026-06-07",
@@ -781,7 +781,7 @@ test("single-window --respect-item-release accepts a padded/unpadded spelling mi
 test("explainChangelogSelection reports a padded/unpadded attribution match as kept", () => {
   const report = explainChangelogSelection({
     items: [
-      { id: "pm-pinned", title: "Closed late, shipped here", status: "closed", type: "Issue", release: "2026.06.07", closed_at: "2026-09-01T00:00:00Z" },
+      { id: "pm-pinned", title: "Closed late, shipped here", status: "closed", type: "Issue", resolution: "Fixed the recorded defect", release: "2026.06.07", closed_at: "2026-09-01T00:00:00Z" },
     ],
     version: "2026.6.7",
     since: "2026-06-01T00:00:00Z",

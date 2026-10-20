@@ -144,11 +144,14 @@
 ### Security
 
 - The identity gate deadlocks the one remediation its own failure message prescribes ([pmc-s92t](https://github.com/unbraind/pm-changelog/blob/main/.agents/pm/issues/pmc-s92t.toon))
-- Remove historical host paths and non-public Git identities before release approval ([pmc-t8tj](https://github.com/unbraind/pm-changelog/blob/main/.agents/pm/issues/pmc-t8tj.toon))
 
 ### Other
 
 - Align CI+release workflows with peer pm-\* packages (Node 22 + Bun) ([pmc-078v](https://github.com/unbraind/pm-changelog/blob/main/.agents/pm/tasks/pmc-078v.toon))
+
+### Closed
+
+- Closed: Remove historical host paths and non-public Git identities before release approval ([pmc-t8tj](https://github.com/unbraind/pm-changelog/blob/main/.agents/pm/issues/pmc-t8tj.toon))
 
 ## 2026.8.17 - 2026-08-17
 
@@ -274,11 +277,14 @@
 ### Fixed
 
 - Single-window generation ignores an item release field, retro-dating already-shipped work ([pmc-52px](https://github.com/unbraind/pm-changelog/blob/main/.agents/pm/issues/pmc-52px.toon))
-- Support public changelog labels or issue links for generated pm item references ([pmc-vl87](https://github.com/unbraind/pm-changelog/blob/main/.agents/pm/issues/pmc-vl87.toon))
 
 ### Other
 
 - Adopt scoped renderer ownership for changelog JSON output ([pmc-dkmm](https://github.com/unbraind/pm-changelog/blob/main/.agents/pm/tasks/pmc-dkmm.toon))
+
+### Closed
+
+- Closed: Support public changelog labels or issue links for generated pm item references ([pmc-vl87](https://github.com/unbraind/pm-changelog/blob/main/.agents/pm/issues/pmc-vl87.toon))
 
 ## 2026.7.23 - 2026-07-23
 
@@ -316,9 +322,9 @@
 
 ## 2026.7.14-2 - 2026-07-14
 
-### Fixed
+### Closed
 
-- changelog --format json emits TOON on stdout without global --json ([pmc-nagj](https://github.com/unbraind/pm-changelog/blob/main/.agents/pm/issues/pmc-nagj.toon))
+- Closed: changelog --format json emits TOON on stdout without global --json ([pmc-nagj](https://github.com/unbraind/pm-changelog/blob/main/.agents/pm/issues/pmc-nagj.toon))
 
 ## 2026.7.14-1 - 2026-07-14
 
@@ -344,12 +350,6 @@
 ### Other
 
 - Ecosystem release readiness pass 2026-07-06 ([pmc-5z9i](https://github.com/unbraind/pm-changelog/blob/main/.agents/pm/tasks/pmc-5z9i.toon))
-
-## 2026.7.11 - 2026-07-11
-
-### Other
-
-- SDK 2026.7.10 alignment and production readiness pass ([pmc-yy8d](https://github.com/unbraind/pm-changelog/blob/main/.agents/pm/tasks/pmc-yy8d.toon))
 
 ## 2026.7.10 - 2026-07-10
 
@@ -392,21 +392,11 @@
 
 - Stabilize calendar release headings across the zero-padded tag boundary ([pmc-sall](https://github.com/unbraind/pm-changelog/blob/main/.agents/pm/issues/pmc-sall.toon))
 
-## 2026.6.10 - 2026-06-10
-
-### Added
-
-- Full pm ecosystem production pass for pm-changelog ([pmc-3j77](https://github.com/unbraind/pm-changelog/blob/main/.agents/pm/features/pmc-3j77.toon))
-
 ## 2026.6.8 - 2026-06-08
 
 ### Fixed
 
 - Classifier misroutes feature command names containing remove/delete to Removed section ([pmc-ph6q](https://github.com/unbraind/pm-changelog/blob/main/.agents/pm/issues/pmc-ph6q.toon))
-
-### Other
-
-- Full-cycle hardening wave: pm-changelog ([pmc-4279](https://github.com/unbraind/pm-changelog/blob/main/.agents/pm/tasks/pmc-4279.toon))
 
 ## 2026.6.7 - 2026-06-07
 
@@ -471,10 +461,6 @@
 ### Added
 
 - Hands-on functional test pass 2026-05-29 (real data) ([pmc-7rd8](https://github.com/unbraind/pm-changelog/blob/main/.agents/pm/features/pmc-7rd8.toon))
-
-### Fixed
-
-- Committed CHANGELOG.md stale vs current history (orphaned release tags) ([pmc-e3sy](https://github.com/unbraind/pm-changelog/blob/main/.agents/pm/issues/pmc-e3sy.toon))
 
 ## 2026.5.27-1 - 2026-05-27
 

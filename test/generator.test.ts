@@ -50,6 +50,7 @@ const items = [
     title: "Fix runner status export",
     status: "closed",
     type: "bug",
+    resolution: "Fixed runner status export",
     itemFolder: "bugs",
     release: "1.2.0",
     updated_at: "2026-05-17T09:00:00Z",
@@ -740,6 +741,7 @@ test("createChangelog omits item links unless explicitly enabled", () => {
         title: "Fix multiline\nrelease title",
         status: "closed",
         type: "bug",
+        resolution: "Fixed the linked defect",
         url: "https://user@example.com/unbraind/pm-changelog/issues/5",
         updated_at: "2026-05-17T10:00:00Z",
       },
@@ -758,6 +760,7 @@ test("createChangelog omits item links unless explicitly enabled", () => {
         title: "Fix multiline\nrelease title",
         status: "closed",
         type: "bug",
+        resolution: "Fixed the linked defect",
         url: "https://user@example.com/unbraind/pm-changelog/issues/5",
         updated_at: "2026-05-17T10:00:00Z",
       },
@@ -802,6 +805,7 @@ test("createChangelog makes item IDs clickable links when itemUrlBase is set", (
         title: "Fix something important",
         status: "closed",
         type: "Issue",
+        resolution: "Fixed the linked defect",
         updated_at: "2026-05-17T10:00:00Z",
       },
     ],
@@ -862,6 +866,7 @@ const REF_STYLE_ITEM = {
   title: "Fix something important",
   status: "closed",
   type: "Issue",
+        resolution: "Fixed the linked defect",
   updated_at: "2026-05-17T10:00:00Z",
 } as const;
 const REF_STYLE_BASE = "https://github.com/example/repo/blob/main/.agents/pm";
@@ -3066,6 +3071,7 @@ test("createChangelog: CLI-flag tokens in titles do not falsely classify Issues 
       id: "pm-cli-flag-issue",
       title: "pm comments/notes --add HTML-escapes angle brackets in stored text",
       status: "closed",
+      resolution: "Fixed the recorded defect",
       type: "Issue",
       release: "1.2.0",
       updated_at: "2026-05-28T09:00:00Z",
@@ -3076,12 +3082,13 @@ test("createChangelog: CLI-flag tokens in titles do not falsely classify Issues 
   assert.doesNotMatch(result.markdown, /### Added\n\n- pm comments\/notes/);
 });
 
-test("createChangelog: Issue type defaults to Fixed when no keyword matches", () => {
+test("createChangelog: repaired Issue defaults to Fixed when no keyword matches", () => {
   const descriptiveIssue = [
     {
       id: "pm-descriptive",
       title: "Calendar disagreement on weekend boundaries",
       status: "closed",
+      resolution: "Fixed the recorded defect",
       type: "Issue",
       release: "1.2.0",
       updated_at: "2026-05-28T09:00:00Z",
@@ -3111,6 +3118,7 @@ test("createChangelog: title-only Added and Changed keywords in Issues still rou
   ].map((entry) => ({
     ...entry,
     status: "closed",
+      resolution: "Fixed the recorded defect",
     release: "1.2.0",
     updated_at: "2026-05-28T09:00:00Z",
   }));
@@ -3134,6 +3142,7 @@ test("createChangelog: explicit refactor/change tag wins over the Issue→Fixed 
       id: "pm-refactor",
       title: "Consolidate the duplicated parser helpers",
       status: "closed",
+      resolution: "Fixed the recorded defect",
       type: "Issue",
       tags: ["refactor"],
       release: "1.2.0",
@@ -3221,6 +3230,7 @@ test("createChangelog: explicit feature tag still wins over Issue→Fixed defaul
       id: "pm-tagged",
       title: "Darkmode theme switcher",
       status: "closed",
+      resolution: "Fixed the recorded defect",
       type: "Issue",
       tags: ["feature"],
       release: "1.2.0",
@@ -3253,7 +3263,7 @@ test("createChangelog: CLI-flag stripping handles all the messy forms users writ
     "pm comments [--add] corrupts text",
   ]) {
     const result = createChangelog({
-      items: [{ id: "pm-x", title, status: "closed", type: "Issue", release: "1.2.0", updated_at: "2026-05-28T09:00:00Z" }],
+      items: [{ id: "pm-x", title, status: "closed", resolution: "Fixed the recorded defect", type: "Issue", release: "1.2.0", updated_at: "2026-05-28T09:00:00Z" }],
       version: "1.2.0",
       date: "2026-05-28",
     });
@@ -3265,7 +3275,7 @@ test("createChangelog: CLI-flag stripping handles all the messy forms users writ
 test("createChangelog: `Bug` / `Bugfix` / `Defect` types also default to Fixed", () => {
   for (const type of ["bug", "Bug", "Bugfix", "Defect"]) {
     const result = createChangelog({
-      items: [{ id: "pm-x", title: "Crash on cold-start", status: "closed", type, release: "1.2.0", updated_at: "2026-05-28T09:00:00Z" }],
+      items: [{ id: "pm-x", title: "Crash on cold-start", status: "closed", resolution: "Fixed the recorded defect", type, release: "1.2.0", updated_at: "2026-05-28T09:00:00Z" }],
       version: "1.2.0",
       date: "2026-05-28",
     });
@@ -3393,6 +3403,7 @@ type AttributionItem = Parameters<typeof createChangelog>[0]["items"][number];
 const shippedElsewhere: AttributionItem = {
   id: "pm-shipped",
   title: "Fix trailing newline",
+  resolution: "Fixed trailing newline",
   status: "closed",
   type: "Issue",
   release: "2026.6.1",

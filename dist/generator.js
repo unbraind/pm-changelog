@@ -5,6 +5,7 @@ import { dirname, resolve } from "node:path";
 import { isDeepStrictEqual } from "node:util";
 import { inspectCompleteListResult, resolveCompletionTimestamp } from "@unbrained/pm-cli/sdk";
 import { certifyCompleteListResult } from "@unbrained/pm-cli/sdk/runtime";
+import { isNonChangeClosure, needsNeutralClosure, countNonChangeClosures } from "./closure-policy.js";
 import { builtinItemFolder, resolveItemFolder } from "./item-links.js";
 const DEFAULT_TITLE = "Changelog";
 const DEFAULT_STATUSES = ["closed"];
@@ -25,6 +26,7 @@ const CATEGORY_ORDER = [
     "Security",
     "Deprecated",
     "Other",
+    "Closed",
 ];
 /** Dependabot's squash-merged subjects: a conventional-commit type, a `deps` or
  * `deps-dev` scope, and the `bump` verb (`build(deps-dev): bump jscpd from …`,
@@ -216,6 +218,7 @@ export function createChangelog(options) {
             markdown: lines.join("\n").trimEnd() + "\n",
             sections,
             itemCount: items.length,
+            excludedNonChangeCount: countNonChangeClosures(options.items),
         };
     }
     if (visibleSections.length === 0) {
@@ -223,6 +226,7 @@ export function createChangelog(options) {
             markdown: lines.join("\n").trimEnd() + "\n",
             sections,
             itemCount: 0,
+            excludedNonChangeCount: countNonChangeClosures(options.items),
         };
     }
     for (const section of visibleSections) {
@@ -278,6 +282,7 @@ export function createChangelog(options) {
         markdown: lines.join("\n").trimEnd() + "\n",
         sections,
         itemCount: visibleSections.reduce((sum, section) => sum + section.items.length, 0),
+        excludedNonChangeCount: countNonChangeClosures(options.items),
     };
 }
 /**
@@ -396,6 +401,7 @@ export function buildChangelogDocument(options) {
         ...(options.entryFrom ? { entry_from: options.entryFrom } : {}),
         section_by: sectionBy,
         item_count: visibleSections.reduce((sum, section) => sum + section.items.length, 0),
+        excluded_non_change_count: countNonChangeClosures(options.items),
         releases,
         // Classify the same visible-section items emitted above, not the full
         // filtered set, so the bump matches the released sections (GH #28).
@@ -684,6 +690,7 @@ export function writeChangelog(options) {
         action: merged.action,
         changed: merged.changed,
         itemCount: generated.itemCount,
+        excludedNonChangeCount: generated.excludedNonChangeCount,
         bytes: Buffer.byteLength(merged.markdown, "utf-8"),
     };
 }
@@ -948,6 +955,7 @@ function filterItemsByStatus(options) {
     const statuses = new Set((options.includeStatuses ?? DEFAULT_STATUSES).map((status) => status.toLowerCase()));
     const excludeTags = normalizeExcludeTags(options.excludeTags);
     return options.items
+        .filter((item) => !isNonChangeClosure(item))
         .filter((item) => item.title)
         .filter((item) => !hasExcludedTag(item, excludeTags))
         .filter((item) => {
@@ -1468,6 +1476,7 @@ const CONVENTIONAL_HEADINGS = {
     Security: "Security",
     Deprecated: "Deprecations",
     Other: "Other",
+    Closed: "Closed",
 };
 /**
  * OPT-IN (`--section-by type|status|label`): group a release's items by a
@@ -1485,7 +1494,10 @@ function groupByField(items, sectionBy) {
         groups.set(heading, bucket);
     };
     for (const item of items) {
-        if (sectionBy === "type") {
+        if (needsNeutralClosure(item)) {
+            push("Closed", item);
+        }
+        else if (sectionBy === "type") {
             push(titleCase(typeof item.type === "string" && item.type.trim() ? item.type.trim() : "Other"), item);
         }
         else if (sectionBy === "status") {
@@ -1571,11 +1583,14 @@ const REMOVED_NEEDLES = ["removed", "remove", "deleted", "delete"];
 /**
  * Decide which keep-a-changelog category an item belongs under.
  *
- * Author-controlled metadata (type and tags) is trusted outright; the title is
+ * Closed issues first require recorded repair evidence. For other items,
+ * author-controlled metadata (type and tags) is trusted; the title is
  * consulted only as a fallback, because descriptive prose collides with command
  * names and would misfile a defect in `pm update` as a "Changed" entry.
  */
 function classifyItem(item) {
+    if (needsNeutralClosure(item))
+        return "Closed";
     // Strip CLI-flag-like tokens from titles before scanning. Without this, an
     // item titled "pm <cmd> --add fails..." gets classified as "Added" because
     // the word "add" matches inside "--add". The pattern:
@@ -1603,7 +1618,7 @@ function classifyItem(item) {
     const strongValues = [item.type, ...(item.tags ?? [])].filter(Boolean).join(" ").toLowerCase();
     const titleValue = sanitizedTitle.toLowerCase();
     const allValues = `${strongValues} ${titleValue}`.trim();
-    const itemType = typeof item.type === "string" ? item.type.toLowerCase() : "";
+    const itemType = typeof item.type === "string" ? item.type.trim().toLowerCase() : "";
     if (hasAny(allValues, ["security", "cve", "vulnerability"]))
         return "Security";
     if (hasAny(allValues, ["deprecated", "deprecation"]))
@@ -1842,6 +1857,8 @@ export function parseChangelogEntryFrom(value) {
 /** Resolve entry prose without mutating the tracker title or its classification.
  * Empty, whitespace-only and non-string resolutions fall back to title. */
 function resolveEntryTitle(item, options) {
+    if (needsNeutralClosure(item))
+        return `Closed: ${toSingleLine(item.title)}`;
     if (options.entryFrom === "close_reason" && typeof item.close_reason === "string" && item.close_reason.trim()) {
         return toSingleLine(item.close_reason);
     }
@@ -1961,7 +1978,8 @@ const HEADING_EMOJI = {
     "Breaking Changes": "💥",
 };
 /**
- * Detect whether an item is a breaking change. Signals (any one suffices):
+ * Detect whether a substantive item is a breaking change. Neutral closures
+ * never signal a change. Signals (any one suffices):
  *  - a truthy `breaking` flag on the item or in its metadata, OR
  *  - an explicit breaking tag (`breaking`, `breaking-change`, `breaking_change`), OR
  *  - the word "breaking" appearing as a standalone token in the type or title.
@@ -1972,6 +1990,8 @@ const HEADING_EMOJI = {
  * Used only by the opt-in `--breaking-changes` / `--suggest-semver` features.
  */
 function isBreakingItem(item) {
+    if (needsNeutralClosure(item))
+        return false;
     if (isTruthyFlag(item.breaking))
         return true;
     if (isTruthyFlag(item.metadata?.["breaking"]))
@@ -2056,7 +2076,7 @@ export function explainChangelogSelection(options) {
     const hasReleaseWindows = isInReleaseWindowMode(options);
     const withTitle = [];
     const missingTitle = [];
-    for (const item of options.items) {
+    for (const item of options.items.filter((item) => !isNonChangeClosure(item))) {
         if (item.title)
             withTitle.push(item);
         else
@@ -2123,7 +2143,9 @@ export function explainChangelogSelection(options) {
     const candidateItems = candidateSections.flatMap((section) => section.items);
     const visibleItems = visibleSections.flatMap((section) => section.items);
     const attributionProvenance = buildAttributionProvenance(visibleItems, options);
+    const nonChangeCount = countNonChangeClosures(options.items);
     const excludedCounts = {
+        ...(nonChangeCount > 0 ? { non_change: nonChangeCount } : {}),
         missing_title: missingTitle.length,
         excluded_tag: excludedByTag.length,
         status: excludedByStatus.length,
@@ -2177,13 +2199,16 @@ export function explainChangelogSelection(options) {
         }),
     };
 }
-/** Classify an explicit item set into a semver bump (no option-driven filtering). */
+/** Classify an explicit item set into a semver bump, excluding non-change and
+ * neutral closures even when the caller has not applied option-driven filtering. */
 export function suggestSemverForItems(items) {
     let breaking = 0;
     let feature = 0;
     let fix = 0;
     let other = 0;
     for (const item of items) {
+        if (isNonChangeClosure(item) || needsNeutralClosure(item))
+            continue;
         if (isBreakingItem(item)) {
             breaking++;
             continue;

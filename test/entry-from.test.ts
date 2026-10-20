@@ -49,7 +49,7 @@ function setLegacyCloseReason(pmRoot: string, id: string, value: string | undefi
 test("built entry-from renders resolution, preserves default bytes and checks the same choice", async (t) => {
   const fixture = tracker(t);
   const global = { path: fixture.pmRoot };
-  const created = await runCreate({ title: DEFECT, type: "Issue", createMode: "progressive", status: "closed", closeReason: RESOLUTION }, global);
+  const created = await runCreate({ title: DEFECT, type: "Issue", createMode: "progressive", status: "closed", file: ["path=test/sync.test.ts,scope=project"], closeReason: RESOLUTION }, global);
   assert.ok(typeof created.item.id === "string");
   const defaultRun = fixture.changelog(["--stdout"]);
   assert.equal(defaultRun.status, 0, defaultRun.stderr);
@@ -84,9 +84,9 @@ test("built entry-from renders resolution, preserves default bytes and checks th
 test("real tracker fallbacks, escaping, projections and filtering preserve entry semantics", async (t) => {
   const fixture = tracker(t);
   const global = { path: fixture.pmRoot };
-  const fixed = await runCreate({ title: DEFECT, type: "Issue", status: "closed", closeReason: RESOLUTION, createMode: "progressive" }, global);
+  const fixed = await runCreate({ title: DEFECT, type: "Issue", status: "closed", file: ["path=test/sync.test.ts,scope=project"], closeReason: RESOLUTION, createMode: "progressive" }, global);
   assert.ok(typeof fixed.item.id === "string");
-  await runCreate({ title: "The ignored command fails", type: "Issue", status: "closed", closeReason: "Hidden resolution", tags: "changelog:ignore", createMode: "progressive" }, global);
+  await runCreate({ title: "The ignored command fails", type: "Issue", status: "closed", file: ["path=test/sync.test.ts,scope=project"], closeReason: "Hidden resolution", tags: "changelog:ignore", createMode: "progressive" }, global);
   await runCreate({ title: "The open command fails", type: "Issue", createMode: "progressive" }, global);
   const read = () => readPmItems({ cwd: fixture.cwd, pmRoot: fixture.pmRoot, env: fixture.env, pmArgs: ["--output-budget", "unbounded", "--output-limit", "unbounded"] });
   const options = { items: read(), entryFrom: "close_reason" as const, excludeTags: ["changelog:ignore"] };
@@ -118,7 +118,7 @@ test("real tracker fallbacks, escaping, projections and filtering preserve entry
 test("check warns without drift, excludes hidden entries, and recovery clears warning", async (t) => {
   const fixture = tracker(t);
   const global = { path: fixture.pmRoot };
-  const created = await runCreate({ title: DEFECT, type: "Issue", status: "closed", closeReason: "Temporary fixture reason", createMode: "progressive" }, global);
+  const created = await runCreate({ title: DEFECT, type: "Issue", status: "closed", file: ["path=test/sync.test.ts,scope=project"], closeReason: "Temporary fixture reason", createMode: "progressive" }, global);
   assert.ok(typeof created.item.id === "string");
   setLegacyCloseReason(fixture.pmRoot, created.item.id, undefined);
   assert.equal(fixture.changelog([]).status, 0);
@@ -158,7 +158,7 @@ test("check warns without drift, excludes hidden entries, and recovery clears wa
 test("real extension generate, export and check accept entry-from and reject invalid sources", async (t) => {
   const fixture = tracker(t);
   const global = { path: fixture.pmRoot };
-  const created = await runCreate({ title: DEFECT, type: "Issue", status: "closed", closeReason: RESOLUTION, createMode: "progressive" }, global);
+  const created = await runCreate({ title: DEFECT, type: "Issue", status: "closed", file: ["path=test/sync.test.ts,scope=project"], closeReason: RESOLUTION, createMode: "progressive" }, global);
   assert.ok(typeof created.item.id === "string");
   const activation = await activateExtensionForTest(extension, { name: "pm-changelog", capabilities: ["commands", "schema", "importers", "renderers"] });
   assert.deepEqual(activation.failed, []);

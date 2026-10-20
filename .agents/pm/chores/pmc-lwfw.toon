@@ -1,0 +1,16 @@
+id: pmc-lwfw
+title: Clean up pre-existing DeepScan source and test baseline findings
+description: "PR 262 static-analysis review exposed three source/test diagnostics already present on origin/main: CONSTANT_CONDITION for the final options.stdout check in src/cli.ts, UNUSED_IMPORT for assert in test/generator-redos.test.ts, and UNUSED_IMPORT for main in test/verify-release-changelog-date.test.ts. DeepScan also duplicates the CLI condition in generated output. These are outside PR 262 new-code scope. pm search DeepScan found only the closed generated-output exclusion chore and unrelated items; no open duplicate. Preserve behavior and release thresholds when addressing the baseline."
+type: Chore
+status: open
+priority: 3
+tags[2]: follow-up,static-analysis
+created_at: "2026-10-20T16:00:42.877Z"
+updated_at: "2026-10-20T16:01:41.992Z"
+author: codex-agent
+acceptance_criteria: "Verify each baseline finding on current main, simplify valid cases without changing behavior, rebuild committed output and pass unchanged npm/Bun release gates."
+files[3]{path,scope}:
+  src/cli.ts,project
+  test/generator-redos.test.ts,project
+  test/verify-release-changelog-date.test.ts,project
+body: ""

@@ -15,7 +15,7 @@ const CLI = join(process.cwd(), "src", "cli.ts");
 const FIXTURE = {
   items: [
     { id: "pm-feat", title: "Add dark mode toggle", status: "closed", type: "Feature", tags: ["feature"], assignee: "alice", updated_at: "2026-05-28T09:00:00Z" },
-    { id: "pm-bug", title: "Crash on empty input", status: "closed", type: "Issue", tags: ["bug"], assignee: "bob", updated_at: "2026-05-28T08:00:00Z" },
+    { id: "pm-bug", title: "Crash on empty input", status: "closed", type: "Issue", resolution: "Fixed the recorded defect", tags: ["bug"], assignee: "bob", updated_at: "2026-05-28T08:00:00Z" },
     { id: "pm-chore", title: "Update build dependencies", status: "closed", type: "Task", tags: ["chore"], assignee: "alice", updated_at: "2026-05-28T07:00:00Z" },
     { id: "pm-open", title: "Future work", status: "open", type: "Task", updated_at: "2026-05-28T06:00:00Z" },
   ],
@@ -305,8 +305,8 @@ test("CLI rejects unsupported --format values", () => {
 const ATTRIBUTION_FIXTURE = {
   items: [
     { id: "pm-here", title: "Ship attribution", status: "closed", type: "Feature", release: "1.2.0", closed_at: "2026-05-28T09:00:00Z" },
-    { id: "pm-elsewhere", title: "Shipped in an older release", status: "closed", type: "Issue", release: "1.1.0", closed_at: "2026-05-28T09:00:00Z" },
-    { id: "pm-tracker", title: "Upstream tracker mirror", status: "closed", type: "Issue", tags: ["changelog:ignore"], closed_at: "2026-05-28T09:00:00Z" },
+    { id: "pm-elsewhere", title: "Shipped in an older release", status: "closed", type: "Issue", resolution: "Fixed the recorded defect", release: "1.1.0", closed_at: "2026-05-28T09:00:00Z" },
+    { id: "pm-tracker", title: "Upstream tracker mirror", status: "closed", type: "Issue", resolution: "Fixed the recorded defect", tags: ["changelog:ignore"], closed_at: "2026-05-28T09:00:00Z" },
     { id: "pm-plain", title: "Undeclared change", status: "closed", type: "Task", closed_at: "2026-05-28T09:00:00Z" },
   ],
 };

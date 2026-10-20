@@ -161,6 +161,7 @@ declare function buildSummary(options: CliOptions, result: {
     changed: boolean;
     markdown: string;
     itemCount: number;
+    excludedNonChangeCount?: number;
     bytes: number;
 }, output?: string | undefined, selectionReport?: ChangelogSelectionReport): Record<string, unknown>;
 /**
