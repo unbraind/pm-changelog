@@ -4,6 +4,7 @@ import { basename, resolve } from "node:path";
 import { stdin } from "node:process";
 import { fileURLToPath } from "node:url";
 import { resolvePmRoot } from "@unbrained/pm-cli/sdk";
+import { countNonChangeClosures } from "./closure-policy.js";
 import { checkItemLinks } from "./item-links.js";
 import { createUnifiedDiff, DEFAULT_MAX_DIFF_LINES } from "./diff.js";
 import { buildChangelogDocument, createChangelog, createChangelogSummary, explainChangelogSelection, formatInferredSources, formatSummaryLine, lintChangelogEntries, parseChangelogEntryFrom, mergeChangelog, parsePmItemsJson, readPmItems, suggestSemver, writeChangelog, } from "./generator.js";
@@ -152,6 +153,7 @@ async function main(args = process.argv.slice(2)) {
         if (options.format === "json") {
             const payload = {
                 entries,
+                excluded_non_change_count: countNonChangeClosures(items),
                 format: "json",
                 item_count: entries.length,
                 ...(selectionReport ? { selection_report: selectionReport } : {}),
@@ -183,8 +185,8 @@ async function main(args = process.argv.slice(2)) {
     if (options.suggestSemver) {
         const suggestion = suggestSemver(generationOptions);
         const payload = selectionReport
-            ? { ...suggestion, selection_report: selectionReport }
-            : suggestion;
+            ? { ...suggestion, excluded_non_change_count: countNonChangeClosures(items), selection_report: selectionReport }
+            : { ...suggestion, excluded_non_change_count: countNonChangeClosures(items) };
         process.stdout.write(JSON.stringify(payload, null, 2) + "\n");
         return;
     }
@@ -239,6 +241,7 @@ async function main(args = process.argv.slice(2)) {
                 action: merged.action,
                 changed: merged.changed,
                 itemCount: generated.itemCount,
+                excludedNonChangeCount: generated.excludedNonChangeCount,
                 bytes: Buffer.byteLength(merged.markdown, "utf-8"),
             }, outputPath, selectionReport);
             if (options.githubOutput)
@@ -768,6 +771,7 @@ function buildSummary(options, result, output = result.output, selectionReport) 
         action: result.action,
         changed: result.changed,
         itemCount: result.itemCount,
+        excluded_non_change_count: result.excludedNonChangeCount ?? 0,
         bytes: result.bytes,
         check: options.check,
         ...(options.entryFrom ? { entry_from: options.entryFrom } : {}),

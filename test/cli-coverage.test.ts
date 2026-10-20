@@ -241,6 +241,7 @@ test("workflow writers reject absent environment targets and helper projections 
     action: "created",
     changed: true,
     itemCount: 1,
+    excluded_non_change_count: 0,
     bytes: 8,
     check: false,
     markdown: undefined,

@@ -97,6 +97,41 @@ npx pm-changelog --stdout --respect-item-release    # honor each item's release 
 npx pm-changelog --stdout --exclude-tag changelog:ignore  # keep tagged items out of the changelog entirely
 ```
 
+### Section rules
+
+Closed Issue/Bug/Bugfix/Defect items use tracker evidence before type, tags or title:
+
+| Recorded closure | Output |
+| --- | --- |
+| Not planned, duplicate, invalid, won't fix, superseded (any closed item type) | Omitted from changelog and release notes |
+| Linked file path or test command/path; affirmative fix/repair/correction/resolution in `close_reason` or `resolution`; or delivered/merged PR or commit in `close_reason`, `resolution`, `actual_result` or `links` | Existing category rules, including Fixed for repairs |
+| Other closed issues, including factual GitHub completion | `### Closed` with `Closed: <title>` |
+
+A title, bug tag, completed timestamp, bare PR URL or GitHub issue link does not
+prove a repair. Dispositions must lead `close_reason` or `resolution` (optionally
+following “Closed as”, “Resolved as” or “Closed on GitHub as”); incidental words
+like “Fixed duplicate grouping” remain repairs. Negated or pending repair/delivery
+statements do not qualify. Structured delivery links use `url` with `state: merged`
+or `relation: delivered`; string links must name delivery and a PR/commit reference.
+Linked files/tests are recorded evidence, not independent verification that a test
+passed or a repair shipped. Feature/Task category rules are retained.
+
+The neutral prefix always uses the title, including with `--entry-from close_reason`
+and alternate grouping, so factual closure prose never becomes a repair claim.
+JSON receipts/documents expose `excluded_non_change_count`, counted across input
+before status/time/release filters. SDK generation/write results expose
+`excludedNonChangeCount`. All projections omit the same non-change items.
+Classification is deterministic and reads tracker data only. Existing tags and
+release files are unchanged; regenerating history applies these rules to that output.
+Prepending a new release preserves older sections unless explicitly regenerated.
+
+### Without git
+
+Generate from `--stdin`, `--input` or a tracker directory, export release notes,
+classify closures and use explicit versions/dates without git. Git tag windows,
+previous/release-tag selection and dependency commit notes need a git repository
+with the required tag history.
+
 ### Resolution prose for release notes
 
 Keep a defect description in the tracker title and put the fix in `close_reason`,
@@ -105,7 +140,7 @@ Opt in with `--entry-from close_reason` on every generation, check, and release-
 command (including the scripts in `package.json`). For example:
 
 ```bash
-pm update <id> --close-reason "Make the comment-sync test independent of the root directory"
+pm update <id> --close-reason "Fixed the comment-sync test to be independent of the root directory"
 npx pm-changelog --entry-from close_reason --mode replace
 npx pm-changelog --entry-from close_reason --mode replace --check
 pm changelog generate --entry-from close_reason
@@ -113,12 +148,13 @@ pm changelog export --entry-from close_reason
 ```
 
 Under Fixed, an Issue titled "The comment-sync test is root-sensitive" then renders
-"Make the comment-sync test independent of the root directory". The title stays in the
-tracker and still determines classification, ordering, and semver signals. The selected
-field supplies prose in every category, markdown, summary, structured JSON, and breaking
-change entry. Markdown escaping and single-line normalization apply to the resolution too.
+"Fixed the comment-sync test to be independent of the root directory". The title stays in the
+tracker and still determines ordering; recorded evidence controls whether the issue can
+be a repair. The selected field supplies prose in every category, markdown, summary,
+structured JSON, and breaking change entry. Markdown escaping and single-line normalization apply to the resolution too.
 Only `title` (the default) and `close_reason` are supported; missing, empty, whitespace-only,
-or non-string resolutions fall back to title. Omitting the flag preserves existing output.
+or non-string resolutions fall back to title. Omitting the flag uses the title; closure
+evidence rules still apply.
 The standalone `--json` receipt and structured document record an explicit source as
 `entry_from`; SDK callers use `entryFrom: "close_reason"`.
 

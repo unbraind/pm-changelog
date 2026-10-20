@@ -8,6 +8,8 @@ import { inspectCompleteListResult, resolveCompletionTimestamp } from "@unbraine
 import { certifyCompleteListResult } from "@unbrained/pm-cli/sdk/runtime";
 import type { SchemaListResult, CompletionTimestampSource } from "@unbrained/pm-cli/sdk";
 
+import { isNonChangeClosure, needsNeutralClosure, countNonChangeClosures } from "./closure-policy.ts";
+
 import { builtinItemFolder, resolveItemFolder } from "./item-links.ts";
 
 import type {
@@ -67,6 +69,7 @@ const CATEGORY_ORDER = [
   "Security",
   "Deprecated",
   "Other",
+  "Closed",
 ] as const;
 
 type Category = (typeof CATEGORY_ORDER)[number];
@@ -286,6 +289,7 @@ export function createChangelog(options: GenerateChangelogOptions): GeneratedCha
       markdown: lines.join("\n").trimEnd() + "\n",
       sections,
       itemCount: items.length,
+      excludedNonChangeCount: countNonChangeClosures(options.items),
     };
   }
 
@@ -294,6 +298,7 @@ export function createChangelog(options: GenerateChangelogOptions): GeneratedCha
       markdown: lines.join("\n").trimEnd() + "\n",
       sections,
       itemCount: 0,
+      excludedNonChangeCount: countNonChangeClosures(options.items),
     };
   }
 
@@ -356,6 +361,7 @@ export function createChangelog(options: GenerateChangelogOptions): GeneratedCha
     markdown: lines.join("\n").trimEnd() + "\n",
     sections,
     itemCount: visibleSections.reduce((sum, section) => sum + section.items.length, 0),
+    excludedNonChangeCount: countNonChangeClosures(options.items),
   };
 }
 
@@ -500,6 +506,7 @@ export function buildChangelogDocument(options: GenerateChangelogOptions): Chang
     ...(options.entryFrom ? { entry_from: options.entryFrom } : {}),
     section_by: sectionBy,
     item_count: visibleSections.reduce((sum, section) => sum + section.items.length, 0),
+    excluded_non_change_count: countNonChangeClosures(options.items),
     releases,
     // Classify the same visible-section items emitted above, not the full
     // filtered set, so the bump matches the released sections (GH #28).
@@ -826,6 +833,7 @@ export function writeChangelog(options: WriteChangelogOptions): WriteChangelogRe
     action: merged.action,
     changed: merged.changed,
     itemCount: generated.itemCount,
+    excludedNonChangeCount: generated.excludedNonChangeCount,
     bytes: Buffer.byteLength(merged.markdown, "utf-8"),
   };
 }
@@ -1112,6 +1120,7 @@ function filterItemsByStatus(options: GenerateChangelogOptions): PmItem[] {
   const excludeTags = normalizeExcludeTags(options.excludeTags);
 
   return options.items
+    .filter((item) => !isNonChangeClosure(item))
     .filter((item) => item.title)
     .filter((item) => !hasExcludedTag(item, excludeTags))
     .filter((item) => {
@@ -1663,6 +1672,7 @@ const CONVENTIONAL_HEADINGS: Record<Category, string> = {
   Security: "Security",
   Deprecated: "Deprecations",
   Other: "Other",
+  Closed: "Closed",
 };
 
 /**
@@ -1772,11 +1782,13 @@ const REMOVED_NEEDLES = ["removed", "remove", "deleted", "delete"];
 /**
  * Decide which keep-a-changelog category an item belongs under.
  *
- * Author-controlled metadata (type and tags) is trusted outright; the title is
+ * Closed issues first require recorded repair evidence. For other items,
+ * author-controlled metadata (type and tags) is trusted; the title is
  * consulted only as a fallback, because descriptive prose collides with command
  * names and would misfile a defect in `pm update` as a "Changed" entry.
  */
 function classifyItem(item: PmItem): Category {
+  if (needsNeutralClosure(item)) return "Closed";
   // Strip CLI-flag-like tokens from titles before scanning. Without this, an
   // item titled "pm <cmd> --add fails..." gets classified as "Added" because
   // the word "add" matches inside "--add". The pattern:
@@ -1804,7 +1816,7 @@ function classifyItem(item: PmItem): Category {
   const strongValues = [item.type, ...(item.tags ?? [])].filter(Boolean).join(" ").toLowerCase();
   const titleValue = sanitizedTitle.toLowerCase();
   const allValues = `${strongValues} ${titleValue}`.trim();
-  const itemType = typeof item.type === "string" ? item.type.toLowerCase() : "";
+  const itemType = typeof item.type === "string" ? item.type.trim().toLowerCase() : "";
 
   if (hasAny(allValues, ["security", "cve", "vulnerability"])) return "Security";
   if (hasAny(allValues, ["deprecated", "deprecation"])) return "Deprecated";
@@ -2059,6 +2071,7 @@ export function parseChangelogEntryFrom(value: string): ChangelogEntryFrom {
 /** Resolve entry prose without mutating the tracker title or its classification.
  * Empty, whitespace-only and non-string resolutions fall back to title. */
 function resolveEntryTitle(item: PmItem, options: GenerateChangelogOptions): string {
+  if (needsNeutralClosure(item)) return `Closed: ${toSingleLine(item.title)}`;
   if (options.entryFrom === "close_reason" && typeof item.close_reason === "string" && item.close_reason.trim()) {
     return toSingleLine(item.close_reason);
   }
@@ -2271,7 +2284,7 @@ export function explainChangelogSelection(options: GenerateChangelogOptions): Ch
 
   const withTitle: PmItem[] = [];
   const missingTitle: PmItem[] = [];
-  for (const item of options.items) {
+  for (const item of options.items.filter((item) => !isNonChangeClosure(item))) {
     if (item.title) withTitle.push(item);
     else missingTitle.push(item);
   }
@@ -2345,7 +2358,9 @@ export function explainChangelogSelection(options: GenerateChangelogOptions): Ch
   const candidateItems = candidateSections.flatMap((section) => section.items);
   const visibleItems = visibleSections.flatMap((section) => section.items);
   const attributionProvenance = buildAttributionProvenance(visibleItems, options);
+  const nonChangeCount = countNonChangeClosures(options.items);
   const excludedCounts = {
+    ...(nonChangeCount > 0 ? { non_change: nonChangeCount } : {}),
     missing_title: missingTitle.length,
     excluded_tag: excludedByTag.length,
     status: excludedByStatus.length,

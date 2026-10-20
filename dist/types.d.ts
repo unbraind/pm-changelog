@@ -12,6 +12,13 @@ export interface PmItem {
     body?: string;
     /** Resolution prose recorded by pm close or pm update --close-reason. */
     close_reason?: string;
+    /** Recorded resolution and observed delivery result from the tracker SDK. */
+    resolution?: string;
+    actual_result?: string;
+    /** SDK linked files/tests and integration delivery links; validated at runtime. */
+    files?: unknown;
+    tests?: unknown;
+    links?: unknown;
     /** Long-form prose. In pm workspaces the item body is stored in
      * `description`; `body` is frequently empty. The opt-in `--body-preview`
      * feature falls back to this when `body` is empty. Never affects default
@@ -96,8 +103,8 @@ export interface ChangelogReleaseWindow {
 }
 /** Everything that shapes one changelog rendering, from the item set through
  * every opt-in flag. Each field marked OPT-IN is inert when absent: the default
- * rendering is byte-for-byte the historical keep-a-changelog output, so adding
- * a feature here can never change an existing repo's changelog by itself. */
+ * rendering uses evidence-aware keep-a-changelog sections. Opt-in flags below
+ * do not bypass the closure evidence or non-change exclusion policy. */
 export interface GenerateChangelogOptions {
     items: PmItem[];
     /** OPT-IN: prefer close_reason for entry prose; blank/absent values use title. */
@@ -247,6 +254,8 @@ export interface GeneratedChangelog {
     markdown: string;
     sections: ChangelogSection[];
     itemCount: number;
+    /** Closed non-change records omitted before release selection. */
+    excludedNonChangeCount: number;
 }
 /** Whether a write rebuilds the whole file or splices one release on top of the
  * existing history. */
@@ -299,6 +308,8 @@ export interface WriteChangelogResult {
     action: ChangelogMergeAction;
     changed: boolean;
     itemCount: number;
+    /** Closed non-change records omitted before release selection. */
+    excludedNonChangeCount: number;
     bytes: number;
 }
 /** A parsed Dependabot commit subject, used by the opt-in
@@ -374,6 +385,8 @@ export interface ChangelogDocument {
     entry_from?: ChangelogEntryFrom;
     section_by: ChangelogSectionBy;
     item_count: number;
+    /** Closed non-change records omitted before release selection. */
+    excluded_non_change_count: number;
     releases: ChangelogDocumentRelease[];
     /** Present only when `--suggest-semver` is set: recommended version bump. */
     suggested_semver?: SemverSuggestion;
@@ -409,6 +422,8 @@ export interface ChangelogSelectionReport {
         visible_items: number;
     };
     excluded_counts: {
+        /** Present when explicit non-change closures were excluded. */
+        non_change?: number;
         missing_title: number;
         excluded_tag: number;
         status: number;

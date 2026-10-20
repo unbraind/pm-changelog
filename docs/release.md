@@ -53,6 +53,22 @@ the list above just enumerates every case. Each command in the message's
 A sandbox that intentionally omits tags cannot reconstruct the previous-tag to
 release-tag window and is not a valid changelog release-gate environment.
 
+## Release-note closure evidence
+
+Release notes use the same [section rules](../README.md#section-rules) as full
+changelogs. Closed issues appear under Fixed only with recorded repair evidence:
+linked files/tests, an affirmative repair statement in `resolution`/`close_reason`,
+or delivered/merged PR/commit evidence in those fields, `actual_result` or `links`.
+Factual “Closed on GitHub as completed on …” records appear under Closed with
+“Closed: <title>”, even with `--entry-from close_reason`. Explicit not-planned,
+duplicate, invalid, won't-fix and superseded closures are omitted; JSON reports
+`excluded_non_change_count` across input before release filtering.
+
+These rules need only tracker data, so stdin and plain tracker directories work
+without git. Tag-derived release windows and dependency commit notes require git.
+Generation does not mutate tracker evidence or existing tags. Prepend mode retains
+older release sections; full regeneration deliberately reclassifies historical rows.
+
 ## Automated Release
 
 `.github/workflows/release.yml` runs daily and by manual dispatch. It uses free GitHub Actions features only.

@@ -12,7 +12,10 @@ import {
   EXIT_CODE,
   PmCliError,
 } from "@unbrained/pm-cli/sdk";
+
 import type { ImportExportRegistrationOptions } from "@unbrained/pm-cli/sdk/authoring";
+
+import { countNonChangeClosures } from "./closure-policy.ts";
 
 import { buildChangelogDocument, createChangelog, createChangelogSummary, explainChangelogSelection, formatSummaryLine, lintChangelogEntries, parseChangelogEntryFrom, mergeChangelog, suggestSemver, writeChangelog } from "./generator.ts";
 import {
@@ -292,6 +295,7 @@ export default defineExtension({
               entries,
               format: "json",
               item_count: entries.length,
+              excluded_non_change_count: countNonChangeClosures(items),
               ...(selectionReport ? { selection_report: selectionReport } : {}),
             });
           }
@@ -324,6 +328,7 @@ export default defineExtension({
           const suggestion = suggestSemver(generationOptions);
           return renderedCommandResult({
             suggested_semver: suggestion,
+            excluded_non_change_count: countNonChangeClosures(items),
             format: "json",
             ...(selectionReport ? { selection_report: selectionReport } : {}),
           });
@@ -340,6 +345,7 @@ export default defineExtension({
             action: merged.action,
             changed: merged.changed,
             item_count: generated.itemCount,
+            excluded_non_change_count: generated.excludedNonChangeCount,
             ...(selectionReport ? { selection_report: selectionReport } : {}),
           };
         }
@@ -358,6 +364,7 @@ export default defineExtension({
           action: result.action,
           changed: result.changed,
           item_count: result.itemCount,
+          excluded_non_change_count: result.excludedNonChangeCount,
           bytes: result.bytes,
           check: Boolean(ctx.options["check"]),
           ...(selectionReport ? { selection_report: selectionReport } : {}),
@@ -468,21 +475,22 @@ export default defineExtension({
         const payload = {
           version: releaseContext.version ?? "Unreleased",
           item_count: generated.itemCount,
+          excluded_non_change_count: generated.excludedNonChangeCount,
           group_by: groupByOption,
           markdown: generated.markdown,
         };
         if (outputPath) {
           writeFileSync(resolve(outputPath), JSON.stringify(payload, null, 2) + "\n", "utf-8");
-          return { file: outputPath, format: "json", item_count: generated.itemCount };
+          return { file: outputPath, format: "json", item_count: generated.itemCount, excluded_non_change_count: generated.excludedNonChangeCount };
         }
         return renderedCommandResult(payload);
       }
 
       if (outputPath) {
         writeFileSync(resolve(outputPath), generated.markdown, "utf-8");
-        return { file: outputPath, format: "markdown", item_count: generated.itemCount };
+        return { file: outputPath, format: "markdown", item_count: generated.itemCount, excluded_non_change_count: generated.excludedNonChangeCount };
       }
-      return { changelog: generated.markdown, format: "markdown", item_count: generated.itemCount };
+      return { changelog: generated.markdown, format: "markdown", item_count: generated.itemCount, excluded_non_change_count: generated.excludedNonChangeCount };
     }, changelogExportMetadata);
 
     // Register renderer overrides so json-mode results print verbatim JSON to

@@ -2,10 +2,13 @@
 import { appendFileSync, existsSync, readFileSync, realpathSync } from "node:fs";
 import { basename, resolve } from "node:path";
 import { stdin } from "node:process";
+
 import type { Readable } from "node:stream";
 import { fileURLToPath } from "node:url";
 
 import { resolvePmRoot } from "@unbrained/pm-cli/sdk";
+
+import { countNonChangeClosures } from "./closure-policy.ts";
 
 import { checkItemLinks } from "./item-links.ts";
 import { createUnifiedDiff, DEFAULT_MAX_DIFF_LINES } from "./diff.ts";
@@ -252,6 +255,7 @@ async function main(args: string[] = process.argv.slice(2)): Promise<void> {
     if (options.format === "json") {
       const payload = {
         entries,
+        excluded_non_change_count: countNonChangeClosures(items),
         format: "json",
         item_count: entries.length,
         ...(selectionReport ? { selection_report: selectionReport } : {}),
@@ -283,8 +287,8 @@ async function main(args: string[] = process.argv.slice(2)): Promise<void> {
   if (options.suggestSemver) {
     const suggestion = suggestSemver(generationOptions);
     const payload = selectionReport
-      ? { ...suggestion, selection_report: selectionReport }
-      : suggestion;
+      ? { ...suggestion, excluded_non_change_count: countNonChangeClosures(items), selection_report: selectionReport }
+      : { ...suggestion, excluded_non_change_count: countNonChangeClosures(items) };
     process.stdout.write(JSON.stringify(payload, null, 2) + "\n");
     return;
   }
@@ -339,6 +343,7 @@ async function main(args: string[] = process.argv.slice(2)): Promise<void> {
         action: merged.action,
         changed: merged.changed,
         itemCount: generated.itemCount,
+        excludedNonChangeCount: generated.excludedNonChangeCount,
         bytes: Buffer.byteLength(merged.markdown, "utf-8"),
       }, outputPath, selectionReport);
       if (options.githubOutput) writeGitHubOutput(summary);
@@ -888,6 +893,7 @@ function buildSummary(
     changed: boolean;
     markdown: string;
     itemCount: number;
+    excludedNonChangeCount?: number;
     bytes: number;
   },
   output = result.output,
@@ -899,6 +905,7 @@ function buildSummary(
     action: result.action,
     changed: result.changed,
     itemCount: result.itemCount,
+    excluded_non_change_count: result.excludedNonChangeCount ?? 0,
     bytes: result.bytes,
     check: options.check,
     ...(options.entryFrom ? { entry_from: options.entryFrom } : {}),
