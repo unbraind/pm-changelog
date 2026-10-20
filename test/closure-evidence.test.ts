@@ -163,7 +163,8 @@ test("substantive changes retain semver signals alongside neutral and omitted cl
     const items = [neutral, omitted, change];
     const options = { items, breakingChanges: true, suggestSemver: true };
     for (const suggestion of [suggestSemver(options), suggestSemverForItems(items), buildChangelogDocument(options).suggested_semver]) {
-      assert.equal(suggestion?.bump, bump);
+      assert.ok(suggestion, "semver-enabled projections must provide a suggestion");
+      assert.equal(suggestion.bump, bump);
       assert.deepEqual(suggestion.counts, counts);
     }
     assert.deepEqual(buildChangelogDocument(options).releases[0].breaking_changes?.map((item) => item.id), bump === "major" ? [breaking.id] : []);
