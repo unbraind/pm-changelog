@@ -22,12 +22,12 @@ function checkName(name) {
 function compareCodeUnits(a, b) {
     return a < b ? -1 : a > b ? 1 : 0;
 }
-/** Produce a key-order-independent serialization for content identity. */
+/** Produce a key-order-independent serialization of normalized JSON for content identity. */
 function canonical(value) {
     if (Array.isArray(value))
         return `[${value.map(canonical).join(",")}]`;
     if (value !== null && typeof value === "object") {
-        return `{${Object.entries(value).filter(([, entry]) => entry !== undefined).sort(([a], [b]) => compareCodeUnits(a, b)).map(([key, entry]) => `${JSON.stringify(key)}:${canonical(entry)}`).join(",")}}`;
+        return `{${Object.entries(value).sort(([a], [b]) => compareCodeUnits(a, b)).map(([key, entry]) => `${JSON.stringify(key)}:${canonical(entry)}`).join(",")}}`;
     }
     return JSON.stringify(value);
 }
@@ -37,7 +37,13 @@ function fingerprint(payload) {
 }
 /** Validate unknown persisted data before it can affect release attribution. */
 export function parseReleaseMilestone(value) {
-    const record = value;
+    let record;
+    try {
+        record = JSON.parse(JSON.stringify(value));
+    }
+    catch {
+        record = null;
+    }
     if (!record || record.schema !== 1 || typeof record.name !== "string" || typeof record.query !== "string"
         || typeof record.capturedAt !== "string" || !Number.isFinite(Date.parse(record.capturedAt))
         || !Array.isArray(record.items) || typeof record.fingerprint !== "string") {
@@ -55,7 +61,7 @@ export function parseReleaseMilestone(value) {
     if (fingerprint(payload) !== record.fingerprint) {
         throw new ReleaseMilestoneError("milestone_invalid", "Release milestone fingerprint does not match its content.", "Recover the original immutable snapshot from the backend or a verified backup.");
     }
-    return JSON.parse(JSON.stringify({ ...payload, fingerprint: record.fingerprint }));
+    return { ...payload, fingerprint: record.fingerprint };
 }
 /** Select exact membership with AND terms and comma-separated alternatives. */
 function selectItems(items, query) {
@@ -75,7 +81,8 @@ function selectItems(items, query) {
 /** Freeze a named release, refusing attempts to change its existing membership. */
 export async function createReleaseMilestone(store, name, snapshot, query = "*") {
     checkName(name);
-    const payload = { schema: 1, name, query, capturedAt: snapshot.capturedAt, items: selectItems(snapshot.items, query) };
+    const items = JSON.parse(JSON.stringify(selectItems(snapshot.items, query)));
+    const payload = { schema: 1, name, query, capturedAt: snapshot.capturedAt, items };
     const candidate = parseReleaseMilestone({ ...payload, fingerprint: fingerprint(payload) });
     const existing = await store.read(name);
     if (existing === undefined && await store.publish(name, candidate))
@@ -182,12 +189,14 @@ export class DirectoryReleaseMilestoneStore {
                     await handle.close();
                 }
                 await link(temporary, join(this.directory, `${name}.json`));
-                const directory = await open(this.directory, "r");
-                try {
-                    await directory.sync();
-                }
-                finally {
-                    await directory.close();
+                if (process.platform !== "win32") {
+                    const directory = await open(this.directory, "r");
+                    try {
+                        await directory.sync();
+                    }
+                    finally {
+                        await directory.close();
+                    }
                 }
             }
             finally {

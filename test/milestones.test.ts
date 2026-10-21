@@ -80,6 +80,81 @@ test("milestone fingerprints and attribution use portable code-unit ordering", a
   } finally { sql.db.close(); }
 });
 
+test("milestone JSON snapshots retain verifiable fingerprints after storage and adapter reads", async () => {
+  const root = mkdtempSync(join(tmpdir(), "pm-release-json-"));
+  const sql = new SqlStore();
+  const directory = new DirectoryReleaseMilestoneStore(root);
+  const metadata = {
+    date: new Date("2026-10-01T12:00:00Z"),
+    custom: { toJSON: () => ({ delivered: true }) },
+    values: [undefined, , NaN, Infinity],
+    absent: undefined,
+  };
+  const snapshot: TrackerReleaseSnapshot = {
+    ...initial, items: [{ ...initial.items[0]!, metadata }],
+  };
+  const normalized = JSON.parse(JSON.stringify(snapshot)) as TrackerReleaseSnapshot;
+  try {
+    for (const store of [sql, directory]) {
+      const expected = await createReleaseMilestone(store, "normalized", normalized);
+      const created = await createReleaseMilestone(store, "adapter", snapshot);
+      assert.deepEqual(created.items, expected.items);
+      assert.deepEqual(created.items[0]!.metadata, {
+        date: "2026-10-01T12:00:00.000Z", custom: { delivered: true }, values: [null, null, null, null],
+      });
+      assert.deepEqual(parseReleaseMilestone(await store.read("adapter")), created);
+      assert.deepEqual(await readReleaseMilestones(store), [created, expected]);
+      assert.deepEqual(await createReleaseMilestone(store, "adapter", snapshot), created);
+      assert.equal(createChangelog(resolveTrackerReleaseHistory([created], [])).itemCount, 1);
+      // A remote adapter can return rich values with the persisted JSON fingerprint.
+      assert.deepEqual(parseReleaseMilestone({ ...created, items: snapshot.items }), created);
+      const cyclic: Record<string, unknown> = {};
+      cyclic.self = cyclic;
+      for (const invalid of [undefined, { ...created, items: [{ ...created.items[0], metadata: cyclic }] }, { ...created, items: [{ ...created.items[0], metadata: { value: 1n } }] }]) {
+        assert.throws(() => parseReleaseMilestone(invalid), refusal("milestone_invalid"));
+      }
+    }
+  } finally { sql.db.close(); rmSync(root, { recursive: true, force: true }); }
+});
+
+test("Windows directory publication syncs file data without opening the directory", async (t) => {
+  const root = mkdtempSync(join(tmpdir(), "pm-release-windows-"));
+  const store = new DirectoryReleaseMilestoneStore(root);
+  const platform = Object.getOwnPropertyDescriptor(process, "platform")!;
+  const realOpen = fsPromises.open;
+  const realLink = fsPromises.link;
+  const events: string[] = [];
+  t.mock.method(fsPromises, "open", async (...args: Parameters<typeof fsPromises.open>) => {
+    if (String(args[0]) === store.directory) {
+      throw Object.assign(new Error("directory handles unavailable"), { code: "EPERM" });
+    }
+    const handle = await realOpen(...args);
+    const sync = handle.sync.bind(handle);
+    const close = handle.close.bind(handle);
+    t.mock.method(handle, "sync", async () => { events.push("file:sync"); return sync(); });
+    t.mock.method(handle, "close", async () => { events.push("file:close"); return close(); });
+    return handle;
+  });
+  t.mock.method(fsPromises, "link", async (...args: Parameters<typeof fsPromises.link>) => {
+    events.push("link");
+    return realLink(...args);
+  });
+  syncBuiltinESMExports();
+  Object.defineProperty(process, "platform", { ...platform, value: "win32" });
+  try {
+    const milestone = await createReleaseMilestone(store, "windows", initial);
+    assert.deepEqual(events, ["file:sync", "file:close", "link"]);
+    assert.deepEqual(parseReleaseMilestone(await store.read("windows")), milestone);
+    assert.deepEqual(await store.names(), ["windows"]);
+    assert.deepEqual((await fsPromises.readdir(store.directory)).filter((entry) => entry.endsWith(".tmp")), []);
+  } finally {
+    Object.defineProperty(process, "platform", platform);
+    t.mock.restoreAll();
+    syncBuiltinESMExports();
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
 test("directory publication syncs before linking and cleans up failed writes", async (t) => {
   const root = mkdtempSync(join(tmpdir(), "pm-release-durable-"));
   const store = new DirectoryReleaseMilestoneStore(root);
@@ -113,9 +188,11 @@ test("directory publication syncs before linking and cleans up failed writes", a
   syncBuiltinESMExports();
   try {
     const milestone = await createReleaseMilestone(store, "durable", initial);
-    assert.deepEqual(events, ["file:write", "file:sync", "file:close", "link", "directory:sync", "directory:close"]);
+    const directoryEvents = process.platform === "win32" ? [] : ["directory:sync", "directory:close"];
+    assert.deepEqual(events, ["file:write", "file:sync", "file:close", "link", ...directoryEvents]);
     assert.deepEqual(await store.read("durable"), milestone);
-    for (const failure of ["file:write", "file:sync", "directory:sync"]) {
+    const failures = process.platform === "win32" ? ["file:write", "file:sync"] : ["file:write", "file:sync", "directory:sync"];
+    for (const failure of failures) {
       events.length = 0;
       fault = failure;
       const name = failure.replace(":", "-");

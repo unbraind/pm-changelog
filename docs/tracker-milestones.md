@@ -32,14 +32,17 @@ consistent read and implement `ReleaseMilestoneStore`:
 
 Persist the full snapshot, not just the receipt. Pass untrusted persisted data
 through `parseReleaseMilestone`; `readReleaseMilestones` does this automatically.
+Snapshots use their JSON representation for fingerprinting and storage, including
+JSON conversion of dates, custom `toJSON` values and missing array entries.
 Fingerprints detect accidental edits; they are integrity checks, not signatures
 or authorization controls. The directory adapter publishes a fully written file
 using an atomic hard link after syncing its data, then syncs the containing
-directory before reporting success. Storage must support hard links and file
-and directory syncing; other backends need a transactional adapter. If directory
-sync fails after publication, the call reports a storage fault; retrying the same
-name safely recovers the existing verified snapshot. Do not edit or delete
-milestone records to change notes.
+directory before reporting success on POSIX. Windows skips directory syncing;
+file data is still synced before publication. Storage must support hard links,
+file syncing and, on POSIX, directory syncing; other backends need a transactional
+adapter. If directory sync fails after publication, the call reports a storage
+fault; retrying the same name safely recovers the existing verified snapshot.
+Do not edit or delete milestone records to change notes.
 
 SDK refusals are `ReleaseMilestoneError` values with typed `code` and `remedy`.
 The host receives the same recovery guidance; standalone generation emits a
