@@ -6,19 +6,22 @@ status: in_progress
 priority: 2
 tags: []
 created_at: "2026-10-21T21:59:12.056Z"
-updated_at: "2026-10-21T22:11:05.222Z"
+updated_at: "2026-10-21T22:14:05.882Z"
 assignee: codex-agent
 claim_principal: codex-agent
 author: codex-agent
 acceptance_criteria: A factual closure without repair evidence cannot justify Fixed; absent evidence remains an explicit gap; ordering and regeneration are deterministic.; Typed SDK and CLI; compact TOON/JSON; typed refusals with remedies; README and example; no-git regression; read-only public tracker validation; npm and Bun CI release gates.
-comments[3]{created_at,author,text}:
+comments[5]{created_at,author,text}:
   "2026-10-21T22:02:55.265Z",codex-agent,"Design: capture exact rendered claim lines through the shared generator, hash generated markdown, deduplicate item evidence, and retain absent resolution/tests/test-result/delivery as explicit gaps. Linked test declarations never imply success; caller-supplied execution receipts require matching commands and retain references. Factual closures preserve classifier-neutral wording. SDK assertions and CLI check refuse unsupported claims. CI will execute full npm and Bun release gates on both supported Node versions; local work uses targeted tests only."
   "2026-10-21T22:09:22.913Z",codex-agent,"Read-only public-main validation at 56f8536702f6d3266825534d502a3dfc947cfb83: 189 complete tracker rows, 165 generated claims, 165 exact line mappings, 165 explicit unsupported claims (no execution receipts supplied), 146 delivery gaps, 39 linked-test gaps, 3 resolution gaps and 1 repair gap. JSON 138556 bytes; TOON 137535 bytes. Reverse-order regeneration byte-identical; complete copied tracker content hash unchanged. Git absent and ancestor discovery disabled. Details: docs/claim-audit-validation.md. Three independent behavioral reverts fail 1/1 each: omit the execution-result gap, omit rendered claim capture, and restore title-only tie ordering."
   "2026-10-21T22:11:05.222Z",codex-agent,"Local evidence: focused claim suite 11/11 via the linked pm runner and direct coverage run; claim-audit source measures 100% lines/branches/functions. Adjacent closure, entry wording, host flag and shipped-doc regressions passed 185/185 before the final focused additions; final new parser behavior passes 2/2. Typecheck, test compilation, docstrings and temporary external ESLint (no-explicit-any and no-unused-vars on every changed source/test file) pass. No lint dependency or pin changed. Existing unrelated strict-unused test imports were observed; they remain covered by the existing static-analysis backlog. Linked execution reports tracking_disabled by project policy, so retain this explicit result receipt. No SDK bug found. Full npm/Bun gates pending CI; thresholds unchanged."
-files[3]{path,scope}:
+  "2026-10-21T22:12:31.885Z",codex-agent,"Ready-for-review PR: https://github.com/unbraind/pm-changelog/pull/267 at cffc10267c1cbf39c7291535ea0b40463a980245. Full npm/Bun matrix CI started at https://github.com/unbraind/pm-changelog/actions/runs/39684735127. Acceptance behavior is implemented; final CI results and claim release will be recorded before handoff. Public PR text was verified for scope, measurements and privacy."
+  "2026-10-21T22:14:05.881Z",codex-agent,"CI 39684735127 caught a renderer ownership expectation omitted from the new audit-command contract: Node 26 passed 792/793 with 100% lines/branches/functions across all 16 measured source files; the old assertion named only generate/export. Updated it to include audit; the exact focused assertion now passes 1/1. No implementation or threshold change. Fresh full npm/Bun CI follows."
+files[4]{path,scope}:
   src/claim-audit.ts,project
   src/generator.ts,project
   test/claim-audit.test.ts,project
+  test/extension.test.ts,project
 tests[1]{command,scope,timeout_seconds,provenance{author,created_at,source_kind,source_ref}}:
   node --test test/claim-audit.test.ts,project,180,codex-agent,"2026-10-21T22:07:30.026Z",local_mutation,feat/claim-evidence-audit
 docs[3]{path,scope}:
