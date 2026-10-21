@@ -200,10 +200,21 @@ export function generateChangelog(options) {
 /** Render a changelog, returning the markdown alongside the sections and item
  * count it was built from so a caller can report on the selection without
  * re-parsing its own output. */
-export function createChangelog(options) {
+export function createChangelog(options, onClaim) {
     const title = options.title ?? DEFAULT_TITLE;
     const { items, sections, visibleSections, sectionBy } = selectChangelogSections(options);
     const lines = [`# ${title}`, ""];
+    let scannedLines = 0;
+    let physicalLines = 0;
+    /** Convert logical render slots to physical lines once, including multiline headings. */
+    const emitClaim = (source) => {
+        if (!onClaim)
+            return;
+        while (scannedLines < source.line) {
+            physicalLines += lines[scannedLines++].split("\n").length;
+        }
+        onClaim({ ...source, line: physicalLines - source.claim.split("\n").length + 1 });
+    };
     if (sections.length === 0) {
         // A deliberately empty `releaseWindows` list (suppressed pending release
         // asserted) means every section was suppressed, so even `--include-empty`
@@ -213,6 +224,7 @@ export function createChangelog(options) {
         if (options.includeEmpty && !isDeliberateEmptySuppression(options)) {
             const heading = buildVersionHeading(options.version, options.date);
             lines.push(`## ${heading}`, "", "No changes.", "");
+            emitClaim({ line: lines.length - 1, release: heading, section: "", claim: "No changes.", kind: "empty", items: [] });
         }
         return {
             markdown: lines.join("\n").trimEnd() + "\n",
@@ -244,6 +256,7 @@ export function createChangelog(options) {
                     lines.push(`### ${maybeEmoji("Breaking Changes", options)}`, "");
                     for (const item of breaking) {
                         lines.push(`- ${formatItem(item, options)}`);
+                        emitClaim({ line: lines.length, release: section.heading, section: "Breaking Changes", claim: lines[lines.length - 1], kind: "item", items: [item] });
                     }
                     lines.push("");
                 }
@@ -252,6 +265,7 @@ export function createChangelog(options) {
                 lines.push(`### ${maybeEmoji(group.heading, options)}`, "");
                 for (const item of group.items) {
                     lines.push(`- ${formatItem(item, options)}`);
+                    emitClaim({ line: lines.length, release: section.heading, section: group.heading, claim: lines[lines.length - 1], kind: "item", items: [item] });
                 }
                 lines.push("");
             }
@@ -260,6 +274,7 @@ export function createChangelog(options) {
                 if (names.length > 0) {
                     lines.push("### Contributors", "");
                     lines.push(names.map((name) => `@${name}`).join(", "));
+                    emitClaim({ line: lines.length, release: section.heading, section: "Contributors", claim: lines[lines.length - 1], kind: "contributors", items: section.items });
                     lines.push("");
                 }
             }
@@ -271,11 +286,13 @@ export function createChangelog(options) {
             lines.push(`### ${maybeEmoji("Dependencies", options)}`, "");
             for (const bullet of formatDependencyBullets(depCommits, options.itemUrlBase)) {
                 lines.push(bullet);
+                emitClaim({ line: lines.length, release: section.heading, section: "Dependencies", claim: bullet, kind: "dependency", items: [] });
             }
             lines.push("");
         }
         if (!hasItems && !hasDeps) {
             lines.push("No changes.", "");
+            emitClaim({ line: lines.length - 1, release: section.heading, section: "", claim: "No changes.", kind: "empty", items: [] });
         }
     }
     return {
@@ -2353,7 +2370,7 @@ function compareItems(a, b) {
     if (!Number.isNaN(aTime) && !Number.isNaN(bTime) && aTime !== bTime) {
         return bTime - aTime;
     }
-    return a.title.localeCompare(b.title);
+    return a.title.localeCompare(b.title) || (a.id ?? "").localeCompare(b.id ?? "");
 }
 /**
  * Resolve the timestamp used to place an item in a release window, together

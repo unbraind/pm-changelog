@@ -26,7 +26,8 @@
   "activation": {
     "commands": [
       "changelog generate",
-      "changelog export"
+      "changelog export",
+      "changelog audit"
     ]
   }
 }

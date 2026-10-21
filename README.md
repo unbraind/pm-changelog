@@ -290,3 +290,54 @@ itself lists each affected stream in its output; `pm history --verify <id>` spot
 content, so `reconcile` only re-greens the hash chain (no data loss) — see the authoritative
 [pm-cli merge-safety guide](https://github.com/unbraind/pm-cli/blob/main/docs/MERGE_SAFETY.md). The
 older blunt `pm history-repair --all` remains available as a lower-level primitive.
+
+## Audit release claims before publication
+
+`pm changelog audit` maps every generated release-note line to its source item,
+resolution, linked files/tests and recorded delivery. It preserves the generator's
+selection and wording, including neutral `Closed` entries for factual closures.
+Missing evidence stays in `gaps`; a closed issue alone cannot justify `Fixed`.
+
+```bash
+pm changelog audit --entry-from close_reason
+pm changelog audit --entry-from close_reason --format json
+pm changelog audit --audit-receipts receipts.json --format json --check
+# Standalone: all generation filters and release-window flags still apply.
+pm-changelog audit --pm-root .agents/pm --entry-from close_reason --json
+```
+
+The default compact TOON report has one row per claim, one evidence record per
+item, and a shared remedy dictionary. JSON carries native arrays/objects; TOON
+encodes nested collections as JSON strings. Line numbers are one-based in the
+freshly generated Markdown, identified by `markdown_sha256`. Repeated items in
+label groups or Breaking Changes retain separate line mappings. Contributors map
+to the selected items' credit metadata; `No changes.` maps to the empty selection.
+Existing prepended history is outside this generated-document audit.
+
+`--check` exits nonzero on any gap; normal audit mode exits zero and returns the
+complete report. The standalone command prints that report before refusing.
+`ClaimAuditError` exposes `code`, `remedy` and, for unsupported claims, `report`.
+Git-dependent dependency audits refuse as `git_required` without a repository; drop
+`--dependency-updates` to continue a tracker-only audit. Duplicate or missing item IDs refuse as `ambiguous_items`; malformed execution
+receipts refuse as `invalid_receipts`. Fix the named input and regenerate.
+
+A linked test command is a declaration, not a passing run. Supply a JSON array
+of `{ "item", "command", "outcome", "reference" }` execution receipts through
+`--audit-receipts`. Outcomes are `passed` or `failed`; commands must match a linked
+command or test path. Every linked command/path needs a passing receipt. A failed matching receipt prevents that command from being
+accepted as passing. References remain in the report for inspection. Recorded
+merge/delivery language must name a PR or commit; a bare issue URL does not count.
+Dependency commit subjects retain an explicit evidence gap.
+
+This is an audit of recorded support, with no test execution, file existence
+check, remote receipt authentication or semantic proof of arbitrary prose. Caller
+receipts are assertions: maintainers must verify their relevance to the release.
+`pm-review` owns review validation; `pm-ops` owns publication provenance.
+See the [SDK and receipt example](docs/claim-audit-example.md).
+
+## Without git
+
+Tracker-only generation, export and claim audits work in ordinary directories and
+through caller-supplied SDK items without invoking Git. Git tag windows, historical
+Git membership and dependency commit collection require a Git repository. Use
+tracker fields or explicit dates for a tracker-only audit.

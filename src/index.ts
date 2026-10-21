@@ -34,6 +34,7 @@ export type {
 } from "./release-context.ts";
 export type {
   ChangelogAttributionProvenance,
+  ChangelogClaimSource,
   ChangelogDocument,
   ChangelogEntryFrom,
   ChangelogDocumentDependency,
@@ -65,3 +66,6 @@ export type {
 export { checkItemLinks } from "./item-links.ts";
 
 export type { GitReleaseHistory } from "./release-membership.ts";
+
+export { auditChangelogClaims, assertChangelogClaims, formatClaimAudit, parseClaimTestReceipts, ClaimAuditError, CLAIM_AUDIT_REMEDIES } from "./claim-audit.ts";
+export type { ClaimAuditReport, ClaimAuditRow, ClaimAuditEvidence, ClaimAuditGap, ClaimTestReceipt } from "./claim-audit.ts";

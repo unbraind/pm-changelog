@@ -4,6 +4,7 @@ import { basename, resolve } from "node:path";
 import { stdin } from "node:process";
 import { fileURLToPath } from "node:url";
 import { resolvePmRoot } from "@unbrained/pm-cli/sdk";
+import { auditChangelogClaims, assertChangelogClaims, formatClaimAudit, parseClaimTestReceipts } from "./claim-audit.js";
 import { countNonChangeClosures } from "./closure-policy.js";
 import { checkItemLinks } from "./item-links.js";
 import { createUnifiedDiff, DEFAULT_MAX_DIFF_LINES } from "./diff.js";
@@ -16,6 +17,7 @@ const OPTION_ALIASES = {
     "--release-version": "--version",
 };
 const VALUE_OPTIONS = new Set([
+    "--audit-receipts",
     "-i",
     "-o",
     "--body-preview",
@@ -48,6 +50,8 @@ const VALUE_OPTIONS = new Set([
     "--version",
 ]);
 const KNOWN_OPTIONS = [
+    "--audit-evidence",
+    "--audit-receipts",
     "-h",
     "-i",
     "-o",
@@ -113,13 +117,21 @@ const KNOWN_OPTIONS = [
 /** Run one CLI invocation end to end: parse flags, resolve the release context
  * from git, load items, generate, then write or compare. */
 async function main(args = process.argv.slice(2)) {
-    const options = parseArgs(args);
+    const options = parseArgs(args[0] === "audit" ? ["--audit-evidence", ...args.slice(1)] : args);
     applyReleaseContext(options);
     const items = await loadItems(options);
     const outputPath = resolve(options.output);
     const generationOptions = buildGenerationOptions(options, items);
     if (options.allReleaseTags && !options.input && !options.stdin) {
         Object.assign(generationOptions, await resolveGitReleaseHistory(generationOptions, resolvePmRoot(options.pmCwd ? resolve(options.pmCwd) : process.cwd(), options.pmRoot)));
+    }
+    if (options.auditEvidence) {
+        const receipts = options.auditReceipts === undefined ? [] : parseClaimTestReceipts(readFileSync(options.auditReceipts, "utf-8"));
+        const report = auditChangelogClaims(generationOptions, receipts);
+        process.stdout.write(formatClaimAudit(report, options.json || options.format === "json" ? "json" : "toon"));
+        if (options.check)
+            assertChangelogClaims(report);
+        return;
     }
     if (options.check) {
         for (const warning of lintChangelogEntries(generationOptions))
@@ -266,6 +278,7 @@ async function main(args = process.argv.slice(2)) {
 function parseArgs(args) {
     const normalizedArgs = normalizeArgs(args);
     const options = {
+        auditEvidence: false,
         output: "CHANGELOG.md",
         stdout: false,
         json: false,
@@ -313,6 +326,12 @@ function parseArgs(args) {
             case "--output":
             case "-o":
                 options.output = requireValue(normalizedArgs, ++i, rawArg);
+                break;
+            case "--audit-evidence":
+                options.auditEvidence = true;
+                break;
+            case "--audit-receipts":
+                options.auditReceipts = requireValue(normalizedArgs, ++i, rawArg);
                 break;
             case "--stdout":
                 options.stdout = true;
@@ -891,6 +910,8 @@ Options:
       --stdout              Print markdown instead of writing a file
       --json                Print a JSON summary for CI/runners
       --format <md|json>    Output format: md (default) or json for machine-readable output
+      --audit-evidence      Audit exact generated lines (also: pm-changelog audit); default TOON, --json for JSON
+      --audit-receipts file  JSON array of item, command, outcome and reference test receipts
       --summary             Print a compact one-line-per-change summary (bracketed text or JSON with --format json)
       --check-links         Fail on missing item files or links outside the pm root
       --check               Do not write; exit 1 when output would change.
