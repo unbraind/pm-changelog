@@ -36,7 +36,8 @@ export declare function createReleaseMilestone(store: ReleaseMilestoneStore, nam
 /** Read all named boundaries, verifying identities instead of trusting backend rows. */
 export declare function readReleaseMilestones(store: ReleaseMilestoneStore): Promise<ReleaseMilestone[]>;
 /** Convert frozen membership into generator input, retaining late-close attribution.
- * Closed rows keep their original prose. Open members may close later and still
+ * The first captured closed row keeps its prose, even after a later reopening.
+ * Open members may close in a later snapshot or the current tracker and still
  * belong to the first boundary containing their ID. Nonmembers stay Unreleased. */
 export declare function resolveTrackerReleaseHistory(milestones: readonly ReleaseMilestone[], currentItems: readonly PmItem[]): {
     items: PmItem[];

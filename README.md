@@ -313,7 +313,9 @@ command. Use `status:closed` when only already-completed work belongs to a relea
 The first milestone containing an ID owns its release attribution. Open members
 that close later remain in that release; items outside every milestone appear in
 Unreleased. Closed snapshots retain their recorded prose even after edits,
-reopening or deletion. Normal status and non-change-closure filters still apply.
+reopening or deletion. A late close captured by a later milestone also survives
+subsequent reopening and retains its original release attribution. Normal status
+and non-change-closure filters still apply.
 Milestones are ordered by capture time, with names breaking ties. Repeating a
 name with the same IDs returns the original snapshot; changed membership refuses
 with `milestone_membership_changed` and a remedy to create a new name. Snapshot

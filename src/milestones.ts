@@ -127,7 +127,8 @@ export async function readReleaseMilestones(store: ReleaseMilestoneStore): Promi
 }
 
 /** Convert frozen membership into generator input, retaining late-close attribution.
- * Closed rows keep their original prose. Open members may close later and still
+ * The first captured closed row keeps its prose, even after a later reopening.
+ * Open members may close in a later snapshot or the current tracker and still
  * belong to the first boundary containing their ID. Nonmembers stay Unreleased. */
 export function resolveTrackerReleaseHistory(milestones: readonly ReleaseMilestone[], currentItems: readonly PmItem[]): {
   items: PmItem[]; releaseWindows: ChangelogReleaseWindow[]; releaseMembership: ReadonlyMap<string, string>;
@@ -135,6 +136,12 @@ export function resolveTrackerReleaseHistory(milestones: readonly ReleaseMilesto
   const ordered = milestones.map(parseReleaseMilestone).sort((a, b) => Date.parse(a.capturedAt) - Date.parse(b.capturedAt) || a.name.localeCompare(b.name));
   if (new Set(ordered.map((milestone) => milestone.name)).size !== ordered.length) {
     throw new ReleaseMilestoneError("milestone_invalid", "Duplicate named release boundaries.", "Pass each immutable release milestone once.");
+  }
+  const completed = new Map<string, PmItem>();
+  for (const milestone of ordered) {
+    for (const item of milestone.items) {
+      if (item.status === "closed" && !completed.has(item.id!)) completed.set(item.id!, item);
+    }
   }
   const current = new Map(currentItems.map((item) => [item.id, item]));
   const membership = new Map<string, string>();
@@ -145,7 +152,7 @@ export function resolveTrackerReleaseHistory(milestones: readonly ReleaseMilesto
     windows.unshift({ heading, releaseTag: milestone.name });
     for (const frozen of milestone.items) {
       if (membership.has(frozen.id!)) continue;
-      const item = frozen.status === "closed" ? frozen : (current.get(frozen.id) ?? frozen);
+      const item = completed.get(frozen.id!) ?? current.get(frozen.id) ?? frozen;
       items.push({ ...item, release: undefined, metadata: { ...item.metadata, release: undefined } });
       membership.set(frozen.id!, heading);
     }

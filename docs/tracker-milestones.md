@@ -42,3 +42,8 @@ The host receives the same recovery guidance; standalone generation emits a
 compact JSON error on stderr and exits nonzero. Codes cover invalid snapshots or
 queries, changed membership, missing milestones, storage faults and conflicting
 release-source options. A failed read never silently generates an empty release.
+
+The resolver keeps the first captured closed row for each ID, including closures
+first observed in a later milestone. That completion stays under the first
+milestone containing the ID even if the current tracker reopens or deletes it.
+Until a closed row is captured, a selected open member can use its live closure.

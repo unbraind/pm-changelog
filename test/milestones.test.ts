@@ -84,6 +84,19 @@ test("directory and real SQL milestones produce identical notes with exact membe
     // Missing current rows cannot erase frozen delivered notes or invent closure.
     const missing = resolveTrackerReleaseHistory(await readReleaseMilestones(directory), []);
     assert.equal(createChangelog(missing).itemCount, 1);
+    // A captured late close remains shipped even after the live item reopens.
+    for (const store of [directory, sql]) {
+      await createReleaseMilestone(store, "three", { capturedAt: "2026-10-11T12:00:00Z", items: current.slice(0, 2) });
+    }
+    const reopened = current.map((item) => item.id === "test-late"
+      ? { ...item, status: "open", title: "Late reopened work", completed_at: undefined } : item);
+    const historical = resolveTrackerReleaseHistory(await readReleaseMilestones(directory), reopened);
+    const historicalNotes = createChangelog(historical);
+    assert.equal(historicalNotes.itemCount, 3);
+    assert.match(historicalNotes.markdown, /Late delivered feature/);
+    assert.doesNotMatch(historicalNotes.markdown, /Late reopened work|Edited later/);
+    assert.equal(historical.releaseMembership.get("test-late"), "one - 2026-10-01");
+    assert.equal(historicalNotes.markdown, createChangelog(resolveTrackerReleaseHistory(await readReleaseMilestones(sql), reopened)).markdown);
   } finally { sql.db.close(); rmSync(root, { recursive: true, force: true }); }
 });
 
