@@ -2,13 +2,17 @@ id: pmc-38z4
 title: Certify pm-changelog on PM CLI/SDK 2026.10.4 and consolidate pending dependency updates
 description: "Refresh the development PM CLI SDK and pm-ops toolchain to the current published versions, retain a fail-closed merge-driver prepare hook, and validate the release and real install paths."
 type: Chore
-status: open
+status: closed
 priority: 1
 tags[4]: agent-readiness,release,sdk,toolchain
 created_at: "2026-09-26T21:50:50.783Z"
-updated_at: "2026-10-19T09:43:31.038Z"
+updated_at: "2026-10-21T19:05:53.534Z"
+closed_at: "2026-10-21T19:05:48.326Z"
+completed_at: "2026-10-21T19:05:48.326Z"
 author: codex
 acceptance_criteria: Package manifest and lockfile resolve exact PM CLI/SDK 2026.10.4 and pm-ops 2026.10.4; consolidated pending dependency and action updates are present; full release gate and real npm/Bun packed tracker acceptance pass at unchanged measured coverage thresholds; strict PM health passes within the existing baseline; launcher matches the published pm-ops template; independent statement coverage remains separately tracked by pmc-ilrh; exact-head CI and substantive bot reviews are recorded separately for orchestrator merge approval
+resolution: "Reverified main 56f8536702f6 (unchanged since audit): [PR #221](https://github.com/unbraind/pm-changelog/pull/221) (564cc39) delivered the dated certification. Current package.json/lockfile have subsequent toolchain updates; historical certification is not a claim of current exact-head acceptance. Retained evidence: scripts/prepare-merge-driver.ts, test/generator.test.ts, test/prepare-merge-driver.test.ts."
+expected_result: "Reverified main 56f8536702f6 (unchanged since audit): [PR #221](https://github.com/unbraind/pm-changelog/pull/221) (564cc39) delivered the dated certification. Current package.json/lockfile have subsequent toolchain updates; historical certification is not a claim of current exact-head acceptance. Retained evidence: scripts/prepare-merge-driver.ts, test/generator.test.ts, test/prepare-merge-driver.test.ts."
 actual_result: "PM CLI/SDK and pm-ops 2026.10.4 exact pins; Dependabot #214/#216/#217/#218 consolidated. Full locked npm run release:check PASS: 527/527 tests, zero skipped, 100% measured lines/branches/functions across 12 sources, 158 documented declarations; audit:prod, pack:dry-run, changelog:check, release-date and publish-attestation all green. npm audit and npm audit --omit=dev both zero vulnerabilities; alerts []. Packed real-tracker dogfood via npm npx and native Bun bunx generate/export PASS: 160 closed items, Markdown 12602 bytes and JSON byte-identical; scratch deleted. Managed pm-github 2026.10.4 dry-run preview: 0 synced/0 skipped/0 planned (zero-case, no provenance-linked items). npx pm health PASS with unchanged legacy role-domain warning count 32. Independent statements remain unmeasured in pmc-ilrh. Final-head CI and substantive reviews remain separate; orchestrator owns merging and closure. Review-corrected Node 22/npm 10 packed integration PASS 2/2; final full release gate repeats PASS 527/527 at unchanged 100% measured three-metric scope. Acceptance criteria corrected to current pins. Generated managed extension distributions remain clone-local/ignored; upstream apply limitations are tracked by pmc-xndl, not fixed or write-tested. Portable HOME command replaces a rejected absolute host path; final exact-head commit-history audit and CI are separate."
 comments[20]{created_at,author,text}:
   "2026-09-28T06:31:45.703Z",claude-hub,"2026-09-28: pinned pm-ops 2026.9.28 and re-copied its templates/prepare-merge-driver.ts in f3d0c55 (pm-ops#124: the omit-dev skip now checks every Node resolution path for an incomplete hoisted pm-ops). release:check and changelog:check pass on this branch. Acceptance criteria updated from pm-ops 2026.9.26 to 2026.9.28 after the claim takeover."
@@ -157,4 +161,5 @@ docs[4]:
     note: Package release workflow
   - path: README.md
     scope: project
+close_reason: "Reverified main 56f8536702f6 (unchanged since audit): [PR #221](https://github.com/unbraind/pm-changelog/pull/221) (564cc39) delivered the dated certification. Current package.json/lockfile have subsequent toolchain updates; historical certification is not a claim of current exact-head acceptance. Retained evidence: scripts/prepare-merge-driver.ts, test/generator.test.ts, test/prepare-merge-driver.test.ts."
 body: "Package owner for the fleet PM toolchain refresh. Companion fleet certification item: pm-cli-website-5s6z in unbraind/pm-cli-companion. Keep release, coverage, and review gates independent."

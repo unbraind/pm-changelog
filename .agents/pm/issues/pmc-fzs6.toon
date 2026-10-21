@@ -2,15 +2,20 @@ id: pmc-fzs6
 title: Let an item supply a release note the changelog prefers over its defect-shaped title
 description: "Every changelog bullet pm-changelog emits is the tracker item title. That is right for the tracker and wrong for the changelog, and reviewers keep noticing. Two independent CodeRabbit reviews raised it on the same day, on pm-beads PR 69 and pm-starter PR 58: under a \"Fixed\" heading a defect-shaped title reads to a changelog-only reader as a statement of CURRENT behaviour, and the reader cannot tell which signals now fail the read or that anything changed at all. Both were declined per-package because the Fixed heading already carries \"this was fixed\" (Keep a Changelog names the bug in that section), because the only per-package alternative is retitling the Issue to describe a fix rather than the defect it was filed for, and because all 20 sibling packages render the same shape from the same field so a one-package reword makes that package an outlier. The real fix belongs in pm-changelog: let an item carry an OPTIONAL release note that the generator prefers over the title when present and falls back to the title when absent. Defect-shaped titles stay in the tracker, fix-shaped prose reaches the changelog, and nothing changes for any package that does not opt in."
 type: Issue
-status: open
+status: closed
 priority: 2
 tags[3]: changelog,dx,reviewer-raised
 created_at: "2026-08-15T15:17:40.100Z"
-updated_at: "2026-10-16T04:09:08.159Z"
+updated_at: "2026-10-21T19:15:27.090Z"
 deadline: "2026-09-30T00:00:00.000Z"
+closed_at: "2026-10-21T19:15:22.310Z"
+completed_at: "2026-10-21T19:15:22.310Z"
 author: claude-agent
 estimated_minutes: 240
 acceptance_criteria: "A package can attach a release note to one item, regenerate, and see the note in CHANGELOG.md while the tracker title is unchanged. A package that attaches nothing produces byte-identical output to today, proven by regenerating all 20 fleet changelogs and diffing. Precedence is explicit and tested for note present, note empty, note absent, and note on an item excluded by the status or tag filters. The check mode stays deterministic so no package changelog gate starts flapping."
+resolution: "Reverified main 56f8536702f6 (unchanged since audit): [PR #231](https://github.com/unbraind/pm-changelog/pull/231) (d29b589), reverified by #247: entry-from logic prefers resolution prose; test/entry-from.test.ts tests precedence without changing the source title. Retained evidence: src/cli.ts, src/extension.ts, src/generator.ts."
+expected_result: An explicit item resolution supplies the release note while preserving its original title.
+actual_result: "Reverified main 56f8536702f6 (unchanged since audit): [PR #231](https://github.com/unbraind/pm-changelog/pull/231) (d29b589), reverified by #247: entry-from logic prefers resolution prose; test/entry-from.test.ts tests precedence without changing the source title. Retained evidence: src/cli.ts, src/extension.ts, src/generator.ts."
 dependencies[1]{id,kind,created_at,author,source_kind,author_source}:
   pmc-wv37,related,"2026-08-15T15:17:40.100Z",claude-agent,"cli:create:dep",asserted
 comments[3]{created_at,author,text}:
@@ -46,4 +51,5 @@ docs[2]:
   - path: README.md
     scope: project
     note: generator options and entry shape
+close_reason: "Reverified main 56f8536702f6 (unchanged since audit): [PR #231](https://github.com/unbraind/pm-changelog/pull/231) (d29b589), reverified by #247: entry-from logic prefers resolution prose; test/entry-from.test.ts tests precedence without changing the source title. Retained evidence: src/cli.ts, src/extension.ts, src/generator.ts."
 body: "Every changelog bullet pm-changelog emits is the tracker item title. That is right for the tracker and wrong for the changelog, and reviewers keep noticing. Two independent CodeRabbit reviews raised it on the same day, on pm-beads PR 69 and pm-starter PR 58: under a \"Fixed\" heading a defect-shaped title reads to a changelog-only reader as a statement of CURRENT behaviour, and the reader cannot tell which signals now fail the read or that anything changed at all. Both were declined per-package because the Fixed heading already carries \"this was fixed\" (Keep a Changelog names the bug in that section), because the only per-package alternative is retitling the Issue to describe a fix rather than the defect it was filed for, and because all 20 sibling packages render the same shape from the same field so a one-package reword makes that package an outlier. The real fix belongs in pm-changelog: let an item carry an OPTIONAL release note that the generator prefers over the title when present and falls back to the title when absent. Defect-shaped titles stay in the tracker, fix-shaped prose reaches the changelog, and nothing changes for any package that does not opt in."
