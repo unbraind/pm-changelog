@@ -34,8 +34,12 @@ Persist the full snapshot, not just the receipt. Pass untrusted persisted data
 through `parseReleaseMilestone`; `readReleaseMilestones` does this automatically.
 Fingerprints detect accidental edits; they are integrity checks, not signatures
 or authorization controls. The directory adapter publishes a fully written file
-using an atomic hard link; filesystems without hard-link support need a different
-transactional adapter. Do not edit or delete milestone records to change notes.
+using an atomic hard link after syncing its data, then syncs the containing
+directory before reporting success. Storage must support hard links and file
+and directory syncing; other backends need a transactional adapter. If directory
+sync fails after publication, the call reports a storage fault; retrying the same
+name safely recovers the existing verified snapshot. Do not edit or delete
+milestone records to change notes.
 
 SDK refusals are `ReleaseMilestoneError` values with typed `code` and `remedy`.
 The host receives the same recovery guidance; standalone generation emits a

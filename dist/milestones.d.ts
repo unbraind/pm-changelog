@@ -56,7 +56,7 @@ export declare class DirectoryReleaseMilestoneStore implements ReleaseMilestoneS
     constructor(pmRoot: string);
     /** Load one snapshot without converting missing records into empty releases. */
     read(name: string): Promise<unknown | undefined>;
-    /** Link a fully written temporary file into place without overwriting another writer. */
+    /** Flush file data before no-replace publication, then flush the directory entry. */
     publish(name: string, milestone: ReleaseMilestone): Promise<boolean>;
     /** Enumerate committed JSON records; incomplete temporary files are invisible. */
     names(): Promise<string[]>;

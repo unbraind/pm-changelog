@@ -1,5 +1,5 @@
 import { createHash, randomUUID } from "node:crypto";
-import { link, mkdir, readFile, readdir, unlink, writeFile } from "node:fs/promises";
+import { link, mkdir, open, readFile, readdir, unlink } from "node:fs/promises";
 import { join } from "node:path";
 import { EXIT_CODE, PmCliError, listAllComplete } from "@unbrained/pm-cli/sdk";
 /** A recoverable release-source failure, shared by CLI and SDK callers. */
@@ -18,12 +18,16 @@ function checkName(name) {
         throw new ReleaseMilestoneError("milestone_invalid", "Invalid release milestone name.", "Use 1-80 letters, digits, dots, underscores or hyphens, beginning with a letter or digit.");
     }
 }
+/** Compare persisted identities by UTF-16 code units, independent of ICU or locale. */
+function compareCodeUnits(a, b) {
+    return a < b ? -1 : a > b ? 1 : 0;
+}
 /** Produce a key-order-independent serialization for content identity. */
 function canonical(value) {
     if (Array.isArray(value))
         return `[${value.map(canonical).join(",")}]`;
     if (value !== null && typeof value === "object") {
-        return `{${Object.entries(value).filter(([, entry]) => entry !== undefined).sort(([a], [b]) => a.localeCompare(b, "en")).map(([key, entry]) => `${JSON.stringify(key)}:${canonical(entry)}`).join(",")}}`;
+        return `{${Object.entries(value).filter(([, entry]) => entry !== undefined).sort(([a], [b]) => compareCodeUnits(a, b)).map(([key, entry]) => `${JSON.stringify(key)}:${canonical(entry)}`).join(",")}}`;
     }
     return JSON.stringify(value);
 }
@@ -66,7 +70,7 @@ function selectItems(items, query) {
             ? alternatives.some((value) => item.tags?.includes(value))
             : alternatives.includes(String(item[field]));
     });
-    return items.filter((item) => predicates.every((predicate) => predicate(item))).sort((a, b) => String(a.id).localeCompare(String(b.id), "en"));
+    return items.filter((item) => predicates.every((predicate) => predicate(item))).sort((a, b) => compareCodeUnits(String(a.id), String(b.id)));
 }
 /** Freeze a named release, refusing attempts to change its existing membership. */
 export async function createReleaseMilestone(store, name, snapshot, query = "*") {
@@ -100,7 +104,7 @@ export async function readReleaseMilestones(store) {
  * Open members may close in a later snapshot or the current tracker and still
  * belong to the first boundary containing their ID. Nonmembers stay Unreleased. */
 export function resolveTrackerReleaseHistory(milestones, currentItems) {
-    const ordered = milestones.map(parseReleaseMilestone).sort((a, b) => Date.parse(a.capturedAt) - Date.parse(b.capturedAt) || a.name.localeCompare(b.name));
+    const ordered = milestones.map(parseReleaseMilestone).sort((a, b) => Date.parse(a.capturedAt) - Date.parse(b.capturedAt) || compareCodeUnits(a.name, b.name));
     if (new Set(ordered.map((milestone) => milestone.name)).size !== ordered.length) {
         throw new ReleaseMilestoneError("milestone_invalid", "Duplicate named release boundaries.", "Pass each immutable release milestone once.");
     }
@@ -162,15 +166,29 @@ export class DirectoryReleaseMilestoneStore {
             throw new ReleaseMilestoneError("milestone_storage", "Cannot read release milestone storage.", "Check storage access and recover valid JSON records before retrying.");
         }
     }
-    /** Link a fully written temporary file into place without overwriting another writer. */
+    /** Flush file data before no-replace publication, then flush the directory entry. */
     async publish(name, milestone) {
         checkName(name);
         const temporary = join(this.directory, `.${randomUUID()}.tmp`);
         try {
             await mkdir(this.directory, { recursive: true });
-            await writeFile(temporary, JSON.stringify(milestone) + "\n", { flag: "wx" });
+            const handle = await open(temporary, "wx");
             try {
+                try {
+                    await handle.writeFile(JSON.stringify(milestone) + "\n");
+                    await handle.sync();
+                }
+                finally {
+                    await handle.close();
+                }
                 await link(temporary, join(this.directory, `${name}.json`));
+                const directory = await open(this.directory, "r");
+                try {
+                    await directory.sync();
+                }
+                finally {
+                    await directory.close();
+                }
             }
             finally {
                 await unlink(temporary);

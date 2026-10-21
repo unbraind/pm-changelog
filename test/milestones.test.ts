@@ -1,6 +1,8 @@
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
 import { mkdirSync, mkdtempSync, readFileSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
+import fsPromises from "node:fs/promises";
+import { syncBuiltinESMExports } from "node:module";
 import { tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
 import { DatabaseSync } from "node:sqlite";
@@ -51,6 +53,89 @@ function refusal(code: string): (error: unknown) => boolean {
     return true;
   };
 }
+
+test("milestone fingerprints and attribution use portable code-unit ordering", async () => {
+  const sql = new SqlStore();
+  const snapshot: TrackerReleaseSnapshot = {
+    capturedAt: "2026-10-01T12:00:00Z",
+    items: [
+      { id: "ä", title: "Unicode", status: "closed", metadata: { z: 1, ä: 2, A: 3, a: 4, absent: undefined } },
+      { id: "z", title: "Lowercase", status: "closed" },
+      { id: "A", title: "Uppercase", status: "closed" },
+    ],
+  };
+  try {
+    const first = await createReleaseMilestone(sql, "Z", snapshot);
+    assert.deepEqual(first.items.map((item) => item.id), ["A", "z", "ä"]);
+    assert.equal(first.fingerprint, "44c1178e66c9cfb2354ddb2a7e4a03f355b93c7c2e80c15025712dec9f2fe653");
+    const reordered = JSON.parse(JSON.stringify(first)) as ReleaseMilestone;
+    reordered.items[2]!.metadata = { a: 4, A: 3, ä: 2, z: 1 };
+    assert.deepEqual(parseReleaseMilestone(reordered), first);
+    const second = await createReleaseMilestone(sql, "a", { ...snapshot, items: snapshot.items.map((item) => ({ ...item, title: "Other completion" })) });
+    for (const boundaries of [[second, first], [first, second]]) {
+      const history = resolveTrackerReleaseHistory(boundaries, []);
+      assert.equal(history.releaseMembership.get("A"), "Z - 2026-10-01");
+      assert.equal(history.items[0]!.title, "Uppercase");
+    }
+  } finally { sql.db.close(); }
+});
+
+test("directory publication syncs before linking and cleans up failed writes", async (t) => {
+  const root = mkdtempSync(join(tmpdir(), "pm-release-durable-"));
+  const store = new DirectoryReleaseMilestoneStore(root);
+  const events: string[] = [];
+  let fault: string | undefined;
+  const realOpen = fsPromises.open;
+  const realLink = fsPromises.link;
+  t.mock.method(fsPromises, "open", async (...args: Parameters<typeof fsPromises.open>) => {
+    const handle = await realOpen(...args);
+    const kind = String(args[0]) === store.directory ? "directory" : "file";
+    const write = handle.writeFile.bind(handle);
+    const sync = handle.sync.bind(handle);
+    const close = handle.close.bind(handle);
+    t.mock.method(handle, "writeFile", async (...values: Parameters<typeof handle.writeFile>) => {
+      events.push("file:write");
+      if (fault === "file:write") throw new Error("injected write failure");
+      return write(...values);
+    });
+    t.mock.method(handle, "sync", async () => {
+      events.push(`${kind}:sync`);
+      if (fault === `${kind}:sync`) throw new Error("injected sync failure");
+      return sync();
+    });
+    t.mock.method(handle, "close", async () => { events.push(`${kind}:close`); return close(); });
+    return handle;
+  });
+  t.mock.method(fsPromises, "link", async (...args: Parameters<typeof fsPromises.link>) => {
+    events.push("link");
+    return realLink(...args);
+  });
+  syncBuiltinESMExports();
+  try {
+    const milestone = await createReleaseMilestone(store, "durable", initial);
+    assert.deepEqual(events, ["file:write", "file:sync", "file:close", "link", "directory:sync", "directory:close"]);
+    assert.deepEqual(await store.read("durable"), milestone);
+    for (const failure of ["file:write", "file:sync", "directory:sync"]) {
+      events.length = 0;
+      fault = failure;
+      const name = failure.replace(":", "-");
+      await assert.rejects(createReleaseMilestone(store, name, initial), refusal("milestone_storage"));
+      assert.ok(events.includes("file:close"));
+      assert.deepEqual((await fsPromises.readdir(store.directory)).filter((entry) => entry.endsWith(".tmp")), []);
+      if (failure === "directory:sync") {
+        assert.ok(events.includes("directory:close"));
+        assert.equal((await createReleaseMilestone(store, name, initial)).name, name);
+      } else {
+        assert.equal(await store.read(name), undefined);
+        assert.ok(!events.includes("link"));
+      }
+    }
+  } finally {
+    t.mock.restoreAll();
+    syncBuiltinESMExports();
+    rmSync(root, { recursive: true, force: true });
+  }
+});
 
 test("directory and real SQL milestones produce identical notes with exact membership and late-close attribution", async () => {
   const root = mkdtempSync(join(tmpdir(), "pm-release-boundaries-"));
@@ -170,7 +255,12 @@ test("real plain tracker CLI and extension freeze and generate without a git exe
     const result = await runRegisteredCommandForTest(activation.commands, { command: "changelog generate", pmRoot, options: { milestones: true, stdout: true } });
     assert.ok(result.result && typeof result.result === "object" && "changelog" in result.result);
     assert.match(String(result.result.changelog), /Real tracker delivery/);
-    await assert.rejects(runRegisteredCommandForTest(activation.commands, { command: "changelog generate", pmRoot, options: { milestones: true, "all-release-tags": true } }), refusal("milestone_options"));
+    for (const key of ["all-release-tags", "since-previous-tag", "until-release-tag", "release-version-from-package", "release-version", "date", "date-fallback", "date-from-version", "since", "until", "dependency-updates", "respect-item-release"]) {
+      const camel = key.replace(/-([a-z])/g, (_, character: string) => character.toUpperCase());
+      for (const spelling of new Set([key, camel])) {
+        await assert.rejects(runRegisteredCommandForTest(activation.commands, { command: "changelog generate", pmRoot, options: { milestones: true, [spelling]: true } }), refusal("milestone_options"));
+      }
+    }
     const extensionRoot = join(pmRoot, "extensions", "pm-changelog");
     mkdirSync(extensionRoot, { recursive: true });
     const manifest = JSON.parse(readFileSync(resolve("manifest.json"), "utf8"));
@@ -185,6 +275,9 @@ test("real plain tracker CLI and extension freeze and generate without a git exe
     const hostToon = spawnSync(process.execPath, [host, "--path", pmRoot, "changelog", "milestone", "create", "host-release", "--items", "status:closed"], { cwd: root, env, encoding: "utf8" });
     assert.equal(hostToon.status, 0, hostToon.stderr);
     assert.match(hostToon.stdout, /item_count: 1/);
+    const hostConflict = spawnSync(process.execPath, [host, "--path", pmRoot, "changelog", "generate", "--milestones", "--all-release-tags", "--stdout", "--json"], { cwd: root, env, encoding: "utf8" });
+    assert.notEqual(hostConflict.status, 0);
+    assert.match(hostConflict.stderr + hostConflict.stdout, /milestones cannot be combined/);
     const generated = spawnSync(process.execPath, [cli, "--milestones", "--pm-root", pmRoot, "--stdout"], { cwd: root, env, encoding: "utf8" });
     assert.equal(generated.status, 0, generated.stderr);
     assert.match(generated.stdout, /Real tracker delivery/);
