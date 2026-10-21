@@ -5,4 +5,6 @@ export type { AssertReleaseTagHistoryOptions, ReleaseTagWindowResolution, } from
 export type { ChangelogAttributionProvenance, ChangelogDocument, ChangelogEntryFrom, ChangelogDocumentDependency, ChangelogDocumentItem, ChangelogDocumentRelease, ChangelogDocumentSection, ChangelogGroupBy, ChangelogReleaseWindow, ChangelogSelectionReport, ChangelogSection, ChangelogSectionBy, ChangelogSummaryEntry, ChangelogMergeAction, ChangelogOutputMode, DependencyCommit, GeneratedChangelog, GenerateChangelogOptions, MergeChangelogOptions, MergeChangelogResult, PmItem, PmItemStatus, ReadPmItemsOptions, SemverBump, SemverSuggestion, WriteChangelogOptions, WriteChangelogResult, } from "./types.ts";
 export { checkItemLinks } from "./item-links.ts";
 export type { GitReleaseHistory } from "./release-membership.ts";
+export { DirectoryReleaseMilestoneStore, ReleaseMilestoneError, assertTrackerMilestoneOptions, createReleaseMilestone, parseReleaseMilestone, readReleaseMilestones, readTrackerReleaseSnapshot, resolveTrackerReleaseHistory, } from "./milestones.ts";
+export type { ReleaseMilestone, ReleaseMilestoneErrorCode, ReleaseMilestoneStore, TrackerReleaseSnapshot } from "./milestones.ts";
 //# sourceMappingURL=index.d.ts.map

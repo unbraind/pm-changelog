@@ -56,6 +56,10 @@ export function assertReleaseTagHistory(options) {
     const requiredBy = options.requiredBy.filter(Boolean);
     const subject = requiredBy.length > 0 ? requiredBy.join(" ") : "Tag-derived release windows";
     const verb = requiredBy.length === 1 ? "requires" : "require";
+    if (!runGit(cwd, ["rev-parse", "--git-dir"])) {
+        throw new MissingTagHistoryError(`${subject} needs a git repository; ${cwd} is not inside one or git is unavailable. ` +
+            "Tracker-only generation and --milestones still work without git.", ["pm changelog milestone create <name>", "pm changelog generate --milestones --stdout"]);
+    }
     const noTagsRemote = tagExcludingRemote(cwd);
     if (isShallowRepository(cwd)) {
         // A shallow clone that ALSO excludes tags by config needs the config

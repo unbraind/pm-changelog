@@ -1,6 +1,7 @@
 import { writeFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { defineExtension, getActiveExtensionRegistrations, listAllItemMetadata, locateItem, readLocatedItem, readSettings, resolveItemTypeRegistry, EXIT_CODE, PmCliError, } from "@unbrained/pm-cli/sdk";
+import { DirectoryReleaseMilestoneStore, assertTrackerMilestoneOptions, createReleaseMilestone, readReleaseMilestones, readTrackerReleaseSnapshot, resolveTrackerReleaseHistory } from "./milestones.js";
 import { countNonChangeClosures } from "./closure-policy.js";
 import { buildChangelogDocument, createChangelog, createChangelogSummary, explainChangelogSelection, formatSummaryLine, lintChangelogEntries, parseChangelogEntryFrom, mergeChangelog, suggestSemver, writeChangelog } from "./generator.js";
 import { MissingTagHistoryError, resolveGenerationReleaseWindows, resolveReleaseContext, resolveReleaseTagWindowResolution, } from "./release-context.js";
@@ -41,6 +42,17 @@ export default defineExtension({
     version: "2026.10.21",
     activate(api) {
         api.registerCommand({
+            name: "changelog milestone create",
+            description: "Freeze immutable release membership from a tracker without git.",
+            arguments: [{ name: "name", required: true, description: "Immutable release name" }],
+            flags: [{ long: "--items", value_name: "query", description: "* or AND terms: id:, status:, type:, tag:, release: (comma alternatives)" }],
+            async run(ctx) {
+                const name = ctx.args[0] ?? "";
+                const milestone = await createReleaseMilestone(new DirectoryReleaseMilestoneStore(ctx.pm_root), name, await readTrackerReleaseSnapshot(ctx.pm_root), stringOption(ctx.options, "items", "items"));
+                return { name: milestone.name, fingerprint: milestone.fingerprint, item_count: milestone.items.length, captured_at: milestone.capturedAt };
+            },
+        });
+        api.registerCommand({
             name: "changelog generate",
             description: "Generate a CHANGELOG.md file from pm items.",
             intent: "generate changelog release notes from completed pm items",
@@ -68,6 +80,7 @@ export default defineExtension({
                 { long: "--since-previous-tag", description: "Derive --since from the previous git tag" },
                 { long: "--until", value_name: "date", description: "Include items changed on or before this date" },
                 { long: "--until-release-tag", description: "Derive --until from the current release tag when it exists" },
+                { long: "--milestones", description: "Use immutable tracker release milestones instead of git boundaries" },
                 { long: "--all-release-tags", description: "Rebuild full history from git release tag windows" },
                 { long: "--release-tag-pattern", value_name: "glob", description: "Git tag glob for --all-release-tags (default: v*)" },
                 { long: "--status", value_name: "list", description: "Comma-separated statuses (default: closed)" },
@@ -134,6 +147,12 @@ export default defineExtension({
                     ?.split(",")
                     .map((status) => status.trim())
                     .filter(Boolean);
+                const milestones = booleanOption(ctx.options, "milestones", "milestones");
+                if (milestones)
+                    assertTrackerMilestoneOptions([
+                        ...["all-release-tags", "since-previous-tag", "until-release-tag", "release-version-from-package", "release-version", "date", "date-fallback", "date-from-version", "since", "until", "dependency-updates", "respect-item-release"].map((key) => ctx.options[key]),
+                        groupBy !== "version",
+                    ]);
                 const allReleaseTags = booleanOption(ctx.options, "all-release-tags", "allReleaseTags");
                 const releaseVersion = stringOption(ctx.options, "release-version", "releaseVersion");
                 const titleOption = stringOption(ctx.options, "title", "title");
@@ -142,7 +161,7 @@ export default defineExtension({
                 const dateFromVersion = booleanOption(ctx.options, "date-from-version", "dateFromVersion");
                 const sinceOption = stringOption(ctx.options, "since", "since");
                 const untilOption = stringOption(ctx.options, "until", "until");
-                const releaseContext = withReleaseContextDiagnostics(() => resolveReleaseContext({
+                const releaseContext = milestones ? {} : withReleaseContextDiagnostics(() => resolveReleaseContext({
                     cwd: ctx.pm_root,
                     version: releaseVersion,
                     versionFromPackage: booleanOption(ctx.options, "release-version-from-package", "releaseVersionFromPackage"),
@@ -171,7 +190,7 @@ export default defineExtension({
                 const { releaseWindows, suppressedPendingRelease } = windowResolution
                     ? resolveGenerationReleaseWindows(windowResolution)
                     : {};
-                const items = await listWorkspaceItemMetadata(ctx.pm_root);
+                const items = milestones ? [...(await readTrackerReleaseSnapshot(ctx.pm_root)).items] : await listWorkspaceItemMetadata(ctx.pm_root);
                 const bodyPreview = parseBodyPreviewOption(ctx.options);
                 // listAllItemMetadata omits item bodies, so --body-preview would silently
                 // render nothing (GH #27). Load bodies on demand only when previewing.
@@ -212,6 +231,9 @@ export default defineExtension({
                     dependencyUntilRef: releaseContext.releaseTag,
                     dependencyCutoff: untilOption,
                 };
+                if (milestones) {
+                    Object.assign(generationOptions, resolveTrackerReleaseHistory(await readReleaseMilestones(new DirectoryReleaseMilestoneStore(ctx.pm_root)), items));
+                }
                 if (allReleaseTags) {
                     try {
                         Object.assign(generationOptions, await resolveGitReleaseHistory(generationOptions, ctx.pm_root));

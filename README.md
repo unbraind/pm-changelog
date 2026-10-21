@@ -290,3 +290,56 @@ itself lists each affected stream in its output; `pm history --verify <id>` spot
 content, so `reconcile` only re-greens the hash chain (no data loss) — see the authoritative
 [pm-cli merge-safety guide](https://github.com/unbraind/pm-cli/blob/main/docs/MERGE_SAFETY.md). The
 older blunt `pm history-repair --all` remains available as a lower-level primitive.
+
+## Tracker release milestones
+
+A named release can come from tracker state instead of Git tags. Freeze its
+membership, then generate notes from those boundaries:
+
+```sh
+pm changelog milestone create 2026.10.21 --items 'tag:shipping'
+pm changelog generate --milestones --stdout
+pm changelog generate --milestones --summary --format json
+# Standalone generator uses the same tracker source:
+pm-changelog --milestones --stdout
+```
+
+Omitting `--items` freezes every item, including open work. Queries support `*`
+or space-separated `id:`, `status:`, `type:`, `tag:`, and `release:` terms. Terms
+are ANDed; comma-separated values within a term are alternatives. Values are
+case-sensitive. This is a deliberately small selection grammar, not a shell
+command. Use `status:closed` when only already-completed work belongs to a release.
+
+The first milestone containing an ID owns its release attribution. Open members
+that close later remain in that release; items outside every milestone appear in
+Unreleased. Closed snapshots retain their recorded prose even after edits,
+reopening or deletion. Normal status and non-change-closure filters still apply.
+Milestones are ordered by capture time, with names breaking ties. Repeating a
+name with the same IDs returns the original snapshot; changed membership refuses
+with `milestone_membership_changed` and a remedy to create a new name. Snapshot
+fingerprints are checked before generation. Names are safe tokens of at most 80
+characters; snapshots live under the tracker's `changelog/milestones/` directory.
+Keep these records with tracker backups and synchronize them with tracker data.
+The creation receipt contains only name, fingerprint, timestamp and item count;
+full member rows are not printed. The host renders receipts as TOON or JSON.
+
+`--milestones` selects the release source. Git-window, explicit version/date and
+metadata-grouping options cannot be combined with it. Existing `--group-by
+milestone` remains mutable item-field grouping. A tracker inside a Git repository
+can still use `--all-release-tags` in a separate invocation. Existing tag behavior
+is unchanged.
+
+The typed SDK accepts complete backend snapshots through `createReleaseMilestone`
+and an atomic `ReleaseMilestoneStore`. Use `resolveTrackerReleaseHistory` with
+`createChangelog`, `buildChangelogDocument` or `createChangelogSummary`. Database
+adapters must use transactional insert-if-absent and consistent complete snapshot
+reads; no SQL server or hosted access is required by this package. See the
+[SDK example](docs/tracker-milestones.md).
+
+## Without git
+
+Tracker milestone creation and generation, SDK snapshot attribution, ordinary
+tracker-only generation and structured summaries work in plain directories.
+Milestone paths invoke no Git subprocess. Tag boundaries and dependency-commit
+sections require a Git repository. A tracker in a repository can choose either
+release source.

@@ -2,6 +2,7 @@
 import type { Readable } from "node:stream";
 import type { ChangelogEntryFrom, ChangelogGroupBy, ChangelogItemRefStyle, ChangelogReleaseWindow, ChangelogSelectionReport, ChangelogSectionBy, PmItem } from "./types.ts";
 interface CliOptions {
+    milestones?: boolean;
     output: string;
     stdout: boolean;
     json: boolean;

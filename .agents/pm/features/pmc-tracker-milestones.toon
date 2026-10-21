@@ -1,0 +1,42 @@
+id: pmc-tracker-milestones
+title: Generate release notes from immutable tracker milestones
+description: Add a backend-neutral immutable release source and a tracker milestone creation command for plain-directory and SDK database snapshots.
+type: Feature
+status: in_progress
+priority: 1
+tags[3]: added,changelog,no-git
+created_at: "2026-10-21T18:17:49.989Z"
+updated_at: "2026-10-21T18:35:57.552Z"
+assignee: codex-agent
+claim_principal: codex-agent
+author: codex-agent
+acceptance_criteria: Plain-directory and synthetic database milestones generate identical notes; changed milestone membership refuses; git-tag behavior remains separately tested; typed SDK and CLI create and generate without git; compact agent receipts and typed refusals with remedies; README and example; measured validation on a read-only public tracker copy; npm and Bun release gates at unchanged thresholds; behavioral revert proof.
+comments[6]{created_at,author,text}:
+  "2026-10-21T18:18:35.166Z",codex-agent,"Overlap rechecked against the pinned core SDK and sibling pm-context and pm-web packages: workspace snapshots store and verify tracker state; context receipts store bounded context reads; changelog --group-by milestone uses mutable item metadata and tracker-only input lacks a first-class immutable release source. None supplies frozen release membership and late-close attribution. Implement an atomic immutable store contract, a directory adapter, SDK snapshot input and a real SQLite test adapter; preserve existing git-tag tests and add no-git regressions."
+  "2026-10-21T18:24:44.292Z",codex-agent,"Focused tests passed 4/4, including real SQLite versus directory parity, concurrent no-replace publication, changed membership refusal, fingerprint verification and real initialized tracker creation/generation with PATH containing no git executable. Public origin/main tracker validation at 56f8536702f6d3266825534d502a3dfc947cfb83: 189 scanned and frozen members, 165 emitted entries, 4 excluded non-change closures, 1 populated release section, 13229 markdown bytes, 34582 summary JSON bytes; repeat output byte-identical; changed membership refused; all 387 source files unchanged on a read-only copy. Full coverage and required release gates are pending."
+  "2026-10-21T18:27:06.107Z",codex-agent,"Behavioral revert proof on isolated source copies: removing only the createReleaseMilestone changed-membership refusal makes the real directory/SQLite regression fail with Missing expected rejection (exit 1); reverting only resolveTrackerReleaseHistory frozen-row selection to current rows makes the same regression fail on emitted entry count (exit 1). Production source stayed intact. Actual pinned pm host milestone create passed in both JSON and TOON modes with no git on PATH; standalone generate and summary also passed."
+  "2026-10-21T18:30:01.759Z",codex-agent,The no-git acceptance check also exposed pre-existing explicit tag requests silently falling back outside a repository. Added a preflight refusal in assertReleaseTagHistory naming the git requirement and the tracker-only and milestone alternatives; retained full tag-specific regression coverage. Added a duplicate-name refusal to the pure milestone resolver to prevent repeated boundary input from duplicating rendered notes.
+  "2026-10-21T18:33:47.250Z",codex-agent,"Final focused feature run passed 4/4 with the milestone module at 100% lines, branches and functions. The tracked pm test execution also passed 4/4 with reported_tests evidence. All 180 declarations passed the docstring gate. A third isolated behavioral revert removed only the missing-git preflight from assertReleaseTagHistory and failed the no-git regression with Missing expected exception (exit 1). Process tracing confirmed milestone host create and standalone generation did not execute git; the only git probe in fixture setup was the upstream SDK initializer."
+  "2026-10-21T18:35:57.552Z",codex-agent,"Overlap was additionally verified against the installed current core CLI/SDK 2026.10.21: its public workspace-snapshot surface provides create/inspect/list/restore/delete storage and still has no changelog release attribution source. The implementation retains the repository-pinned 2026.10.19 dependency as required. The full coverage run has reproduced the existing pmc-redos-startup-231 worker readiness failures; parser and coverage thresholds remain unchanged."
+files[7]:
+  - path: manifest.json
+    scope: project
+  - path: src/cli.ts
+    scope: project
+  - path: src/extension.ts
+    scope: project
+  - path: src/index.ts
+    scope: project
+  - path: src/milestones.ts
+    scope: project
+  - path: src/release-context.ts
+    scope: project
+    note: Refuse explicit tag history outside a git repository
+  - path: test/milestones.test.ts
+    scope: project
+tests[1]{command,scope,provenance{author,created_at,source_kind,source_ref}}:
+  node --test test/milestones.test.ts,project,codex-agent,"2026-10-21T18:24:28.785Z",local_mutation,feat/tracker-release-milestones
+docs[2]{path,scope,note}:
+  docs/tracker-milestones.md,project,SDK adapter example and immutable release contract
+  README.md,project,CLI release-source and Without git documentation
+body: ""

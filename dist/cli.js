@@ -4,6 +4,7 @@ import { basename, resolve } from "node:path";
 import { stdin } from "node:process";
 import { fileURLToPath } from "node:url";
 import { resolvePmRoot } from "@unbrained/pm-cli/sdk";
+import { ReleaseMilestoneError, DirectoryReleaseMilestoneStore, assertTrackerMilestoneOptions, readReleaseMilestones, readTrackerReleaseSnapshot, resolveTrackerReleaseHistory } from "./milestones.js";
 import { countNonChangeClosures } from "./closure-policy.js";
 import { checkItemLinks } from "./item-links.js";
 import { createUnifiedDiff, DEFAULT_MAX_DIFF_LINES } from "./diff.js";
@@ -81,6 +82,7 @@ const KNOWN_OPTIONS = [
     "--json",
     "--limit",
     "--mode",
+    "--milestones",
     "--no-check-diff",
     "--no-links",
     "--no-pending-release",
@@ -114,10 +116,20 @@ const KNOWN_OPTIONS = [
  * from git, load items, generate, then write or compare. */
 async function main(args = process.argv.slice(2)) {
     const options = parseArgs(args);
-    applyReleaseContext(options);
-    const items = await loadItems(options);
+    if (options.milestones)
+        assertTrackerMilestoneOptions([
+            options.allReleaseTags, options.sincePreviousTag, options.untilReleaseTag, options.versionFromPackage,
+            options.version, options.date, options.dateFallback, options.dateFromVersion, options.since, options.until,
+            options.dependencyUpdates, options.respectItemRelease, options.groupBy !== "version", options.input, options.stdin,
+        ]);
+    else
+        applyReleaseContext(options);
+    const milestoneRoot = options.milestones ? resolvePmRoot(options.pmCwd ? resolve(options.pmCwd) : process.cwd(), options.pmRoot) : undefined;
+    const items = milestoneRoot ? [...(await readTrackerReleaseSnapshot(milestoneRoot)).items] : await loadItems(options);
     const outputPath = resolve(options.output);
     const generationOptions = buildGenerationOptions(options, items);
+    if (milestoneRoot)
+        Object.assign(generationOptions, resolveTrackerReleaseHistory(await readReleaseMilestones(new DirectoryReleaseMilestoneStore(milestoneRoot)), items));
     if (options.allReleaseTags && !options.input && !options.stdin) {
         Object.assign(generationOptions, await resolveGitReleaseHistory(generationOptions, resolvePmRoot(options.pmCwd ? resolve(options.pmCwd) : process.cwd(), options.pmRoot)));
     }
@@ -345,6 +357,9 @@ function parseArgs(args) {
                 break;
             case "--stdin":
                 options.stdin = true;
+                break;
+            case "--milestones":
+                options.milestones = true;
                 break;
             case "--pm-root":
                 options.pmRoot = requireValue(normalizedArgs, ++i, rawArg);
@@ -920,6 +935,7 @@ Options:
       --since-previous-tag  Derive --since from the previous git tag
       --until <date>        Include items changed on or before this date
       --until-release-tag   Derive --until from the current release tag when it exists
+      --milestones           Generate from immutable tracker release milestones (no git)
       --all-release-tags    Rebuild full history from git release tag windows
       --release-tag-pattern <glob>
                             Git tag glob for --all-release-tags (default: v*)
@@ -1025,6 +1041,8 @@ export async function runCliEntry(argv = process.argv) {
 }
 /** Convert an unknown CLI failure into a stable human-readable message. */
 function errorMessage(error) {
+    if (error instanceof ReleaseMilestoneError)
+        return JSON.stringify({ error: { code: error.code, message: error.message, remedy: error.remedy } });
     return error instanceof Error ? error.message : String(error);
 }
 void runCliEntry();
