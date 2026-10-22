@@ -8,7 +8,7 @@ import { dirname, join, resolve } from "node:path";
 import { DatabaseSync } from "node:sqlite";
 import test from "node:test";
 import { pathToFileURL } from "node:url";
-import { runInit, runCreate } from "@unbrained/pm-cli/sdk";
+import { runInit, runCreate, runUpdate } from "@unbrained/pm-cli/sdk";
 import { activateExtensionForTest, runRegisteredCommandForTest } from "@unbrained/pm-cli/sdk/testing";
 import extension from "../src/extension.ts";
 import { initGitFixture } from "./git-fixture.ts";
@@ -669,4 +669,30 @@ test("a concurrent same-name publication remains an idempotent retry", async () 
     });
     assert.deepEqual(await readReleaseMilestones(concurrent), [expected]);
   } finally { concurrent.db.close(); }
+});
+
+
+test("merged audit commands inspect frozen milestone rows after reopening", async (t) => {
+  const root = mkdtempSync(join(tmpdir(), "pm-release-audit-"));
+  t.after(() => rmSync(root, { recursive: true, force: true }));
+  const pmRoot = join(root, ".agents/pm");
+  await runInit("pm", { path: pmRoot }, { defaults: true, agentGuidance: "skip" });
+  const created = await runCreate({ title: "Frozen parser repair", type: "Issue", status: "closed", closeReason: "Fixed parser; merged PR #12", test: ["command=node --test parser.test.ts,scope=project"], createMode: "progressive" }, { path: pmRoot });
+  await createReleaseMilestone(new DirectoryReleaseMilestoneStore(pmRoot), "audited", await readTrackerReleaseSnapshot(pmRoot));
+  await runUpdate(created.item.id, { status: "open", title: "Reopened live row" }, { path: pmRoot });
+  const writes: string[] = [];
+  const stdoutWrite = process.stdout.write.bind(process.stdout);
+  t.mock.method(process.stdout, "write", (...args: Parameters<typeof process.stdout.write>) => {
+    if (typeof args[0] !== "string") return stdoutWrite(...args);
+    writes.push(args[0]); return true;
+  });
+  await cliTestSurface.main(["audit", "--milestones", "--pm-root", pmRoot, "--format", "json"]);
+  const cli = JSON.parse(writes.join("")) as { unsupported_count: number; claims: Array<{ claim: string; gaps: string[] }> };
+  assert.equal(cli.unsupported_count, 1);
+  assert.match(cli.claims[0]!.claim, /Frozen parser repair/);
+  assert.deepEqual(cli.claims[0]!.gaps, ["test_result"]);
+  const activation = await activateExtensionForTest(extension, { name: "pm-changelog", capabilities: ["commands", "schema", "importers", "renderers"] });
+  const host = await runRegisteredCommandForTest(activation.commands, { command: "changelog audit", pmRoot, options: { milestones: true, format: "json" } });
+  const report = JSON.parse((host.result as { output: string }).output) as typeof cli;
+  assert.deepEqual(report, cli);
 });
