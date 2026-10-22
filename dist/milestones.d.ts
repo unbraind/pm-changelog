@@ -23,7 +23,7 @@ export interface ReleaseMilestone extends TrackerReleaseSnapshot {
     readonly query: string;
     readonly fingerprint: string;
 }
-/** Backend adapter: publish must be atomic and must never replace an existing name. */
+/** Backend adapter: publish atomically refuses replacement and non-monotonic capture times. */
 export interface ReleaseMilestoneStore {
     read(name: string): Promise<unknown | undefined>;
     publish(name: string, milestone: ReleaseMilestone): Promise<boolean>;
@@ -35,10 +35,10 @@ export declare function parseReleaseMilestone(value: unknown): ReleaseMilestone;
 export declare function createReleaseMilestone(store: ReleaseMilestoneStore, name: string, snapshot: TrackerReleaseSnapshot, query?: string): Promise<ReleaseMilestone>;
 /** Read all named boundaries, verifying identities instead of trusting backend rows. */
 export declare function readReleaseMilestones(store: ReleaseMilestoneStore): Promise<ReleaseMilestone[]>;
-/** Convert frozen membership into generator input, retaining late-close attribution.
- * The first captured closed row keeps its prose, even after a later reopening.
- * Open members may close in a later snapshot or the current tracker and still
- * belong to the first boundary containing their ID. Nonmembers stay Unreleased. */
+/** Attribute each item to its first closed capture, preserving the frozen row.
+ * Open captures never reserve membership; live closures stay Unreleased until
+ * captured closed. Later tracker edits, reopenings and deletions cannot grow or
+ * rewrite an earlier release. */
 export declare function resolveTrackerReleaseHistory(milestones: readonly ReleaseMilestone[], currentItems: readonly PmItem[]): {
     items: PmItem[];
     releaseWindows: ChangelogReleaseWindow[];

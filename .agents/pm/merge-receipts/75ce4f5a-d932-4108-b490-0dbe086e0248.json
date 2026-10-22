@@ -1,0 +1,39 @@
+{
+  "version": 1,
+  "id": "75ce4f5a-d932-4108-b490-0dbe086e0248",
+  "item_path": ".agents/pm/issues/pmc-rspo.toon",
+  "item_id": "pmc-rspo",
+  "requested_preference": "ours",
+  "requested_preference_applied": false,
+  "conflict_resolution": "latest_document_update",
+  "fields_from_theirs": [
+    "actual_result",
+    "close_reason",
+    "closed_at",
+    "completed_at",
+    "expected_result",
+    "resolution",
+    "status"
+  ],
+  "union_fields": [],
+  "merged_field_hashes": {
+    "actual_result": "d1129884f671fad64f1d6295528f0026bfb9dd63b70298864612b81970ebefbf",
+    "close_reason": "d1129884f671fad64f1d6295528f0026bfb9dd63b70298864612b81970ebefbf",
+    "closed_at": "6a6fbe7fbc9a0e08ef1d85a5616f459fe15ada8a03a7e70d5ad7c0b3a7df2c26",
+    "completed_at": "6a6fbe7fbc9a0e08ef1d85a5616f459fe15ada8a03a7e70d5ad7c0b3a7df2c26",
+    "expected_result": "22daa9b096e5e0068c4ec9a480d366e938fde6effd960a92dc01afc644f852e9",
+    "resolution": "d1129884f671fad64f1d6295528f0026bfb9dd63b70298864612b81970ebefbf",
+    "status": "e5e67a803409586c54cee3f18f070017df2159c846604afbe3c7a7b600a341d9"
+  },
+  "decisions": [],
+  "operation": {
+    "kind": "merge",
+    "original_head": "50f4ea9c78dd3b3f3beef810623173d6e2f826e0",
+    "original_blob": "159dd7a0dd8819515613d362c0b67da6940ebc26"
+  },
+  "state": "reconciled",
+  "created_at": "2026-10-22T20:25:52.595Z",
+  "value_availability": "hash_only",
+  "value_policy": "bounded_non_sensitive_scalars_v1",
+  "reconciled_at": "2026-10-22T20:34:20.395Z"
+}

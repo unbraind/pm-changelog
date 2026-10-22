@@ -221,7 +221,7 @@ async function main(args: string[] = process.argv.slice(2)): Promise<void> {
   if (options.milestones) assertTrackerMilestoneOptions([
     options.allReleaseTags, options.sincePreviousTag, options.untilReleaseTag, options.versionFromPackage,
     options.version, options.date, options.dateFallback, options.dateFromVersion, options.since, options.until,
-    options.dependencyUpdates, options.respectItemRelease, options.groupBy !== "version", options.input, options.stdin,
+    options.dependencyUpdates, options.respectItemRelease, options.groupBy !== "version", options.input, options.stdin, options.pmBin, options.pmArgs.length, options.bodyPreview,
   ]);
   else applyReleaseContext(options);
   const milestoneRoot = options.milestones ? resolvePmRoot(options.pmCwd ? resolve(options.pmCwd) : process.cwd(), options.pmRoot) : undefined;

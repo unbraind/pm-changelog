@@ -195,3 +195,10 @@ pm init --json
 pm install npm:pm-changelog --project --json
 pm package doctor --project --json --detail deep
 ```
+
+
+Explicit tag options now refuse outside Git, including source archives and
+container contexts that omit repository metadata. This is a compatibility change
+from the former single-section fallback; the generated changelog carries a notice.
+Git's dubious-ownership refusal is reported separately. Verify ownership and trust
+before using its exact-directory `safe.directory` recovery command.

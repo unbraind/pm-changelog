@@ -6,10 +6,12 @@ status: in_progress
 priority: 1
 tags[3]: added,changelog,no-git
 created_at: "2026-10-21T18:17:49.989Z"
-updated_at: "2026-10-22T19:34:11.575Z"
+updated_at: "2026-10-22T20:50:59.259Z"
+assignee: codex-agent
+claim_principal: codex-agent
 author: codex-agent
 acceptance_criteria: Plain-directory and synthetic database milestones generate identical notes; changed milestone membership refuses; git-tag behavior remains separately tested; typed SDK and CLI create and generate without git; compact agent receipts and typed refusals with remedies; README and example; measured validation on a read-only public tracker copy; npm and Bun release gates at unchanged thresholds; behavioral revert proof.
-comments[29]{created_at,author,text}:
+comments[33]{created_at,author,text}:
   "2026-10-21T18:18:35.166Z",codex-agent,"Overlap rechecked against the pinned core SDK and sibling pm-context and pm-web packages: workspace snapshots store and verify tracker state; context receipts store bounded context reads; changelog --group-by milestone uses mutable item metadata and tracker-only input lacks a first-class immutable release source. None supplies frozen release membership and late-close attribution. Implement an atomic immutable store contract, a directory adapter, SDK snapshot input and a real SQLite test adapter; preserve existing git-tag tests and add no-git regressions."
   "2026-10-21T18:24:44.292Z",codex-agent,"Focused tests passed 4/4, including real SQLite versus directory parity, concurrent no-replace publication, changed membership refusal, fingerprint verification and real initialized tracker creation/generation with PATH containing no git executable. Public origin/main tracker validation at 56f8536702f6d3266825534d502a3dfc947cfb83: 189 scanned and frozen members, 165 emitted entries, 4 excluded non-change closures, 1 populated release section, 13229 markdown bytes, 34582 summary JSON bytes; repeat output byte-identical; changed membership refused; all 387 source files unchanged on a read-only copy. Full coverage and required release gates are pending."
   "2026-10-21T18:27:06.107Z",codex-agent,"Behavioral revert proof on isolated source copies: removing only the createReleaseMilestone changed-membership refusal makes the real directory/SQLite regression fail with Missing expected rejection (exit 1); reverting only resolveTrackerReleaseHistory frozen-row selection to current rows makes the same regression fail on emitted entry count (exit 1). Production source stayed intact. Actual pinned pm host milestone create passed in both JSON and TOON modes with no git on PATH; standalone generate and summary also passed."
@@ -39,11 +41,18 @@ comments[29]{created_at,author,text}:
   "2026-10-22T19:20:59.097Z",codex-agent,"Follow-up review after orchestrator extension: rechecked clean worktree and released in-progress item, pulled remote 40a63c87 and merged origin/main because the branch was behind by one dependency/template commit. npm ci passed with zero audit vulnerabilities; pins were not independently changed. Previously fixed findings remain complete. New unresolved thread PRRT_kwDOSfkApc6vLTfT is valid: non-git recoveryCommands contains a shell placeholder and alternative workflows rather than executable tag-history repairs. Return an empty list, retain alternatives in the message, clarify usage/release recovery docs. New real plain-tracker regression covers all three tag flags with git available and absent. Initial test failed 1/1 on the actual command list versus expected empty list; isolated behavioral revert and full unchanged npm/Bun gates follow. Latest CodeRabbit body has no outside-diff findings."
   "2026-10-22T19:25:50.684Z",codex-agent,"PRRT_kwDOSfkApc6vLTfT fixed: assertReleaseTagHistory now supplies [] outside Git or when git cannot execute; alternative tracker workflows remain only in prose. Self-review checked every MissingTagHistoryError construction, its consumers and milestone diagnostics: shallow/no-tags cases retain executable fetch/config recovery; the remaining milestone-name placeholder belongs to a human-readable remedy, not this executable command list. Clarified usage and release docs. Behavioral revert: restoring only the prior assertReleaseTagHistory implementation makes node --test --test-name-pattern \"non-git tag refusals\" test/milestones.test.ts fail 1/1 (exit 1), actual two milestone workflow commands versus expected empty array. Restored source rebuilt; focused milestone suite 11/11, adjacent shallow/full/no-tags controls plus new regression 4/4, pm-linked new regression 1/1; all zero failures/skips. npm ci/build/build:test/docstring (18 files/180 declarations) and whitespace checks passed. Full npm/Bun release gates at unchanged thresholds follow after push; no old fix or history record was rewritten."
   "2026-10-22T19:34:05.600Z",codex-agent,"Follow-up source head 18bc228aa793ece00525c19cbefe73c6e6cf8ad4 passed CI https://github.com/unbraind/pm-changelog/actions/runs/39840186537: npm run release:check and bun run release:check on Node 22 and 26 each passed 794/794 tests, zero failures/skips/cancellations/todos (3176 passing executions). All gates retained 100% lines/branches/functions across 15 measured source files and 18 files/180 documented declarations; direct Bun CLI/SDK smoke passed 2/2 in each job. Tracker health, audit, pack, changelog/link/date and attestation checks passed. The new failing behavioral revert and restored 11/11 milestone, 4/4 adjacent and 1/1 pm-linked checks are recorded above. Local clean-HOME npm attempt was unfinished with no failure reported before being stopped after clean CI passed; it is not a passing local gate. Rechecked threads: only the addressed thread remains unresolved; latest CodeRabbit body still has no outside-diff finding. No new PM CLI/SDK bug established. Existing statement metric and custom-folder limits remain separately tracked. Release claim without closing the in-progress item; final tracker-only receipt commit will receive its own CI run."
-files[10]:
+  "2026-10-22T20:27:18.044Z",codex-agent,"Orchestrator follow-up: pulled remote head and merged origin/main before edits. Blocking late-close attribution confirmed: only the first closed capture may own a release entry; open captures must not reserve release membership. Also verify monotonic offset-bearing capture times, compact render-input snapshots, non-git diagnostics/contract notice, CLI source conflicts, Git-resolved projection counts, portable milestone names, and existing direct Bun runtime coverage. Preserve completed fixes; add independent failing revert proofs and unchanged full npm/Bun gates."
+  "2026-10-22T20:50:12.890Z",codex-agent,"Blocking attribution now uses each ID's first closed capture and its own frozen row. Open captures never reserve ownership; live closures remain Unreleased until captured closed. Strict RFC3339 offsets/calendar validation, strictly advancing instants, tied-order refusal and locked final publication guard prevent clock reordering. Snapshot creation and certified SDK reads retain only rendering/classification/ordering inputs, omit bodies/descriptions/comments/unrelated metadata and linked notes, and reject body-preview in milestone CLI/host flows. New names are lowercase portable tokens with reserved-device and legacy case-variant checks. Ignored pm-bin/pm-arg options now refuse. Dubious Git ownership has a separate diagnostic and exact-directory recovery after trust verification; corrected stale comment. A generated compatibility notice documents the non-git tag contract through the project changelog entrypoint; the new script is added to measured coverage with thresholds unchanged. Git-resolved projection counts were already correct; real tagged-tracker reopened-row regressions now cover all CLI/host summary and semver/explain paths. Bun script gate is explicitly labeled as such and existing direct Bun CLI/SDK smoke remains independently guarded. Self-review covered each attribution/input-projection/source-option/count consumer and storage name/clock paths."
+  "2026-10-22T20:50:18.682Z",codex-agent,"Twelve independent behavioral revert proofs (each one assertion failure, exit 1, followed by restoration; CLI/extension dist rebuilt around applicable reverts): closed-attribution: node --test --test-name-pattern open milestone members test/milestones.test.ts; monotonic-publication: node --test --test-name-pattern directory publication serializes test/milestones.test.ts; offset-validation: node --test --test-name-pattern RFC3339 offsets test/milestones.test.ts; snapshot-projection: node --test --test-name-pattern milestone snapshots omit bodies test/milestones.test.ts; portable-names: node --test --test-name-pattern case variants test/milestones.test.ts; git-ownership: node --test --test-name-pattern dubious Git ownership test/milestones.test.ts; cli-source-conflicts: node --test --test-name-pattern real plain tracker CLI test/milestones.test.ts; extension-body-conflict: node --test --test-name-pattern real plain tracker CLI test/milestones.test.ts; git-cli-counts: node --test --test-name-pattern Git-resolved non-change counts test/release-membership.test.ts; git-extension-counts: node --test --test-name-pattern Git-resolved non-change counts test/release-membership.test.ts; compatibility-notice: node --test --test-name-pattern generated changelog declares test/milestones.test.ts; bun-runtime-guard: node --test --test-name-pattern CI retains test/release-workflow.test.ts. Fixed focused milestone/history/workflow suites passed 52/52 before the final presence/diagnostic assertions. Six core regressions were also red on the initial code. Latest complete review read has no unresolved threads or outside-diff findings; the supplied orchestrator findings govern this round."
+  "2026-10-22T20:50:23.642Z",codex-agent,"Required main merge produced a pending tracker receipt. Pinned reconciliation first refused absent staged evidence; its guarded stage option then failed on the ignored sidecar directory. Reviewed the generated public hash-only sidecar, explicitly staged that single path, and reconciled successfully with zero drift. No manual history repair or re-anchor command was run. Preserve this SDK staging UX gap in the final report."
+files[12]:
   - path: .github/workflows/ci.yml
     scope: project
   - path: manifest.json
     scope: project
+  - path: scripts/project-changelog.ts
+    scope: project
+    note: Portable project changelog entrypoint with generated compatibility notice and measured coverage
   - path: src/cli.ts
     scope: project
   - path: src/extension.ts
@@ -60,16 +69,45 @@ files[10]:
     note: Direct Bun CLI and SDK smoke
   - path: test/milestones.test.ts
     scope: project
+  - path: test/release-membership.test.ts
+    scope: project
+    note: Frozen non-change Git counts across CLI and host projections
   - path: test/release-workflow.test.ts
     scope: project
     note: CI Bun invocation regression
-tests[3]{command,scope,provenance{author,created_at,source_kind,source_ref}}:
-  node --test test/milestones.test.ts,project,codex-agent,"2026-10-21T18:24:28.785Z",local_mutation,feat/tracker-release-milestones
-  node --test test/milestones.test.ts test/release-workflow.test.ts,project,codex-agent,"2026-10-22T09:35:08.613Z",local_mutation,feat/tracker-release-milestones
-  "node --test --test-name-pattern \"non-git tag refusals\" test/milestones.test.ts",project,codex-agent,"2026-10-22T19:22:51.311Z",local_mutation,feat/tracker-release-milestones
+tests[4]:
+  - command: node --test test/milestones.test.ts
+    scope: project
+    provenance:
+      author: codex-agent
+      created_at: "2026-10-21T18:24:28.785Z"
+      source_kind: local_mutation
+      source_ref: feat/tracker-release-milestones
+  - command: node --test test/milestones.test.ts test/release-workflow.test.ts
+    scope: project
+    provenance:
+      author: codex-agent
+      created_at: "2026-10-22T09:35:08.613Z"
+      source_kind: local_mutation
+      source_ref: feat/tracker-release-milestones
+  - command: "node --test --test-name-pattern \"non-git tag refusals\" test/milestones.test.ts"
+    scope: project
+    provenance:
+      author: codex-agent
+      created_at: "2026-10-22T19:22:51.311Z"
+      source_kind: local_mutation
+      source_ref: feat/tracker-release-milestones
+  - command: "node --test --test-name-pattern \"Git-resolved non-change counts\" test/release-membership.test.ts"
+    scope: project
+    timeout_seconds: 180
+    provenance:
+      author: codex-agent
+      created_at: "2026-10-22T20:50:58.944Z"
+      source_kind: local_mutation
+      source_ref: feat/tracker-release-milestones
 docs[4]{path,scope,note}:
   docs/release.md,project,Recovery commands distinguish missing Git prerequisites from repairable tag history
-  docs/tracker-milestones.md,project,SDK adapter example and immutable release contract
+  docs/tracker-milestones.md,project,"First closed capture, strict times, compact fields and transactional publication contract"
   docs/usage.md,project,Empty machine recovery list outside a Git repository
   README.md,project,CLI release-source and Without git documentation
 body: ""

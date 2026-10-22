@@ -27,13 +27,20 @@ consistent read and implement `ReleaseMilestoneStore`:
 
 - `read(name)` returns the original complete milestone or `undefined`.
 - `publish(name, milestone)` atomically inserts only if the name is absent and
-  returns whether insertion won. Never update an existing name.
+  returns whether insertion won. Never update an existing name. Under the same
+  transaction or writer lock, reject a new name whose capture time is not strictly
+  later than every committed milestone; also reject case-folded name collisions.
 - `names()` returns every committed release name.
 
-Persist the full snapshot, not just the receipt. Pass untrusted persisted data
+Persist the compact render-input snapshot, not just the receipt. Pass untrusted persisted data
 through `parseReleaseMilestone`; `readReleaseMilestones` does this automatically.
-Snapshots use their JSON representation for fingerprinting and storage, including
-JSON conversion of dates, custom `toJSON` values and missing array entries.
+Creation projects tracker rows onto rendered fields and classification/ordering
+inputs before JSON normalization and fingerprinting. Body, description, comments,
+unrelated metadata and linked-record notes are omitted. Linked evidence retains
+only path/command or delivery-state/reference fields. `--body-preview` is therefore
+incompatible with milestone generation; use ordinary tracker generation for body
+previews. Retained fields use JSON conversion of dates, custom `toJSON` values and
+missing array entries.
 Fingerprints detect accidental edits; they are integrity checks, not signatures
 or authorization controls. The directory adapter publishes a fully written file
 using an atomic hard link after syncing its data, then syncs the containing
@@ -50,7 +57,19 @@ compact JSON error on stderr and exits nonzero. Codes cover invalid snapshots or
 queries, changed membership, missing milestones, storage faults and conflicting
 release-source options. A failed read never silently generates an empty release.
 
-The resolver keeps the first captured closed row for each ID, including closures
-first observed in a later milestone. That completion stays under the first
-milestone containing the ID even if the current tracker reopens or deletes it.
-Until a closed row is captured, a selected open member can use its live closure.
+The resolver assigns an ID to the first milestone that captures it **closed**,
+using that milestone's frozen row. An earlier open capture reserves no release
+membership. Until a closed row is captured, a live closure remains Unreleased.
+Later edits, reopenings and deletion cannot add to or rewrite an earlier release.
+
+New milestone names use lowercase ASCII letters, digits, dots, underscores and
+hyphens, excluding reserved device names. Existing case variants cannot create
+separate releases. Capture times must be calendar-valid RFC 3339 timestamps with
+an explicit `Z` or numeric offset, strictly later than all existing captures.
+Backward or equal clocks refuse before publication; equal instants supplied to
+the resolver also refuse rather than using name order as chronology.
+
+The directory adapter serializes the final clock check and publication with
+`.writer-lock`. It never steals a held lock. A prolonged lock becomes a recoverable
+storage refusal; check for an active writer before investigating an abandoned
+lock. Database adapters must enforce the same ordering inside their transaction.

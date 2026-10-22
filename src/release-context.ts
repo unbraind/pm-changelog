@@ -1,4 +1,4 @@
-import { execFileSync } from "node:child_process";
+import { execFileSync, spawnSync } from "node:child_process";
 import { existsSync, readFileSync } from "node:fs";
 import { dirname, join, parse, resolve } from "node:path";
 
@@ -148,7 +148,16 @@ export function assertReleaseTagHistory(options: AssertReleaseTagHistoryOptions)
   const requiredBy = options.requiredBy.filter(Boolean);
   const subject = requiredBy.length > 0 ? requiredBy.join(" ") : "Tag-derived release windows";
   const verb = requiredBy.length === 1 ? "requires" : "require";
-  if (!runGit(cwd, ["rev-parse", "--git-dir"])) {
+  const probe = spawnSync("git", ["rev-parse", "--git-dir"], { cwd, encoding: "utf8" });
+  if (probe.status !== 0) {
+    if (/dubious ownership/i.test(probe.stderr ?? "")) {
+      const quoted = `'${cwd.replace(/'/g, "'\\''")}'`;
+      throw new MissingTagHistoryError(
+        `${subject} cannot inspect Git tag history because Git refused dubious ownership. ` +
+        "Verify the repository ownership and trust before adding its exact directory to safe.directory, then retry.",
+        [`git config --global --add safe.directory ${quoted}`],
+      );
+    }
     throw new MissingTagHistoryError(
       `${subject} needs a git repository; ${cwd} is not inside one or git is unavailable. ` +
       "Tracker-only generation and --milestones still work without git.",
@@ -207,8 +216,8 @@ function tagExcludingRemote(cwd: string): string | undefined {
 
 function isShallowRepository(cwd: string): boolean {
   // `--is-shallow-repository` resolves through worktree `.git` files, unlike a
-  // literal `.git/shallow` path probe. When git itself is unavailable (not a
-  // repository) the lookup fails open so existing non-git fallbacks are kept.
+  // literal `.git/shallow` path probe. The public preflight has already refused
+  // missing repositories or an unavailable git executable before this lookup.
   return runGit(cwd, ["rev-parse", "--is-shallow-repository"]) === "true";
 }
 

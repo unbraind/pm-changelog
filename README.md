@@ -310,23 +310,26 @@ are ANDed; comma-separated values within a term are alternatives. Values are
 case-sensitive. This is a deliberately small selection grammar, not a shell
 command. Use `status:closed` when only already-completed work belongs to a release.
 
-The first milestone containing an ID owns its release attribution. Open members
-that close later remain in that release; items outside every milestone appear in
-Unreleased. Closed snapshots retain their recorded prose even after edits,
-reopening or deletion. A late close captured by a later milestone also survives
-subsequent reopening and retains its original release attribution. Normal status
-and non-change-closure filters still apply.
-Milestones are ordered by capture time, with names breaking ties. Repeating a
+An ID belongs to the first milestone that captures it closed, using that frozen
+row. Earlier open captures reserve no release membership; live closures remain
+Unreleased until captured closed. Later edits, reopening and deletion cannot grow
+or rewrite an earlier release. Normal status and non-change filters still apply.
+New captures must have strictly increasing RFC 3339 instants with explicit offsets;
+backward/equal clocks and ambiguous ordering refuse. Repeating a
 name with the same IDs returns the original snapshot; changed membership refuses
 with `milestone_membership_changed` and a remedy to create a new name. Snapshot
-fingerprints are checked before generation. Names are safe tokens of at most 80
-characters; snapshots live under the tracker's `changelog/milestones/` directory.
+fingerprints are checked before generation. New names are lowercase portable
+tokens of at most 80 characters, excluding reserved device names. Snapshots live
+under the tracker's `changelog/milestones/` directory.
 Keep these records with tracker backups and synchronize them with tracker data.
 The creation receipt contains only name, fingerprint, timestamp and item count;
-full member rows are not printed. The host renders receipts as TOON or JSON.
+body/description, comments and unrelated metadata are never stored. Retained
+rendering and classification fields are fingerprinted; full rows are not printed.
+The host renders receipts as TOON or JSON.
 
 `--milestones` selects the release source. Git-window, explicit version/date and
-metadata-grouping options cannot be combined with it. Existing `--group-by
+metadata-grouping options, `--body-preview`, `--pm-bin` and `--pm-arg` cannot be
+combined with it. Existing `--group-by
 milestone` remains mutable item-field grouping. A tracker inside a Git repository
 can still use `--all-release-tags` in a separate invocation. Outside a Git
 repository, explicit tag options (`--all-release-tags`, `--since-previous-tag`,

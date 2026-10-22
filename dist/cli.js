@@ -120,7 +120,7 @@ async function main(args = process.argv.slice(2)) {
         assertTrackerMilestoneOptions([
             options.allReleaseTags, options.sincePreviousTag, options.untilReleaseTag, options.versionFromPackage,
             options.version, options.date, options.dateFallback, options.dateFromVersion, options.since, options.until,
-            options.dependencyUpdates, options.respectItemRelease, options.groupBy !== "version", options.input, options.stdin,
+            options.dependencyUpdates, options.respectItemRelease, options.groupBy !== "version", options.input, options.stdin, options.pmBin, options.pmArgs.length, options.bodyPreview,
         ]);
     else
         applyReleaseContext(options);

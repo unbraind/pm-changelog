@@ -150,6 +150,7 @@ export default defineExtension({
                 const milestones = booleanOption(ctx.options, "milestones", "milestones");
                 if (milestones)
                     assertTrackerMilestoneOptions([
+                        ctx.options["body-preview"], ctx.options.bodyPreview,
                         ...["all-release-tags", "since-previous-tag", "until-release-tag", "release-version-from-package", "release-version", "date", "date-fallback", "date-from-version", "since", "until", "dependency-updates", "respect-item-release"].map((key) => ctx.options[key] ?? ctx.options[key.replace(/-([a-z])/g, (_, character) => character.toUpperCase())]),
                         groupBy !== "version",
                     ]);
