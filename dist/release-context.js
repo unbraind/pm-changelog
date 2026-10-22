@@ -58,7 +58,7 @@ export function assertReleaseTagHistory(options) {
     const verb = requiredBy.length === 1 ? "requires" : "require";
     if (!runGit(cwd, ["rev-parse", "--git-dir"])) {
         throw new MissingTagHistoryError(`${subject} needs a git repository; ${cwd} is not inside one or git is unavailable. ` +
-            "Tracker-only generation and --milestones still work without git.", ["pm changelog milestone create <name>", "pm changelog generate --milestones --stdout"]);
+            "Tracker-only generation and --milestones still work without git.", []);
     }
     const noTagsRemote = tagExcludingRemote(cwd);
     if (isShallowRepository(cwd)) {

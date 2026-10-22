@@ -15,7 +15,7 @@ import { cliTestSurface } from "../src/cli.ts";
 import { createChangelog } from "../src/generator.ts";
 import {
   DirectoryReleaseMilestoneStore, ReleaseMilestoneError, assertTrackerMilestoneOptions,
-  MissingTagHistoryError, resolveReleaseTagWindows,
+  MissingTagHistoryError, assertReleaseTagHistory, resolveReleaseTagWindows,
   createReleaseMilestone, parseReleaseMilestone, readReleaseMilestones,
   readTrackerReleaseSnapshot, resolveTrackerReleaseHistory,
 } from "../src/index.ts";
@@ -420,4 +420,31 @@ test("milestone JSON counts use frozen non-change closures across CLI and extens
 test("milestone documentation describes explicit tag refusal outside Git", () => {
   const readme = readFileSync(resolve("README.md"), "utf8");
   assert.match(readme, /Outside a Git\s+repository, explicit tag options \(`--all-release-tags`, `--since-previous-tag`,\s+and `--until-release-tag`\) now fail with `MissingTagHistoryError`/);
+});
+
+
+test("non-git tag refusals expose no executable recovery commands", async () => {
+  const root = mkdtempSync(join(tmpdir(), "pm-release-recovery-"));
+  const originalPath = process.env.PATH;
+  const originalCeiling = process.env.GIT_CEILING_DIRECTORIES;
+  try {
+    await runInit("pm", { path: join(root, ".agents", "pm") }, { defaults: true, agentGuidance: "skip" });
+    process.env.GIT_CEILING_DIRECTORIES = dirname(root);
+    for (const path of [originalPath ?? "", ""]) {
+      process.env.PATH = path;
+      for (const requiredBy of [["--all-release-tags"], ["--since-previous-tag"], ["--until-release-tag"]]) {
+        assert.throws(() => assertReleaseTagHistory({ cwd: root, requiredBy }), (error: unknown) => {
+          assert.ok(error instanceof MissingTagHistoryError);
+          assert.equal(error.code, "E_MISSING_TAG_HISTORY");
+          assert.deepEqual(error.recoveryCommands, []);
+          assert.match(error.message, /Tracker-only generation and --milestones still work without git/);
+          return true;
+        });
+      }
+    }
+  } finally {
+    if (originalPath === undefined) delete process.env.PATH; else process.env.PATH = originalPath;
+    if (originalCeiling === undefined) delete process.env.GIT_CEILING_DIRECTORIES; else process.env.GIT_CEILING_DIRECTORIES = originalCeiling;
+    rmSync(root, { recursive: true, force: true });
+  }
 });
