@@ -6,12 +6,12 @@ status: in_progress
 priority: 1
 tags[3]: added,changelog,no-git
 created_at: "2026-10-21T18:17:49.989Z"
-updated_at: "2026-10-22T20:50:59.259Z"
+updated_at: "2026-10-22T21:02:13.039Z"
 assignee: codex-agent
 claim_principal: codex-agent
 author: codex-agent
 acceptance_criteria: Plain-directory and synthetic database milestones generate identical notes; changed milestone membership refuses; git-tag behavior remains separately tested; typed SDK and CLI create and generate without git; compact agent receipts and typed refusals with remedies; README and example; measured validation on a read-only public tracker copy; npm and Bun release gates at unchanged thresholds; behavioral revert proof.
-comments[33]{created_at,author,text}:
+comments[34]{created_at,author,text}:
   "2026-10-21T18:18:35.166Z",codex-agent,"Overlap rechecked against the pinned core SDK and sibling pm-context and pm-web packages: workspace snapshots store and verify tracker state; context receipts store bounded context reads; changelog --group-by milestone uses mutable item metadata and tracker-only input lacks a first-class immutable release source. None supplies frozen release membership and late-close attribution. Implement an atomic immutable store contract, a directory adapter, SDK snapshot input and a real SQLite test adapter; preserve existing git-tag tests and add no-git regressions."
   "2026-10-21T18:24:44.292Z",codex-agent,"Focused tests passed 4/4, including real SQLite versus directory parity, concurrent no-replace publication, changed membership refusal, fingerprint verification and real initialized tracker creation/generation with PATH containing no git executable. Public origin/main tracker validation at 56f8536702f6d3266825534d502a3dfc947cfb83: 189 scanned and frozen members, 165 emitted entries, 4 excluded non-change closures, 1 populated release section, 13229 markdown bytes, 34582 summary JSON bytes; repeat output byte-identical; changed membership refused; all 387 source files unchanged on a read-only copy. Full coverage and required release gates are pending."
   "2026-10-21T18:27:06.107Z",codex-agent,"Behavioral revert proof on isolated source copies: removing only the createReleaseMilestone changed-membership refusal makes the real directory/SQLite regression fail with Missing expected rejection (exit 1); reverting only resolveTrackerReleaseHistory frozen-row selection to current rows makes the same regression fail on emitted entry count (exit 1). Production source stayed intact. Actual pinned pm host milestone create passed in both JSON and TOON modes with no git on PATH; standalone generate and summary also passed."
@@ -45,6 +45,7 @@ comments[33]{created_at,author,text}:
   "2026-10-22T20:50:12.890Z",codex-agent,"Blocking attribution now uses each ID's first closed capture and its own frozen row. Open captures never reserve ownership; live closures remain Unreleased until captured closed. Strict RFC3339 offsets/calendar validation, strictly advancing instants, tied-order refusal and locked final publication guard prevent clock reordering. Snapshot creation and certified SDK reads retain only rendering/classification/ordering inputs, omit bodies/descriptions/comments/unrelated metadata and linked notes, and reject body-preview in milestone CLI/host flows. New names are lowercase portable tokens with reserved-device and legacy case-variant checks. Ignored pm-bin/pm-arg options now refuse. Dubious Git ownership has a separate diagnostic and exact-directory recovery after trust verification; corrected stale comment. A generated compatibility notice documents the non-git tag contract through the project changelog entrypoint; the new script is added to measured coverage with thresholds unchanged. Git-resolved projection counts were already correct; real tagged-tracker reopened-row regressions now cover all CLI/host summary and semver/explain paths. Bun script gate is explicitly labeled as such and existing direct Bun CLI/SDK smoke remains independently guarded. Self-review covered each attribution/input-projection/source-option/count consumer and storage name/clock paths."
   "2026-10-22T20:50:18.682Z",codex-agent,"Twelve independent behavioral revert proofs (each one assertion failure, exit 1, followed by restoration; CLI/extension dist rebuilt around applicable reverts): closed-attribution: node --test --test-name-pattern open milestone members test/milestones.test.ts; monotonic-publication: node --test --test-name-pattern directory publication serializes test/milestones.test.ts; offset-validation: node --test --test-name-pattern RFC3339 offsets test/milestones.test.ts; snapshot-projection: node --test --test-name-pattern milestone snapshots omit bodies test/milestones.test.ts; portable-names: node --test --test-name-pattern case variants test/milestones.test.ts; git-ownership: node --test --test-name-pattern dubious Git ownership test/milestones.test.ts; cli-source-conflicts: node --test --test-name-pattern real plain tracker CLI test/milestones.test.ts; extension-body-conflict: node --test --test-name-pattern real plain tracker CLI test/milestones.test.ts; git-cli-counts: node --test --test-name-pattern Git-resolved non-change counts test/release-membership.test.ts; git-extension-counts: node --test --test-name-pattern Git-resolved non-change counts test/release-membership.test.ts; compatibility-notice: node --test --test-name-pattern generated changelog declares test/milestones.test.ts; bun-runtime-guard: node --test --test-name-pattern CI retains test/release-workflow.test.ts. Fixed focused milestone/history/workflow suites passed 52/52 before the final presence/diagnostic assertions. Six core regressions were also red on the initial code. Latest complete review read has no unresolved threads or outside-diff findings; the supplied orchestrator findings govern this round."
   "2026-10-22T20:50:23.642Z",codex-agent,"Required main merge produced a pending tracker receipt. Pinned reconciliation first refused absent staged evidence; its guarded stage option then failed on the ignored sidecar directory. Reviewed the generated public hash-only sidecar, explicitly staged that single path, and reconciled successfully with zero drift. No manual history repair or re-anchor command was run. Preserve this SDK staging UX gap in the final report."
+  "2026-10-22T21:02:07.917Z",codex-agent,"Corrected the added empty pm-bin test to expect the existing parser value error; this was an assertion mismatch, not a product failure. The affected pm-linked commands pass on retry: milestone suite 21/21 and milestone/workflow suite 39/39, each zero failures; the other two linked commands passed 1/1 each. Self-review then reproduced a same-name writer interleaving using real SQL storage: another writer commits between read and names, and the creation guard incorrectly rejected the idempotent retry. Skip the same candidate name during preliminary chronology checks; final locked publication and original membership verification still govern the result. New concurrent/compact controls pass 2/2. Thirteenth independent revert restored only assertCaptureOrder from source 70f3887: node --test --test-name-pattern \"concurrent same-name\" test/milestones.test.ts fails 1/1, exit 1, unexpected clock refusal. Restored source and rebuilt dist; build/build:test/docstrings pass. Live main advanced during work with PR 267, causing GitHub to withhold pull-request CI; commit this verified increment, merge current origin/main, preserve both feature paths and rerun complete gates."
 files[12]:
   - path: .github/workflows/ci.yml
     scope: project
@@ -75,7 +76,7 @@ files[12]:
   - path: test/release-workflow.test.ts
     scope: project
     note: CI Bun invocation regression
-tests[4]:
+tests[5]:
   - command: node --test test/milestones.test.ts
     scope: project
     provenance:
@@ -103,6 +104,13 @@ tests[4]:
     provenance:
       author: codex-agent
       created_at: "2026-10-22T20:50:58.944Z"
+      source_kind: local_mutation
+      source_ref: feat/tracker-release-milestones
+  - command: "node --test --test-name-pattern \"concurrent same-name|compact snapshots preserve\" test/milestones.test.ts"
+    scope: project
+    provenance:
+      author: codex-agent
+      created_at: "2026-10-22T21:02:12.735Z"
       source_kind: local_mutation
       source_ref: feat/tracker-release-milestones
 docs[4]{path,scope,note}:

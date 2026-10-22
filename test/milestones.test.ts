@@ -617,7 +617,7 @@ test("compact snapshots preserve rendering and classification without unrelated 
   try {
     const row: PmItem = { id: "rendered", title: "Parser feature", type: "Issue", status: "closed", close_reason: "Fixed parsing", actual_result: "Delivered PR #12", resolution: "Fixed parser", priority: 1, tags: ["shipping"], author: "fixture-agent", url: "https://example.com/feature", breaking: true,
       body: "PRIVATE BODY", description: "PRIVATE DESCRIPTION", metadata: { breaking: true, release: "r1", milestone: "m1", internal: "PRIVATE METADATA" },
-      files: [null, false, {}, { path: 2 }, { path: "src/parser.ts", note: "PRIVATE FILE" }],
+      files: [null, false, 7, "ignored", {}, { path: 2 }, { path: "src/parser.ts", note: "PRIVATE FILE" }],
       tests: [null, {}, { command: "node --test test/parser.test.ts", path: "test/parser.test.ts", note: "PRIVATE TEST" }],
       links: [false, {}, "merged PR #12", { state: "merged", relation: "delivered", url: "https://github.com/example/project/pull/12", note: "PRIVATE LINK" }],
     };
@@ -647,4 +647,26 @@ test("publication lock reports non-contention filesystem failures", async (t) =>
   } finally {
     t.mock.restoreAll(); syncBuiltinESMExports(); sql.db.close(); rmSync(root, { recursive: true, force: true });
   }
+});
+
+
+test("a concurrent same-name publication remains an idempotent retry", async () => {
+  const source = new SqlStore();
+  let expected: ReleaseMilestone;
+  try { expected = await createReleaseMilestone(source, "concurrent", initial); }
+  finally { source.db.close(); }
+  /** Model a real second SQL writer committing between read and enumeration. */
+  class InterleavedSqlStore extends SqlStore {
+    override async names(): Promise<string[]> {
+      this.db.prepare("INSERT OR IGNORE INTO milestones VALUES (?, ?)").run(expected.name, JSON.stringify(expected));
+      return super.names();
+    }
+  }
+  const concurrent = new InterleavedSqlStore();
+  try {
+    await assert.doesNotReject(async () => {
+      assert.deepEqual(await createReleaseMilestone(concurrent, "concurrent", initial), expected);
+    });
+    assert.deepEqual(await readReleaseMilestones(concurrent), [expected]);
+  } finally { concurrent.db.close(); }
 });

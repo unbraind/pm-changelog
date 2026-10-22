@@ -140,7 +140,8 @@ function selectItems(items: readonly PmItem[], query: string): PmItem[] {
 /** Reject clock skew before a new name can reorder existing releases. */
 async function assertCaptureOrder(store: ReleaseMilestoneStore, candidate: ReleaseMilestone): Promise<void> {
   for (const key of await store.names()) {
-    if (key !== candidate.name && key.toLowerCase() === candidate.name.toLowerCase()) {
+    if (key === candidate.name) continue;
+    if (key.toLowerCase() === candidate.name.toLowerCase()) {
       throw new ReleaseMilestoneError("milestone_invalid", "Milestone name collides with an existing case variant.", "Read the original milestone and choose a different lowercase name for a new release.");
     }
     const previous = parseReleaseMilestone(await store.read(key));
