@@ -38,17 +38,23 @@ test("self-generation scripts preserve a same-day suffix and check the version d
   for (const script of ["changelog:full", "release:notes"]) {
     const [runtime, entry, ...args] = manifest.scripts[script].split(/\s+/);
     assert.equal(runtime, "node");
-    assert.equal(entry, "dist/cli.js");
-    const pmBinIndex = args.indexOf("--pm-bin");
-    assert.notEqual(pmBinIndex, -1);
-    args[pmBinIndex + 1] = resolve("node_modules/.bin/pm");
-    const generated = spawnSync(process.execPath, [cli, ...args], { cwd, env, encoding: "utf8" });
+    const executable = script === "changelog:full" ? resolve(entry) : cli;
+    if (script === "changelog:full") {
+      assert.equal(entry, "scripts/project-changelog.ts");
+      args.push("--pm-bin", resolve("node_modules/.bin/pm"));
+    } else {
+      assert.equal(entry, "dist/cli.js");
+      const pmBinIndex = args.indexOf("--pm-bin");
+      assert.notEqual(pmBinIndex, -1);
+      args[pmBinIndex + 1] = resolve("node_modules/.bin/pm");
+    }
+    const generated = spawnSync(process.execPath, [executable, ...args], { cwd, env, encoding: "utf8" });
     assert.equal(generated.status, 0, generated.stderr);
     const markdown = script === "changelog:full" ? readFileSync(join(cwd, "CHANGELOG.md"), "utf8") : generated.stdout;
     assert.match(markdown, /^## 2001\.2\.3-2 - 2001-02-03$/m);
     assert.ok(releaseSection(markdown, "2001.2.3-2 - 2001-02-03").includes(String(created.item.id)), "issue must occur inside the expected release section");
     if (script === "changelog:full") {
-      const checked = spawnSync(process.execPath, [cli, ...args, "--check", "--check-links"], { cwd, env, encoding: "utf8" });
+      const checked = spawnSync(process.execPath, [executable, ...args, "--check", "--check-links"], { cwd, env, encoding: "utf8" });
       assert.equal(checked.status, 0, checked.stderr);
     }
   }

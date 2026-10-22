@@ -70,8 +70,11 @@ jobs:
               ["provenance_value_domain_invalid:claude-code:role:single_digit:32"])
           '
 
-      - name: Full npm release gate
+      - name: Full release gate under npm
         run: npm run release:check
 
-      - name: Full Bun release gate
+      - name: Release gate with Bun script runner
         run: bun run release:check
+
+      - name: Direct Bun CLI and SDK runtime smoke
+        run: bun test/bun-milestones-smoke.ts

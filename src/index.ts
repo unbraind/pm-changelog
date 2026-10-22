@@ -67,5 +67,16 @@ export { checkItemLinks } from "./item-links.ts";
 
 export type { GitReleaseHistory } from "./release-membership.ts";
 
+export {
+  DirectoryReleaseMilestoneStore,
+  ReleaseMilestoneError,
+  assertTrackerMilestoneOptions,
+  createReleaseMilestone,
+  parseReleaseMilestone,
+  readReleaseMilestones,
+  readTrackerReleaseSnapshot,
+  resolveTrackerReleaseHistory,
+} from "./milestones.ts";
+export type { ReleaseMilestone, ReleaseMilestoneErrorCode, ReleaseMilestoneStore, TrackerReleaseSnapshot } from "./milestones.ts";
 export { auditChangelogClaims, assertChangelogClaims, formatClaimAudit, parseClaimTestReceipts, ClaimAuditError, CLAIM_AUDIT_REMEDIES } from "./claim-audit.ts";
 export type { ClaimAuditReport, ClaimAuditRow, ClaimAuditEvidence, ClaimAuditGap, ClaimTestReceipt } from "./claim-audit.ts";

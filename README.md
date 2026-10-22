@@ -291,6 +291,59 @@ content, so `reconcile` only re-greens the hash chain (no data loss) — see the
 [pm-cli merge-safety guide](https://github.com/unbraind/pm-cli/blob/main/docs/MERGE_SAFETY.md). The
 older blunt `pm history-repair --all` remains available as a lower-level primitive.
 
+## Tracker release milestones
+
+A named release can come from tracker state instead of Git tags. Freeze its
+membership, then generate notes from those boundaries:
+
+```sh
+pm changelog milestone create 2026.10.21 --items 'tag:shipping'
+pm changelog generate --milestones --stdout
+pm changelog generate --milestones --summary --format json
+# Standalone generator uses the same tracker source:
+pm-changelog --milestones --stdout
+```
+
+Omitting `--items` freezes every item, including open work. Queries support `*`
+or space-separated `id:`, `status:`, `type:`, `tag:`, and `release:` terms. Terms
+are ANDed; comma-separated values within a term are alternatives. Values are
+case-sensitive. This is a deliberately small selection grammar, not a shell
+command. Use `status:closed` when only already-completed work belongs to a release.
+
+An ID belongs to the first milestone that captures it closed, using that frozen
+row. Earlier open captures reserve no release membership; live closures remain
+Unreleased until captured closed. Later edits, reopening and deletion cannot grow
+or rewrite an earlier release. Normal status and non-change filters still apply.
+New captures must have strictly increasing RFC 3339 instants with explicit offsets;
+backward/equal clocks and ambiguous ordering refuse. Repeating a
+name with the same IDs returns the original snapshot; changed membership refuses
+with `milestone_membership_changed` and a remedy to create a new name. Snapshot
+fingerprints are checked before generation. New names are lowercase portable
+tokens of at most 80 characters, excluding reserved device names. Snapshots live
+under the tracker's `changelog/milestones/` directory.
+Keep these records with tracker backups and synchronize them with tracker data.
+The creation receipt contains only name, fingerprint, timestamp and item count;
+body/description, comments and unrelated metadata are never stored. Retained
+rendering and classification fields are fingerprinted; full rows are not printed.
+The host renders receipts as TOON or JSON.
+
+`--milestones` selects the release source. Git-window, explicit version/date and
+metadata-grouping options, `--body-preview`, `--pm-bin` and `--pm-arg` cannot be
+combined with it. Existing `--group-by
+milestone` remains mutable item-field grouping. A tracker inside a Git repository
+can still use `--all-release-tags` in a separate invocation. Outside a Git
+repository, explicit tag options (`--all-release-tags`, `--since-previous-tag`,
+and `--until-release-tag`) now fail with `MissingTagHistoryError` instead of
+silently falling back to a single section.
+
+The typed SDK accepts complete backend snapshots through `createReleaseMilestone`
+and an atomic `ReleaseMilestoneStore`. Use `resolveTrackerReleaseHistory` with
+`createChangelog`, `buildChangelogDocument` or `createChangelogSummary`. Database
+adapters must use transactional insert-if-absent and consistent complete snapshot
+reads; no SQL server or hosted access is required by this package. See the
+[SDK example](docs/tracker-milestones.md).
+
+
 ## Audit release claims before publication
 
 `pm changelog audit` maps every generated release-note line to its source item,
@@ -343,7 +396,8 @@ See the [SDK and receipt example](docs/claim-audit-example.md).
 
 ## Without git
 
-Tracker-only generation, export and claim audits work in ordinary directories and
-through caller-supplied SDK items without invoking Git. Git tag windows, historical
+Tracker milestone creation/generation, ordinary generation, export and claim audits
+work in plain directories and through caller-supplied SDK items without Git.
+Milestone paths invoke no Git subprocess. Git tag windows, historical
 Git membership and dependency commit collection require a Git repository. Use
 tracker fields or explicit dates for a tracker-only audit.

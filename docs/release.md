@@ -45,10 +45,13 @@ git config --unset remote.origin.tagOpt && git fetch --tags
 git config --unset remote.origin.tagOpt && git fetch --tags --unshallow
 ```
 
-The diagnostic always names the exact recovery for the checkout it detected, so
-following the commands in the emitted `E_MISSING_TAG_HISTORY` message is enough;
-the list above just enumerates every case. Each command in the message's
-`recoveryCommands` is independently executable and listed in run order.
+For an incomplete Git checkout, the diagnostic names its tag-history recovery;
+the list above enumerates those checkout cases. Each entry in `recoveryCommands`
+is independently executable and listed in run order. Outside a Git repository,
+or when Git is unavailable, `recoveryCommands` is empty: fetching tags cannot
+restore that prerequisite. The message names tracker-only generation and
+`--milestones` as alternative workflows, without presenting them as recovery
+commands for the requested tag history.
 
 A sandbox that intentionally omits tags cannot reconstruct the previous-tag to
 release-tag window and is not a valid changelog release-gate environment.
@@ -192,3 +195,10 @@ pm init --json
 pm install npm:pm-changelog --project --json
 pm package doctor --project --json --detail deep
 ```
+
+
+Explicit tag options now refuse outside Git, including source archives and
+container contexts that omit repository metadata. This is a compatibility change
+from the former single-section fallback; the generated changelog carries a notice.
+Git's dubious-ownership refusal is reported separately. Verify ownership and trust
+before using its exact-directory `safe.directory` recovery command.

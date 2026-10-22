@@ -8,6 +8,7 @@ import { fileURLToPath } from "node:url";
 
 import { resolvePmRoot } from "@unbrained/pm-cli/sdk";
 
+import { ReleaseMilestoneError, DirectoryReleaseMilestoneStore, assertTrackerMilestoneOptions, readReleaseMilestones, readTrackerReleaseSnapshot, resolveTrackerReleaseHistory } from "./milestones.ts";
 import { auditChangelogClaims, assertChangelogClaims, formatClaimAudit, parseClaimTestReceipts } from "./claim-audit.ts";
 
 import { countNonChangeClosures } from "./closure-policy.ts";
@@ -47,6 +48,7 @@ import type {
 } from "./types.ts";
 
 interface CliOptions {
+  milestones?: boolean;
   auditEvidence: boolean;
   auditReceipts?: string;
   output: string;
@@ -187,6 +189,7 @@ const KNOWN_OPTIONS = [
   "--json",
   "--limit",
   "--mode",
+  "--milestones",
   "--no-check-diff",
   "--no-links",
   "--no-pending-release",
@@ -221,10 +224,17 @@ const KNOWN_OPTIONS = [
  * from git, load items, generate, then write or compare. */
 async function main(args: string[] = process.argv.slice(2)): Promise<void> {
   const options = parseArgs(args[0] === "audit" ? ["--audit-evidence", ...args.slice(1)] : args);
-  applyReleaseContext(options);
-  const items = await loadItems(options);
+  if (options.milestones) assertTrackerMilestoneOptions([
+    options.allReleaseTags, options.sincePreviousTag, options.untilReleaseTag, options.versionFromPackage,
+    options.version, options.date, options.dateFallback, options.dateFromVersion, options.since, options.until,
+    options.dependencyUpdates, options.respectItemRelease, options.groupBy !== "version", options.input, options.stdin, options.pmBin, options.pmArgs.length, options.bodyPreview,
+  ]);
+  else applyReleaseContext(options);
+  const milestoneRoot = options.milestones ? resolvePmRoot(options.pmCwd ? resolve(options.pmCwd) : process.cwd(), options.pmRoot) : undefined;
+  const items = milestoneRoot ? [...(await readTrackerReleaseSnapshot(milestoneRoot)).items] : await loadItems(options);
   const outputPath = resolve(options.output);
   const generationOptions: GenerateChangelogOptions = buildGenerationOptions(options, items);
+  if (milestoneRoot) Object.assign(generationOptions, resolveTrackerReleaseHistory(await readReleaseMilestones(new DirectoryReleaseMilestoneStore(milestoneRoot)), items));
   if (options.allReleaseTags && !options.input && !options.stdin) {
     Object.assign(generationOptions, await resolveGitReleaseHistory(
       generationOptions, resolvePmRoot(options.pmCwd ? resolve(options.pmCwd) : process.cwd(), options.pmRoot),
@@ -269,7 +279,7 @@ async function main(args: string[] = process.argv.slice(2)): Promise<void> {
     if (options.format === "json") {
       const payload = {
         entries,
-        excluded_non_change_count: countNonChangeClosures(items),
+        excluded_non_change_count: countNonChangeClosures(generationOptions.items),
         format: "json",
         item_count: entries.length,
         ...(selectionReport ? { selection_report: selectionReport } : {}),
@@ -301,8 +311,8 @@ async function main(args: string[] = process.argv.slice(2)): Promise<void> {
   if (options.suggestSemver) {
     const suggestion = suggestSemver(generationOptions);
     const payload = selectionReport
-      ? { ...suggestion, excluded_non_change_count: countNonChangeClosures(items), selection_report: selectionReport }
-      : { ...suggestion, excluded_non_change_count: countNonChangeClosures(items) };
+      ? { ...suggestion, excluded_non_change_count: countNonChangeClosures(generationOptions.items), selection_report: selectionReport }
+      : { ...suggestion, excluded_non_change_count: countNonChangeClosures(generationOptions.items) };
     process.stdout.write(JSON.stringify(payload, null, 2) + "\n");
     return;
   }
@@ -468,6 +478,9 @@ function parseArgs(args: string[]): CliOptions {
         break;
       case "--stdin":
         options.stdin = true;
+        break;
+      case "--milestones":
+        options.milestones = true;
         break;
       case "--pm-root":
         options.pmRoot = requireValue(normalizedArgs, ++i, rawArg);
@@ -1091,6 +1104,7 @@ Options:
       --since-previous-tag  Derive --since from the previous git tag
       --until <date>        Include items changed on or before this date
       --until-release-tag   Derive --until from the current release tag when it exists
+      --milestones           Generate from immutable tracker release milestones (no git)
       --all-release-tags    Rebuild full history from git release tag windows
       --release-tag-pattern <glob>
                             Git tag glob for --all-release-tags (default: v*)
@@ -1195,6 +1209,7 @@ export async function runCliEntry(argv: readonly string[] = process.argv): Promi
 
 /** Convert an unknown CLI failure into a stable human-readable message. */
 function errorMessage(error: unknown): string {
+  if (error instanceof ReleaseMilestoneError) return JSON.stringify({ error: { code: error.code, message: error.message, remedy: error.remedy } });
   return error instanceof Error ? error.message : String(error);
 }
 

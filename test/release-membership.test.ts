@@ -418,3 +418,34 @@ test("a dated completion cannot match an undated closed tag snapshot", async (t)
   equal(generated.itemCount, 1);
   equal(generated.sections.find((section) => section.items.length)!.heading, "Unreleased");
 });
+
+
+test("Git-resolved non-change counts survive live reopening across CLI and extension", async (t) => {
+  const root = createRepository();
+  t.after(() => removeGitFixture(root));
+  const pmRoot = join(root, ".agents/pm");
+  writeFileSync(join(pmRoot, "tasks/pm-test.toon"), serializeItemDocument({ metadata: {
+    id: "pm-test", title: "Frozen non-change closure", description: "Synthetic release fixture", priority: 2, tags: [], author: "Test", type: "Task", status: "closed", close_reason: "Not planned",
+    created_at: "2026-09-10T04:00:00Z", updated_at: "2026-09-10T05:00:00Z", completed_at: "2026-09-10T05:00:00Z",
+  }, body: "" }, { format: "toon" }));
+  git(root, ["commit", "-am", "Record non-change closure"], "2026-09-10T07:00:00Z");
+  git(root, ["tag", "v2026.9.10"]);
+  writeItem(root, "open");
+  const activation = await activateExtensionForTest(extension, { name: "pm-changelog", capabilities: ["commands", "schema", "importers", "renderers"] });
+  const writes: string[] = [];
+  const stdoutWrite = process.stdout.write.bind(process.stdout);
+  t.mock.method(process.stdout, "write", (...args: Parameters<typeof process.stdout.write>) => {
+    if (typeof args[0] !== "string") return stdoutWrite(...args);
+    writes.push(args[0]); return true;
+  });
+  for (const mode of ["summary", "suggest-semver"]) {
+    for (const explain of [false, true]) {
+      writes.length = 0;
+      await cliTestSurface.main(["--all-release-tags", "--pm-cwd", root, "--pm-root", pmRoot, `--${mode}`, "--format", "json", ...(explain ? ["--explain"] : [])]);
+      equal(JSON.parse(writes.join("")).excluded_non_change_count, 1, `CLI ${mode}, explain=${explain}`);
+      const result = await runRegisteredCommandForTest(activation.commands, { command: "changelog generate", pmRoot,
+        options: { "all-release-tags": true, [mode]: true, format: "json", "explain-selection": explain } });
+      equal(JSON.parse((result.result as { output: string }).output).excluded_non_change_count, 1, `extension ${mode}, explain=${explain}`);
+    }
+  }
+});
