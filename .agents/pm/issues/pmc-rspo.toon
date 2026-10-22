@@ -2,12 +2,17 @@ id: pmc-rspo
 title: Link custom-type items to their registered tracker folders
 description: "Custom-type changelog links currently guess lowercase plus s instead of using registered tracker folders. Resolve canonical folders, add real tracker regression coverage and an optional link validity gate. Reported by pm-review PR 9."
 type: Issue
-status: open
+status: closed
 priority: 1
 tags: []
 created_at: "2026-10-14T13:45:19.109Z"
 updated_at: "2026-10-21T19:40:26.198Z"
+closed_at: "2026-10-21T19:03:21.762Z"
+completed_at: "2026-10-21T19:03:21.762Z"
 author: codex-agent
+resolution: "Reverified main 56f8536702f6 (unchanged since audit): [PR #241](https://github.com/unbraind/pm-changelog/pull/241) (911f1fe) resolves registered tracker folders in custom-type links; test/item-links.test.ts contains the custom-folder regression. The separate hostile-input startup failure does not mean the folder resolver is absent. Retained evidence: src/cli.ts, src/extension.ts, src/generator.ts."
+expected_result: Custom-type item links use their registered tracker folders.
+actual_result: "Reverified main 56f8536702f6 (unchanged since audit): [PR #241](https://github.com/unbraind/pm-changelog/pull/241) (911f1fe) resolves registered tracker folders in custom-type links; test/item-links.test.ts contains the custom-folder regression. The separate hostile-input startup failure does not mean the folder resolver is absent. Retained evidence: src/cli.ts, src/extension.ts, src/generator.ts."
 comments[18]{created_at,author,text}:
   "2026-10-14T13:48:13.704Z",codex-agent,"The pinned SDK exposes resolveItemTypeRegistry().type_to_folder, and the same CLI exposes project plus extension definitions through schema list. Use registry-derived itemFolder metadata for custom rows, preserve known built-in folders for standalone inputs, and fail rather than guess unknown custom folders. Add --check-links for generated and prepended tracker links, including root containment."
   "2026-10-14T13:56:18.566Z",codex-agent,"Fleet source audit: pm-review ReviewFinding uses review-findings; pm-rl EvalResult, GateEpisode and MergeOutcome use eval-results, gate-episodes and merge-outcomes; pm-starter StarterNote uses starter-notes. pm-presets AgentRun/Card, pm-ts-starter Spike and pm-web Bug currently resolve to the same folders as the old rule. Current origin/main in pm-vcs and pm-jev has no registered custom folder mismatch. pm-review canonicalFindingLinks remains compatible and becomes redundant after dependency upgrades. The pinned CLI rejects universal list output controls on schema list; the schema call omits those controls."
@@ -65,4 +70,5 @@ tests[3]:
       source_ref: fix/custom-type-item-folders
 docs[1]{path,scope}:
   docs/usage.md,project
+close_reason: "Reverified main 56f8536702f6 (unchanged since audit): [PR #241](https://github.com/unbraind/pm-changelog/pull/241) (911f1fe) resolves registered tracker folders in custom-type links; test/item-links.test.ts contains the custom-folder regression. The separate hostile-input startup failure does not mean the folder resolver is absent. Retained evidence: src/cli.ts, src/extension.ts, src/generator.ts."
 body: ""

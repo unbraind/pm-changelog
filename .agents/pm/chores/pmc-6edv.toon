@@ -2,16 +2,20 @@ id: pmc-6edv
 title: "Adopt pm-github 2026.10.16: default-branch-safe gated sync and daily gated closeout PRs"
 description: "Repin the gated sync caller to pm-github 2026.10.16 (tag 67a5e3e: npm-project-dir input, caller default branch resolved through the API for schedule payloads) and add the reusable gated closeout caller, which opens one reviewed PR per day closing items delivered by merged pull requests."
 type: Chore
-status: in_progress
+status: closed
 priority: 2
 tags[3]: changed,ci,pm-github
 created_at: "2026-10-16T10:38:29.492Z"
-updated_at: "2026-10-16T10:38:29.492Z"
+updated_at: "2026-10-21T19:12:13.938Z"
 deadline: "2026-10-19T10:38:29.492Z"
-assignee: claude-orchestrator
+closed_at: "2026-10-21T19:12:06.781Z"
+completed_at: "2026-10-21T19:12:06.781Z"
 author: claude-orchestrator
 estimated_minutes: 30
 acceptance_criteria: pm-github-sync.yml pins 2026.10.16 at 67a5e3e; pm-github-closeout.yml calls the reusable closeout workflow at the same pin
+resolution: "Reverified main 56f8536702f6 (unchanged since audit): [PR #251](https://github.com/unbraind/pm-changelog/pull/251) (584c621) adds both SHA-pinned 2026.10.16 callers. Retained evidence: .github/workflows/pm-github-closeout.yml, .github/workflows/pm-github-sync.yml."
+expected_result: "Reverified main 56f8536702f6 (unchanged since audit): [PR #251](https://github.com/unbraind/pm-changelog/pull/251) (584c621) adds both SHA-pinned 2026.10.16 callers. Retained evidence: .github/workflows/pm-github-closeout.yml, .github/workflows/pm-github-sync.yml."
+actual_result: "Reverified main 56f8536702f6 (unchanged since audit): [PR #251](https://github.com/unbraind/pm-changelog/pull/251) (584c621) adds both SHA-pinned 2026.10.16 callers. Retained evidence: .github/workflows/pm-github-closeout.yml, .github/workflows/pm-github-sync.yml."
 dependencies[1]{id,kind,created_at,author,source_kind,author_source}:
   pmc-xndl,related,"2026-10-16T10:38:29.492Z",claude-orchestrator,"cli:create:dep",detected
 comments[1]{created_at,author,text}:
@@ -27,4 +31,5 @@ tests[1]{command,scope,provenance{author,created_at,source_kind,source_ref}}:
   "npm run release:check",project,claude-orchestrator,"2026-10-16T10:38:29.492Z",local_mutation,chore/pm-github-2026.10.16-sync-and-closeout
 docs[1]{path,scope}:
   .github/workflows/pm-github-closeout.yml,project
+close_reason: "Reverified main 56f8536702f6 (unchanged since audit): [PR #251](https://github.com/unbraind/pm-changelog/pull/251) (584c621) adds both SHA-pinned 2026.10.16 callers. Retained evidence: .github/workflows/pm-github-closeout.yml, .github/workflows/pm-github-sync.yml."
 body: Fleet-wide rollout of pm-github 2026.10.16 (companion session item pm-cli-website-vnsz).

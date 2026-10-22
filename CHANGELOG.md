@@ -1,5 +1,32 @@
 # Changelog
 
+## Unreleased
+
+### Changed
+
+- Adopt pm-github 2026.10.16: default-branch-safe gated sync and daily gated closeout PRs ([pmc-6edv](https://github.com/unbraind/pm-changelog/blob/main/.agents/pm/chores/pmc-6edv.toon))
+- Enable the gated GitHub issue sync ([pmc-ctr2](https://github.com/unbraind/pm-changelog/blob/main/.agents/pm/chores/pmc-ctr2.toon))
+
+### Fixed
+
+- A release run bumped and committed a new version every night while publishing was impossible, and the changelog-date verifier was never invoked by a gate ([pmc-3u78](https://github.com/unbraind/pm-changelog/blob/main/.agents/pm/issues/pmc-3u78.toon))
+- Let an item supply a release note the changelog prefers over its defect-shaped title ([pmc-fzs6](https://github.com/unbraind/pm-changelog/blob/main/.agents/pm/issues/pmc-fzs6.toon))
+- Harden the release merge wait against mergeStateStatus deadlock ([pmc-blj6](https://github.com/unbraind/pm-changelog/blob/main/.agents/pm/issues/pmc-blj6.toon))
+- A test asserts an error that only occurs when no package.json exists anywhere above the OS temp directory, so it fails on a host where one does ([pmc-6eau](https://github.com/unbraind/pm-changelog/blob/main/.agents/pm/issues/pmc-6eau.toon))
+- List closed issues under Fixed only when a repair is recorded ([pmc-txk1](https://github.com/unbraind/pm-changelog/blob/main/.agents/pm/features/pmc-txk1.toon))
+- This package generates its own changelog without the flag that stops the heading date coming from the clock ([pmc-q22j](https://github.com/unbraind/pm-changelog/blob/main/.agents/pm/issues/pmc-q22j.toon))
+- Link custom-type items to their registered tracker folders ([pmc-rspo](https://github.com/unbraind/pm-changelog/blob/main/.agents/pm/issues/pmc-rspo.toon))
+- The release job authenticated with a stored npm token that expired, so publishing stopped while every other gate stayed green ([pmc-4xu9](https://github.com/unbraind/pm-changelog/blob/main/.agents/pm/issues/pmc-4xu9.toon))
+
+### Security
+
+- Consume the canonical attestation gate instead of carrying a copy of it ([pmc-wf7n](https://github.com/unbraind/pm-changelog/blob/main/.agents/pm/chores/pmc-wf7n.toon))
+
+### Other
+
+- Record pi-land-a merge-readiness verification pass for PR 215 ([pmc-wgte](https://github.com/unbraind/pm-changelog/blob/main/.agents/pm/chores/pmc-wgte.toon))
+- Certify pm-changelog on PM CLI/SDK 2026.10.4 and consolidate pending dependency updates ([pmc-38z4](https://github.com/unbraind/pm-changelog/blob/main/.agents/pm/chores/pmc-38z4.toon))
+
 ## 2026.10.19-1 - 2026-10-19
 
 ### Fixed
