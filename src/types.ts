@@ -516,3 +516,15 @@ export interface ChangelogAttributionProvenance {
    * attributed from an inferred timestamp. */
   inferred_sample: string[];
 }
+
+/** One rendered release-note line and its original tracker sources. */
+export interface ChangelogClaimSource {
+  /** Semantic item category before conventional headings or custom grouping. */
+  category?: string;
+  line: number;
+  release: string;
+  section: string;
+  claim: string;
+  kind: "item" | "contributors" | "dependency" | "empty";
+  items: PmItem[];
+}

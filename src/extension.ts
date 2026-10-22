@@ -1,4 +1,4 @@
-import { writeFileSync } from "node:fs";
+import { readFileSync, writeFileSync } from "node:fs";
 import { resolve } from "node:path";
 
 import {
@@ -16,6 +16,7 @@ import {
 import type { ImportExportRegistrationOptions } from "@unbrained/pm-cli/sdk/authoring";
 
 import { DirectoryReleaseMilestoneStore, assertTrackerMilestoneOptions, createReleaseMilestone, readReleaseMilestones, readTrackerReleaseSnapshot, resolveTrackerReleaseHistory } from "./milestones.ts";
+import { auditChangelogClaims, assertChangelogClaims, formatClaimAudit, parseClaimTestReceipts } from "./claim-audit.ts";
 
 import { countNonChangeClosures } from "./closure-policy.ts";
 
@@ -102,7 +103,7 @@ export default defineExtension({
         return { name: milestone.name, fingerprint: milestone.fingerprint, item_count: milestone.items.length, captured_at: milestone.capturedAt };
       },
     });
-    api.registerCommand({
+    const generateCommand: Parameters<typeof api.registerCommand>[0] = {
       name: "changelog generate",
       description: "Generate a CHANGELOG.md file from pm items.",
       intent: "generate changelog release notes from completed pm items",
@@ -118,6 +119,8 @@ export default defineExtension({
         "pm changelog generate --check --mode prepend --release-version 1.2.0",
       ],
       flags: [
+        { long: "--audit-evidence", description: "Audit rendered claims instead of writing notes; --check refuses gaps" },
+        { long: "--audit-receipts", value_name: "file", description: "JSON test execution receipts: item, command, outcome, reference" },
         { long: "--output", value_name: "file", description: "Output file path (default: CHANGELOG.md)" },
         { long: "--stdout", description: "Return markdown instead of writing a file" },
         { long: "--title", value_name: "text", description: "Changelog title (default: Changelog)" },
@@ -302,6 +305,17 @@ export default defineExtension({
         // extension cannot declare that spelling. Selection diagnostics stay
         // available under `--explain-selection`; the standalone CLI keeps
         // `--explain` because it is not a pm subcommand.
+        if (booleanOption(ctx.options, "audit-evidence", "auditEvidence")) {
+          const receiptFile = stringOption(ctx.options, "audit-receipts", "auditReceipts");
+          const receipts = receiptFile === undefined ? [] : parseClaimTestReceipts(readFileSync(receiptFile, "utf-8"));
+          const report = auditChangelogClaims(generationOptions, receipts);
+          const output = formatClaimAudit(report, wantsJsonFormat || ctx.global.json ? "json" : "toon");
+          if (booleanOption(ctx.options, "check", "check")) {
+            if (!report.ready) process.stderr.write(output);
+            assertChangelogClaims(report);
+          }
+          return { pmChangelogRendered: true, output };
+        }
         const selectionReport = booleanOption(ctx.options, "explain-selection", "explainSelection")
           ? explainChangelogSelection(generationOptions)
           : undefined;
@@ -393,6 +407,17 @@ export default defineExtension({
           check: Boolean(ctx.options["check"]),
           ...(selectionReport ? { selection_report: selectionReport } : {}),
         };
+      },
+    };
+    api.registerCommand(generateCommand);
+    api.registerCommand({
+      ...generateCommand,
+      name: "changelog audit",
+      intent: "audit generated release-note claims against recorded tracker evidence before publication",
+      description: "Map every release-note line to recorded evidence and explicit gaps.",
+      examples: ["pm changelog audit", "pm changelog audit --format json", "pm changelog audit --audit-receipts receipts.json --check"],
+      async run(ctx) {
+        return generateCommand.run!({ ...ctx, options: { ...ctx.options, "audit-evidence": true } });
       },
     });
 
@@ -527,7 +552,7 @@ export default defineExtension({
       // call site is still fully checked). The host enforces `commands` +
       // `resultDiscriminator` before invoking either callback.
       const rendererOwnership = {
-        commands: ["changelog generate", "changelog export"],
+        commands: ["changelog generate", "changelog export", "changelog audit"],
         resultDiscriminator: isRenderedCommandResult,
       };
       api.registerRenderer("toon", renderCommandResult, rendererOwnership);

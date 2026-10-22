@@ -27,7 +27,8 @@
     "commands": [
       "changelog generate",
       "changelog export",
-      "changelog milestone create"
+      "changelog milestone create",
+      "changelog audit"
     ]
   }
 }

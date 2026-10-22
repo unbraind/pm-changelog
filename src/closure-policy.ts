@@ -37,7 +37,7 @@ function hasLinkedEvidence(value: unknown, keys: readonly string[]): boolean {
 }
 
 /** Recognize an affirmative delivery with a PR/commit reference, never a bare issue link. */
-function recordsDelivery(value: unknown): boolean {
+export function recordsDelivery(value: unknown): boolean {
   const text = prose(value);
   return !NEGATED_REPAIR.test(text) && DELIVERY.test(text) && DELIVERY_REF.test(text);
 }
@@ -53,7 +53,7 @@ function hasDeliveryLink(value: unknown): boolean {
 }
 
 /** Tracker evidence sufficient to label an issue as a repair; no git access occurs. */
-function hasRepairEvidence(item: PmItem): boolean {
+export function hasRepairEvidence(item: PmItem): boolean {
   return hasLinkedEvidence(item.files, ["path"])
     || hasLinkedEvidence(item.tests, ["command", "path"])
     || [item.close_reason, item.resolution].some((value) => {

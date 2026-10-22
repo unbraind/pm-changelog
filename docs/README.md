@@ -7,7 +7,8 @@ Use this index first. Follow only the page needed for the current task.
 1. Install or run the package: [Usage](usage.md)
 2. Check release automation or publishing: [Release and CI](release.md)
 3. Change source, tests, or package metadata: [Development](development.md)
-4. Review shipped changes: [Changelog](../CHANGELOG.md)
+4. Audit generated wording: [Claim evidence example](claim-audit-example.md)
+5. Review shipped changes: [Changelog](../CHANGELOG.md)
 
 ## Package Summary
 

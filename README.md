@@ -343,10 +343,61 @@ adapters must use transactional insert-if-absent and consistent complete snapsho
 reads; no SQL server or hosted access is required by this package. See the
 [SDK example](docs/tracker-milestones.md).
 
+
+## Audit release claims before publication
+
+`pm changelog audit` maps every generated release-note line to its source item,
+resolution, linked files/tests and recorded delivery. It preserves the generator's
+selection and wording, including neutral `Closed` entries for factual closures.
+Missing evidence stays in `gaps`; a closed issue alone cannot justify `Fixed`.
+Repair gaps follow the classified item category across conventional headings,
+custom grouping and repeated Breaking Changes entries.
+
+```bash
+pm changelog audit --entry-from close_reason
+pm changelog audit --entry-from close_reason --format json
+pm changelog audit --audit-receipts receipts.json --format json --check
+# Standalone: all generation filters and release-window flags still apply.
+pm-changelog audit --pm-root .agents/pm --entry-from close_reason --json
+```
+
+The default compact TOON report has one row per claim, one evidence record per
+item, and a shared remedy dictionary. JSON carries native arrays/objects; TOON
+encodes nested collections as JSON strings. Line numbers are one-based in the
+freshly generated Markdown, identified by `markdown_sha256`. Repeated items in
+label groups or Breaking Changes retain separate line mappings. Contributors map
+to the selected items' credit metadata; `No changes.` maps to the empty selection.
+Existing prepended history is outside this generated-document audit.
+
+`--check` exits nonzero on any gap; normal audit mode exits zero and returns the
+complete report. The standalone command prints that report to stdout before
+refusing. Host commands (`pm changelog audit` and `pm changelog generate
+--audit-evidence`) print the selected JSON or TOON report to stderr before a failed
+check throws, preserving line mappings, gaps and remedies. Successful host checks
+return one report through normal output.
+`ClaimAuditError` exposes `code`, `remedy` and, for unsupported claims, `report`.
+Git-dependent dependency audits refuse as `git_required` without a repository; drop
+`--dependency-updates` to continue a tracker-only audit. Duplicate or missing item IDs refuse as `ambiguous_items`; malformed execution
+receipts refuse as `invalid_receipts`. Fix the named input and regenerate.
+
+A linked test command is a declaration, not a passing run. Supply a JSON array
+of `{ "item", "command", "outcome", "reference" }` execution receipts through
+`--audit-receipts`. Outcomes are `passed` or `failed`; commands must match a linked
+command or test path. Every linked command/path needs a passing receipt. A failed matching receipt prevents that command from being
+accepted as passing. References remain in the report for inspection. Recorded
+merge/delivery language must name a PR or commit; a bare issue URL does not count.
+Dependency commit subjects retain an explicit evidence gap.
+
+This is an audit of recorded support, with no test execution, file existence
+check, remote receipt authentication or semantic proof of arbitrary prose. Caller
+receipts are assertions: maintainers must verify their relevance to the release.
+`pm-review` owns review validation; `pm-ops` owns publication provenance.
+See the [SDK and receipt example](docs/claim-audit-example.md).
+
 ## Without git
 
-Tracker milestone creation and generation, SDK snapshot attribution, ordinary
-tracker-only generation and structured summaries work in plain directories.
-Milestone paths invoke no Git subprocess. Tag boundaries and dependency-commit
-sections require a Git repository. A tracker in a repository can choose either
-release source.
+Tracker milestone creation/generation, ordinary generation, export and claim audits
+work in plain directories and through caller-supplied SDK items without Git.
+Milestone paths invoke no Git subprocess. Git tag windows, historical
+Git membership and dependency commit collection require a Git repository. Use
+tracker fields or explicit dates for a tracker-only audit.

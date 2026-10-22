@@ -141,8 +141,8 @@ test("extension command exposes item-url-base for clickable item IDs", async () 
   assert.deepEqual(
     rendererOwnership.map((override) => ({ format: override.format, commands: override.commands })),
     [
-      { format: "toon", commands: ["changelog generate", "changelog export"] },
-      { format: "json", commands: ["changelog generate", "changelog export"] },
+      { format: "toon", commands: ["changelog generate", "changelog export", "changelog audit"] },
+      { format: "json", commands: ["changelog generate", "changelog export", "changelog audit"] },
     ],
   );
   for (const override of rendererOwnership) {
@@ -745,4 +745,15 @@ test("CLI and extension produce byte-identical output with and without --no-pend
       assert.match(extOutput, /## 2099\.1\.2 - 2099-01-02/, `extension output should lead with the pending version ${label}`);
     }
   }
+});
+
+
+test("audit command publishes an evidence-specific intent independently of generation", async () => {
+  const activation = await activateChangelog();
+  const audit = activation.registrations.commands.find((entry) => entry.command === "changelog audit");
+  const generate = activation.registrations.commands.find((entry) => entry.command === "changelog generate");
+  assert.ok(audit);
+  assert.ok(generate);
+  assert.match(audit.intent ?? "", /audit.*claims.*evidence.*publication/);
+  assert.notEqual(audit.intent, generate.intent);
 });

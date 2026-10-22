@@ -34,6 +34,7 @@ export type {
 } from "./release-context.ts";
 export type {
   ChangelogAttributionProvenance,
+  ChangelogClaimSource,
   ChangelogDocument,
   ChangelogEntryFrom,
   ChangelogDocumentDependency,
@@ -77,3 +78,5 @@ export {
   resolveTrackerReleaseHistory,
 } from "./milestones.ts";
 export type { ReleaseMilestone, ReleaseMilestoneErrorCode, ReleaseMilestoneStore, TrackerReleaseSnapshot } from "./milestones.ts";
+export { auditChangelogClaims, assertChangelogClaims, formatClaimAudit, parseClaimTestReceipts, ClaimAuditError, CLAIM_AUDIT_REMEDIES } from "./claim-audit.ts";
+export type { ClaimAuditReport, ClaimAuditRow, ClaimAuditEvidence, ClaimAuditGap, ClaimTestReceipt } from "./claim-audit.ts";

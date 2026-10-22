@@ -9,6 +9,7 @@ import { fileURLToPath } from "node:url";
 import { resolvePmRoot } from "@unbrained/pm-cli/sdk";
 
 import { ReleaseMilestoneError, DirectoryReleaseMilestoneStore, assertTrackerMilestoneOptions, readReleaseMilestones, readTrackerReleaseSnapshot, resolveTrackerReleaseHistory } from "./milestones.ts";
+import { auditChangelogClaims, assertChangelogClaims, formatClaimAudit, parseClaimTestReceipts } from "./claim-audit.ts";
 
 import { countNonChangeClosures } from "./closure-policy.ts";
 
@@ -48,6 +49,8 @@ import type {
 
 interface CliOptions {
   milestones?: boolean;
+  auditEvidence: boolean;
+  auditReceipts?: string;
   output: string;
   stdout: boolean;
   json: boolean;
@@ -117,6 +120,7 @@ const OPTION_ALIASES: Readonly<Record<string, string>> = {
 };
 
 const VALUE_OPTIONS = new Set<string>([
+  "--audit-receipts",
   "-i",
   "-o",
   "--body-preview",
@@ -150,6 +154,8 @@ const VALUE_OPTIONS = new Set<string>([
 ]);
 
 const KNOWN_OPTIONS = [
+  "--audit-evidence",
+  "--audit-receipts",
   "-h",
   "-i",
   "-o",
@@ -217,7 +223,7 @@ const KNOWN_OPTIONS = [
 /** Run one CLI invocation end to end: parse flags, resolve the release context
  * from git, load items, generate, then write or compare. */
 async function main(args: string[] = process.argv.slice(2)): Promise<void> {
-  const options = parseArgs(args);
+  const options = parseArgs(args[0] === "audit" ? ["--audit-evidence", ...args.slice(1)] : args);
   if (options.milestones) assertTrackerMilestoneOptions([
     options.allReleaseTags, options.sincePreviousTag, options.untilReleaseTag, options.versionFromPackage,
     options.version, options.date, options.dateFallback, options.dateFromVersion, options.since, options.until,
@@ -233,6 +239,13 @@ async function main(args: string[] = process.argv.slice(2)): Promise<void> {
     Object.assign(generationOptions, await resolveGitReleaseHistory(
       generationOptions, resolvePmRoot(options.pmCwd ? resolve(options.pmCwd) : process.cwd(), options.pmRoot),
     ));
+  }
+  if (options.auditEvidence) {
+    const receipts = options.auditReceipts === undefined ? [] : parseClaimTestReceipts(readFileSync(options.auditReceipts, "utf-8"));
+    const report = auditChangelogClaims(generationOptions, receipts);
+    process.stdout.write(formatClaimAudit(report, options.json || options.format === "json" ? "json" : "toon"));
+    if (options.check) assertChangelogClaims(report);
+    return;
   }
   if (options.check) {
     for (const warning of lintChangelogEntries(generationOptions)) console.error(`Warning: ${warning}`);
@@ -378,6 +391,7 @@ async function main(args: string[] = process.argv.slice(2)): Promise<void> {
 function parseArgs(args: string[]): CliOptions {
   const normalizedArgs = normalizeArgs(args);
   const options: CliOptions = {
+    auditEvidence: false,
     output: "CHANGELOG.md",
     stdout: false,
     json: false,
@@ -426,6 +440,12 @@ function parseArgs(args: string[]): CliOptions {
       case "--output":
       case "-o":
         options.output = requireValue(normalizedArgs, ++i, rawArg);
+        break;
+      case "--audit-evidence":
+        options.auditEvidence = true;
+        break;
+      case "--audit-receipts":
+        options.auditReceipts = requireValue(normalizedArgs, ++i, rawArg);
         break;
       case "--stdout":
         options.stdout = true;
@@ -1053,6 +1073,8 @@ Options:
       --stdout              Print markdown instead of writing a file
       --json                Print a JSON summary for CI/runners
       --format <md|json>    Output format: md (default) or json for machine-readable output
+      --audit-evidence      Audit exact generated lines (also: pm-changelog audit); default TOON, --json for JSON
+      --audit-receipts file  JSON array of item, command, outcome and reference test receipts
       --summary             Print a compact one-line-per-change summary (bracketed text or JSON with --format json)
       --check-links         Fail on missing item files or links outside the pm root
       --check               Do not write; exit 1 when output would change.

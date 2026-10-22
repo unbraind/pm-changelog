@@ -3,4 +3,5 @@ export { assertReleaseTagHistory, MISSING_TAG_HISTORY_ERROR_CODE, MissingTagHist
 export { resolveGitReleaseHistory, resolveGitReleaseMembership } from "./release-membership.js";
 export { checkItemLinks } from "./item-links.js";
 export { DirectoryReleaseMilestoneStore, ReleaseMilestoneError, assertTrackerMilestoneOptions, createReleaseMilestone, parseReleaseMilestone, readReleaseMilestones, readTrackerReleaseSnapshot, resolveTrackerReleaseHistory, } from "./milestones.js";
+export { auditChangelogClaims, assertChangelogClaims, formatClaimAudit, parseClaimTestReceipts, ClaimAuditError, CLAIM_AUDIT_REMEDIES } from "./claim-audit.js";
 //# sourceMappingURL=index.js.map
