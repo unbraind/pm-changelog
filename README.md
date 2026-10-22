@@ -297,6 +297,8 @@ older blunt `pm history-repair --all` remains available as a lower-level primiti
 resolution, linked files/tests and recorded delivery. It preserves the generator's
 selection and wording, including neutral `Closed` entries for factual closures.
 Missing evidence stays in `gaps`; a closed issue alone cannot justify `Fixed`.
+Repair gaps follow the classified item category across conventional headings,
+custom grouping and repeated Breaking Changes entries.
 
 ```bash
 pm changelog audit --entry-from close_reason

@@ -176,7 +176,7 @@ export function auditChangelogClaims(
         && !record.test_receipts.some((receipt) => receipt.command === command && receipt.outcome === "failed"));
       if (!passed) gaps.add("test_result");
       if (!record.delivery.length) gaps.add("delivery");
-      if (source.section === "Fixed" && !hasRepairEvidence(item)) gaps.add("repair");
+      if (source.category === "Fixed" && !hasRepairEvidence(item)) gaps.add("repair");
     }
     const orderedGaps = [...gaps].sort();
     orderedGaps.forEach((gap) => usedGaps.add(gap));

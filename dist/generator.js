@@ -213,7 +213,7 @@ export function createChangelog(options, onClaim) {
         while (scannedLines < source.line) {
             physicalLines += lines[scannedLines++].split("\n").length;
         }
-        onClaim({ ...source, line: physicalLines - source.claim.split("\n").length + 1 });
+        onClaim({ ...source, category: source.kind === "item" ? classifyItem(source.items[0]) : undefined, line: physicalLines - source.claim.split("\n").length + 1 });
     };
     if (sections.length === 0) {
         // A deliberately empty `releaseWindows` list (suppressed pending release

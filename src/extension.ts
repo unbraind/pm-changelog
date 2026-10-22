@@ -386,6 +386,7 @@ export default defineExtension({
     api.registerCommand({
       ...generateCommand,
       name: "changelog audit",
+      intent: "audit generated release-note claims against recorded tracker evidence before publication",
       description: "Map every release-note line to recorded evidence and explicit gaps.",
       examples: ["pm changelog audit", "pm changelog audit --format json", "pm changelog audit --audit-receipts receipts.json --check"],
       async run(ctx) {

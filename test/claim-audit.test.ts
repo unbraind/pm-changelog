@@ -49,9 +49,31 @@ test("test declarations never prove passing and failed receipts dominate", () =>
 });
 
 test("repair assertions cannot be inferred from Fixed wording alone", () => {
-  const report = auditChangelogClaims({ items: [{ id: "fixture-task", title: "Fix failure", type: "Task", status: "closed" }] });
+  const item: PmItem = { id: "fixture-task", title: "Fix failure", type: "Task", status: "closed", tags: ["shipping"], breaking: true };
+  const conventional = auditChangelogClaims({ items: [item], conventional: true });
+  assert.equal(conventional.claims[0].section, "Bug Fixes");
+  assert.ok(conventional.claims[0].gaps.includes("repair"));
+  for (const rendering of [{}, { conventional: true }, { sectionBy: "type" as const }, { sectionBy: "label" as const }, { sectionBy: "status" as const }]) {
+    const options = { items: [item], breakingChanges: true, ...rendering };
+    const report = auditChangelogClaims(options);
+    assert.equal(report.claim_count, 2);
+    for (const claim of report.claims) assert.ok(claim.gaps.includes("repair"), `Missing repair gap in ${claim.section}`);
+    assert.ok(report.claims.some((claim) => claim.section === (rendering.conventional ? "Bug Fixes" : rendering.sectionBy === "type" ? "Task" : rendering.sectionBy === "label" ? "shipping" : rendering.sectionBy === "status" ? "Closed" : "Fixed")));
+    assert.throws(() => assertChangelogClaims(report), /unsupported_claims/);
+    const supported = auditChangelogClaims({ ...options, items: [{ ...item, close_reason: "Fixed failure; merged PR #12", tests: base.tests }] }, [{ ...receipt, item: item.id! }]);
+    assert.equal(supported.ready, true);
+  }
+});
+
+test("claim source categories follow the classifier rather than arbitrary group headings", () => {
+  const item: PmItem = { id: "fixture-group", title: "Security hardening", type: "Fixed", status: "closed" };
+  const options = { items: [item], sectionBy: "type" as const };
+  const categories: Array<string | undefined> = [];
+  createChangelog(options, (source) => { categories.push(source.category); });
+  assert.deepEqual(categories, ["Security"]);
+  const report = auditChangelogClaims(options);
   assert.equal(report.claims[0].section, "Fixed");
-  assert.ok(report.claims[0].gaps.includes("repair"));
+  assert.equal(report.claims[0].gaps.includes("repair"), false);
 });
 
 test("delivery evidence is affirmative; malformed rows remain gaps", () => {

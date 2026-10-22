@@ -746,3 +746,14 @@ test("CLI and extension produce byte-identical output with and without --no-pend
     }
   }
 });
+
+
+test("audit command publishes an evidence-specific intent independently of generation", async () => {
+  const activation = await activateChangelog();
+  const audit = activation.registrations.commands.find((entry) => entry.command === "changelog audit");
+  const generate = activation.registrations.commands.find((entry) => entry.command === "changelog generate");
+  assert.ok(audit);
+  assert.ok(generate);
+  assert.match(audit.intent ?? "", /audit.*claims.*evidence.*publication/);
+  assert.notEqual(audit.intent, generate.intent);
+});

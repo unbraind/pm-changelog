@@ -483,6 +483,8 @@ export interface ChangelogAttributionProvenance {
 }
 /** One rendered release-note line and its original tracker sources. */
 export interface ChangelogClaimSource {
+    /** Semantic item category before conventional headings or custom grouping. */
+    category?: string;
     line: number;
     release: string;
     section: string;

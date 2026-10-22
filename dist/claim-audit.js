@@ -135,7 +135,7 @@ export function auditChangelogClaims(options, testReceipts = []) {
                 gaps.add("test_result");
             if (!record.delivery.length)
                 gaps.add("delivery");
-            if (source.section === "Fixed" && !hasRepairEvidence(item))
+            if (source.category === "Fixed" && !hasRepairEvidence(item))
                 gaps.add("repair");
         }
         const orderedGaps = [...gaps].sort();
