@@ -218,7 +218,7 @@ export function resolveTrackerReleaseHistory(milestones: readonly ReleaseMilesto
     const heading = `${milestone.name} - ${new Date(milestone.capturedAt).toISOString().slice(0, 10)}`;
     windows.unshift({ heading, releaseTag: milestone.name });
     for (const frozen of milestone.items) {
-      if (frozen.status !== "closed" || membership.has(frozen.id!)) continue;
+      if (String(frozen.status).toLowerCase() !== "closed" || membership.has(frozen.id!)) continue;
       const item = frozen;
       items.push({ ...item, release: undefined, metadata: { ...item.metadata, release: undefined } });
       membership.set(frozen.id!, heading);
@@ -274,7 +274,11 @@ export class DirectoryReleaseMilestoneStore implements ReleaseMilestoneStore {
             await handle.writeFile(JSON.stringify(milestone) + "\n");
             await handle.sync();
           } finally { await handle.close(); }
-          await link(temporary, join(this.directory, `${name}.json`));
+          try { await link(temporary, join(this.directory, `${name}.json`)); }
+          catch (error) {
+            if ((error as NodeJS.ErrnoException).code === "EEXIST") return false;
+            throw error;
+          }
           if (process.platform !== "win32") {
             const directory = await open(this.directory, "r");
             try { await directory.sync(); }

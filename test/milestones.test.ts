@@ -130,7 +130,7 @@ test("open milestone members remain Unreleased until their first closed capture"
     const before = resolveTrackerReleaseHistory([v1], [closed]);
     assert.equal(before.releaseMembership.get(open.id), "Unreleased");
     assert.equal(createChangelog(before).sections.find((section) => section.items.length)!.heading, "Unreleased");
-    const v2 = await createReleaseMilestone(sql, "v2", { capturedAt: "2026-10-02T00:00:00Z", items: [closed] });
+    const v2 = await createReleaseMilestone(sql, "v2", { capturedAt: "2026-10-02T00:00:00Z", items: [{ ...closed, status: "Closed" }] });
     for (const current of [[], [open], [{ ...closed, title: "Edited afterward" }]]) {
       const history = resolveTrackerReleaseHistory([v2, v1], current);
       assert.equal(history.releaseMembership.get(open.id), "v2 - 2026-10-02");
@@ -585,14 +585,16 @@ test("directory publication serializes clock checks and refuses held locks", asy
   const source = new SqlStore();
   let first: ReleaseMilestone;
   let next: ReleaseMilestone;
+  let older: ReleaseMilestone;
   try {
+    older = await createReleaseMilestone(source, "older", { ...initial, capturedAt: "2026-09-30T12:00:00Z" });
     first = await createReleaseMilestone(source, "first", initial);
     next = await createReleaseMilestone(source, "next", { ...initial, capturedAt: "2026-10-02T00:00:00Z" });
   } finally { source.db.close(); }
   const store = new DirectoryReleaseMilestoneStore(root);
   assert.equal(await store.publish(first.name, first), true);
   assert.equal(await store.publish(first.name, first), false);
-  await assert.rejects(store.publish("older", { ...first, name: "older" }), refusal("milestone_invalid"));
+  await assert.rejects(store.publish("older", older), refusal("milestone_invalid"));
   mkdirSync(join(store.directory, ".writer-lock"));
   await assert.rejects(store.publish(next.name, next), refusal("milestone_storage"));
   assert.equal(await store.read(next.name), undefined);
@@ -695,4 +697,30 @@ test("merged audit commands inspect frozen milestone rows after reopening", asyn
   const host = await runRegisteredCommandForTest(activation.commands, { command: "changelog audit", pmRoot, options: { milestones: true, format: "json" } });
   const report = JSON.parse((host.result as { output: string }).output) as typeof cli;
   assert.deepEqual(report, cli);
+});
+
+
+test("publication preserves insert-only results when synchronization wins the hard-link race", async (t) => {
+  const root = mkdtempSync(join(tmpdir(), "pm-release-link-race-"));
+  const sql = new SqlStore();
+  const realLink = fsPromises.link;
+  let fault = false;
+  try {
+    const original = await createReleaseMilestone(sql, "synced", initial);
+    const store = new DirectoryReleaseMilestoneStore(root);
+    t.mock.method(fsPromises, "link", async (...args: Parameters<typeof fsPromises.link>) => {
+      if (fault) throw Object.assign(new Error("injected link denial"), { code: "EACCES" });
+      await fsPromises.writeFile(args[1], JSON.stringify(original));
+      return realLink(...args);
+    });
+    syncBuiltinESMExports();
+    assert.deepEqual(await createReleaseMilestone(store, "synced", initial), original);
+    assert.deepEqual((await fsPromises.readdir(store.directory)).filter((name) => name.endsWith(".tmp") || name === ".writer-lock"), []);
+    fault = true;
+    const denied = new DirectoryReleaseMilestoneStore(join(root, "denied"));
+    await assert.rejects(denied.publish("synced", original), refusal("milestone_storage"));
+    assert.equal(await denied.read("synced"), undefined);
+  } finally {
+    t.mock.restoreAll(); syncBuiltinESMExports(); sql.db.close(); rmSync(root, { recursive: true, force: true });
+  }
 });
