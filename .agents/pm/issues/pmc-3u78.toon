@@ -1,21 +1,21 @@
 id: pmc-3u78
-title: "A release run bumped and committed a new version every night while publishing was impossible, and the changelog-date verifier no gate ever invoked"
+title: "A release run bumped and committed a new version every night while publishing was impossible, and the changelog-date verifier was never invoked by a gate"
 description: "Two defects in the same release path. Publication is the only step that can fail for a reason outside this repository and it runs last, so ten days of a dead npm credential still advanced main every night and published nothing. Separately, scripts/verify-release-changelog-date.sh proved the untagged-release heading comes from the calendar version rather than the clock, but no package script or workflow ever invoked it, which makes it documentation rather than a gate."
 type: Issue
 status: closed
 priority: 0
 tags[4]: changelog,ci,npm,release
 created_at: "2026-08-26T21:29:33.455Z"
-updated_at: "2026-10-21T19:27:05.390Z"
+updated_at: "2026-10-22T10:29:30.325Z"
 deadline: "2026-09-02T00:00:00.000Z"
 closed_at: "2026-10-21T19:27:01.719Z"
 completed_at: "2026-10-21T19:27:01.719Z"
 author: claude
 estimated_minutes: 120
 acceptance_criteria: "The release job is gated by ref at the job level so no repository-controlled code runs with id-token write from a non-main ref; the run fails before the version bump when npm will not accept the workflow's OIDC identity, naming the package, organization, repository and workflow to configure; a registry outage or rate limit is reported as such rather than as an identity refusal; no registry credential reaches the publish step under any name or mechanism; every credential the scrub claims to remove is removed, asserted in the delimited form so no key's expression can satisfy another's; the effective npm is verified at install time and again immediately before publication; no run script in the release job interpolates workflow context; and every enumerated mutation fails the guard suite, with the verified count recorded on the run that produced it rather than fixed in this criterion."
-resolution: "Reverified main 56f8536702f6 (unchanged since audit): [PR #247](https://github.com/unbraind/pm-changelog/pull/247) (4a2e633) verifies the OIDC preflight/order guards and wires the date verifier. Current release.yml retains the protections. Retained evidence: scripts/coverage-gate.ts, test/dependency-updates.test.ts, test/extension.test.ts."
+resolution: "Rechecked main ff1418fff98b4409421053a44e46e488f11daa64: Commit ffe3bb52735b3f3ca80335bf32793f9dae56b57b delivered the OIDC preflight before version mutation and wired the changelog-date verifier into release:check; later guards through 49431c0 hardened credentials. PR #247 audited the already-delivered behavior and added integration coverage. Retained evidence: .github/workflows/release.yml, package.json, test/release-workflow.test.ts, scripts/verify-release-changelog-date.ts, test/verify-release-changelog-date.test.ts, docs/backlog-verification.md."
 expected_result: Verify OIDC identity before release metadata changes and run deterministic changelog date verification.
-actual_result: "Reverified main 56f8536702f6 (unchanged since audit): [PR #247](https://github.com/unbraind/pm-changelog/pull/247) (4a2e633) verifies the OIDC preflight/order guards and wires the date verifier. Current release.yml retains the protections. Retained evidence: scripts/coverage-gate.ts, test/dependency-updates.test.ts, test/extension.test.ts."
+actual_result: "Rechecked main ff1418fff98b4409421053a44e46e488f11daa64: Commit ffe3bb52735b3f3ca80335bf32793f9dae56b57b delivered the OIDC preflight before version mutation and wired the changelog-date verifier into release:check; later guards through 49431c0 hardened credentials. PR #247 audited the already-delivered behavior and added integration coverage. Retained evidence: .github/workflows/release.yml, package.json, test/release-workflow.test.ts, scripts/verify-release-changelog-date.ts, test/verify-release-changelog-date.test.ts, docs/backlog-verification.md."
 dependencies[1]{id,kind,created_at,author,source_kind,author_source}:
   pmc-4xu9,related,"2026-08-26T21:29:33.455Z",claude,"cli:create:dep",asserted
 comments[17]{created_at,author,text}:
@@ -79,5 +79,5 @@ docs[3]:
   - path: README.md
     scope: project
     note: Source delivery scope and package documentation
-close_reason: "Reverified main 56f8536702f6 (unchanged since audit): [PR #247](https://github.com/unbraind/pm-changelog/pull/247) (4a2e633) verifies the OIDC preflight/order guards and wires the date verifier. Current release.yml retains the protections. Retained evidence: scripts/coverage-gate.ts, test/dependency-updates.test.ts, test/extension.test.ts."
+close_reason: "Rechecked main ff1418fff98b4409421053a44e46e488f11daa64: Commit ffe3bb52735b3f3ca80335bf32793f9dae56b57b delivered the OIDC preflight before version mutation and wired the changelog-date verifier into release:check; later guards through 49431c0 hardened credentials. PR #247 audited the already-delivered behavior and added integration coverage. Retained evidence: .github/workflows/release.yml, package.json, test/release-workflow.test.ts, scripts/verify-release-changelog-date.ts, test/verify-release-changelog-date.test.ts, docs/backlog-verification.md."
 body: "The preflight asks npm's OIDC exchange endpoint for a credential before the version bump and fails the run when npm refuses. The verifier is registered in release:check and was confirmed to pass before being wired in."

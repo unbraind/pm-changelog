@@ -6,14 +6,14 @@ status: closed
 priority: 2
 tags[2]: flake,testing
 created_at: "2026-09-07T11:08:42.695Z"
-updated_at: "2026-10-21T19:13:34.601Z"
+updated_at: "2026-10-22T10:29:26.788Z"
 closed_at: "2026-10-21T19:13:27.125Z"
 completed_at: "2026-10-21T19:13:27.125Z"
 author: claude
 acceptance_criteria: "The test's verdict does not depend on the contents of directories above the fixture; On a host where the precondition does not hold, the failure names the precondition, not the production regex"
-resolution: "Reverified main 56f8536702f6 (unchanged since audit): [PR #247](https://github.com/unbraind/pm-changelog/pull/247) (4a2e633) isolates the package-root fixture and verifies the host-independent error assertion. Retained evidence: scripts/coverage-gate.ts, test/dependency-updates.test.ts, test/extension.test.ts."
+resolution: "Rechecked main ff1418fff98b4409421053a44e46e488f11daa64: PR #215 (a102d18db568456270aca75a89e2d6772156748a) delivered the inclusive package-search boundary and fixture-owned ancestor decoy. PR #247 reverified that existing fix; it did not deliver it. Retained evidence: src/release-context.ts (findPackageJson/packageSearchBoundary), test/release-context.test.ts (missing-package, inclusive-boundary and invalid-boundary cases), docs/backlog-verification.md."
 expected_result: Package-root fixture assertions remain valid when an ancestor has package metadata.
-actual_result: "Reverified main 56f8536702f6 (unchanged since audit): [PR #247](https://github.com/unbraind/pm-changelog/pull/247) (4a2e633) isolates the package-root fixture and verifies the host-independent error assertion. Retained evidence: scripts/coverage-gate.ts, test/dependency-updates.test.ts, test/extension.test.ts."
+actual_result: "Rechecked main ff1418fff98b4409421053a44e46e488f11daa64: PR #215 (a102d18db568456270aca75a89e2d6772156748a) delivered the inclusive package-search boundary and fixture-owned ancestor decoy. PR #247 reverified that existing fix; it did not deliver it. Retained evidence: src/release-context.ts (findPackageJson/packageSearchBoundary), test/release-context.test.ts (missing-package, inclusive-boundary and invalid-boundary cases), docs/backlog-verification.md."
 comments[4]{created_at,author,text}:
   "2026-10-16T04:04:42.634Z",codex-agent,"Current-main audit at aafea5d (package 2026.10.15): Already fixed. `a102d18` (#215), included in `v2026.10.4`. `src/release-context.ts:495` implements an inclusive ancestor boundary; `test/release-context.test.ts:158` owns its tree and plants a decoy package above the boundary. The adjacent tests cover inclusive and invalid boundaries. No item is closed; verification and closure remain with the orchestrator."
   "2026-10-16T04:05:10.137Z",codex-agent,"Revert proof: changing only findPackageJson to stop at filesystem root instead of packageSearchBoundary makes node --test --test-name-pattern=\"throws when release-version-from-package finds no package.json\" test/release-context.test.ts fail 0/1 (Missing expected exception), because it finds the fixture-owned decoy above the boundary. No ambient metadata was changed. Restored focused suite passes."
@@ -25,5 +25,5 @@ tests[1]{command,scope,timeout_seconds,pm_context_mode,provenance{author,created
   node --test test/release-context.test.ts,project,240,tracker,codex-agent,"2026-10-16T04:05:13.141Z",local_mutation,fix/release-date-and-backlog
 docs[1]{path,scope}:
   docs/backlog-verification.md,project
-close_reason: "Reverified main 56f8536702f6 (unchanged since audit): [PR #247](https://github.com/unbraind/pm-changelog/pull/247) (4a2e633) isolates the package-root fixture and verifies the host-independent error assertion. Retained evidence: scripts/coverage-gate.ts, test/dependency-updates.test.ts, test/extension.test.ts."
+close_reason: "Rechecked main ff1418fff98b4409421053a44e46e488f11daa64: PR #215 (a102d18db568456270aca75a89e2d6772156748a) delivered the inclusive package-search boundary and fixture-owned ancestor decoy. PR #247 reverified that existing fix; it did not deliver it. Retained evidence: src/release-context.ts (findPackageJson/packageSearchBoundary), test/release-context.test.ts (missing-package, inclusive-boundary and invalid-boundary cases), docs/backlog-verification.md."
 body: ""

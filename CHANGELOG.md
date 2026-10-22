@@ -9,7 +9,7 @@
 
 ### Fixed
 
-- A release run bumped and committed a new version every night while publishing was impossible, and the changelog-date verifier no gate ever invoked ([pmc-3u78](https://github.com/unbraind/pm-changelog/blob/main/.agents/pm/issues/pmc-3u78.toon))
+- A release run bumped and committed a new version every night while publishing was impossible, and the changelog-date verifier was never invoked by a gate ([pmc-3u78](https://github.com/unbraind/pm-changelog/blob/main/.agents/pm/issues/pmc-3u78.toon))
 - Let an item supply a release note the changelog prefers over its defect-shaped title ([pmc-fzs6](https://github.com/unbraind/pm-changelog/blob/main/.agents/pm/issues/pmc-fzs6.toon))
 - Harden the release merge wait against mergeStateStatus deadlock ([pmc-blj6](https://github.com/unbraind/pm-changelog/blob/main/.agents/pm/issues/pmc-blj6.toon))
 - A test asserts an error that only occurs when no package.json exists anywhere above the OS temp directory, so it fails on a host where one does ([pmc-6eau](https://github.com/unbraind/pm-changelog/blob/main/.agents/pm/issues/pmc-6eau.toon))
