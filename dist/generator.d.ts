@@ -1,3 +1,4 @@
+import type { ChangelogClaimSource } from "./types.ts";
 import type { ChangelogDocument, ChangelogEntryFrom, ChangelogSelectionReport, ChangelogSummaryEntry, DependencyCommit, GeneratedChangelog, GenerateChangelogOptions, MergeChangelogOptions, MergeChangelogResult, PmItem, ReadPmItemsOptions, SemverSuggestion, WriteChangelogOptions, WriteChangelogResult } from "./types.ts";
 type PmCommand = {
     bin: string;
@@ -36,7 +37,7 @@ export declare function generateChangelog(options: GenerateChangelogOptions): st
 /** Render a changelog, returning the markdown alongside the sections and item
  * count it was built from so a caller can report on the selection without
  * re-parsing its own output. */
-export declare function createChangelog(options: GenerateChangelogOptions): GeneratedChangelog;
+export declare function createChangelog(options: GenerateChangelogOptions, onClaim?: (source: ChangelogClaimSource) => void): GeneratedChangelog;
 /**
  * OPT-IN (`--changelog-json`): build a structured representation of the
  * changelog (releases -> sections -> items) for downstream tooling. This is

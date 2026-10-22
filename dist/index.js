@@ -2,4 +2,5 @@ export { buildChangelogDocument, buildPmListArgs, createChangelog, createChangel
 export { assertReleaseTagHistory, MISSING_TAG_HISTORY_ERROR_CODE, MissingTagHistoryError, resolveGenerationReleaseWindows, resolveReleaseContext, resolveReleaseTagWindowResolution, resolveReleaseTagWindows, } from "./release-context.js";
 export { resolveGitReleaseHistory, resolveGitReleaseMembership } from "./release-membership.js";
 export { checkItemLinks } from "./item-links.js";
+export { auditChangelogClaims, assertChangelogClaims, formatClaimAudit, parseClaimTestReceipts, ClaimAuditError, CLAIM_AUDIT_REMEDIES } from "./claim-audit.js";
 //# sourceMappingURL=index.js.map

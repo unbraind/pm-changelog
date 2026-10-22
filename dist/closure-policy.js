@@ -31,7 +31,7 @@ function hasLinkedEvidence(value, keys) {
     });
 }
 /** Recognize an affirmative delivery with a PR/commit reference, never a bare issue link. */
-function recordsDelivery(value) {
+export function recordsDelivery(value) {
     const text = prose(value);
     return !NEGATED_REPAIR.test(text) && DELIVERY.test(text) && DELIVERY_REF.test(text);
 }
@@ -47,7 +47,7 @@ function hasDeliveryLink(value) {
     });
 }
 /** Tracker evidence sufficient to label an issue as a repair; no git access occurs. */
-function hasRepairEvidence(item) {
+export function hasRepairEvidence(item) {
     return hasLinkedEvidence(item.files, ["path"])
         || hasLinkedEvidence(item.tests, ["command", "path"])
         || [item.close_reason, item.resolution].some((value) => {
