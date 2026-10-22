@@ -61,3 +61,10 @@ publish. Regeneration preserves line order and evidence order, and inserts no
 clock-dependent audit timestamp. Failed receipts for a command dominate passing
 receipts for that command; remove an obsolete receipt only after resolving and
 retaining the relevant evidence elsewhere.
+
+For host commands, `pm changelog audit --check` and `pm changelog generate
+--audit-evidence --check` write the complete report to stderr before refusing an
+unsupported claim. Add `--format json` for JSON; the default is TOON. The report
+retains claim line mappings and gap-specific remedies. Successful checks and
+normal audits return a single report through normal output. SDK callers can
+format `ClaimAuditError.report` themselves, as shown above.

@@ -317,7 +317,11 @@ to the selected items' credit metadata; `No changes.` maps to the empty selectio
 Existing prepended history is outside this generated-document audit.
 
 `--check` exits nonzero on any gap; normal audit mode exits zero and returns the
-complete report. The standalone command prints that report before refusing.
+complete report. The standalone command prints that report to stdout before
+refusing. Host commands (`pm changelog audit` and `pm changelog generate
+--audit-evidence`) print the selected JSON or TOON report to stderr before a failed
+check throws, preserving line mappings, gaps and remedies. Successful host checks
+return one report through normal output.
 `ClaimAuditError` exposes `code`, `remedy` and, for unsupported claims, `report`.
 Git-dependent dependency audits refuse as `git_required` without a repository; drop
 `--dependency-updates` to continue a tracker-only audit. Duplicate or missing item IDs refuse as `ambiguous_items`; malformed execution

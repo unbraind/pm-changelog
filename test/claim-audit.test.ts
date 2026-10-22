@@ -5,7 +5,7 @@ import { cpSync, mkdirSync, mkdtempSync, readFileSync, rmSync, symlinkSync, writ
 import { tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
 import test from "node:test";
-import { runCreate } from "@unbrained/pm-cli/sdk";
+import { runCreate, runInit } from "@unbrained/pm-cli/sdk";
 import { activateExtensionForTest, runRegisteredCommandForTest } from "@unbrained/pm-cli/sdk/testing";
 import { initGitFixture } from "./git-fixture.ts";
 import { cliTestSurface } from "../src/cli.ts";
@@ -127,6 +127,46 @@ test("empty selections and empty release assertions have deterministic zero-gap 
   assert.equal(window.ready, true);
 });
 
+test("host audit check preserves reports before refusal without duplicating successful output", async (t) => {
+  const cwd = mkdtempSync(join(tmpdir(), "pm-claims-host-check-"));
+  t.after(() => rmSync(cwd, { recursive: true, force: true }));
+  const pmRoot = join(cwd, ".agents/pm");
+  await runInit(undefined, { path: pmRoot }, { defaults: true, agentGuidance: "skip" });
+  const created = await runCreate({ title: base.title, type: "Issue", status: "closed", closeReason: base.close_reason, test: [`command=${receipt.command},scope=project`], createMode: "progressive" }, { path: pmRoot });
+  const receiptsFile = join(cwd, "receipts.json");
+  writeFileSync(receiptsFile, JSON.stringify([{ ...receipt, item: created.item.id }]));
+  const activation = await activateExtensionForTest(extension, { name: "pm-changelog", capabilities: ["commands", "schema", "importers", "renderers"] });
+  assert.deepEqual(activation.failed, []);
+  const writes: string[] = [];
+  t.mock.method(process.stderr, "write", (chunk: string | Uint8Array) => { writes.push(String(chunk)); return true; });
+  for (const format of ["json", "toon"] as const) {
+    for (const command of ["changelog audit", "changelog generate"]) {
+      const options = { "audit-evidence": true, ...(format === "json" ? { format } : {}) };
+      const global = { json: false };
+      writes.length = 0;
+      await assert.rejects(() => runRegisteredCommandForTest(activation.commands, { command, pmRoot, global, options: { ...options, check: true } }), (error: unknown) => {
+        assert.ok(error instanceof ClaimAuditError);
+        assert.ok(error.report);
+        assert.equal(error.report.ready, false);
+        assert.equal(error.report.unsupported_count, 1);
+        assert.ok(error.report.claims[0].gaps.includes("test_result"));
+        assert.equal(writes.join(""), formatClaimAudit(error.report, format));
+        assert.match(writes.join(""), /test_result/);
+        assert.match(writes.join(""), /remedies/);
+        return true;
+      });
+      writes.length = 0;
+      const normal = await runRegisteredCommandForTest(activation.commands, { command, pmRoot, global, options });
+      assert.match((normal.result as { output: string }).output, /test_result/);
+      assert.deepEqual(writes, []);
+      const supported = await runRegisteredCommandForTest(activation.commands, { command, pmRoot, global, options: { ...options, check: true, "audit-receipts": receiptsFile } });
+      const output = (supported.result as { output: string }).output;
+      assert.ok(format === "json" ? JSON.parse(output).ready === true : output.includes("ready: true"));
+      assert.deepEqual(writes, []);
+    }
+  }
+});
+
 test("real non-git tracker works through SDK, standalone and host CLI with git absent", async (t) => {
   const cwd = mkdtempSync(join(tmpdir(), "pm-claims-"));
   t.after(() => rmSync(cwd, { recursive: true, force: true }));
@@ -176,6 +216,9 @@ test("real non-git tracker works through SDK, standalone and host CLI with git a
   const actualGap = spawnSync(process.execPath, [pm, "--path", pmRoot, "changelog", "audit", "--check"], { cwd, env, encoding: "utf8" });
   assert.notEqual(actualGap.status, 0, actualGap.stderr);
   assert.match(actualGap.stderr, /unsupported_claims/);
+  assert.match(actualGap.stderr, /claims\[1\]/);
+  assert.match(actualGap.stderr, /test_result/);
+  assert.match(actualGap.stderr, /remedies:/);
   assert.equal(readFileSync(receiptsFile, "utf8"), JSON.stringify([{ ...receipt, item: created.item.id }]));
 });
 

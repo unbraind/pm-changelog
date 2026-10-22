@@ -286,8 +286,12 @@ export default defineExtension({
           const receiptFile = stringOption(ctx.options, "audit-receipts", "auditReceipts");
           const receipts = receiptFile === undefined ? [] : parseClaimTestReceipts(readFileSync(receiptFile, "utf-8"));
           const report = auditChangelogClaims(generationOptions, receipts);
-          if (booleanOption(ctx.options, "check", "check")) assertChangelogClaims(report);
-          return { pmChangelogRendered: true, output: formatClaimAudit(report, wantsJsonFormat || ctx.global.json ? "json" : "toon") };
+          const output = formatClaimAudit(report, wantsJsonFormat || ctx.global.json ? "json" : "toon");
+          if (booleanOption(ctx.options, "check", "check")) {
+            if (!report.ready) process.stderr.write(output);
+            assertChangelogClaims(report);
+          }
+          return { pmChangelogRendered: true, output };
         }
         const selectionReport = booleanOption(ctx.options, "explain-selection", "explainSelection")
           ? explainChangelogSelection(generationOptions)
