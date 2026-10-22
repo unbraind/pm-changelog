@@ -265,7 +265,7 @@ export default defineExtension({
                             entries,
                             format: "json",
                             item_count: entries.length,
-                            excluded_non_change_count: countNonChangeClosures(items),
+                            excluded_non_change_count: countNonChangeClosures(generationOptions.items),
                             ...(selectionReport ? { selection_report: selectionReport } : {}),
                         });
                     }
@@ -296,7 +296,7 @@ export default defineExtension({
                     const suggestion = suggestSemver(generationOptions);
                     return renderedCommandResult({
                         suggested_semver: suggestion,
-                        excluded_non_change_count: countNonChangeClosures(items),
+                        excluded_non_change_count: countNonChangeClosures(generationOptions.items),
                         format: "json",
                         ...(selectionReport ? { selection_report: selectionReport } : {}),
                     });

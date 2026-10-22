@@ -328,8 +328,10 @@ full member rows are not printed. The host renders receipts as TOON or JSON.
 `--milestones` selects the release source. Git-window, explicit version/date and
 metadata-grouping options cannot be combined with it. Existing `--group-by
 milestone` remains mutable item-field grouping. A tracker inside a Git repository
-can still use `--all-release-tags` in a separate invocation. Existing tag behavior
-is unchanged.
+can still use `--all-release-tags` in a separate invocation. Outside a Git
+repository, explicit tag options (`--all-release-tags`, `--since-previous-tag`,
+and `--until-release-tag`) now fail with `MissingTagHistoryError` instead of
+silently falling back to a single section.
 
 The typed SDK accepts complete backend snapshots through `createReleaseMilestone`
 and an atomic `ReleaseMilestoneStore`. Use `resolveTrackerReleaseHistory` with

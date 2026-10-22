@@ -388,3 +388,36 @@ test("real plain tracker CLI and extension freeze and generate without a git exe
     rmSync(root, { recursive: true, force: true });
   }
 });
+
+test("milestone JSON counts use frozen non-change closures across CLI and extension projections", async (t) => {
+  const root = mkdtempSync(join(tmpdir(), "pm-release-counts-"));
+  const pmRoot = join(root, ".agents", "pm");
+  try {
+    await runInit("pm", { path: pmRoot }, { defaults: true, agentGuidance: "skip" });
+    await runCreate({ id: "pm-reopened", title: "Live reopened item", type: "Issue", status: "open", createMode: "progressive" }, { path: pmRoot });
+    await createReleaseMilestone(new DirectoryReleaseMilestoneStore(pmRoot), "counts", {
+      capturedAt: initial.capturedAt,
+      items: ["pm-deleted", "pm-reopened"].map((id) => ({ id, title: "Frozen non-change closure", type: "Issue", status: "closed", close_reason: "Not planned" })),
+    });
+    const activation = await activateExtensionForTest(extension, { name: "pm-changelog", capabilities: ["commands", "schema", "importers", "renderers"] });
+    const writes: string[] = [];
+    t.mock.method(process.stdout, "write", (chunk: string | Uint8Array) => { writes.push(String(chunk)); return true; });
+    for (const mode of ["--summary", "--suggest-semver"]) {
+      for (const explain of [false, true]) {
+        writes.length = 0;
+        await cliTestSurface.main(["--milestones", "--pm-root", pmRoot, mode, "--format", "json", ...(explain ? ["--explain"] : [])]);
+        assert.equal(JSON.parse(writes.join("")).excluded_non_change_count, 2, `CLI ${mode}, explain=${explain}`);
+        const result = await runRegisteredCommandForTest(activation.commands, {
+          command: "changelog generate", pmRoot,
+          options: { milestones: true, [mode.slice(2)]: true, format: "json", "explain-selection": explain },
+        });
+        assert.equal(JSON.parse((result.result as { output: string }).output).excluded_non_change_count, 2, `extension ${mode}, explain=${explain}`);
+      }
+    }
+  } finally { rmSync(root, { recursive: true, force: true }); }
+});
+
+test("milestone documentation describes explicit tag refusal outside Git", () => {
+  const readme = readFileSync(resolve("README.md"), "utf8");
+  assert.match(readme, /Outside a Git\s+repository, explicit tag options \(`--all-release-tags`, `--since-previous-tag`,\s+and `--until-release-tag`\) now fail with `MissingTagHistoryError`/);
+});

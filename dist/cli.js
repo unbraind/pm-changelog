@@ -165,7 +165,7 @@ async function main(args = process.argv.slice(2)) {
         if (options.format === "json") {
             const payload = {
                 entries,
-                excluded_non_change_count: countNonChangeClosures(items),
+                excluded_non_change_count: countNonChangeClosures(generationOptions.items),
                 format: "json",
                 item_count: entries.length,
                 ...(selectionReport ? { selection_report: selectionReport } : {}),
@@ -197,8 +197,8 @@ async function main(args = process.argv.slice(2)) {
     if (options.suggestSemver) {
         const suggestion = suggestSemver(generationOptions);
         const payload = selectionReport
-            ? { ...suggestion, excluded_non_change_count: countNonChangeClosures(items), selection_report: selectionReport }
-            : { ...suggestion, excluded_non_change_count: countNonChangeClosures(items) };
+            ? { ...suggestion, excluded_non_change_count: countNonChangeClosures(generationOptions.items), selection_report: selectionReport }
+            : { ...suggestion, excluded_non_change_count: countNonChangeClosures(generationOptions.items) };
         process.stdout.write(JSON.stringify(payload, null, 2) + "\n");
         return;
     }

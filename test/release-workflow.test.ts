@@ -731,3 +731,9 @@ test("release version matching preserves numeric captures across toolchain updat
     assert.equal(result.stdout, captures, version);
   }
 });
+
+test("CI retains the Bun script gate and executes direct Bun CLI and SDK smoke", () => {
+  const ci = executable(readFileSync(resolve(import.meta.dirname, "../.github/workflows/ci.yml"), "utf8"));
+  assert.match(ci, /run: bun run release:check/);
+  assert.match(ci, /- name: Direct Bun CLI and SDK runtime smoke\s+run: bun test\/bun-milestones-smoke.ts/);
+});
