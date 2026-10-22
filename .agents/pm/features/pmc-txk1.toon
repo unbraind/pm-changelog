@@ -2,13 +2,18 @@ id: pmc-txk1
 title: List closed issues under Fixed only when a repair is recorded
 description: "Require tracker repair evidence before classifying closed issues as Fixed; use neutral Closed entries for factual closures and omit non-change dispositions. Repro: pm-github-n0mm; classifier history: pmc-874d."
 type: Feature
-status: in_progress
+status: closed
 priority: 2
 tags[2]: changelog,classifier
 created_at: "2026-10-20T10:13:29.451Z"
-updated_at: "2026-10-20T17:59:53.870Z"
+updated_at: "2026-10-21T19:09:47.728Z"
+closed_at: "2026-10-21T19:09:40.581Z"
+completed_at: "2026-10-21T19:09:40.581Z"
 author: codex-agent
 acceptance_criteria: "Real-shaped classifier table, historical incident repro, full snapshot, no-git stdin and tracker input, behavioural revert proof, unchanged npm and Bun release gates, regenerated own changelog."
+resolution: "Reverified main 56f8536702f6 (unchanged since audit): [PR #262](https://github.com/unbraind/pm-changelog/pull/262) (b3af5d5), classifier and entry tests: closed Issue alone no longer establishes a repair; factual closure stays separate from Fixed. Retained evidence: src/cli.ts, src/closure-policy.ts, src/extension.ts."
+expected_result: A factual issue closure without repair evidence is separate from the Fixed category.
+actual_result: "Reverified main 56f8536702f6 (unchanged since audit): [PR #262](https://github.com/unbraind/pm-changelog/pull/262) (b3af5d5), classifier and entry tests: closed Issue alone no longer establishes a repair; factual closure stays separate from Fixed. Retained evidence: src/cli.ts, src/closure-policy.ts, src/extension.ts."
 comments[42]{created_at,author,text}:
   "2026-10-20T10:14:19.120Z",codex-agent,"Search found no existing evidence-based closure feature; pmc-874d is historical classifier precedence work. Design: for closed Issue/Bug/Bugfix/Defect records, explicit non-change dispositions in close_reason or resolution take precedence and are excluded. Other closures require linked files/tests, explicit affirmative repair wording in close_reason/resolution, or delivered/merged PR or commit evidence in resolution/actual_result/links; otherwise render Closed: title under Closed. Type/tag/title alone is not repair evidence. Features and Tasks retain existing classification. All projections use one selection policy; JSON reports non-change exclusions. Tracker data only; preserve existing release placement and prepend history. Fixtures will use sanitized SDK/fleet field shapes, including source closure timestamps and GitHub completion wording."
   "2026-10-20T10:20:22.684Z",codex-agent,"Focused regressions pass 57/57 (zero skipped): SDK/fleet-shaped files/tests, resolution/actual_result, merged PR/commit links, affirmative and negated repair statements, all non-change disposition spellings, incident repro, full historical snapshot, deterministic reversed input, preserved prepend history, and real SDK-created no-git tracker plus stdin under empty PATH. Policy refinement: non-change dispositions apply to every closed item type; Feature/Task category behavior otherwise stays unchanged. JSON exclusion count is across input before release/status filtering, making omitted administrative closures visible without claiming a release-specific count."
@@ -78,4 +83,5 @@ tests[3]{command,scope,provenance{author,created_at,source_kind,source_ref}}:
 docs[2]{path,scope}:
   docs/release.md,project
   README.md,project
+close_reason: "Reverified main 56f8536702f6 (unchanged since audit): [PR #262](https://github.com/unbraind/pm-changelog/pull/262) (b3af5d5), classifier and entry tests: closed Issue alone no longer establishes a repair; factual closure stays separate from Fixed. Retained evidence: src/cli.ts, src/closure-policy.ts, src/extension.ts."
 body: ""

@@ -2,15 +2,20 @@ id: pmc-fzs6
 title: Let an item supply a release note the changelog prefers over its defect-shaped title
 description: "Every changelog bullet pm-changelog emits is the tracker item title. That is right for the tracker and wrong for the changelog, and reviewers keep noticing. Two independent CodeRabbit reviews raised it on the same day, on pm-beads PR 69 and pm-starter PR 58: under a \"Fixed\" heading a defect-shaped title reads to a changelog-only reader as a statement of CURRENT behaviour, and the reader cannot tell which signals now fail the read or that anything changed at all. Both were declined per-package because the Fixed heading already carries \"this was fixed\" (Keep a Changelog names the bug in that section), because the only per-package alternative is retitling the Issue to describe a fix rather than the defect it was filed for, and because all 20 sibling packages render the same shape from the same field so a one-package reword makes that package an outlier. The real fix belongs in pm-changelog: let an item carry an OPTIONAL release note that the generator prefers over the title when present and falls back to the title when absent. Defect-shaped titles stay in the tracker, fix-shaped prose reaches the changelog, and nothing changes for any package that does not opt in."
 type: Issue
-status: open
+status: closed
 priority: 2
 tags[3]: changelog,dx,reviewer-raised
 created_at: "2026-08-15T15:17:40.100Z"
-updated_at: "2026-10-16T04:09:08.159Z"
+updated_at: "2026-10-22T10:29:45.179Z"
 deadline: "2026-09-30T00:00:00.000Z"
+closed_at: "2026-10-21T19:15:22.310Z"
+completed_at: "2026-10-21T19:15:22.310Z"
 author: claude-agent
 estimated_minutes: 240
 acceptance_criteria: "A package can attach a release note to one item, regenerate, and see the note in CHANGELOG.md while the tracker title is unchanged. A package that attaches nothing produces byte-identical output to today, proven by regenerating all 20 fleet changelogs and diffing. Precedence is explicit and tested for note present, note empty, note absent, and note on an item excluded by the status or tag filters. The check mode stays deterministic so no package changelog gate starts flapping."
+resolution: "Rechecked main ff1418fff98b4409421053a44e46e488f11daa64: PR #231 (d29b589) delivered the explicit --entry-from close_reason option, reverified by PR #247. Eligible entries use nonblank close_reason only when that option is selected; default mode and blank close_reason fall back to title. The resolution field is evidence metadata, not the entry-text source, and neutral-closure policy still applies. The tracker title is unchanged by entry selection. Retained evidence: src/generator.ts (resolveEntryTitle), src/cli.ts, src/extension.ts, test/entry-from.test.ts, docs/backlog-verification.md."
+expected_result: "With --entry-from close_reason, eligible entries use nonblank close_reason while preserving the tracker title; default mode and blank close_reason use title. resolution is not an entry-text source; neutral-closure policy still applies."
+actual_result: "Rechecked main ff1418fff98b4409421053a44e46e488f11daa64: PR #231 (d29b589) delivered the explicit --entry-from close_reason option, reverified by PR #247. Eligible entries use nonblank close_reason only when that option is selected; default mode and blank close_reason fall back to title. The resolution field is evidence metadata, not the entry-text source, and neutral-closure policy still applies. The tracker title is unchanged by entry selection. Retained evidence: src/generator.ts (resolveEntryTitle), src/cli.ts, src/extension.ts, test/entry-from.test.ts, docs/backlog-verification.md."
 dependencies[1]{id,kind,created_at,author,source_kind,author_source}:
   pmc-wv37,related,"2026-08-15T15:17:40.100Z",claude-agent,"cli:create:dep",asserted
 comments[3]{created_at,author,text}:
@@ -46,4 +51,5 @@ docs[2]:
   - path: README.md
     scope: project
     note: generator options and entry shape
+close_reason: "Rechecked main ff1418fff98b4409421053a44e46e488f11daa64: PR #231 (d29b589) delivered the explicit --entry-from close_reason option, reverified by PR #247. Eligible entries use nonblank close_reason only when that option is selected; default mode and blank close_reason fall back to title. The resolution field is evidence metadata, not the entry-text source, and neutral-closure policy still applies. The tracker title is unchanged by entry selection. Retained evidence: src/generator.ts (resolveEntryTitle), src/cli.ts, src/extension.ts, test/entry-from.test.ts, docs/backlog-verification.md."
 body: "Every changelog bullet pm-changelog emits is the tracker item title. That is right for the tracker and wrong for the changelog, and reviewers keep noticing. Two independent CodeRabbit reviews raised it on the same day, on pm-beads PR 69 and pm-starter PR 58: under a \"Fixed\" heading a defect-shaped title reads to a changelog-only reader as a statement of CURRENT behaviour, and the reader cannot tell which signals now fail the read or that anything changed at all. Both were declined per-package because the Fixed heading already carries \"this was fixed\" (Keep a Changelog names the bug in that section), because the only per-package alternative is retitling the Issue to describe a fix rather than the defect it was filed for, and because all 20 sibling packages render the same shape from the same field so a one-package reword makes that package an outlier. The real fix belongs in pm-changelog: let an item carry an OPTIONAL release note that the generator prefers over the title when present and falls back to the title when absent. Defect-shaped titles stay in the tracker, fix-shaped prose reaches the changelog, and nothing changes for any package that does not opt in."

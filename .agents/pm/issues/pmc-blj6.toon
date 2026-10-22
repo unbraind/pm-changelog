@@ -2,12 +2,17 @@ id: pmc-blj6
 title: Harden the release merge wait against mergeStateStatus deadlock
 description: The release merge wait loop polled mergeStateStatus and merged only on CLEAN HAS_HOOKS or UNSTABLE. That deadlocked release PR 133 which reported BLOCKED with an empty statusCheckRollup for the full 30 minute deadline even though the required checks had already passed. Replace the state poll with a merge API attempt that lets GitHub be the authority and resolve unresolved review threads so required conversation resolution cannot block the merge.
 type: Issue
-status: open
+status: closed
 priority: 2
 tags: []
 created_at: "2026-08-10T15:05:09.574Z"
-updated_at: "2026-10-16T04:09:15.204Z"
+updated_at: "2026-10-22T10:29:37.876Z"
+closed_at: "2026-10-21T19:14:32.551Z"
+completed_at: "2026-10-21T19:14:32.551Z"
 author: pi-agent
+resolution: "Rechecked main ff1418fff98b4409421053a44e46e488f11daa64: PR #137 (eab2d07) delivered bounded SHA-guarded merge API attempts independent of CLEAN/BLOCKED state polling. PR #247 reverified the executable release transaction. Retained evidence: .github/workflows/release.yml (protected release PR transaction), test/release-workflow.test.ts (exact-SHA guarded and retryable transaction), docs/backlog-verification.md."
+expected_result: Release metadata merge waiting makes bounded merge attempts without deadlocking on mergeStateStatus.
+actual_result: "Rechecked main ff1418fff98b4409421053a44e46e488f11daa64: PR #137 (eab2d07) delivered bounded SHA-guarded merge API attempts independent of CLEAN/BLOCKED state polling. PR #247 reverified the executable release transaction. Retained evidence: .github/workflows/release.yml (protected release PR transaction), test/release-workflow.test.ts (exact-SHA guarded and retryable transaction), docs/backlog-verification.md."
 comments[2]{created_at,author,text}:
   "2026-10-16T04:04:51.666Z",codex-agent,"Current-main audit at aafea5d (package 2026.10.15): Already fixed. `eab2d07` (#137), included in `v2026.8.9`. `.github/workflows/release.yml:568` attempts the SHA-guarded merge API independently of CLEAN/BLOCKED status. Only DIRTY/BEHIND abort immediately; thread resolution preserves human conversations. `test/release-workflow.test.ts:549` guards the retryable transaction. No item is closed; verification and closure remain with the orchestrator."
   "2026-10-16T04:09:11.221Z",codex-agent,"Pinned-host linked verification: pm test pmc-blj6 --run --match \"node --test\" --progress passed. Command: node --test test/release-workflow.test.ts; 16/16 tests, zero failures/cancelled/skipped/todo. Focused combined verification passed 63/63; suffix and invalid-date controls passed 2/2. Test-result tracking is disabled in project settings, so this comment preserves the run receipt without changing that policy."
@@ -26,4 +31,5 @@ tests[1]{command,scope,timeout_seconds,pm_context_mode,provenance{author,created
   node --test test/release-workflow.test.ts,project,240,tracker,codex-agent,"2026-10-16T04:05:32.237Z",local_mutation,fix/release-date-and-backlog
 docs[1]{path,scope}:
   docs/backlog-verification.md,project
+close_reason: "Rechecked main ff1418fff98b4409421053a44e46e488f11daa64: PR #137 (eab2d07) delivered bounded SHA-guarded merge API attempts independent of CLEAN/BLOCKED state polling. PR #247 reverified the executable release transaction. Retained evidence: .github/workflows/release.yml (protected release PR transaction), test/release-workflow.test.ts (exact-SHA guarded and retryable transaction), docs/backlog-verification.md."
 body: ""
