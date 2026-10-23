@@ -8,7 +8,9 @@ Use this index first. Follow only the page needed for the current task.
 2. Check release automation or publishing: [Release and CI](release.md)
 3. Change source, tests, or package metadata: [Development](development.md)
 4. Audit generated wording: [Claim evidence example](claim-audit-example.md)
-5. Review shipped changes: [Changelog](../CHANGELOG.md)
+5. Publish audience-specific notes: [Change contract example](audience-contracts.md)
+6. Inspect measured tracker validation: [Audience validation](audience-contract-validation.md)
+7. Review shipped changes: [Changelog](../CHANGELOG.md)
 
 ## Package Summary
 

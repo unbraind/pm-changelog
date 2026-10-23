@@ -1,0 +1,7 @@
+[
+  {"id":"demo-cache","title":"Internal cache defect","type":"Issue","status":"closed","release":"2.0.0","closed_at":"2026-10-20T00:00:00Z","close_reason":"Fixed cache refresh; merged PR #42","change_facets":[{"audience":"api-user","text":"Responses include a cache revision."},{"audience":"operator","source":"close_reason"},{"audience":"agent-behavior","text":"Refresh cached context when its revision changes."}]},
+  {"id":"demo-cli","title":"Private implementation title","type":"Feature","status":"closed","release":"1.0.0","closed_at":"2026-10-19T00:00:00Z","change_facets":[{"audience":"api-user","text":"JSON output preserves commas, quotes \" and\nnewlines."},{"audience":"operator","source":"close_reason"}]},
+  {"id":"demo-untagged","title":"Never infer this title","type":"Task","status":"closed","release":"2.0.0","closed_at":"2026-10-20T00:00:00Z"},
+  {"id":"demo-open","title":"Not delivered","type":"Feature","status":"open","release":"2.0.0","change_facets":[{"audience":"api-user","text":"Do not publish planned work."}]},
+  {"id":"demo-duplicate","title":"Non-change closure","type":"Issue","status":"closed","release":"2.0.0","close_reason":"Duplicate of demo-cache","change_facets":[{"audience":"operator","text":"Do not publish dispositions."}]}
+]

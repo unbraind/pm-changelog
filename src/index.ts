@@ -65,6 +65,9 @@ export type {
 
 export { checkItemLinks } from "./item-links.ts";
 
+export { CHANGE_AUDIENCES, AudienceContractError, parseChangeAudience, buildAudienceContracts, readAudienceContracts, formatAudienceContracts } from "./audience-contracts.ts";
+export type { ChangeAudience, ChangeFacet, ChangeAttribution, AudienceContractOptions, AudienceChangeContract, AudienceContractReport } from "./audience-contracts.ts";
+
 export type { GitReleaseHistory } from "./release-membership.ts";
 
 export {

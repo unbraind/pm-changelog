@@ -189,6 +189,8 @@ export declare function compareVersionStrings(a: string, b: string): number;
 export declare function formatInferredSources(sources: Record<string, number>): string;
 /** Validate the explicit entry source for standalone and extension commands. */
 export declare function parseChangelogEntryFrom(value: string): ChangelogEntryFrom;
+/** Render only recorded resolution prose; callers decide whether missing prose permits a fallback. */
+export declare function resolveChangelogResolution(item: PmItem): string | undefined;
 /** Advisory check diagnostics for visible closed Fixed items lacking resolution
  * prose. The conservative English heuristic recognizes present-tense failures
  * and broken states; it is not a grammar validator. Grouping by another field

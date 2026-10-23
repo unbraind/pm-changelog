@@ -1,0 +1,44 @@
+id: pmc-audience-contracts
+title: Publish audience-specific change contracts with shared attribution
+description: "Project explicitly tagged API-user, operator and agent-behavior facets of delivered items into versioned change contracts. Reuse release selection, section rules and resolution prose; core item metadata owns facet declarations."
+type: Feature
+status: in_progress
+priority: 2
+tags: []
+created_at: "2026-10-23T16:46:26.490Z"
+updated_at: "2026-10-23T17:02:34.650Z"
+author: codex-agent
+acceptance_criteria: Each audience sees only declared facets; missing facets yield omissions rather than invented prose; byte-stable fixtures cover mixed releases; typed SDK and CLI provide compact TOON/JSON and typed refusals with remedies; docs and read-only public tracker validation without git; npm and Bun CI release gates pass.
+comments[7]{created_at,author,text}:
+  "2026-10-23T16:46:46.585Z",codex-agent,"Overlap rechecked: core SDK provides extensible ItemMetadata, structured JSON mutation, certified listAllComplete reads and expected-error contracts; no audience-facet release publisher found. pm-brief summarizes current context and acknowledged handoffs, not versioned releases. Reuse buildChangelogDocument selection, grouping, section rules and close_reason rendering. Store explicit change_facets in core item metadata; no core or sibling changes. Public validation uses a read-only non-git tracker copy."
+  "2026-10-23T16:50:47.707Z",codex-agent,"Implemented typed audience contracts, shared prose-free attribution ledger and SHA-256 identity, compact TOON/JSON, and expected-error refusals with remedies. Registered change_facets through the core field API and use certified listAllComplete reads; no parallel metadata store. Missing declarations and unavailable explicitly requested close_reason prose emit omissions. Added mixed-release golden fixtures and no-git SDK, standalone and real host coverage."
+  "2026-10-23T16:53:43.674Z",codex-agent,"Read-only public main snapshot validation: 193 certified items, 183 closed, 179 selected changes after four non-change dispositions, 36 release groups, zero pre-existing facet declarations. Correctly published zero notes and 537 explicit omissions. JSON 35176 bytes; TOON 19219 bytes; warm SDK projection 611 ms. All 396 tracker files and membership unchanged; SDK and standalone bytes matched and TOON round-tripped. Each audience retained the same ledger SHA-256. See docs/audience-contract-validation.md. Positive fixtures separately cover three changes, four notes and five omissions across mixed releases."
+  "2026-10-23T16:55:04.145Z",codex-agent,"Behavioral revert proof: changing only buildAudienceContracts back to unscoped title publication made the mixed-release regression fail (exit 1). Restoring title fallback for missing close_reason made the explicit-facet regression fail (exit 1). Restored production behavior after each probe. Targeted module coverage currently measures 100% lines/functions; added both ID-ordering comparator arms for the unchanged 100% branch gate. No standalone lint script is configured; use the repository docstring gate and diff whitespace check alongside typecheck."
+  "2026-10-23T17:00:27.924Z",codex-agent,"Targeted local regression command passed 199/199 tests, zero failures/skips. Production and test typechecks passed. Docstring lint passed for 22 files and 192 declarations; diff whitespace check passed. Core structured field mutation and real extension/standalone no-git flows are covered. Full npm and Bun release gates will run in CI at unchanged thresholds to avoid loading the shared host. Existing pm CLI strict create policy required the documented progressive create mode; no core bug found."
+  "2026-10-23T17:01:35.415Z",codex-agent,"Final actual-host mutation check caught a package manifest activation gap: command-only lazy activation prevented change_facets registration during core update. Removed that restriction so schema fields activate for core mutations, as in schema-owning sibling packages. Added a real no-git pm update --field regression; rerunning the five contract tests and module coverage. This is a package integration correction, not a core defect. Linked-test execution receipts are disabled by existing project policy; outcomes are recorded here without changing that policy."
+  "2026-10-23T17:02:30.881Z",codex-agent,"Final contract coverage passed 5/5 tests with zero failures/skips and 100% measured lines, branches and functions for both new modules, through pm test --run --progress --only-last. Actual core CLI field mutation now passes without git. Local targeted suite passed 199/199; production/test typecheck, 192-declaration docstring lint and whitespace checks passed. Behavioral revert probes both failed as expected. Implementation is ready for PR and unchanged-threshold npm/Bun CI verification. Remaining validation boundaries: public corpus has no native facets; positive facets use synthetic fixtures; hosted transports were not exercised. No unresolved implementation blocker; no core bug found."
+files[12]{path,scope}:
+  manifest.json,project
+  src/audience-command.ts,project
+  src/audience-contracts.ts,project
+  src/cli.ts,project
+  src/extension.ts,project
+  src/generator.ts,project
+  src/index.ts,project
+  src/types.ts,project
+  test/audience-contracts.test.ts,project
+  test/fixtures/audience-contracts/items.json,project
+  test/fixtures/audience-contracts/mixed.json,project
+  test/fixtures/audience-contracts/mixed.toon,project
+tests[5]{command,scope,provenance{author,created_at,source_kind,source_ref}}:
+  node --test --test-concurrency=1 test/audience-contracts.test.ts,project,codex-agent,"2026-10-23T16:50:53.029Z",local_mutation,feat/audience-contracts
+  npm run typecheck,project,codex-agent,"2026-10-23T16:55:00.545Z",local_mutation,feat/audience-contracts
+  npm run docstring,project,codex-agent,"2026-10-23T16:55:00.545Z",local_mutation,feat/audience-contracts
+  node --test --test-concurrency=1 test/audience-contracts.test.ts test/entry-from.test.ts test/closure-evidence.test.ts test/extension.test.ts test/host-flag-contracts.test.ts test/shipped-docs.test.ts,project,codex-agent,"2026-10-23T16:55:00.545Z",local_mutation,feat/audience-contracts
+  node --test --test-concurrency=1 --experimental-test-coverage --test-coverage-include=src/audience*.ts test/audience-contracts.test.ts,project,codex-agent,"2026-10-23T16:58:17.190Z",local_mutation,feat/audience-contracts
+docs[4]{path,scope}:
+  docs/audience-contract-validation.md,project
+  docs/audience-contracts.md,project
+  docs/README.md,project
+  README.md,project
+body: ""

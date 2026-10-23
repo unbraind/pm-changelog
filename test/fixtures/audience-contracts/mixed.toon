@@ -1,0 +1,28 @@
+schema_version: 1
+ledger_sha256: 8c133f03b51d758d7b3d22a3826a5ce74e705e5f56f058970be0093693308f1b
+item_count: 3
+note_count: 4
+omission_count: 5
+ledger[3]{item,release,section}:
+  "demo-cache","2.0.0","Fixed"
+  "demo-untagged","2.0.0","Other"
+  "demo-cli","1.0.0","Added"
+contracts[3]:
+  - audience: api-user
+    notes[2]{attribution,text}:
+      0,"Responses include a cache revision."
+      2,"JSON output preserves commas, quotes \" and\nnewlines."
+    omissions[1]{attribution,reason}:
+      1,missing_facet
+  - audience: operator
+    notes[1]{attribution,text}:
+      0,"Fixed cache refresh; merged PR #42"
+    omissions[2]{attribution,reason}:
+      1,missing_facet
+      2,missing_resolution
+  - audience: agent-behavior
+    notes[1]{attribution,text}:
+      0,"Refresh cached context when its revision changes."
+    omissions[2]{attribution,reason}:
+      1,missing_facet
+      2,missing_facet

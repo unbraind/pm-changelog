@@ -1,6 +1,7 @@
 import { readFileSync, writeFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { defineExtension, getActiveExtensionRegistrations, listAllItemMetadata, locateItem, readLocatedItem, readSettings, resolveItemTypeRegistry, EXIT_CODE, PmCliError, } from "@unbrained/pm-cli/sdk";
+import { AUDIENCE_CONTRACT_FLAGS, runAudienceContractsCommand } from "./audience-command.js";
 import { DirectoryReleaseMilestoneStore, assertTrackerMilestoneOptions, createReleaseMilestone, readReleaseMilestones, readTrackerReleaseSnapshot, resolveTrackerReleaseHistory } from "./milestones.js";
 import { auditChangelogClaims, assertChangelogClaims, formatClaimAudit, parseClaimTestReceipts } from "./claim-audit.js";
 import { countNonChangeClosures } from "./closure-policy.js";
@@ -42,6 +43,15 @@ export default defineExtension({
     name: "pm-changelog",
     version: "2026.10.23",
     activate(api) {
+        api.registerItemFields([{ name: "change_facets", type: "array", optional: true }]);
+        api.registerCommand({
+            name: "changelog contracts",
+            description: "Publish declared audience facets with a common canonical attribution ledger; no git required.",
+            flags: AUDIENCE_CONTRACT_FLAGS,
+            async run(ctx) {
+                return { pmChangelogRendered: true, output: await runAudienceContractsCommand(ctx.pm_root, ctx.options, ctx.global.json) };
+            },
+        });
         api.registerCommand({
             name: "changelog milestone create",
             description: "Freeze immutable release membership from a tracker without git.",
@@ -488,7 +498,7 @@ export default defineExtension({
             // call site is still fully checked). The host enforces `commands` +
             // `resultDiscriminator` before invoking either callback.
             const rendererOwnership = {
-                commands: ["changelog generate", "changelog export", "changelog audit"],
+                commands: ["changelog generate", "changelog export", "changelog audit", "changelog contracts"],
                 resultDiscriminator: isRenderedCommandResult,
             };
             api.registerRenderer("toon", renderCommandResult, rendererOwnership);
