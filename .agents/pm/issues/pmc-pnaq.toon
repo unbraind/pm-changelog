@@ -1,0 +1,27 @@
+id: pmc-pnaq
+title: Track merge receipts so pm 2026.10.19+ can settle lossless merges
+description: "Since 2026-08-31 .gitignore excluded .agents/pm/merge-receipts/ because receipts were clone-local and committed stubs failed health. pm 2026.10.19 (upstream #1475) settles authenticated lossless merges by staging new receipts into the merge commit with git add; with the ignore rule that git add fails (paths are ignored), and the merge settlement exits 1 as unclassified_runtime_error (Sentry, 2026-10-22T20:32Z, pm-cli 2026.10.19 on this repo). The fleet's other repos already track their receipts."
+type: Issue
+status: closed
+priority: 2
+tags[3]: gitignore,merge,tracker-health
+created_at: "2026-10-23T07:22:37.699Z"
+updated_at: "2026-10-23T07:24:30.003Z"
+deadline: "2026-10-24T07:22:37.699Z"
+closed_at: "2026-10-23T07:24:29.958Z"
+completed_at: "2026-10-23T07:24:29.958Z"
+author: claude-orchestrator
+estimated_minutes: 20
+acceptance_criteria: The ignore rule and its outdated comment are removed; git check-ignore reports nothing for a receipt path; the existing tracked receipt is unchanged; changelog check passes
+repro_steps: Merge a branch carrying a lossless pm item merge in this repo with pm 2026.10.19 or newer; settlement runs git add on the new receipt and fails
+resolution: Track merge receipts like the rest of the fleet so pm settlement can stage them
+expected_result: pm merge settlement stages new receipts into the merge commit
+actual_result: git add of a new receipt failed because the path was ignored
+comments[1]{created_at,author,text}:
+  "2026-10-23T07:22:37.699Z",claude-orchestrator,"Evidence: Sentry event 3e1992b9 (pm-cli@2026.10.19, 2026-10-22T20:32Z): Command failed: git add -- :(literal).agents/pm/merge-receipts/<uuid>.json; The following paths are ignored by one of your .gitignore files: .agents/pm/merge-receipts."
+files[1]{path,scope}:
+  .gitignore,project
+tests[1]{command,scope,provenance{author,created_at,source_kind,source_ref}}:
+  sh -c 'git check-ignore -q .agents/pm/merge-receipts/probe.json; test $? -eq 1',project,claude-orchestrator,"2026-10-23T07:22:37.699Z",local_mutation,chore/track-merge-receipts
+close_reason: Removed the .agents/pm/merge-receipts/ ignore rule and its outdated comment; git check-ignore reports nothing for a receipt path (recorded test passes); the tracked receipt is unchanged.
+body: Remove the ignore rule and its outdated comment from .gitignore.
