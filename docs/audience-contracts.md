@@ -67,6 +67,12 @@ tracker title. TOON stores the ledger once and uses compact tables; JSON uses on
 unindented object and a trailing newline. Neither format includes a generation
 clock. Counts describe the requested audience projection.
 
+Within each release, contracts order sections by heading and items by unique
+item ID, using UTF-16 code-unit order. Input rows are also ordered by ID before
+the existing selection pipeline runs. This total key is independent of optional
+dates and titles, so input permutations preserve output bytes, attribution
+indices and ledger fingerprints. Explicit release-window order is preserved.
+
 TOON uses the `@toon-format/toon` 4.4.0 encoder, matching the pinned pm CLI.
 Control characters such as form feed, backspace, NUL and unit separator use
 TOON-compatible Unicode escapes; quotes, backslashes and line breaks round-trip

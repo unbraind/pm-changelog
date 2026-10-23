@@ -20,6 +20,44 @@ function refusal(code: AudienceContractError["code"]): (error: unknown) => boole
   return (error) => error instanceof AudienceContractError && error.code === code && error.exitCode !== 0 && !!error.remedy;
 }
 
+/** Enumerate every input order, including the empty tail of a permutation. */
+function permutations<T>(values: readonly T[]): T[][] {
+  if (values.length === 0) return [[]];
+  return values.flatMap((value, index) => permutations(values.filter((_, position) => position !== index)).map((tail) => [value, ...tail]));
+}
+
+test("reviewer items preserve contract bytes and attribution in all permutations", () => {
+  const reviewItems: PmItem[] = [
+    { id: "review-task-a", title: "A", type: "Task", status: "closed", closed_at: "2026-10-19T00:00:00Z" },
+    { id: "review-feature-b", title: "B", type: "Feature", status: "closed" },
+    { id: "review-task-c", title: "C", type: "Task", status: "closed", closed_at: "2026-10-20T00:00:00Z" },
+  ].map((item) => ({ ...item, release: "2.0.0", milestone: "rollout", tags: ["Z", "A"],
+    change_facets: [{ audience: "api-user", text: `Delivered ${item.title}` }],
+  }));
+  const original = JSON.stringify(reviewItems);
+  const orders = permutations(reviewItems);
+  assert.equal(orders.length, 6);
+  for (const sectionBy of ["type", "category", "status", "label"] as const) {
+    for (const groupBy of ["version", "release", "milestone"] as const) {
+      const expected = buildAudienceContracts({ items: reviewItems, sectionBy, groupBy });
+      for (const items of orders) {
+        const actual = buildAudienceContracts({ items, sectionBy, groupBy });
+        assert.deepEqual(actual.ledger, expected.ledger);
+        assert.equal(actual.ledger_sha256, expected.ledger_sha256);
+        for (const format of ["json", "toon"] as const) assert.equal(formatAudienceContracts(actual, format), formatAudienceContracts(expected, format));
+        for (const audience of CHANGE_AUDIENCES) {
+          const view = buildAudienceContracts({ items, sectionBy, groupBy, audience });
+          assert.deepEqual(view.ledger, expected.ledger);
+          assert.equal(view.ledger_sha256, expected.ledger_sha256);
+          assert.deepEqual(view.contracts, expected.contracts.filter((contract) => contract.audience === audience));
+        }
+      }
+    }
+  }
+  assert.deepEqual(buildAudienceContracts({ items: reviewItems, sectionBy: "type" }).ledger.map((row) => row.item), ["review-feature-b", "review-task-a", "review-task-c"]);
+  assert.equal(JSON.stringify(reviewItems), original);
+});
+
 test("control-character facets round-trip through the pm TOON decoder", () => {
   const text = 'Form feed:\f backspace:\b NUL:\u0000 unit separator:\u001f quotes:" backslash:\\ newline:\n carriage return:\r tab:\t';
   const report = buildAudienceContracts({ audience: "operator", items: [{

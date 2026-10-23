@@ -1,0 +1,16 @@
+id: pmc-total-item-order
+title: Make ordinary changelog ordering total for undated items
+description: "Audience-contract review exposed a broader existing generator ordering gap outside the audience projection fix. compareItems compares two dated items by time, but falls back to title when either item is undated; this is not a transitive ordering. With closed Task A dated 2026-10-19, undated Feature B, and Task C dated 2026-10-20, reversing inputs changes type section order in buildChangelogDocument. The audience contract path now canonicalizes input, sections and item IDs without changing ordinary changelog presentation. Track the ordinary generator independently; related item pmc-audience-contracts and PR 271."
+type: Issue
+status: open
+priority: 2
+tags: []
+created_at: "2026-10-23T17:47:59.517Z"
+updated_at: "2026-10-23T17:51:15.696Z"
+author: codex-agent
+acceptance_criteria: Use a total item order with an explicit undated policy and deterministic tie breakers; ordinary changelog projections are invariant across all six permutations of the three-item repro; preserve existing release selection and cover JSON and markdown behavior.
+comments[1]{created_at,author,text}:
+  "2026-10-23T17:51:15.695Z",codex-agent,"Confirmed with the exact three-item synthetic case in all six permutations: ordinary buildChangelogDocument yields both Task,Feature and Feature,Task section orders. This remains outside the audience-contract canonicalization fix; item stays open for separate ordinary-generator policy and regression work."
+files[1]{path,scope}:
+  src/generator.ts,project
+body: ""

@@ -69,6 +69,11 @@ function readFacets(value: unknown): ChangeFacet[] {
   });
 }
 
+/** Compare canonical keys by UTF-16 code units, with a total -1/0/1 ordering. */
+function compareCanonicalKeys(left: string, right: string): number {
+  return Number(left > right) - Number(left < right);
+}
+
 /** Publish declared facets using the generator's release, section, closure and resolution policies.
  * Canonical identity is independent of the audience filter. Missing source prose never falls back
  * to an item's title. Source items are neither mutated nor treated as proof of actual deployment.
@@ -82,13 +87,17 @@ export function buildAudienceContracts(options: AudienceContractOptions): Audien
     }
     items.set(item.id, item);
   }
-  const document = buildChangelogDocument({ ...options, includeStatuses: ["closed"], entryFrom: "close_reason" });
+  // Normalize input before selection too: generator presentation comparators must
+  // never let tracker enumeration order decide release or group tie placement.
+  const canonicalItems = [...items.values()].sort((left, right) => compareCanonicalKeys(left.id!, right.id!));
+  const document = buildChangelogDocument({ ...options, items: canonicalItems, includeStatuses: ["closed"], entryFrom: "close_reason" });
   const ledger: ChangeAttribution[] = [];
   const contracts: AudienceChangeContract[] = audiences.map((audience) => ({ audience, notes: [], omissions: [] }));
   for (const release of document.releases) {
-    for (const section of release.sections) {
-      // The generator orders prose for human notes; contract identity instead uses stable item IDs.
-      for (const row of [...section.items].sort((a, b) => a.id! < b.id! ? -1 : 1)) {
+    for (const section of [...release.sections].sort((left, right) => compareCanonicalKeys(left.heading, right.heading))) {
+      // Section headings and unique item IDs form the canonical contract key;
+      // optional dates and prose never change the identity order within a release.
+      for (const row of [...section.items].sort((left, right) => compareCanonicalKeys(left.id!, right.id!))) {
         const item = items.get(row.id!)!;
         const facets = readFacets(item.change_facets);
         const attribution = ledger.length;

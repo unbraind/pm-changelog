@@ -29,7 +29,7 @@ three selected changes, four notes and five omissions across two release groups.
 
 SDK and standalone JSON matched byte for byte. TOON decoded to the same report.
 All three audience projections retained the same ledger fingerprint:
-`9ea94c4c8120a9ab8b30f146720020a93b1eb7739b57295b850b710d14c724b4`.
+`eb76c5124ccf69d3338224b045f8bb07724f7dd48f49a47919c92c05c5626bb9`.
 
 The before/after sorted file-path/content-hash manifest was unchanged, including
 file membership. Its SHA-256 was
@@ -37,7 +37,8 @@ file membership. Its SHA-256 was
 The source public tracker was never modified. This is a single warm local
 measurement, not a latency guarantee or hosted-backend certification.
 
-After the control-character encoding review fix, the same read-only snapshot
-was projected with the TOON 4.4.0 library encoder and decoded through the pinned
-pm SDK. The updated TOON byte count above reflects that encoder; the JSON byte
-count, ledger fingerprint and all 396 source files remained unchanged.
+Measurements above use the TOON 4.4.0 library encoder and canonical section
+heading/item-ID order. The same read-only snapshot and its reversed certified
+item array produced byte-identical JSON and TOON through the pinned pm SDK
+decoder. Counts and all 396 tracker source files remained unchanged; the ledger
+fingerprint above reflects the canonical attribution order.
