@@ -11,6 +11,7 @@
 
 ### Fixed
 
+- Track merge receipts so pm 2026.10.19+ can settle lossless merges ([pmc-pnaq](https://github.com/unbraind/pm-changelog/blob/main/.agents/pm/issues/pmc-pnaq.toon))
 - A release run bumped and committed a new version every night while publishing was impossible, and the changelog-date verifier was never invoked by a gate ([pmc-3u78](https://github.com/unbraind/pm-changelog/blob/main/.agents/pm/issues/pmc-3u78.toon))
 - Let an item supply a release note the changelog prefers over its defect-shaped title ([pmc-fzs6](https://github.com/unbraind/pm-changelog/blob/main/.agents/pm/issues/pmc-fzs6.toon))
 - Harden the release merge wait against mergeStateStatus deadlock ([pmc-blj6](https://github.com/unbraind/pm-changelog/blob/main/.agents/pm/issues/pmc-blj6.toon))
