@@ -396,8 +396,27 @@ See the [SDK and receipt example](docs/claim-audit-example.md).
 
 ## Without git
 
-Tracker milestone creation/generation, ordinary generation, export and claim audits
+Tracker milestone creation/generation, ordinary generation, export, audience contracts and claim audits
 work in plain directories and through caller-supplied SDK items without Git.
 Milestone paths invoke no Git subprocess. Git tag windows, historical
 Git membership and dependency commit collection require a Git repository. Use
 tracker fields or explicit dates for a tracker-only audit.
+
+## Audience-specific change contracts
+
+Publish only explicitly tagged facets of closed change items for API users,
+operators and agents, preserving one canonical attribution ledger:
+
+```sh
+pm changelog contracts --group-by release --audience operator --format json
+pm-changelog contracts --pm-root .agents/pm --format toon
+```
+
+Core metadata stores `change_facets` as `{audience, text}` or
+`{audience, source: "close_reason"}` declarations. Audiences are `api-user`,
+`operator` and `agent-behavior`; omit the audience to generate all three.
+Missing facets and missing requested resolutions produce explicit omissions.
+The generator reuses release selection, section rules and resolution rendering.
+`buildAudienceContracts`, `readAudienceContracts` and `formatAudienceContracts`
+provide the typed SDK, compact JSON/TOON and typed refusals with remedies.
+These commands work without git. See the [worked example and contract](docs/audience-contracts.md).

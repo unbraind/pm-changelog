@@ -1,3 +1,5 @@
+import type { ChangeFacet } from "./audience-contracts.ts";
+
 /** Lifecycle state of a pm item. The trailing `string` keeps custom workspace
  * statuses assignable, since pm lets a project define its own vocabulary and a
  * closed union would reject items this package must still be able to read. */
@@ -15,6 +17,8 @@ export type PmItemStatus =
  * list --json` emitted, which varies by workspace schema and pm version; only
  * `title` is depended on unconditionally. */
 export interface PmItem {
+  /** Audience-tagged publishing facets persisted in core item metadata. */
+  change_facets?: ChangeFacet[];
   id?: string;
   title: string;
   body?: string;

@@ -1876,10 +1876,16 @@ export function parseChangelogEntryFrom(value) {
 function resolveEntryTitle(item, options) {
     if (needsNeutralClosure(item))
         return `Closed: ${toSingleLine(item.title)}`;
-    if (options.entryFrom === "close_reason" && typeof item.close_reason === "string" && item.close_reason.trim()) {
-        return toSingleLine(item.close_reason);
+    if (options.entryFrom === "close_reason") {
+        const resolution = resolveChangelogResolution(item);
+        if (resolution !== undefined)
+            return resolution;
     }
     return toSingleLine(item.title);
+}
+/** Render only recorded resolution prose; callers decide whether missing prose permits a fallback. */
+export function resolveChangelogResolution(item) {
+    return typeof item.close_reason === "string" && item.close_reason.trim() ? toSingleLine(item.close_reason) : undefined;
 }
 /** Advisory check diagnostics for visible closed Fixed items lacking resolution
  * prose. The conservative English heuristic recognizes present-tense failures

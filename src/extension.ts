@@ -14,6 +14,7 @@ import {
 } from "@unbrained/pm-cli/sdk";
 
 import type { ImportExportRegistrationOptions } from "@unbrained/pm-cli/sdk/authoring";
+import { AUDIENCE_CONTRACT_FLAGS, runAudienceContractsCommand } from "./audience-command.ts";
 
 import { DirectoryReleaseMilestoneStore, assertTrackerMilestoneOptions, createReleaseMilestone, readReleaseMilestones, readTrackerReleaseSnapshot, resolveTrackerReleaseHistory } from "./milestones.ts";
 import { auditChangelogClaims, assertChangelogClaims, formatClaimAudit, parseClaimTestReceipts } from "./claim-audit.ts";
@@ -91,6 +92,15 @@ export default defineExtension({
   version: "2026.10.23",
 
   activate(api) {
+    api.registerItemFields([{ name: "change_facets", type: "array", optional: true }]);
+    api.registerCommand({
+      name: "changelog contracts",
+      description: "Publish declared audience facets with a common canonical attribution ledger; no git required.",
+      flags: AUDIENCE_CONTRACT_FLAGS,
+      async run(ctx) {
+        return { pmChangelogRendered: true, output: await runAudienceContractsCommand(ctx.pm_root, ctx.options, ctx.global.json) };
+      },
+    });
     api.registerCommand({
       name: "changelog milestone create",
       description: "Freeze immutable release membership from a tracker without git.",
@@ -552,7 +562,7 @@ export default defineExtension({
       // call site is still fully checked). The host enforces `commands` +
       // `resultDiscriminator` before invoking either callback.
       const rendererOwnership = {
-        commands: ["changelog generate", "changelog export", "changelog audit"],
+        commands: ["changelog generate", "changelog export", "changelog audit", "changelog contracts"],
         resultDiscriminator: isRenderedCommandResult,
       };
       api.registerRenderer("toon", renderCommandResult, rendererOwnership);
