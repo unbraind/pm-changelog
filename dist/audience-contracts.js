@@ -1,4 +1,5 @@
 import { createHash } from "node:crypto";
+import { encode } from "@toon-format/toon";
 import { EXIT_CODE, PmCliError, listAllComplete } from "@unbrained/pm-cli/sdk";
 import { buildChangelogDocument, resolveChangelogResolution } from "./generator.js";
 /** Explicit publishing targets, in canonical output order. */
@@ -107,19 +108,6 @@ export async function readAudienceContracts(pmRoot, options = {}) {
 export function formatAudienceContracts(report, format) {
     if (format === "json")
         return `${JSON.stringify(report)}\n`;
-    const lines = ["schema_version: 1", `ledger_sha256: ${report.ledger_sha256}`, `item_count: ${report.item_count}`,
-        `note_count: ${report.note_count}`, `omission_count: ${report.omission_count}`, `ledger[${report.ledger.length}]{item,release,section}:`];
-    for (const row of report.ledger)
-        lines.push(`  ${[row.item, row.release, row.section].map((value) => JSON.stringify(value)).join(",")}`);
-    lines.push(`contracts[${report.contracts.length}]:`);
-    for (const contract of report.contracts) {
-        lines.push(`  - audience: ${contract.audience}`, `    notes[${contract.notes.length}]{attribution,text}:`);
-        for (const row of contract.notes)
-            lines.push(`      ${row.attribution},${JSON.stringify(row.text)}`);
-        lines.push(`    omissions[${contract.omissions.length}]{attribution,reason}:`);
-        for (const row of contract.omissions)
-            lines.push(`      ${row.attribution},${row.reason}`);
-    }
-    return `${lines.join("\n")}\n`;
+    return `${encode(report)}\n`;
 }
 //# sourceMappingURL=audience-contracts.js.map

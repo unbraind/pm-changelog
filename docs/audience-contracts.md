@@ -67,6 +67,11 @@ tracker title. TOON stores the ledger once and uses compact tables; JSON uses on
 unindented object and a trailing newline. Neither format includes a generation
 clock. Counts describe the requested audience projection.
 
+TOON uses the `@toon-format/toon` 4.4.0 encoder, matching the pinned pm CLI.
+Control characters such as form feed, backspace, NUL and unit separator use
+TOON-compatible Unicode escapes; quotes, backslashes and line breaks round-trip
+through the same decoder exposed by the pm SDK. JSON encoding remains separate.
+
 Only closed items pass selection. Existing non-change closure exclusions, release
 and milestone grouping, and section rules remain authoritative. `--group-by`
 accepts `version` (default), `release` and `milestone`; `--section-by` accepts

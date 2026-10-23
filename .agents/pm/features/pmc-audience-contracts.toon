@@ -6,10 +6,10 @@ status: in_progress
 priority: 2
 tags: []
 created_at: "2026-10-23T16:46:26.490Z"
-updated_at: "2026-10-23T17:12:12.119Z"
+updated_at: "2026-10-23T17:30:27.004Z"
 author: codex-agent
 acceptance_criteria: Each audience sees only declared facets; missing facets yield omissions rather than invented prose; byte-stable fixtures cover mixed releases; typed SDK and CLI provide compact TOON/JSON and typed refusals with remedies; docs and read-only public tracker validation without git; npm and Bun CI release gates pass.
-comments[8]{created_at,author,text}:
+comments[10]{created_at,author,text}:
   "2026-10-23T16:46:46.585Z",codex-agent,"Overlap rechecked: core SDK provides extensible ItemMetadata, structured JSON mutation, certified listAllComplete reads and expected-error contracts; no audience-facet release publisher found. pm-brief summarizes current context and acknowledged handoffs, not versioned releases. Reuse buildChangelogDocument selection, grouping, section rules and close_reason rendering. Store explicit change_facets in core item metadata; no core or sibling changes. Public validation uses a read-only non-git tracker copy."
   "2026-10-23T16:50:47.707Z",codex-agent,"Implemented typed audience contracts, shared prose-free attribution ledger and SHA-256 identity, compact TOON/JSON, and expected-error refusals with remedies. Registered change_facets through the core field API and use certified listAllComplete reads; no parallel metadata store. Missing declarations and unavailable explicitly requested close_reason prose emit omissions. Added mixed-release golden fixtures and no-git SDK, standalone and real host coverage."
   "2026-10-23T16:53:43.674Z",codex-agent,"Read-only public main snapshot validation: 193 certified items, 183 closed, 179 selected changes after four non-change dispositions, 36 release groups, zero pre-existing facet declarations. Correctly published zero notes and 537 explicit omissions. JSON 35176 bytes; TOON 19219 bytes; warm SDK projection 611 ms. All 396 tracker files and membership unchanged; SDK and standalone bytes matched and TOON round-tripped. Each audience retained the same ledger SHA-256. See docs/audience-contract-validation.md. Positive fixtures separately cover three changes, four notes and five omissions across mixed releases."
@@ -18,8 +18,12 @@ comments[8]{created_at,author,text}:
   "2026-10-23T17:01:35.415Z",codex-agent,"Final actual-host mutation check caught a package manifest activation gap: command-only lazy activation prevented change_facets registration during core update. Removed that restriction so schema fields activate for core mutations, as in schema-owning sibling packages. Added a real no-git pm update --field regression; rerunning the five contract tests and module coverage. This is a package integration correction, not a core defect. Linked-test execution receipts are disabled by existing project policy; outcomes are recorded here without changing that policy."
   "2026-10-23T17:02:30.881Z",codex-agent,"Final contract coverage passed 5/5 tests with zero failures/skips and 100% measured lines, branches and functions for both new modules, through pm test --run --progress --only-last. Actual core CLI field mutation now passes without git. Local targeted suite passed 199/199; production/test typecheck, 192-declaration docstring lint and whitespace checks passed. Behavioral revert probes both failed as expected. Implementation is ready for PR and unchanged-threshold npm/Bun CI verification. Remaining validation boundaries: public corpus has no native facets; positive facets use synthetic fixtures; hosted transports were not exercised. No unresolved implementation blocker; no core bug found."
   "2026-10-23T17:12:12.119Z",codex-agent,"PR https://github.com/unbraind/pm-changelog/pull/271 is ready for review. Implementation head 28a22165818689c6349911a8a8fb6ab9bf18f806 passed CI https://github.com/unbraind/pm-changelog/actions/runs/39992106138: npm run release:check and bun run release:check each passed 827/827 tests, zero failures/skips, on Node 22 and 26 (four gate executions). All 19 measured source files met 100% lines/branches/functions; direct Bun CLI/SDK smoke passed 2/2 on each node job. CodeQL and Semgrep passed. External automated review remains missing evidence: services skipped or lacked review capacity. This receipt changes tracker evidence only; final-head CI will be verified before handoff. Claim remains released and item stays in progress for orchestrator closure."
-files[12]{path,scope}:
+  "2026-10-23T17:26:56.833Z",codex-agent,"Review blocked PR 271 on unsupported JSON form-feed/backspace escapes in the audience TOON formatter. Remote branch is current and main has not advanced; reuse this item. Replace hand-built TOON with the exact encoder version used by the pinned core CLI and decode regressions through the core SDK testing decoder. Cover form feed, backspace, NUL, unit separator, quotes, backslashes and newlines; prove failure with only the formatter reverted. Keep dependency pins for core unchanged."
+  "2026-10-23T17:30:24.411Z",codex-agent,"Fixed the blocking TOON review finding by replacing manual JSON-based quoting with the TOON 4.4.0 report encoder, the exact library version used by the pinned pm CLI; core pins are unchanged. Tests now use decodeToon from the pm SDK. New regression: control-character facets round-trip through the pm TOON decoder. It covers form feed, backspace, NUL, unit separator, quotes, backslashes, newlines, carriage returns and tabs. Reverting only formatAudienceContracts fails that test with Invalid escape sequence: form feed (exit 1); restored encoder passes. All six contract tests passed with 100% measured lines/branches/functions for both modules; typecheck, test typecheck, 192-declaration docstring lint and whitespace checks passed. Core decoder accepts valid Unicode control escapes, so no upstream decoder repro is needed. Reused read-only public snapshot: TOON is now 18091 bytes; JSON, attribution fingerprint and all 396 source files unchanged. Updated the TOON golden fixture and docs."
+files[14]{path,scope}:
   manifest.json,project
+  package-lock.json,project
+  package.json,project
   src/audience-command.ts,project
   src/audience-contracts.ts,project
   src/cli.ts,project
@@ -31,12 +35,13 @@ files[12]{path,scope}:
   test/fixtures/audience-contracts/items.json,project
   test/fixtures/audience-contracts/mixed.json,project
   test/fixtures/audience-contracts/mixed.toon,project
-tests[5]{command,scope,provenance{author,created_at,source_kind,source_ref}}:
+tests[6]{command,scope,provenance{author,created_at,source_kind,source_ref}}:
   node --test --test-concurrency=1 test/audience-contracts.test.ts,project,codex-agent,"2026-10-23T16:50:53.029Z",local_mutation,feat/audience-contracts
   npm run typecheck,project,codex-agent,"2026-10-23T16:55:00.545Z",local_mutation,feat/audience-contracts
   npm run docstring,project,codex-agent,"2026-10-23T16:55:00.545Z",local_mutation,feat/audience-contracts
   node --test --test-concurrency=1 test/audience-contracts.test.ts test/entry-from.test.ts test/closure-evidence.test.ts test/extension.test.ts test/host-flag-contracts.test.ts test/shipped-docs.test.ts,project,codex-agent,"2026-10-23T16:55:00.545Z",local_mutation,feat/audience-contracts
   node --test --test-concurrency=1 --experimental-test-coverage --test-coverage-include=src/audience*.ts test/audience-contracts.test.ts,project,codex-agent,"2026-10-23T16:58:17.190Z",local_mutation,feat/audience-contracts
+  node --test --test-name-pattern=control-character test/audience-contracts.test.ts,project,codex-agent,"2026-10-23T17:30:12.210Z",local_mutation,feat/audience-contracts
 docs[4]{path,scope}:
   docs/audience-contract-validation.md,project
   docs/audience-contracts.md,project

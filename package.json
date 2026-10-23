@@ -146,5 +146,8 @@
     "ignore": [
       "src/types.ts"
     ]
+  },
+  "dependencies": {
+    "@toon-format/toon": "4.4.0"
   }
 }

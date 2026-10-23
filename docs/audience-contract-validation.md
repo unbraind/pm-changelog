@@ -17,7 +17,7 @@ git executable and a git ceiling above the tracker.
 | Published notes | 0 |
 | Explicit omissions across three audiences | 537 |
 | Compact JSON bytes | 35,176 |
-| TOON bytes | 19,219 |
+| TOON bytes | 18,091 |
 | Warm SDK projection elapsed | 611 ms |
 | Tracker files verified unchanged | 396 |
 
@@ -36,3 +36,8 @@ file membership. Its SHA-256 was
 `4daf656e4b06a5fbee8990c339897bf7beae51697cd53cc6986fc3687a7cb10d`.
 The source public tracker was never modified. This is a single warm local
 measurement, not a latency guarantee or hosted-backend certification.
+
+After the control-character encoding review fix, the same read-only snapshot
+was projected with the TOON 4.4.0 library encoder and decoded through the pinned
+pm SDK. The updated TOON byte count above reflects that encoder; the JSON byte
+count, ledger fingerprint and all 396 source files remained unchanged.

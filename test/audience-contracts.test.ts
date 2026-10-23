@@ -5,8 +5,7 @@ import { tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
 import test from "node:test";
 import { listAllComplete, runCreate, runInit, runWithActiveExtensions } from "@unbrained/pm-cli/sdk";
-import { activateExtensionForTest, runRegisteredCommandForTest } from "@unbrained/pm-cli/sdk/testing";
-import { decode } from "@toon-format/toon";
+import { activateExtensionForTest, runRegisteredCommandForTest, decodeToon as decode } from "@unbrained/pm-cli/sdk/testing";
 import { AudienceContractError, CHANGE_AUDIENCES, buildAudienceContracts, formatAudienceContracts, parseChangeAudience, readAudienceContracts } from "../src/index.ts";
 import type { PmItem } from "../src/index.ts";
 import { runAudienceContractsCli, runAudienceContractsCommand } from "../src/audience-command.ts";
@@ -20,6 +19,19 @@ const mixed = JSON.parse(readFileSync(join(fixtures, "items.json"), "utf8")) as 
 function refusal(code: AudienceContractError["code"]): (error: unknown) => boolean {
   return (error) => error instanceof AudienceContractError && error.code === code && error.exitCode !== 0 && !!error.remedy;
 }
+
+test("control-character facets round-trip through the pm TOON decoder", () => {
+  const text = 'Form feed:\f backspace:\b NUL:\u0000 unit separator:\u001f quotes:" backslash:\\ newline:\n carriage return:\r tab:\t';
+  const report = buildAudienceContracts({ audience: "operator", items: [{
+    id: "demo-controls", title: "Control character note", type: "Task", status: "closed",
+    change_facets: [{ audience: "operator", text }],
+  }] });
+  const encoded = formatAudienceContracts(report, "toon");
+  assert.deepEqual(decode(encoded), report);
+  assert.equal(report.contracts[0].notes[0].text, text);
+  for (const escape of ["\\u000c", "\\u0008", "\\u0000", "\\u001f"]) assert.ok(encoded.includes(escape), escape);
+  assert.deepEqual(JSON.parse(formatAudienceContracts(report, "json")), report);
+});
 
 test("mixed releases are byte stable in JSON and lossless TOON with a common ledger", () => {
   const options = { items: mixed, groupBy: "release" as const };
