@@ -2,13 +2,18 @@ id: pmc-claim-evidence
 title: Audit every generated release claim against recorded evidence
 description: "Emit deterministic claim-to-resolution, tests and delivery map. Overlap: pm CLI 2026.10.21 has no generated-wording audit; pm-changelog classifier chooses sections and entry lint warns on prose; pm-review validates review evidence; pm-ops validates publication provenance. This feature links generated wording to recorded evidence only. Reconciliation PR 266 items excluded."
 type: Feature
-status: in_progress
+status: closed
 priority: 2
 tags: []
 created_at: "2026-10-21T21:59:12.056Z"
-updated_at: "2026-10-22T19:55:39.511Z"
+updated_at: "2026-10-24T21:43:57.984Z"
+closed_at: "2026-10-24T21:43:57.973Z"
+completed_at: "2026-10-24T21:43:57.973Z"
 author: codex-agent
 acceptance_criteria: A factual closure without repair evidence cannot justify Fixed; absent evidence remains an explicit gap; ordering and regeneration are deterministic.; Typed SDK and CLI; compact TOON/JSON; typed refusals with remedies; README and example; no-git regression; read-only public tracker validation; npm and Bun CI release gates.
+resolution: "Release-note claim audits retain evidence gaps, refuse unsupported Fixed claims, preserve deterministic reports and expose typed no-git SDK/CLI behavior with npm/Bun CI validation."
+expected_result: A factual closure without repair evidence cannot justify Fixed; absent evidence remains an explicit gap; ordering and regeneration are deterministic.; Typed SDK and CLI; compact TOON/JSON; typed refusals with remedies; README and example; no-git regression; read-only public tracker validation; npm and Bun CI release gates.
+actual_result: "https://github.com/unbraind/pm-changelog/pull/267, merged 2026-10-22T20:38:41Z, merge 0bea2b586621e444e6c665b2bd48daed13ee2d3c: Release-note claim audits retain evidence gaps, refuse unsupported Fixed claims, preserve deterministic reports and expose typed no-git SDK/CLI behavior with npm/Bun CI validation."
 comments[14]{created_at,author,text}:
   "2026-10-21T22:02:55.265Z",codex-agent,"Design: capture exact rendered claim lines through the shared generator, hash generated markdown, deduplicate item evidence, and retain absent resolution/tests/test-result/delivery as explicit gaps. Linked test declarations never imply success; caller-supplied execution receipts require matching commands and retain references. Factual closures preserve classifier-neutral wording. SDK assertions and CLI check refuse unsupported claims. CI will execute full npm and Bun release gates on both supported Node versions; local work uses targeted tests only."
   "2026-10-21T22:09:22.913Z",codex-agent,"Read-only public-main validation at 56f8536702f6d3266825534d502a3dfc947cfb83: 189 complete tracker rows, 165 generated claims, 165 exact line mappings, 165 explicit unsupported claims (no execution receipts supplied), 146 delivery gaps, 39 linked-test gaps, 3 resolution gaps and 1 repair gap. JSON 138556 bytes; TOON 137535 bytes. Reverse-order regeneration byte-identical; complete copied tracker content hash unchanged. Git absent and ancestor discovery disabled. Details: docs/claim-audit-validation.md. Three independent behavioral reverts fail 1/1 each: omit the execution-result gap, omit rendered claim capture, and restore title-only tie ordering."
@@ -71,4 +76,5 @@ docs[3]:
     scope: project
   - path: README.md
     scope: project
+close_reason: "https://github.com/unbraind/pm-changelog/pull/267, merged 2026-10-22T20:38:41Z, merge 0bea2b586621e444e6c665b2bd48daed13ee2d3c: Release-note claim audits retain evidence gaps, refuse unsupported Fixed claims, preserve deterministic reports and expose typed no-git SDK/CLI behavior with npm/Bun CI validation."
 body: ""

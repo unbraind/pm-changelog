@@ -2,12 +2,17 @@ id: pmc-review-266
 title: Correct tracker reconciliation review evidence
 description: "Verify every reconciliation review finding against current main, append precise delivery and evidence corrections, preserve immutable history and existing completion dates, and regenerate the changelog."
 type: Chore
-status: in_progress
+status: closed
 priority: 2
 tags: []
 created_at: "2026-10-22T10:28:18.133Z"
-updated_at: "2026-10-22T10:35:01.773Z"
+updated_at: "2026-10-24T21:43:58.136Z"
+closed_at: "2026-10-24T21:43:58.118Z"
+completed_at: "2026-10-24T21:43:58.118Z"
 author: codex-agent
+resolution: "Corrects reconciliation delivery attribution and evidence fields while preserving prior history bytes; full history, health and changelog receipts accompany the tracker-only change."
+expected_result: "Verify every reconciliation review finding against current main, append precise delivery and evidence corrections, preserve immutable history and existing completion dates, and regenerate the changelog."
+actual_result: "https://github.com/unbraind/pm-changelog/pull/266, merged 2026-10-22T20:07:38Z, merge 77e47c6d7b33dbba8f1fd9917d722c835720d94b: Corrects reconciliation delivery attribution and evidence fields while preserving prior history bytes; full history, health and changelog receipts accompany the tracker-only change."
 comments[3]{created_at,author,text}:
   "2026-10-22T10:28:24.200Z",codex-agent,"PR 266 review round: created the requested worktree, pulled the remote head and merged origin/main before changes. npm ci passed with zero audit vulnerabilities. All four unresolved threads and every comment read; latest CodeRabbit body has no outside-diff section. Rechecked main ff1418fff98b4409421053a44e46e488f11daa64 and merged PR 247 audit: package-search boundary was delivered by PR 215/a102d18, not PR 247. Five release closures use unrelated copied evidence; replace each with its actual delivering commit and relevant workflow/package/test files. Entry text uses nonblank close_reason only with --entry-from close_reason; default and blank fallback use title, subject to neutral-closure policy. Correct all affected current fields through pinned pm updates, rename the source title for generated changelog grammar, and verify append-only histories. Do not newly close any item."
   "2026-10-22T10:33:01.258Z",codex-agent,"Tracker-only evidence proof: full before/after reads each certified complete with 190/190 rows, no omissions, unreadable items or continuation. Rechecked all 14 delivery/follow-up commit references as ancestors of main ff1418fff98b4409421053a44e46e488f11daa64 and all 15 retained evidence paths on that main tree. Seven corrected current records match the per-item source evidence; their status, closed_at and completed_at remain unchanged. All 13 pre-round PR history streams retain their original bytes as prefixes. pm history <id> --verify --json passed 14/14 chains including the review item, all current_matches_latest true. The linked pm history test also passed 1/1 commands. No code-function revert applies to this tracker-only change. Self-review found the same unrelated retained-evidence reference in pmc-wf7n and corrected it too; no other false delivery attribution found among the 13 reconciled records. The source title correction will regenerate the requested changelog grammar. Serialized health after writes has only existing pm-github host-version skew and exact 32-event legacy provenance baseline; an overlapping health read briefly reported drift, cleared when writers finished. No history repair or new closure event."
@@ -48,4 +53,5 @@ tests[1]{command,scope,pm_context_mode,provenance{author,created_at,source_kind,
   node_modules/.bin/pm history pmc-6eau --verify --json,project,tracker,codex-agent,"2026-10-22T10:29:49.009Z",local_mutation,chore/reconcile-tracker-1021
 docs[1]{path,scope,note}:
   docs/backlog-verification.md,project,Primary delivery references and retained regressions on current main
+close_reason: "https://github.com/unbraind/pm-changelog/pull/266, merged 2026-10-22T20:07:38Z, merge 77e47c6d7b33dbba8f1fd9917d722c835720d94b: Corrects reconciliation delivery attribution and evidence fields while preserving prior history bytes; full history, health and changelog receipts accompany the tracker-only change."
 body: ""

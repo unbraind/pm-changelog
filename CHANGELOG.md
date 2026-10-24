@@ -2,6 +2,20 @@
 
 > Compatibility: explicit tag options (--all-release-tags, --since-previous-tag, --until-release-tag) now require an accessible Git repository and fail with MissingTagHistoryError in source archives and container contexts without Git history. Use tracker-only generation or --milestones there.
 
+## Unreleased
+
+### Added
+
+- Audit every generated release claim against recorded evidence ([pmc-claim-evidence](https://github.com/unbraind/pm-changelog/blob/main/.agents/pm/features/pmc-claim-evidence.toon))
+- Publish audience-specific change contracts with shared attribution ([pmc-audience-contracts](https://github.com/unbraind/pm-changelog/blob/main/.agents/pm/features/pmc-audience-contracts.toon))
+- Generate release notes from immutable tracker milestones ([pmc-tracker-milestones](https://github.com/unbraind/pm-changelog/blob/main/.agents/pm/features/pmc-tracker-milestones.toon))
+
+### Other
+
+- Release readiness hardening for pm-changelog ([pmc-14cx](https://github.com/unbraind/pm-changelog/blob/main/.agents/pm/tasks/pmc-14cx.toon))
+- Bump @unbrained/pm-cli SDK to \>=2026.5.24 ([pmc-cfhf](https://github.com/unbraind/pm-changelog/blob/main/.agents/pm/tasks/pmc-cfhf.toon))
+- Correct tracker reconciliation review evidence ([pmc-review-266](https://github.com/unbraind/pm-changelog/blob/main/.agents/pm/chores/pmc-review-266.toon))
+
 ## 2026.10.23 - 2026-10-23
 
 ### Changed
@@ -498,13 +512,6 @@
 
 - Add publish retry + provenance fallback to release workflow ([pmc-ermk](https://github.com/unbraind/pm-changelog/blob/main/.agents/pm/tasks/pmc-ermk.toon))
 
-## 2026.5.27 - 2026-05-27
-
-### Other
-
-- Release readiness hardening for pm-changelog ([pmc-14cx](https://github.com/unbraind/pm-changelog/blob/main/.agents/pm/tasks/pmc-14cx.toon))
-- Bump @unbrained/pm-cli SDK to \>=2026.5.24 ([pmc-cfhf](https://github.com/unbraind/pm-changelog/blob/main/.agents/pm/tasks/pmc-cfhf.toon))
-
 ## 2026.5.26 - 2026-05-25
 
 ### Fixed
@@ -520,9 +527,9 @@
 
 ### Other
 
+- Bump @types/node to ^25.9.1 and rewire CI to full-history changelog ([pmc-w8iu](https://github.com/unbraind/pm-changelog/blob/main/.agents/pm/chores/pmc-w8iu.toon))
 - Cut and publish pm-changelog 2026.5.25-1 release to npm and GitHub ([pmc-9wvl](https://github.com/unbraind/pm-changelog/blob/main/.agents/pm/tasks/pmc-9wvl.toon))
 - Production readiness audit and release for pm-changelog 2026-05-25 ([pmc-9mck](https://github.com/unbraind/pm-changelog/blob/main/.agents/pm/epics/pmc-9mck.toon))
-- Bump @types/node to ^25.9.1 and rewire CI to full-history changelog ([pmc-w8iu](https://github.com/unbraind/pm-changelog/blob/main/.agents/pm/chores/pmc-w8iu.toon))
 - Replace inline node -e JavaScript with TypeScript helper ([pmc-vvpy](https://github.com/unbraind/pm-changelog/blob/main/.agents/pm/chores/pmc-vvpy.toon))
 - Verify pm-changelog install and CLI work in a clean temp folder ([pmc-3jj2](https://github.com/unbraind/pm-changelog/blob/main/.agents/pm/tasks/pmc-3jj2.toon))
 

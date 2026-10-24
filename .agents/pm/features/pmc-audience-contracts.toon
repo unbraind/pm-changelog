@@ -2,13 +2,18 @@ id: pmc-audience-contracts
 title: Publish audience-specific change contracts with shared attribution
 description: "Project explicitly tagged API-user, operator and agent-behavior facets of delivered items into versioned change contracts. Reuse release selection, section rules and resolution prose; core item metadata owns facet declarations."
 type: Feature
-status: in_progress
+status: closed
 priority: 2
 tags: []
 created_at: "2026-10-23T16:46:26.490Z"
-updated_at: "2026-10-23T17:51:35.636Z"
+updated_at: "2026-10-24T21:43:57.881Z"
+closed_at: "2026-10-24T21:43:57.865Z"
+completed_at: "2026-10-24T21:43:57.865Z"
 author: codex-agent
 acceptance_criteria: Each audience sees only declared facets; missing facets yield omissions rather than invented prose; byte-stable fixtures cover mixed releases; typed SDK and CLI provide compact TOON/JSON and typed refusals with remedies; docs and read-only public tracker validation without git; npm and Bun CI release gates pass.
+resolution: "Declared audience facets produce isolated notes and explicit omissions with a shared deterministic attribution ledger, compact no-git SDK/CLI and full npm/Bun CI evidence."
+expected_result: Each audience sees only declared facets; missing facets yield omissions rather than invented prose; byte-stable fixtures cover mixed releases; typed SDK and CLI provide compact TOON/JSON and typed refusals with remedies; docs and read-only public tracker validation without git; npm and Bun CI release gates pass.
+actual_result: "https://github.com/unbraind/pm-changelog/pull/271, merged 2026-10-23T18:06:54Z, merge 80e387dc23769b22a0729158c08b7e45f3c19395: Declared audience facets produce isolated notes and explicit omissions with a shared deterministic attribution ledger, compact no-git SDK/CLI and full npm/Bun CI evidence."
 comments[13]{created_at,author,text}:
   "2026-10-23T16:46:46.585Z",codex-agent,"Overlap rechecked: core SDK provides extensible ItemMetadata, structured JSON mutation, certified listAllComplete reads and expected-error contracts; no audience-facet release publisher found. pm-brief summarizes current context and acknowledged handoffs, not versioned releases. Reuse buildChangelogDocument selection, grouping, section rules and close_reason rendering. Store explicit change_facets in core item metadata; no core or sibling changes. Public validation uses a read-only non-git tracker copy."
   "2026-10-23T16:50:47.707Z",codex-agent,"Implemented typed audience contracts, shared prose-free attribution ledger and SHA-256 identity, compact TOON/JSON, and expected-error refusals with remedies. Registered change_facets through the core field API and use certified listAllComplete reads; no parallel metadata store. Missing declarations and unavailable explicitly requested close_reason prose emit omissions. Added mixed-release golden fixtures and no-git SDK, standalone and real host coverage."
@@ -51,4 +56,5 @@ docs[4]{path,scope}:
   docs/audience-contracts.md,project
   docs/README.md,project
   README.md,project
+close_reason: "https://github.com/unbraind/pm-changelog/pull/271, merged 2026-10-23T18:06:54Z, merge 80e387dc23769b22a0729158c08b7e45f3c19395: Declared audience facets produce isolated notes and explicit omissions with a shared deterministic attribution ledger, compact no-git SDK/CLI and full npm/Bun CI evidence."
 body: ""
