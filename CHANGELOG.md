@@ -6,15 +6,15 @@
 
 ### Added
 
-- Audit every generated release claim against recorded evidence ([pmc-claim-evidence](https://github.com/unbraind/pm-changelog/blob/main/.agents/pm/features/pmc-claim-evidence.toon))
 - Publish audience-specific change contracts with shared attribution ([pmc-audience-contracts](https://github.com/unbraind/pm-changelog/blob/main/.agents/pm/features/pmc-audience-contracts.toon))
 - Generate release notes from immutable tracker milestones ([pmc-tracker-milestones](https://github.com/unbraind/pm-changelog/blob/main/.agents/pm/features/pmc-tracker-milestones.toon))
+- Audit every generated release claim against recorded evidence ([pmc-claim-evidence](https://github.com/unbraind/pm-changelog/blob/main/.agents/pm/features/pmc-claim-evidence.toon))
 
 ### Other
 
+- Correct tracker reconciliation review evidence ([pmc-review-266](https://github.com/unbraind/pm-changelog/blob/main/.agents/pm/chores/pmc-review-266.toon))
 - Release readiness hardening for pm-changelog ([pmc-14cx](https://github.com/unbraind/pm-changelog/blob/main/.agents/pm/tasks/pmc-14cx.toon))
 - Bump @unbrained/pm-cli SDK to \>=2026.5.24 ([pmc-cfhf](https://github.com/unbraind/pm-changelog/blob/main/.agents/pm/tasks/pmc-cfhf.toon))
-- Correct tracker reconciliation review evidence ([pmc-review-266](https://github.com/unbraind/pm-changelog/blob/main/.agents/pm/chores/pmc-review-266.toon))
 
 ## 2026.10.23 - 2026-10-23
 

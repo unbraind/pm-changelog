@@ -6,9 +6,9 @@ status: closed
 priority: 2
 tags: []
 created_at: "2026-10-22T10:28:18.133Z"
-updated_at: "2026-10-24T21:43:58.136Z"
+updated_at: "2026-10-24T23:09:49.478Z"
 closed_at: "2026-10-24T21:43:58.118Z"
-completed_at: "2026-10-24T21:43:58.118Z"
+completed_at: "2026-10-22T20:07:38.000Z"
 author: codex-agent
 resolution: "Corrects reconciliation delivery attribution and evidence fields while preserving prior history bytes; full history, health and changelog receipts accompany the tracker-only change."
 expected_result: "Verify every reconciliation review finding against current main, append precise delivery and evidence corrections, preserve immutable history and existing completion dates, and regenerate the changelog."
