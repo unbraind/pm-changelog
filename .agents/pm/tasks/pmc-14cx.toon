@@ -6,9 +6,8 @@ status: closed
 priority: 1
 tags[3]: automation,package,release
 created_at: "2026-05-25T22:47:34.953Z"
-updated_at: "2026-05-25T22:47:34.953Z"
+updated_at: "2026-10-24T21:50:11.865Z"
 deadline: "2026-05-26T22:47:34.953Z"
-assignee: codex
 author: codex
 estimated_minutes: 60
 acceptance_criteria: "Package metadata uses current pm CLI/SDK; pm-changelog generates CHANGELOG and release notes; CI and daily release workflows cover GitHub, npm, and Bun-compatible installs; package remains private until full privacy/history checks pass."
@@ -23,8 +22,8 @@ files[4]{path,scope,note}:
   manifest.json,project,pm package manifest
   .github/workflows/ci.yml,project,CI workflow
   .github/workflows/release.yml,project,daily release workflow
-tests[1]{command,path,scope,timeout_seconds,pm_context_mode,env_set,env_clear,shared_host_safe,assert_stdout_contains,assert_stdout_regex,assert_stderr_contains,assert_stderr_regex,assert_stdout_min_lines,assert_json_field_equals,assert_json_field_gte,note}:
-  "npm run release:check",.,project,null,null,null,null,null,null,null,null,null,null,null,null,null
+tests[1]{command,path,scope}:
+  "npm run release:check",.,project
 docs[1]{path,scope,note}:
   README.md,project,package docs
 body: "Cross-package hardening item created by Codex on 2026-05-26 Europe/Vienna. Scope: metadata, manifest, package scripts, CI, daily release workflow, pm-changelog integration, and verification evidence."
