@@ -4,9 +4,9 @@ Tracked by [pmc-sdk-completeness-1025](https://github.com/unbraind/pm-changelog/
 
 | Audit finding | Disposition | Evidence |
 | --- | --- | --- |
-| Duplicate whole-tracker incompleteness diagnostics in `src/generator.ts` | Delete `incompleteListAllSignals`; use `inspectCompleteListResult` and `certifyCompleteListResult` in `parseListAllItemsJson`. Request strict, unbounded source reads. | `test/sdk-completeness.test.ts`, existing generator receipt tests, public-tracker differential below |
+| Duplicate whole-tracker incompleteness diagnostics at audit `src/generator.ts:988-998` (alongside certification at `:908`) | Delete `incompleteListAllSignals`; use `inspectCompleteListResult` and `certifyCompleteListResult` in `parseListAllItemsJson`. Request strict, unbounded source reads. | `test/sdk-completeness.test.ts`, existing generator receipt tests, public-tracker differential below |
 | Intentionally filtered caller release selections | Keep caller scope adaptation in `parsePmItemsJson`; its delivery invariants already use the SDK. | `test/input-completeness.test.ts` and filtered-scope assertions in `test/sdk-completeness.test.ts` |
-| Immutable milestone files in `src/milestones.ts` | Already use `listAllComplete`; files are release artifacts, not duplicated item/history storage. No replacement applies. | Existing milestone tests; no milestone implementation changes |
+| Immutable milestone files at audit `src/milestones.ts:242` | Already use `listAllComplete`; files are release artifacts, not duplicated item/history storage. No replacement applies. | Existing milestone tests; no milestone implementation changes |
 
 No missing SDK API blocks this adoption. Dependency pins and coverage thresholds stay unchanged.
 The documented stricter SDK findings and legacy receipt differences are in [usage](usage.md).
@@ -81,3 +81,22 @@ and executed through `pm test`. Focused existing generator checks pass 24/24.
 There is no lint script in this package; `git diff --check` validates whitespace.
 The release gate measures lines, branches and functions at 100%; independently
 measured statement coverage remains the pre-existing `pmc-ilrh` scope.
+
+## Full local release gates
+
+Candidate commit: `c32b883`. Both gates ran with isolated HOME and system/global
+Git configuration disabled. npm used the package worktree; Bun used a separate
+clean checkout of that same commit so coverage reports could not collide.
+
+| Command | Tests | Skipped | Lines / branches / functions | Result |
+| --- | ---: | ---: | --- | --- |
+| `npm run release:check` | 852/852 | 0 | 100% / 100% / 100% | pass |
+| `bun run release:check` | 852/852 | 0 | 100% / 100% / 100% | pass |
+
+Local runtimes: Node 24.19.0, npm 11.17.0, Bun 1.3.5. The coverage presence
+gate requires 22 source files; the separate docstring gate checks 201 declarations
+across 26 files. Both release gates also passed production audit, package dry
+run, changelog/link checks, version-derived release dates and publish-attestation
+validation. No dependency or threshold changes were needed. Clean-checkout
+health meets the existing CI warning policy. CI repeats the full npm and Bun
+gates under Node 22 and 26 on the final PR head.
