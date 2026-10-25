@@ -81,7 +81,8 @@ export declare function mergeChangelog(existingMarkdown: string | undefined, gen
  * rejects it in trailing position. The host-owned output controls follow the
  * caller arguments so a conflicting `pmArgs` value cannot silently re-bound a
  * correctness-critical whole-tracker read. `--full` is list-local: `--all`
- * controls row scope, but no longer selects full fields on pm >=2026.10.18. */
+ * controls row scope, but no longer selects full fields on pm >=2026.10.18.
+ * Strict, unbounded source reads supply the proof required by SDK certification. */
 export declare function buildPmListArgs(options?: ReadPmItemsOptions): string[];
 /** Resolve the installed pm CLI entry point without consulting or changing the
  * process-level command memo. Supplying the complete dependency set lets tests
@@ -128,23 +129,14 @@ export declare class IncompleteListAllError extends Error {
     readonly total: number | undefined;
     constructor(signals: readonly string[], envelope?: Record<string, unknown>);
 }
-/** Parse a whole-tracker `pm list` answer, refusing one whose completeness
- * receipt does not prove the answer complete.
- *
- * Unlike {@link parsePmItemsJson} this rejects the legacy bare-array answer:
- * an array carries no receipt, so it cannot prove completeness, and consuming
- * it silently is exactly the 2026.8.14 failure mode. This is the parser for
- * live CLI reads; caller-supplied documents use explicit-receipt inspection. The
- * optional `read_output` receipt (which can record compaction or compatibility
- * aliases such as `--full`) is not consulted:
- * completeness is proven by the envelope signals alone, so both envelope
- * shapes parse identically.
- *
- * @param raw - stdout of a successful canonical whole-tracker list invocation.
- * @returns The envelope's items, only when every receipt signal is clean.
- * @throws {IncompleteListAllError} when any receipt signal tripped.
- * @throws {SyntaxError} when the answer is not valid JSON, matching
- * {@link parsePmItemsJson}'s behavior for unparseable reads. */
+/** Parse a whole-tracker list through the SDK's complete-list contract.
+ * Canonical hosts may omit read_output when nothing was compacted; adapt only
+ * that absent receipt, leaving explicit receipts and workspace scope intact.
+ * Caller-selected subsets belong to parsePmItemsJson instead. SDK finding
+ * codes replace package-local diagnostics; certification now also refuses
+ * filtered, non-strict, projected, duplicate-ID and session-shaped reads.
+ * @throws {IncompleteListAllError} when the SDK cannot certify intact delivery.
+ * @throws {SyntaxError} when the answer is not valid JSON. */
 export declare function parseListAllItemsJson(raw: string): PmItem[];
 /** Order two release headings, pinning a `fallback` heading (the unset
  * `Unreleased` bucket) ahead of every versioned release, then newest-first by

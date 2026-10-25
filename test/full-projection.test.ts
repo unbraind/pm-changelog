@@ -59,5 +59,5 @@ test("whole-tracker full projection retains every field and keeps schema flags l
   assert.equal(envelope.items.length, 2);
   assert.equal(envelope.omission_receipt.has_omissions, true);
   assert.throws(() => parseListAllItemsJson(brief),
-    (error: unknown) => error instanceof IncompleteListAllError && error.message.includes("omission_receipt.has_omissions=true"));
+    (error: unknown) => error instanceof IncompleteListAllError && error.message.includes("field_omission"));
 });

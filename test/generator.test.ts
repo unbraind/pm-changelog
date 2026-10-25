@@ -90,7 +90,7 @@ test("buildPmListArgs centralizes canonical pm runner argument order", () => {
     "--output-limit", "1",
     "--output-budget", "unbounded",
     "--output-limit", "unbounded",
-    "list", "--all", "--full", "--json", "--include-body",
+    "list", "--all", "--full", "--strict-read", "--no-truncate", "--json", "--include-body",
   ]);
 });
 
@@ -2143,6 +2143,9 @@ function completeListAllEnvelope(rows: unknown[]): Record<string, unknown> {
     total: rows.length,
     truncated: false,
     has_more: false,
+    next_cursor: null,
+    filters: { status: "all", strict_read: true, no_truncate: true },
+    projection: { mode: "full", fields: null },
     completeness: { status: "complete", unreadable_item_count: 0, unreadable_directory_count: 0 },
     omission_receipt: { has_omissions: false, omitted_field_group_count: 0, omitted_field_groups: [] },
   };
@@ -2159,7 +2162,7 @@ test("readPmItems supports runner wrappers with custom binaries, args, cwd, and 
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 
-if (process.argv.slice(2).join(" ") !== "--pm-path .agents/pm --profile ci --output-budget unbounded --output-limit unbounded list --all --full --json") process.exit(2);
+if (process.argv.slice(2).join(" ") !== "--pm-path .agents/pm --profile ci --output-budget unbounded --output-limit unbounded list --all --full --strict-read --no-truncate --json") process.exit(2);
 if (process.env.PM_CHANGELOG_TEST !== "1") process.exit(3);
 process.stdout.write(readFileSync(resolve(process.cwd(), "fixture.json"), "utf-8"));
 `,
@@ -2186,8 +2189,8 @@ test("readPmItems supports pm JSON larger than Node's default spawnSync buffer",
   writeFileSync(
     wrapper,
     `#!/usr/bin/env node
-if (process.argv.slice(2).join(" ") !== "--output-budget unbounded --output-limit unbounded list --all --full --json") process.exit(2);
-process.stdout.write(JSON.stringify({ items: [{ id: "pm-large", title: "Large tracker", status: "closed", body: ${JSON.stringify(largeBody)} }], count: 1, total: 1, truncated: false, has_more: false, completeness: { status: "complete", unreadable_item_count: 0, unreadable_directory_count: 0 }, omission_receipt: { has_omissions: false, omitted_field_group_count: 0, omitted_field_groups: [] } }));
+if (process.argv.slice(2).join(" ") !== "--output-budget unbounded --output-limit unbounded list --all --full --strict-read --no-truncate --json") process.exit(2);
+process.stdout.write(JSON.stringify({ items: [{ id: "pm-large", title: "Large tracker", status: "closed", body: ${JSON.stringify(largeBody)} }], count: 1, total: 1, truncated: false, has_more: false, next_cursor: null, filters: { status: "all", strict_read: true, no_truncate: true }, projection: { mode: "full", fields: null }, completeness: { status: "complete", unreadable_item_count: 0, unreadable_directory_count: 0 }, omission_receipt: { has_omissions: false, omitted_field_group_count: 0, omitted_field_groups: [] } }));
 `,
     "utf-8"
   );
@@ -2253,7 +2256,7 @@ test("readPmItems resolves the installed pm-cli executable without PATH", () => 
   assert.ok(result.length > 0, "expected pm items to be returned without PATH");
 });
 
-/** A real canonical `pm list --all --full --json` envelope captured from the installed CLI
+/** A real canonical `pm list --all --full --strict-read --no-truncate --json` envelope captured from the installed CLI
  * against this repository's own tracker, cached so the spawn happens once.
  * Mutating one field of this envelope is how the refusal tests drive each
  * signal from the CLI's real answer shape rather than a hand-written mock.
@@ -2268,7 +2271,7 @@ function captureRealListAllEnvelope(): Record<string, unknown> {
       "--pm-path", join(process.cwd(), ".agents", "pm"),
       "--output-budget", "unbounded",
       "--output-limit", "unbounded",
-      "list", "--all", "--full", "--json",
+      "list", "--all", "--full", "--strict-read", "--no-truncate", "--json",
     ], {
       encoding: "utf-8",
       maxBuffer: 64 * 1024 * 1024,
@@ -2297,8 +2300,8 @@ function captureRealListAllEnvelope(): Record<string, unknown> {
       const receipt = parsed.read_output as Record<string, unknown>;
       assert.deepEqual(
         receipt.legacy_aliases_used,
-        ["--full"],
-        "the full read must use only the list-local projection alias",
+        ["--full", "--no-truncate"],
+        "the full read must disclose projection and unbounded compatibility aliases",
       );
       assert.notEqual(receipt.rows_compacted, true, "a legacy-shape receipt must prove no row compaction");
       assert.notEqual(receipt.result_omitted, true, "a legacy-shape receipt must prove the result was not omitted");
@@ -2332,7 +2335,7 @@ function realEnvelopeWith(override: Record<string, unknown>): string {
   return JSON.stringify({ ...captureRealListAllEnvelope(), ...override });
 }
 
-/** A real compacted `pm list --all --full --json` envelope captured from the installed
+/** A real compacted `pm list --all --full --strict-read --no-truncate --json` envelope captured from the installed
  * CLI by forcing a tiny output budget against this repository's own tracker,
  * cached so the spawn happens once. pm attaches the `read_output` compaction
  * receipt, the continuation cursor, and the `output_budget_truncation`
@@ -2348,7 +2351,7 @@ function captureRealCompactedListAllEnvelope(): Record<string, unknown> {
       "--pm-path", join(process.cwd(), ".agents", "pm"),
       "--output-budget", "2000",
       "--output-limit", "unbounded",
-      "list", "--all", "--full", "--json",
+      "list", "--all", "--full", "--strict-read", "--no-truncate", "--json",
     ], {
       encoding: "utf-8",
       maxBuffer: 64 * 1024 * 1024,
@@ -2379,12 +2382,12 @@ function isRecordish(value: unknown): value is Record<string, unknown> {
 }
 
 for (const [signal, override, expectedDetail] of [
-  ["truncated", { truncated: true }, "truncated=true"],
-  ["has_more", { has_more: true }, "has_more=true"],
-  ["next_cursor", { next_cursor: "cursor-1" }, 'next_cursor="cursor-1"'],
-  ["output_budget_truncation", { output_budget_truncation: { reason: "output_budget_reached" } }, "output_budget_truncation.reason=output_budget_reached"],
-  ["completeness.status", { completeness: { status: "partial", unreadable_item_count: 2, unreadable_directory_count: 0 } }, 'completeness.status="partial"'],
-  ["omission_receipt.has_omissions", { omission_receipt: { has_omissions: true, omitted_field_group_count: 1, omitted_field_groups: ["body"] } }, "omission_receipt.has_omissions=true"],
+  ["truncated", { truncated: true }, "page_incomplete"],
+  ["has_more", { has_more: true }, "page_incomplete"],
+  ["next_cursor", { next_cursor: "cursor-1" }, "page_incomplete"],
+  ["output_budget_truncation", { output_budget_truncation: { reason: "output_budget_reached" } }, "budget_compaction"],
+  ["completeness.status", { completeness: { status: "partial", unreadable_item_count: 2, unreadable_directory_count: 0 } }, "source_incomplete"],
+  ["omission_receipt.has_omissions", { omission_receipt: { has_omissions: true, omitted_field_group_count: 1, omitted_field_groups: ["body"] } }, "field_omission"],
 ] as const) {
   test(`parseListAllItemsJson refuses a real whole-tracker envelope whose ${signal} signal tripped`, () => {
     const envelope = captureRealListAllEnvelope();
@@ -2406,7 +2409,7 @@ test("parseListAllItemsJson refuses answers that carry no completeness receipt",
     assert.throws(
       () => parseListAllItemsJson(output),
       (error: unknown) => error instanceof IncompleteListAllError
-        && /completeness\.status=<missing>/.test(error.message)
+        && /invalid_envelope|source_unchecked/.test(error.message)
         && error.count === undefined
         && error.total === undefined,
       `expected a refusal for ${output}`,
@@ -2414,7 +2417,7 @@ test("parseListAllItemsJson refuses answers that carry no completeness receipt",
   }
   assert.throws(
     () => parseListAllItemsJson(realEnvelopeWith({ completeness: "broken" })),
-    (error: unknown) => error instanceof IncompleteListAllError && /completeness\.status=<missing>/.test(error.message),
+    (error: unknown) => error instanceof IncompleteListAllError && /invalid_envelope|source_unchecked/.test(error.message),
   );
 });
 
@@ -2423,7 +2426,7 @@ test("parseListAllItemsJson refuses an envelope whose completeness block is abse
   delete withoutCompleteness.completeness;
   assert.throws(
     () => parseListAllItemsJson(JSON.stringify(withoutCompleteness)),
-    (error: unknown) => error instanceof IncompleteListAllError && /completeness\.status=<missing>/.test(error.message),
+    (error: unknown) => error instanceof IncompleteListAllError && /invalid_envelope|source_unchecked/.test(error.message),
   );
 });
 
@@ -2432,10 +2435,10 @@ test("parseListAllItemsJson refuses unverifiable or inconsistent receipt counts"
   const items = envelope.items as unknown[];
   const count = envelope.count as number;
   for (const [override, expected] of [
-    [{ count: undefined }, "count=<missing-or-invalid>"],
-    [{ total: -1 }, "total=<missing-or-invalid>"],
-    [{ total: count + 1 }, `count=${count} differs from total=${count + 1}`],
-    [{ items: items.slice(1) }, `items.length=${items.length - 1} differs from count=${count}`],
+    [{ count: undefined }, "count_mismatch"],
+    [{ total: -1 }, "count_mismatch"],
+    [{ total: count + 1 }, "count_mismatch"],
+    [{ items: items.slice(1) }, "count_mismatch"],
   ] as const) {
     assert.throws(
       () => parseListAllItemsJson(realEnvelopeWith(override)),
@@ -2452,7 +2455,7 @@ test("parseListAllItemsJson names every tripped signal and unknown counts togeth
   assert.throws(
     () => parseListAllItemsJson(JSON.stringify({ ...withoutCounts, truncated: true, has_more: true })),
     (error: unknown) => error instanceof IncompleteListAllError
-      && error.message.includes("truncated=true; has_more=true")
+      && error.message.includes("page_incomplete")
       && error.message.includes("count=unknown of total=unknown"),
   );
 });
@@ -2460,7 +2463,7 @@ test("parseListAllItemsJson names every tripped signal and unknown counts togeth
 test("parseListAllItemsJson refuses a complete-looking envelope with no items array", () => {
   assert.throws(
     () => parseListAllItemsJson(realEnvelopeWith({ items: "invalid" })),
-    /carried no items array/,
+    /invalid_envelope/,
   );
 });
 
@@ -2470,11 +2473,11 @@ test("parseListAllItemsJson lets every item of a real complete envelope flow thr
   assert.deepEqual(parseListAllItemsJson(JSON.stringify(envelope)), rows);
 });
 
-test("parseListAllItemsJson accepts full-projection, legacy and receipt-less read_output shapes", () => {
+test("parseListAllItemsJson accepts canonical receipts and refuses legacy receipts missing include proof", () => {
   const envelope = captureRealListAllEnvelope();
   const rows = envelope.items as unknown[];
   // pm <=2026.9.17 attached this receipt on every read, complete or not; the
-  // generator must keep consuming that envelope shape unchanged.
+  // SDK certification now requires include proof as well as amount and cost.
   const legacyReceipt = {
     contract_version: 1,
     command: "list",
@@ -2489,7 +2492,8 @@ test("parseListAllItemsJson accepts full-projection, legacy and receipt-less rea
     rows_compacted: false,
     result_omitted: false,
   } as const;
-  assert.deepEqual(parseListAllItemsJson(realEnvelopeWith({ read_output: legacyReceipt })), rows);
+  assert.throws(() => parseListAllItemsJson(realEnvelopeWith({ read_output: legacyReceipt })),
+    /read_output_dimensions_incomplete/);
   assert.deepEqual(parseListAllItemsJson(JSON.stringify(envelope)), rows);
   // A canonical uncompacted host may omit read_output; exercise that shape
   // independently of the full-projection alias receipt captured above.
@@ -2502,7 +2506,7 @@ test("parseListAllItemsJson refuses a budget-truncation disclosure whose reason 
   assert.throws(
     () => parseListAllItemsJson(realEnvelopeWith({ output_budget_truncation: {} })),
     (error: unknown) => error instanceof IncompleteListAllError
-      && error.message.includes("output_budget_truncation.reason=<missing>"),
+      && error.message.includes("budget_compaction"),
   );
 });
 
@@ -2511,10 +2515,8 @@ test("parseListAllItemsJson refuses a real compacted envelope that carries a com
   assert.throws(
     () => parseListAllItemsJson(JSON.stringify(envelope)),
     (error: unknown) => error instanceof IncompleteListAllError
-      && error.message.includes("truncated=true")
-      && error.message.includes("has_more=true")
-      && error.message.includes("next_cursor=")
-      && error.message.includes("output_budget_truncation.reason=output_budget_reached"),
+      && error.message.includes("page_incomplete")
+      && error.message.includes("budget_compaction"),
     "a budget-compacted partial read must be refused through every signal it discloses",
   );
 });
@@ -2537,7 +2539,7 @@ process.stdout.write(${JSON.stringify(realEnvelopeWith({ truncated: true }))});
   try {
     assert.throws(
       () => readPmItems({ pmBin: wrapper }),
-      (error: unknown) => error instanceof IncompleteListAllError && error.message.includes("truncated=true"),
+      (error: unknown) => error instanceof IncompleteListAllError && error.message.includes("page_incomplete"),
     );
   } finally {
     removeGitFixture(dir);
@@ -2550,7 +2552,7 @@ test("CLI can run a custom pm binary", () => {
   writeFileSync(
     wrapper,
     `#!/usr/bin/env node
-if (process.argv.slice(2).join(" ") !== "--output-budget unbounded --output-limit unbounded list --all --full --json") process.exit(2);
+if (process.argv.slice(2).join(" ") !== "--output-budget unbounded --output-limit unbounded list --all --full --strict-read --no-truncate --json") process.exit(2);
 process.stdout.write(${JSON.stringify(JSON.stringify(completeListAllEnvelope(items)))});
 `,
     "utf-8"
@@ -2590,7 +2592,7 @@ test("CLI passes extra pm arguments and cwd to runner wrappers", () => {
 import { existsSync, readFileSync } from "node:fs";
 import { resolve } from "node:path";
 
-if (process.argv.slice(2).join(" ") !== "--profile ci --workspace release --output-budget unbounded --output-limit unbounded list --all --full --json") process.exit(2);
+if (process.argv.slice(2).join(" ") !== "--profile ci --workspace release --output-budget unbounded --output-limit unbounded list --all --full --strict-read --no-truncate --json") process.exit(2);
 if (!existsSync(resolve(process.cwd(), "fixture.json"))) process.exit(3);
 process.stdout.write(readFileSync(resolve(process.cwd(), "fixture.json"), "utf-8"));
 `,

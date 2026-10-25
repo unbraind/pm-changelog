@@ -1,0 +1,31 @@
+id: pmc-sdk-completeness-1025
+title: Use the pm SDK for whole-tracker completeness validation
+description: Replace duplicate completeness diagnostics from the 2026-10-25 audit with inspectCompleteListResult and certifyCompleteListResult; prove compatibility on non-git public-tracker copies.
+type: Chore
+status: in_progress
+priority: 1
+tags: []
+created_at: "2026-10-25T16:16:16.825Z"
+updated_at: "2026-10-25T16:41:47.287Z"
+author: codex-agent
+dependencies[1]{id,kind,created_at,author,source_kind,author_source}:
+  pmc-0jm1,related,"2026-10-25T16:16:16.825Z",codex-agent,"cli:create:dep",detected
+comments[7]{created_at,author,text}:
+  "2026-10-25T16:16:20.928Z",codex-agent,"Audit scope: delete generator.ts custom whole-corpus completeness checks in favor of inspectCompleteListResult plus certifyCompleteListResult. Caller-filtered parsePmItemsJson retains scope adaptation. milestones.ts already uses listAllComplete; immutable milestone files are release artifacts, so no storage replacement applies. Related SDK adoption: pmc-0jm1. Keep pinned SDK 2026.10.20; registry CLI is 2026.10.25. Plan: strict receipt regressions, real public-tracker before/after comparisons in non-git copies, behavioral revert proof, npm and Bun release gates, ready PR."
+  "2026-10-25T16:20:15.650Z",codex-agent,"Implementation replaces incompleteListAllSignals entirely with SDK inspection/certification. Live reads now request strict-read/no-truncate instead of asserting those properties. Intentional stricter differences: SDK finding codes replace field-specific diagnostics; filtered/non-strict/bounded/projection/ID/session/contradictory receipt claims refuse. Absent canonical read_output remains compatible; explicit legacy receipts lacking include proof now refuse. No replaced path read or verified history, so no history index is introduced; an independent regression primes SDK listing and proves fresh readHistoryEntries plus verifyHistoryEntries detects subsequent tampering."
+  "2026-10-25T16:22:12.484Z",codex-agent,"Revert proof for the sole replacement: temporarily restore only origin/main parseListAllItemsJson and incompleteListAllSignals, keep strict argv, rebuild, then run node --test test/sdk-completeness.test.ts. Exit 1: 16 receipt subtests fail plus their parent (18 tests total: 1 pass, 17 fail); all 16 report Missing expected exception. The independent fresh-history corruption witness still passes. Restore SDK code and rebuild: targeted suite 81/81 and generator focus 24/24 pass. No history or existing item records were rewritten."
+  "2026-10-25T16:24:11.622Z",codex-agent,"Public-tracker differential passed against independently built origin/main fa8a8a1d0af97797e6a34a78bdd6b9b30242378e: pm-changelog 197 items, pm-ops 154, pm-context 92; four affected functions per corpus and nine CLI outputs all byte-identical. Non-git copies ran with empty PATH and GIT_CEILING_DIRECTORIES. All 911 read-only original artifacts retained their SHA-256 hashes. Snapshot commits and reproduction command are in docs/sdk-adoption-1025.md. pm test executed the linked targeted suite successfully: 81 passed, zero failed/skipped."
+  "2026-10-25T16:29:00.440Z",codex-agent,"Additional integrity evidence: the corruption regression now explicitly primes listMutationEvents with full history and asserts source=derived_index before corrupting the authoritative history hash. Fresh readHistoryEntries plus verifyHistoryEntries still rejects the corruption; node --test test/sdk-completeness.test.ts passes 18/18. Typecheck, test compilation and docstring gate pass; 26 measured source files and 201 documented declarations. No lint script exists; whitespace validation passes. Full release gates remain in progress."
+  "2026-10-25T16:30:30.835Z",codex-agent,"Initial full npm gate: 852 tests, 851 passed and one legacy include-body runner fixture failed because its synthetic complete envelope omitted scope/projection receipts. Coverage reached 100% lines/branches/functions across all reported source. Updated only that fixture to the SDK contract; targeted include-body regression passes. Rerunning full npm and Bun gates in separate checkouts to avoid shared coverage output collisions."
+  "2026-10-25T16:41:46.141Z",codex-agent,"Full local gates pass on c32b883 with isolated HOME and disabled global/system Git config: npm run release:check and bun run release:check each report 852 passed, 0 failed/skipped, and 100% lines/branches/functions at unchanged thresholds. Separate checkout keeps Bun coverage artifacts independent. Node 24.19.0, npm 11.17.0, Bun 1.3.5. Coverage presence gate requires 22 source files; docstring gate checks 201 declarations across 26 files. Audit, pack dry-run, changelog links, release dates and publish attestation pass. Clean-checkout health meets the existing CI policy. Source diff deletes 98 lines and adds 24 (74 net fewer), including deletion of the 36-line helper. No missing SDK API or new SDK defect remains; statement measurement stays in existing pmc-ilrh. Implementation complete; item remains in progress for orchestrator verification and CI on the ready PR."
+files[4]{path,scope,note}:
+  src/generator.ts,project,SDK inspection and certification replace duplicate completeness checks
+  test/enhancements.test.ts,project,Existing runner receipt now includes SDK scope and projection proof
+  test/sdk-adoption-differential.ts,project,Origin build versus current build on public tracker snapshots
+  test/sdk-completeness.test.ts,project,Real non-git receipt and cache-priming history corruption regressions
+tests[1]{command,scope,timeout_seconds,provenance{author,created_at,source_kind,source_ref}}:
+  node --test test/sdk-completeness.test.ts test/full-projection.test.ts test/input-completeness.test.ts,project,180,codex-agent,"2026-10-25T16:21:33.982Z",local_mutation,refactor/sdk-adoption-1025
+docs[2]{path,scope,note}:
+  docs/sdk-adoption-1025.md,project,Audit dispositions public-tracker differential and behavioral revert proof
+  docs/usage.md,project,SDK stricter diagnostics and scope compatibility
+body: ""

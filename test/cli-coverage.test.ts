@@ -19,6 +19,9 @@ const INPUT_DOCUMENT = JSON.stringify({
   total: 1,
   truncated: false,
   has_more: false,
+  next_cursor: null,
+  filters: { status: "all", strict_read: true, no_truncate: true },
+  projection: { mode: "full", fields: null },
   completeness: { status: "complete", unreadable_item_count: 0, unreadable_directory_count: 0 },
   omission_receipt: { has_omissions: false, omitted_field_group_count: 0, omitted_field_groups: [] },
   items: [{
