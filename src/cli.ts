@@ -9,6 +9,8 @@ import { fileURLToPath } from "node:url";
 import { resolvePmRoot } from "@unbrained/pm-cli/sdk";
 import { AudienceContractError } from "./audience-contracts.ts";
 import { runAudienceContractsCli } from "./audience-command.ts";
+import { ConsumerUpgradeError } from "./consumer-upgrades.ts";
+import { runConsumerUpgradesCli } from "./consumer-upgrade-command.ts";
 
 import { ReleaseMilestoneError, DirectoryReleaseMilestoneStore, assertTrackerMilestoneOptions, readReleaseMilestones, readTrackerReleaseSnapshot, resolveTrackerReleaseHistory } from "./milestones.ts";
 import { auditChangelogClaims, assertChangelogClaims, formatClaimAudit, parseClaimTestReceipts } from "./claim-audit.ts";
@@ -226,6 +228,7 @@ const KNOWN_OPTIONS = [
  * from git, load items, generate, then write or compare. */
 async function main(args: string[] = process.argv.slice(2)): Promise<void> {
   if (args[0] === "contracts") return runAudienceContractsCli(args.slice(1));
+  if (args[0] === "upgrades") return runConsumerUpgradesCli(args.slice(1));
   const options = parseArgs(args[0] === "audit" ? ["--audit-evidence", ...args.slice(1)] : args);
   if (options.milestones) assertTrackerMilestoneOptions([
     options.allReleaseTags, options.sincePreviousTag, options.untilReleaseTag, options.versionFromPackage,
@@ -1067,6 +1070,7 @@ function printHelp(): void {
   process.stdout.write(`pm-changelog
 
   contracts [--audience api-user|operator|agent-behavior] [--format toon|json]
+  upgrades --audience operator --from 1.0.0 --to 4.0.0 [--format toon|json]
             [--pm-root path] [--group-by version|release|milestone]
             [--section-by category|type|status|label] [--release-version version]
     Publish explicitly declared audience facets with a shared attribution ledger.
@@ -1217,7 +1221,7 @@ export async function runCliEntry(argv: readonly string[] = process.argv): Promi
 
 /** Convert an unknown CLI failure into a stable human-readable message. */
 function errorMessage(error: unknown): string {
-  if (error instanceof ReleaseMilestoneError || error instanceof AudienceContractError) return JSON.stringify({ error: { code: error.code, message: error.message, remedy: error.remedy } });
+  if (error instanceof ReleaseMilestoneError || error instanceof AudienceContractError || error instanceof ConsumerUpgradeError) return JSON.stringify({ error: { code: error.code, message: error.message, remedy: error.remedy } });
   return error instanceof Error ? error.message : String(error);
 }
 

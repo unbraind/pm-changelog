@@ -11,6 +11,7 @@ Use this index first. Follow only the page needed for the current task.
 5. Publish audience-specific notes: [Change contract example](audience-contracts.md)
 6. Inspect measured tracker validation: [Audience validation](audience-contract-validation.md)
 7. Review shipped changes: [Changelog](../CHANGELOG.md)
+8. Compile consumer obligations: [Three-release upgrade example](consumer-upgrades.md)
 
 ## Package Summary
 

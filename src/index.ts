@@ -67,6 +67,8 @@ export { checkItemLinks } from "./item-links.ts";
 
 export { CHANGE_AUDIENCES, AudienceContractError, parseChangeAudience, buildAudienceContracts, readAudienceContracts, formatAudienceContracts } from "./audience-contracts.ts";
 export type { ChangeAudience, ChangeFacet, ChangeAttribution, AudienceContractOptions, AudienceChangeContract, AudienceContractReport } from "./audience-contracts.ts";
+export { ConsumerUpgradeError, parseUpgradeActions, buildConsumerUpgrades, readConsumerUpgrades, formatConsumerUpgrades } from "./consumer-upgrades.ts";
+export type { UpgradeAction, ConsumerUpgradeStep, ConsumerUpgradeOptions, ConsumerUpgradeReport, ConsumerUpgradeErrorCode } from "./consumer-upgrades.ts";
 
 export type { GitReleaseHistory } from "./release-membership.ts";
 

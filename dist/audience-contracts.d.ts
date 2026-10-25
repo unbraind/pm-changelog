@@ -1,5 +1,6 @@
 import { PmCliError } from "@unbrained/pm-cli/sdk";
 import type { GenerateChangelogOptions } from "./types.ts";
+import type { UpgradeAction } from "./upgrade-actions.ts";
 /** Explicit publishing targets, in canonical output order. */
 export declare const CHANGE_AUDIENCES: readonly ["api-user", "operator", "agent-behavior"];
 /** One supported consumer of a versioned change contract. */
@@ -7,6 +8,8 @@ export type ChangeAudience = typeof CHANGE_AUDIENCES[number];
 /** Exact author-declared prose, or an explicit opt-in to existing resolution prose. */
 export type ChangeFacet = {
     audience: ChangeAudience;
+    breaking?: true;
+    upgrade_actions?: UpgradeAction[];
 } & ({
     text: string;
     source?: never;

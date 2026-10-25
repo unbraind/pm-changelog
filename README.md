@@ -396,11 +396,32 @@ See the [SDK and receipt example](docs/claim-audit-example.md).
 
 ## Without git
 
-Tracker milestone creation/generation, ordinary generation, export, audience contracts and claim audits
+Tracker milestone creation/generation, ordinary generation, export, audience contracts, consumer upgrades and claim audits
 work in plain directories and through caller-supplied SDK items without Git.
 Milestone paths invoke no Git subprocess. Git tag windows, historical
 Git membership and dependency commit collection require a Git repository. Use
 tracker fields or explicit dates for a tracker-only audit.
+
+## Ordered consumer upgrade obligations
+
+Author `breaking: true` and `upgrade_actions` on a `change_facets` declaration,
+then compile the obligations between an installed version and a target version:
+
+```sh
+pm changelog upgrades --audience operator --from 1.0.0 --to 4.0.0 --format json
+pm-changelog upgrades --pm-root .agents/pm --audience operator --from 1.0.0 --to 4.0.0
+```
+
+Only explicitly authored actions become pending core Plan step data. The SDK
+orders their prerequisites, deduplicates identical action IDs across releases,
+and refuses missing prerequisites, conflicting definitions and cycles with
+typed remedies. Commands, titles and release prose are never executed or inferred
+as actions. Both commands read complete native metadata through the SDK without
+git. Output defaults to compact TOON; `--json` selects compact JSON.
+
+Use `buildConsumerUpgrades`, `readConsumerUpgrades` and `formatConsumerUpgrades`
+from the typed SDK. See the [three-release example and range contract](docs/consumer-upgrades.md)
+and [measured public-tracker validation](docs/consumer-upgrade-validation.md).
 
 ## Audience-specific change contracts
 

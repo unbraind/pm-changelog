@@ -3,6 +3,7 @@ export { assertReleaseTagHistory, MISSING_TAG_HISTORY_ERROR_CODE, MissingTagHist
 export { resolveGitReleaseHistory, resolveGitReleaseMembership } from "./release-membership.js";
 export { checkItemLinks } from "./item-links.js";
 export { CHANGE_AUDIENCES, AudienceContractError, parseChangeAudience, buildAudienceContracts, readAudienceContracts, formatAudienceContracts } from "./audience-contracts.js";
+export { ConsumerUpgradeError, parseUpgradeActions, buildConsumerUpgrades, readConsumerUpgrades, formatConsumerUpgrades } from "./consumer-upgrades.js";
 export { DirectoryReleaseMilestoneStore, ReleaseMilestoneError, assertTrackerMilestoneOptions, createReleaseMilestone, parseReleaseMilestone, readReleaseMilestones, readTrackerReleaseSnapshot, resolveTrackerReleaseHistory, } from "./milestones.js";
 export { auditChangelogClaims, assertChangelogClaims, formatClaimAudit, parseClaimTestReceipts, ClaimAuditError, CLAIM_AUDIT_REMEDIES } from "./claim-audit.js";
 //# sourceMappingURL=index.js.map
