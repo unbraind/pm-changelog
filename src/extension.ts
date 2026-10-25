@@ -15,6 +15,7 @@ import {
 
 import type { ImportExportRegistrationOptions } from "@unbrained/pm-cli/sdk/authoring";
 import { AUDIENCE_CONTRACT_FLAGS, runAudienceContractsCommand } from "./audience-command.ts";
+import { CONSUMER_UPGRADE_FLAGS, runConsumerUpgradesCommand } from "./consumer-upgrade-command.ts";
 
 import { DirectoryReleaseMilestoneStore, assertTrackerMilestoneOptions, createReleaseMilestone, readReleaseMilestones, readTrackerReleaseSnapshot, resolveTrackerReleaseHistory } from "./milestones.ts";
 import { auditChangelogClaims, assertChangelogClaims, formatClaimAudit, parseClaimTestReceipts } from "./claim-audit.ts";
@@ -93,6 +94,14 @@ export default defineExtension({
 
   activate(api) {
     api.registerItemFields([{ name: "change_facets", type: "array", optional: true }]);
+    api.registerCommand({
+      name: "changelog upgrades",
+      description: "Compile ordered explicit breaking-change obligations for a consumer release range; read-only, no git required.",
+      flags: CONSUMER_UPGRADE_FLAGS,
+      async run(ctx) {
+        return { pmChangelogRendered: true, output: await runConsumerUpgradesCommand(ctx.pm_root, ctx.options, ctx.global.json) };
+      },
+    });
     api.registerCommand({
       name: "changelog contracts",
       description: "Publish declared audience facets with a common canonical attribution ledger; no git required.",
@@ -562,7 +571,7 @@ export default defineExtension({
       // call site is still fully checked). The host enforces `commands` +
       // `resultDiscriminator` before invoking either callback.
       const rendererOwnership = {
-        commands: ["changelog generate", "changelog export", "changelog audit", "changelog contracts"],
+        commands: ["changelog generate", "changelog export", "changelog audit", "changelog contracts", "changelog upgrades"],
         resultDiscriminator: isRenderedCommandResult,
       };
       api.registerRenderer("toon", renderCommandResult, rendererOwnership);

@@ -3,13 +3,15 @@ import { encode } from "@toon-format/toon";
 import { EXIT_CODE, PmCliError, listAllComplete } from "@unbrained/pm-cli/sdk";
 import { buildChangelogDocument, resolveChangelogResolution } from "./generator.ts";
 import type { GenerateChangelogOptions, PmItem } from "./types.ts";
+import { parseUpgradeActions } from "./upgrade-actions.ts";
+import type { UpgradeAction } from "./upgrade-actions.ts";
 
 /** Explicit publishing targets, in canonical output order. */
 export const CHANGE_AUDIENCES = ["api-user", "operator", "agent-behavior"] as const;
 /** One supported consumer of a versioned change contract. */
 export type ChangeAudience = typeof CHANGE_AUDIENCES[number];
 /** Exact author-declared prose, or an explicit opt-in to existing resolution prose. */
-export type ChangeFacet = { audience: ChangeAudience } & ({ text: string; source?: never } | { source: "close_reason"; text?: never });
+export type ChangeFacet = { audience: ChangeAudience; breaking?: true; upgrade_actions?: UpgradeAction[] } & ({ text: string; source?: never } | { source: "close_reason"; text?: never });
 /** Selection delegates to the existing generator; only closed change items are published. */
 export interface AudienceContractOptions extends Pick<GenerateChangelogOptions,
   "items" | "version" | "groupBy" | "sectionBy" | "since" | "until" | "excludeTags" |
@@ -56,13 +58,14 @@ export function parseChangeAudience(value: unknown): ChangeAudience {
 /** Validate every declaration before projecting; malformed metadata never becomes inferred prose. */
 function readFacets(value: unknown): ChangeFacet[] {
   if (value === undefined) return [];
-  const refuse = (): never => { throw new AudienceContractError("invalid_facets", "Set change_facets to an array of {audience, text} or {audience, source: close_reason}; use nonblank text and no extra fields."); };
+  const refuse = (): never => { throw new AudienceContractError("invalid_facets", "Set change_facets to an array of {audience, text} or {audience, source: close_reason}, optionally with breaking: true and upgrade_actions; use nonblank text and no extra fields."); };
   if (!Array.isArray(value)) return refuse();
   return (value as unknown[]).map((entry) => {
     if (!entry || typeof entry !== "object" || Array.isArray(entry)) return refuse();
     const row = entry as Record<string, unknown>;
     const audience = parseChangeAudience(row.audience);
-    if (Object.keys(row).some((key) => !["audience", "text", "source"].includes(key))) return refuse();
+    if (Object.keys(row).some((key) => !["audience", "text", "source", "breaking", "upgrade_actions"].includes(key)) || (row.breaking !== undefined && row.breaking !== true)) return refuse();
+    parseUpgradeActions(row.upgrade_actions, row.breaking);
     if (typeof row.text === "string" && row.text.trim() && row.source === undefined) return { audience, text: row.text };
     if (row.source === "close_reason" && row.text === undefined) return { audience, source: "close_reason" };
     return refuse();

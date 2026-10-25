@@ -2,6 +2,7 @@ import { createHash } from "node:crypto";
 import { encode } from "@toon-format/toon";
 import { EXIT_CODE, PmCliError, listAllComplete } from "@unbrained/pm-cli/sdk";
 import { buildChangelogDocument, resolveChangelogResolution } from "./generator.js";
+import { parseUpgradeActions } from "./upgrade-actions.js";
 /** Explicit publishing targets, in canonical output order. */
 export const CHANGE_AUDIENCES = ["api-user", "operator", "agent-behavior"];
 /** Stable refusal codes and remedies are available through both SDK and CLI. */
@@ -24,7 +25,7 @@ export function parseChangeAudience(value) {
 function readFacets(value) {
     if (value === undefined)
         return [];
-    const refuse = () => { throw new AudienceContractError("invalid_facets", "Set change_facets to an array of {audience, text} or {audience, source: close_reason}; use nonblank text and no extra fields."); };
+    const refuse = () => { throw new AudienceContractError("invalid_facets", "Set change_facets to an array of {audience, text} or {audience, source: close_reason}, optionally with breaking: true and upgrade_actions; use nonblank text and no extra fields."); };
     if (!Array.isArray(value))
         return refuse();
     return value.map((entry) => {
@@ -32,8 +33,9 @@ function readFacets(value) {
             return refuse();
         const row = entry;
         const audience = parseChangeAudience(row.audience);
-        if (Object.keys(row).some((key) => !["audience", "text", "source"].includes(key)))
+        if (Object.keys(row).some((key) => !["audience", "text", "source", "breaking", "upgrade_actions"].includes(key)) || (row.breaking !== undefined && row.breaking !== true))
             return refuse();
+        parseUpgradeActions(row.upgrade_actions, row.breaking);
         if (typeof row.text === "string" && row.text.trim() && row.source === undefined)
             return { audience, text: row.text };
         if (row.source === "close_reason" && row.text === undefined)

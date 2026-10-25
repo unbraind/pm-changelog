@@ -1,0 +1,37 @@
+id: pmc-consumer-upgrades
+title: Compile ordered consumer upgrade obligations across releases
+description: "Overlap checked: audience contracts select prose; core Plan and relationship analytics own steps and ordering; pm-presets owns settings migration receipts; pm-swarm owns progress. This feature projects explicit breaking-facet actions for a consumer release range using existing SDK semantics, without execution or mutation."
+type: Feature
+status: open
+priority: 2
+tags: []
+created_at: "2026-10-25T08:07:39.252Z"
+updated_at: "2026-10-25T08:34:24.889Z"
+author: codex-agent
+acceptance_criteria: "Three-release upgrades emit applicable actions once in dependency order; cycles and missing prerequisites refuse; prose never becomes executable. Typed SDK plus host and standalone CLI emit compact TOON/JSON and typed remedies. README example and no-git support; read-only public-tracker validation. At least 500 seeded random operation sequences cover older-input replays, whitespace/CRLF, relationships and all touched native fields, using SDK readback. Targeted checks and full npm/Bun CI gates pass."
+comments[6]{created_at,author,text}:
+  "2026-10-25T08:18:19.806Z",codex-agent,"Implemented explicit breaking-facet upgrade_actions, read-only SDK projection and host/standalone upgrades commands. Uses certified complete reads, existing release comparison, core Plan types and SDK ordering analytics. Actual no-git tests caught and fixed missing host renderer ownership. Public main snapshot: 196 items, 187 closed, 183 selected changes, 36 release groups, 0 facets/actions, JSON 148 bytes, TOON 132 bytes, 402 unchanged files; measured warm SDK 529 ms. Initial seeded 500-sequence/2000-operation SDK model test passed; expanding it to cover all four existing exporter branches too. Core canonicalDocument supplies native body semantics; exact facet/action whitespace is checked independently. No new import/sync/apply, execution journal, lease, checkpoint or idempotency state exists."
+  "2026-10-25T08:22:12.161Z",codex-agent,"Targeted compatibility run: 35 tests passed, zero failures/skips; new compiler and command measured 100 percent lines, branches and functions. Behavioral revert proof: remove only the upgrades dispatch from standalone main, rebuild, and the actual-host/standalone integration regression fails (1 failure); restoring dispatch and rebuilding passes. Split shared action validation from projection to keep imports acyclic. Typecheck, test typecheck and docstring lint pass. Expanded seeded model now exercises random prerequisite edges, exact reference steps/refusals, and all four existing export branches; linked pm test execution is running."
+  "2026-10-25T08:28:39.475Z",codex-agent,"Additional behavioral revert proof: replacing only buildConsumerUpgrades prerequisite ordering with declaration order makes both the three-release acceptance regression and seeded reference-model assertions fail. Restored SDK ordering. Linked suite passed 5/5 with zero skips under --timeout 600 before the final native-field preservation assertions; final linked rerun covers those too. CLI limitation: storing timeout_seconds was refused by the existing host floor/item-format guard, so the run-level timeout override is used. Test-result persistence is disabled by project policy; commands and outcomes are recorded here without changing policy."
+  "2026-10-25T08:31:32.897Z",codex-agent,"Final local linked execution passed 5/5 tests, zero failures/skips, in 153 seconds with --timeout 600. Seed 0x52c0ffee completed 500 random sequences: 2000 SDK mutation/replay operations, random prerequisite ordering/refusals, 2000 JSON/Markdown exports and full SDK readback including native evidence, annotations, lifecycle fields and relationships. Targeted new-module coverage is 100 percent lines/branches/functions; typecheck, test typecheck, docstring lint, changelog check, text-only privacy and history prefix checks pass. Full npm and Bun release checks are delegated to the unchanged CI gate as requested; exact run URL/counts will be recorded in the PR."
+  "2026-10-25T08:33:04.617Z",codex-agent,"Upstream release e53da92 landed as the PR opened. Merged origin/main; feature source merged cleanly and only the generated extension source map conflicted, resolved by rebuilding. No existing tracker item/history pair conflicted or was rewritten. Retained upstream version 2026.10.25 and unchanged dependency pins."
+  "2026-10-25T08:34:22.880Z",codex-agent,"Implementation is ready for review in https://github.com/unbraind/pm-changelog/pull/278 . Local acceptance, model-based state/export tests, behavioral revert proofs and read-only public-data validation passed. Active editing is complete; returning this item to open and releasing the claim for orchestrator verification. The PR retains final-head CI run URLs and exact npm/Bun gate counts; no merge or release is authorized or performed."
+files[10]{path,scope}:
+  scripts/validate-consumer-upgrades.ts,project
+  src/audience-contracts.ts,project
+  src/cli.ts,project
+  src/consumer-upgrade-command.ts,project
+  src/consumer-upgrades.ts,project
+  src/extension.ts,project
+  src/index.ts,project
+  src/upgrade-actions.ts,project
+  test/consumer-upgrades.test.ts,project
+  test/extension.test.ts,project
+tests[1]{command,scope,provenance{author,created_at,source_kind,source_ref}}:
+  node --test --test-concurrency=1 test/consumer-upgrades.test.ts,project,codex-agent,"2026-10-25T08:19:23.672Z",local_mutation,feat/consumer-upgrade-obligations
+docs[4]{path,scope}:
+  docs/consumer-upgrade-validation.md,project
+  docs/consumer-upgrades.md,project
+  docs/README.md,project
+  README.md,project
+body: ""
