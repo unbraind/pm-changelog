@@ -2,6 +2,12 @@
 
 > Compatibility: explicit tag options (--all-release-tags, --since-previous-tag, --until-release-tag) now require an accessible Git repository and fail with MissingTagHistoryError in source archives and container contexts without Git history. Use tracker-only generation or --milestones there.
 
+## Unreleased
+
+### Added
+
+- Compile ordered consumer upgrade obligations across releases ([pmc-consumer-upgrades](https://github.com/unbraind/pm-changelog/blob/main/.agents/pm/features/pmc-consumer-upgrades.toon))
+
 ## 2026.10.25 - 2026-10-25
 
 ### Added

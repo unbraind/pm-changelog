@@ -2,13 +2,18 @@ id: pmc-consumer-upgrades
 title: Compile ordered consumer upgrade obligations across releases
 description: "Overlap checked: audience contracts select prose; core Plan and relationship analytics own steps and ordering; pm-presets owns settings migration receipts; pm-swarm owns progress. This feature projects explicit breaking-facet actions for a consumer release range using existing SDK semantics, without execution or mutation."
 type: Feature
-status: open
+status: closed
 priority: 2
 tags: []
 created_at: "2026-10-25T08:07:39.252Z"
-updated_at: "2026-10-25T08:34:24.889Z"
+updated_at: "2026-10-25T11:29:53.040Z"
+closed_at: "2026-10-25T11:29:53.019Z"
+completed_at: "2026-10-25T09:22:23.000Z"
 author: codex-agent
 acceptance_criteria: "Three-release upgrades emit applicable actions once in dependency order; cycles and missing prerequisites refuse; prose never becomes executable. Typed SDK plus host and standalone CLI emit compact TOON/JSON and typed remedies. README example and no-git support; read-only public-tracker validation. At least 500 seeded random operation sequences cover older-input replays, whitespace/CRLF, relationships and all touched native fields, using SDK readback. Targeted checks and full npm/Bun CI gates pass."
+resolution: "Delivered by #278: `upgrades` compiles consumer upgrade obligations once, ordered by prerequisites, with typed refusals and bounded output."
+expected_result: "Consumers get each upgrade action once, in prerequisite order, for any version range, without tracker writes."
+actual_result: "Merged with tests covering ordering, boundaries, refusals, state preservation and git-free transports; the review's non-blocking help-text note (unsupported flags advertised on `upgrades`) is tracked as a follow-up."
 comments[6]{created_at,author,text}:
   "2026-10-25T08:18:19.806Z",codex-agent,"Implemented explicit breaking-facet upgrade_actions, read-only SDK projection and host/standalone upgrades commands. Uses certified complete reads, existing release comparison, core Plan types and SDK ordering analytics. Actual no-git tests caught and fixed missing host renderer ownership. Public main snapshot: 196 items, 187 closed, 183 selected changes, 36 release groups, 0 facets/actions, JSON 148 bytes, TOON 132 bytes, 402 unchanged files; measured warm SDK 529 ms. Initial seeded 500-sequence/2000-operation SDK model test passed; expanding it to cover all four existing exporter branches too. Core canonicalDocument supplies native body semantics; exact facet/action whitespace is checked independently. No new import/sync/apply, execution journal, lease, checkpoint or idempotency state exists."
   "2026-10-25T08:22:12.161Z",codex-agent,"Targeted compatibility run: 35 tests passed, zero failures/skips; new compiler and command measured 100 percent lines, branches and functions. Behavioral revert proof: remove only the upgrades dispatch from standalone main, rebuild, and the actual-host/standalone integration regression fails (1 failure); restoring dispatch and rebuilding passes. Split shared action validation from projection to keep imports acyclic. Typecheck, test typecheck and docstring lint pass. Expanded seeded model now exercises random prerequisite edges, exact reference steps/refusals, and all four existing export branches; linked pm test execution is running."
@@ -34,4 +39,5 @@ docs[4]{path,scope}:
   docs/consumer-upgrades.md,project
   docs/README.md,project
   README.md,project
+close_reason: "https://github.com/unbraind/pm-changelog/pull/278 merged 2026-10-25T09:22:23Z, merge 033afef1ecd0ce175c42d526d5218e1e19540511: read-only SDK and CLI compile deduplicated consumer upgrade actions in prerequisite order; codex review MERGE, CI green."
 body: ""
