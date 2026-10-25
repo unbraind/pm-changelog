@@ -578,13 +578,14 @@ export function mergeChangelog(existingMarkdown, generatedMarkdown, options = {}
  * rejects it in trailing position. The host-owned output controls follow the
  * caller arguments so a conflicting `pmArgs` value cannot silently re-bound a
  * correctness-critical whole-tracker read. `--full` is list-local: `--all`
- * controls row scope, but no longer selects full fields on pm >=2026.10.18. */
+ * controls row scope, but no longer selects full fields on pm >=2026.10.18.
+ * Strict, unbounded source reads supply the proof required by SDK certification. */
 export function buildPmListArgs(options = {}) {
     const args = [
         ...(options.pmArgs ?? []),
         "--output-budget", "unbounded",
         "--output-limit", "unbounded",
-        "list", "--all", "--full", "--json",
+        "list", "--all", "--full", "--strict-read", "--no-truncate", "--json",
     ];
     if (options.includeBody) {
         args.push("--include-body");
@@ -796,106 +797,28 @@ export class IncompleteListAllError extends Error {
         this.total = total;
     }
 }
-/** Collect every receipt signal that makes a whole-tracker `pm list` answer
- * unsafe to consume.
- *
- * The 2026.8.14 CLI regression returned ten of 682 items with `truncated: true`
- * set, and an output budget can still truncate a read while
- * `completeness.status` reports unreadable items as `partial`. Each of the
- * receipt signals is an independent way for the CLI to say "this is not the
- * whole workspace", so all are checked on every read. Counts are validated
- * against both each other and the returned row array: clean boolean flags do
- * not make a missing or internally inconsistent corpus complete. A missing
- * `completeness` block counts as incomplete too: an answer that cannot prove
- * its own completeness must not be consumed as if it had.
- *
- * Since pm 2026.9.18 (pm-g8oh0f, "Omit redundant read receipts when canonical
- * output flags do not compact results") the `read_output` receipt is omitted
- * from an uncompacted canonical read; aliases such as `--full` can still
- * attach it. This gate treats an absent `read_output` as exactly "no
- * compaction receipt happened" and never requires the key. The receipt is not
- * a completeness proof in either direction (pm <=2026.9.17 attached it to
- * complete reads as well), so the gate stays fail-closed through the envelope
- * signals that a compacted read always carries instead: `truncated`,
- * `has_more`, a non-null `next_cursor` continuation, a present
- * `output_budget_truncation` disclosure, and the count arithmetic. `next_cursor`
- * is deliberately NOT followed - this package has no paging consumer, and
- * refusing loudly beats a hand-rolled resumption loop that can itself
- * half-fail.
- *
- * @param record - The parsed whole-tracker list envelope.
- * @returns The human-readable signals that tripped, empty when the answer is
- * safe to consume. */
-function incompleteListAllSignals(record) {
-    const signals = [];
-    if (record.truncated === true)
-        signals.push("truncated=true");
-    if (record.has_more === true)
-        signals.push("has_more=true");
-    if (record.next_cursor !== undefined && record.next_cursor !== null) {
-        signals.push(`next_cursor=${JSON.stringify(record.next_cursor)}`);
-    }
-    if (isRecord(record.output_budget_truncation)) {
-        const reason = record.output_budget_truncation.reason;
-        signals.push(`output_budget_truncation.reason=${typeof reason === "string" ? reason : "<missing>"}`);
-    }
-    const status = isRecord(record.completeness) ? record.completeness.status : undefined;
-    if (status !== "complete") {
-        signals.push(`completeness.status=${status === undefined ? "<missing>" : JSON.stringify(status)}`);
-    }
-    if (isRecord(record.omission_receipt) && record.omission_receipt.has_omissions === true) {
-        signals.push("omission_receipt.has_omissions=true");
-    }
-    const count = typeof record.count === "number" && Number.isInteger(record.count) && record.count >= 0
-        ? record.count
-        : undefined;
-    const total = typeof record.total === "number" && Number.isInteger(record.total) && record.total >= 0
-        ? record.total
-        : undefined;
-    if (count === undefined)
-        signals.push("count=<missing-or-invalid>");
-    if (total === undefined)
-        signals.push("total=<missing-or-invalid>");
-    if (count !== undefined && total !== undefined && count !== total) {
-        signals.push(`count=${count} differs from total=${total}`);
-    }
-    if (Array.isArray(record.items) && count !== undefined && record.items.length !== count) {
-        signals.push(`items.length=${record.items.length} differs from count=${count}`);
-    }
-    return signals;
-}
-/** Parse a whole-tracker `pm list` answer, refusing one whose completeness
- * receipt does not prove the answer complete.
- *
- * Unlike {@link parsePmItemsJson} this rejects the legacy bare-array answer:
- * an array carries no receipt, so it cannot prove completeness, and consuming
- * it silently is exactly the 2026.8.14 failure mode. This is the parser for
- * live CLI reads; caller-supplied documents use explicit-receipt inspection. The
- * optional `read_output` receipt (which can record compaction or compatibility
- * aliases such as `--full`) is not consulted:
- * completeness is proven by the envelope signals alone, so both envelope
- * shapes parse identically.
- *
- * @param raw - stdout of a successful canonical whole-tracker list invocation.
- * @returns The envelope's items, only when every receipt signal is clean.
- * @throws {IncompleteListAllError} when any receipt signal tripped.
- * @throws {SyntaxError} when the answer is not valid JSON, matching
- * {@link parsePmItemsJson}'s behavior for unparseable reads. */
+/** Parse a whole-tracker list through the SDK's complete-list contract.
+ * Canonical hosts may omit read_output when nothing was compacted; adapt only
+ * that absent receipt, leaving explicit receipts and workspace scope intact.
+ * Caller-selected subsets belong to parsePmItemsJson instead. SDK finding
+ * codes replace package-local diagnostics; certification now also refuses
+ * filtered, non-strict, projected, duplicate-ID and session-shaped reads.
+ * @throws {IncompleteListAllError} when the SDK cannot certify intact delivery.
+ * @throws {SyntaxError} when the answer is not valid JSON. */
 export function parseListAllItemsJson(raw) {
     const parsed = JSON.parse(raw);
-    if (!isRecord(parsed) || Array.isArray(parsed)) {
-        throw new IncompleteListAllError([
-            "completeness.status=<missing> (answer is a bare JSON array or non-object, so it carries no receipt)",
-        ]);
+    const candidate = isRecord(parsed) ? {
+        read_output: {
+            contract_version: 1, command: "list", requested_dimensions: ["include", "amount", "cost"],
+            within_budget: true, strings_compacted: false, rows_compacted: false, result_omitted: false,
+        },
+        ...parsed,
+    } : parsed;
+    const inspection = inspectCompleteListResult(candidate);
+    if (!inspection.ok) {
+        throw new IncompleteListAllError(inspection.findings.map((finding) => `${finding.code}: ${finding.message}`), isRecord(parsed) ? parsed : undefined);
     }
-    const signals = incompleteListAllSignals(parsed);
-    if (signals.length > 0)
-        throw new IncompleteListAllError(signals, parsed);
-    if (!Array.isArray(parsed.items)) {
-        throw new Error("pm list --all --json answer was malformed and was refused: it carried no items array "
-            + "while claiming to be complete, so its receipt cannot be trusted either.");
-    }
-    return parsed.items;
+    return certifyCompleteListResult(candidate).items;
 }
 /** Rebuild the whole file from generated markdown, reporting whether the result
  * differs from what was there. */

@@ -122,6 +122,23 @@ scope filters are excluded from whole-workspace checks. This adaptation does
 not certify the input as the complete tracker or add such a claim to the output.
 Explicit receipt fields override the defaults, including malformed values.
 
+Live whole-tracker reads use `inspectCompleteListResult` and
+`certifyCompleteListResult`, with `--strict-read --no-truncate` requested from
+the host. SDK certification also rejects filtered corpora, missing strict-read
+proof, bounded pages, partial projections, malformed or contradictory omission
+receipts, duplicate or blank item IDs, and cross-call session suppression.
+Errors retain `IncompleteListAllError` and its count/total fields; its `signals`
+and message details now use SDK finding codes instead of local flag strings.
+Explicit legacy `read_output` receipts must prove all three dimensions
+(`include`, `amount`, `cost`). A canonical host may still omit that receipt
+when nothing was compacted; only that absent receipt receives a compatibility
+default. Explicit malformed receipts are never replaced. These stricter checks
+apply to live whole-tracker reads; caller-selected scope keeps the policy above.
+Completeness certification proves delivery, not history hash-chain integrity.
+This path introduces no history index and replaces no verified history read.
+Consumers making decisions from history must freshly read it and use
+`verifyHistoryEntries` before acting.
+
 For an intentional caller-selected subset, supply a bare array (or a legacy
 receipt-free `{ "items": [...] }` document):
 
