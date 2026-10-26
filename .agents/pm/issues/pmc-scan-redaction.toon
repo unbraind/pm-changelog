@@ -1,0 +1,48 @@
+id: pmc-scan-redaction
+title: Redact every package-scan diagnostic and reject sensitive member names
+description: "Follow-up to pmc-package-files for owner issue #287: credential-shaped archive names currently reach diagnostics. Centralize output redaction, reject sensitive member names, and prove human, JSON, and thrown-error safety with generated real-archive fixtures."
+type: Issue
+status: in_progress
+priority: 2
+tags[4]: "gh:unbraind/pm-changelog#287",packaging,privacy,release-gate
+created_at: "2026-10-26T12:01:02.840Z"
+updated_at: "2026-10-26T12:33:09.858Z"
+author: codex-agent
+comments[7]{created_at,author,text}:
+  "2026-10-26T12:01:07.677Z",codex-agent,"Read owner issue #287 and queue rules. Plan: one shared rule-based redactor for returned diagnostics, stdout/stderr, and sanitized thrown errors; suppress implicit child stderr; treat member names as scan input in normal and dry-run modes; generated real npm archives in plain non-git fixtures cover path positions, clean names, package metadata, and command failures. Record behavioral revert proof, regenerate changelog, and run npm plus Bun release gates without changing thresholds."
+  "2026-10-26T12:07:01.649Z",codex-agent,"Implemented redactDiagnostic for all rule matches, overlapping spans, whole sensitive path segments, returned results, logs, and safe error stacks. Member names are findings independent of contents. Testing exposed npm JSON masking npm-shaped filenames in dry-run metadata, so both modes now inspect the isolated real archive; allowlist mode still skips contents. Child failures emit fixed command categories instead of potentially truncated raw output. Initial targeted suite passed 41/41; added a successful metadata fixture before final gates."
+  "2026-10-26T12:08:41.102Z",codex-agent,"Behavioral revert proof: temporarily replaced only redactDiagnostic with an identity function, making every emit site return raw member names again. Command: node --test --test-name-pattern \"issue 287|property: real archive\" test/verify-package.test.ts. Both selected regressions failed (0 pass, 2 fail; exit 1) with diagnostic leaked a synthetic marker substring. Restored the function byte-for-byte. The unchanged complete targeted suite had passed 42/42 through pm test --run --progress. Typecheck, test typecheck, docstring lint (209 documented declarations), and git diff --check pass. The repository has no lint script; npm run lint --if-present is a no-op."
+  "2026-10-26T12:14:37.123Z",codex-agent,"Property-test details: 30 randomized redactor rounds, 66 real credential-shaped members spanning directory/basename/extension in allowed and disallowed trees, independent sensitive contents, and 20 randomized clean names. Human stdout/stderr, serialized results, and thrown error forms reject every synthetic marker slice of at least eight bytes. Seven-character hashes and a distinct clean-name alphabet avoid accidental eight-byte test collisions. Added valid and invalid package-metadata cases; isolated release gates are running."
+  "2026-10-26T12:20:39.867Z",codex-agent,"Isolated npm run release:check passed: 905 tests, 905 pass, 0 fail/skipped; 22 configured source files at 100% lines/branches/functions; 209 documented declarations; 0 production audit vulnerabilities; both archive modes checked 81 files with 0 failures; changelog links/date and publish-attestation gates pass. Added and separately passed a caller-path regression covering directory/basename/extension with URL-escaped bearer markers; safe thrown stacks omit caller frames. Isolated Bun gate is now running. Clean-home pm health meets the existing CI baseline."
+  "2026-10-26T12:29:54.408Z",codex-agent,"Isolated Bun release gate passed with the added caller-path test: 906 tests, 906 pass, 0 fail/skipped, unchanged 100% line/branch/function thresholds across 22 sources, 0 production vulnerabilities, and both 81-file archive checks pass. Final name handling also decodes tar escape listings before matching: expanded property cases cover 78 credential-shaped archive members, including bearer tabs/newlines. Expanded targeted suite passes 43/43; latest TypeScript checks and docstring lint pass (210 declarations). Testing clean escaped/Unicode names before final commit."
+  "2026-10-26T12:33:08.514Z",codex-agent,"Final verification: 43/43 targeted tests pass through pm test --run --only-index 1 --progress, including 78 sensitive members and 20 clean names with tabs/newlines/backslashes/control bytes/Unicode. Repeated the final behavioral revert: identity redactDiagnostic emits raw names; both selected regressions fail (0 pass, 2 fail, exit 1). Restored final source byte-for-byte; all 43 tests pass again. Tar listings now remove only the terminating record newline, preserving filename whitespace. Typecheck, test typecheck, docstring lint (210 declarations), and diff checks pass. Regenerated CHANGELOG.md; output remains unchanged because this item stays in progress. Local npm and Bun release gates passed (905 and 906 tests respectively); final complete npm/Bun validation will run in PR CI. No dependency pins or thresholds changed. Implementation complete; releasing claim for owner verification and leaving the item open."
+files[2]{path,scope}:
+  scripts/verify-package.ts,project
+  test/verify-package.test.ts,project
+tests[3]:
+  - command: node --test test/verify-package.test.ts
+    scope: project
+    provenance:
+      author: codex-agent
+      created_at: "2026-10-26T12:07:48.705Z"
+      source_kind: local_mutation
+      source_ref: fix/scan-diagnostic-redaction
+  - command: "npm run release:check"
+    scope: project
+    timeout_seconds: 1200
+    provenance:
+      author: codex-agent
+      created_at: "2026-10-26T12:14:30.542Z"
+      source_kind: local_mutation
+      source_ref: fix/scan-diagnostic-redaction
+  - command: "bun run release:check"
+    scope: project
+    timeout_seconds: 1200
+    provenance:
+      author: codex-agent
+      created_at: "2026-10-26T12:14:33.498Z"
+      source_kind: local_mutation
+      source_ref: fix/scan-diagnostic-redaction
+docs[1]{path,scope}:
+  docs/release.md,project
+body: ""
