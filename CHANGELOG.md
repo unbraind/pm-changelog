@@ -8,6 +8,10 @@
 
 - Compile ordered consumer upgrade obligations across releases ([pmc-consumer-upgrades](https://github.com/unbraind/pm-changelog/blob/main/.agents/pm/features/pmc-consumer-upgrades.toon))
 
+### Other
+
+- Use the pm SDK for whole-tracker completeness validation ([pmc-sdk-completeness-1025](https://github.com/unbraind/pm-changelog/blob/main/.agents/pm/chores/pmc-sdk-completeness-1025.toon))
+
 ## 2026.10.25 - 2026-10-25
 
 ### Added
