@@ -9,7 +9,7 @@ Use this index first. Follow only the page needed for the current task.
 3. Change source, tests, or package metadata: [Development](development.md)
 4. Audit generated wording: [Claim evidence example](claim-audit-example.md)
 5. Publish audience-specific notes: [Change contract example](audience-contracts.md)
-6. Inspect measured tracker validation: [Audience validation](audience-contract-validation.md)
+6. Inspect measured tracker validation: [Audience validation](https://github.com/unbraind/pm-changelog/blob/main/docs/audience-contract-validation.md)
 7. Review shipped changes: [Changelog](../CHANGELOG.md)
 8. Compile consumer obligations: [Three-release upgrade example](consumer-upgrades.md)
 

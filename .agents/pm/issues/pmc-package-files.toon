@@ -1,0 +1,33 @@
+id: pmc-package-files
+title: Keep internal certification records and local paths out of the npm package
+description: "Certification records were republished through the broad docs directory entry. Sanitize tracked documentation, publish only user guides and examples, and scan packed bytes for local paths and credential patterns before release. This recurrence adds preventive packaging gates beyond the older documentation fix."
+type: Issue
+status: in_progress
+priority: 1
+tags[3]: packaging,privacy,release-gate
+created_at: "2026-10-26T07:40:38.651Z"
+updated_at: "2026-10-26T07:59:32.063Z"
+author: codex-agent
+comments[6]{created_at,author,text}:
+  "2026-10-26T07:40:41.668Z",codex-agent,"Plan: replace broad docs publication with explicit user guides and examples; link repository-only validation records through GitHub; sanitize certification paths; enforce packed-file allowlist and content scanning under both release runners. Prove rejection by temporarily restoring the old certification document and broad docs publication, then restore the fix. No release or merge."
+  "2026-10-26T07:43:51.076Z",codex-agent,"Revert proof: temporarily restored origin/main package.json and certification document, then ran node scripts/verify-package.ts. Exit 1: 88 packed files, eight findings (seven internal-record allowlist failures and the certification local scratch path). Restored both fixed files. Behavioral control: replacing contentFailures with an empty result made node --test test/verify-package.test.ts fail 15 of 33 tests (18 passed, zero skipped); restored the scanner. Targeted fixed state passed 38/38. Type checks and docstring gate passed (27 files, 206 declarations)."
+  "2026-10-26T07:44:35.787Z",codex-agent,"Added API secret-key and bearer-token coverage alongside platform path, GitHub, npm, AWS, Slack, private-key, JWT and assigned-credential rules. Linked-test runner passed; execution receipt persistence is disabled by project policy, so results are documented here. No policy changes."
+  "2026-10-26T07:46:22.854Z",codex-agent,"Tracked-document scan found host-local paths only in docs/certification-2026.10.4.md; all five affected lines now use a neutral scratch placeholder. Publication is restricted to eight user docs plus runtime, manifest, README and CHANGELOG; seven internal records are excluded. Three links to repository-only validation records now target GitHub. Fetched release tags and regenerated CHANGELOG.md; no generated diff because the new issue remains in progress, as required."
+  "2026-10-26T07:50:59.696Z",codex-agent,"First isolated npm release run: 896/896 tests passed, zero failures/skips/cancellations/todos, configured coverage 100% lines/branches/functions across 22 sources. It then stopped on a transient registry advisory endpoint error. Standalone npm run audit:prod retry passed with zero vulnerabilities; checking the isolated-home retry before repeating complete gates."
+  "2026-10-26T07:59:31.138Z",codex-agent,"Final local gates passed under an isolated home with global/system git config disabled: npm run release:check and bun run release:check each passed 896/896 tests, zero failures/skips/cancellations/todos. Each reported 81 packed files, zero allowlist/content findings, zero production audit vulnerabilities, 100% configured lines/branches/functions over 22 sources, and 206 documented declarations over 27 files. node --test test/verify-package.test.ts test/shipped-docs.test.ts passed 42/42 through pm test --run --progress. No standalone lint script exists; repository typecheck, test typecheck and docstring checks passed. Changelog regenerated after tracker writes with no generated change. No merge, release, dependency bump or history rewrite. Scanner matches known path and credential formats; published versions remain unchanged until review and release."
+files[4]{path,scope}:
+  package.json,project
+  scripts/verify-package.ts,project
+  test/shipped-docs.test.ts,project
+  test/verify-package.test.ts,project
+tests[3]{command,scope,timeout_seconds,provenance{author,created_at,source_kind,source_ref}}:
+  node --test test/verify-package.test.ts test/shipped-docs.test.ts,project,120,codex-agent,"2026-10-26T07:43:55.474Z",local_mutation,fix/package-files-no-internal-records
+  "npm run release:check",project,900,codex-agent,"2026-10-26T07:46:20.599Z",local_mutation,fix/package-files-no-internal-records
+  "bun run release:check",project,900,codex-agent,"2026-10-26T07:46:20.599Z",local_mutation,fix/package-files-no-internal-records
+docs[5]{path,scope}:
+  docs/certification-2026.10.4.md,project
+  docs/development.md,project
+  docs/README.md,project
+  docs/release.md,project
+  README.md,project
+body: ""
