@@ -12,19 +12,19 @@ The repository's open Dependabot alerts response was `[]`. Both `npm audit --omi
 
 ## Full gate
 
-Command: `flock /tmp/claude-1000/heavy-gate.lock npm run release:check`.
+Command: `flock <scratch>/heavy-gate.lock npm run release:check`.
 
 The first run exposed two incomplete-local-install fixtures (524/526 passed) and the newly shipped launcher branch lacked coverage. The corrected full gate passed: 527/527 tests, zero skipped; 100% measured lines, branches and functions across 12 sources; 158 documented declarations. Production audit, pack contents, generated changelog, release-date and publish-attestation checks passed. Focused packed-install and real filesystem acceptance passed 3/3. Independent statement coverage remains unmeasured and tracked by `pmc-ilrh`; no threshold or exclusion changed.
 
 ## Packed real-tracker dogfood
 
-`flock /tmp/claude-1000/heavy-gate.lock /tmp/claude-1000/cert-wt/dogfood-changelog.sh` packed the package with `npm pack`, installed its archive and `@unbrained/pm-cli@2026.10.4` into a disposable copy of this repository's real `.agents/pm`, and ran the following commands. Both runtimes exported 160 closed items. Markdown (12602 bytes) and JSON compare byte-identically. The scratch copy was deleted by the exit trap.
+`flock <scratch>/heavy-gate.lock <scratch>/cert-wt/dogfood-changelog.sh` packed the package with `npm pack`, installed its archive and `@unbrained/pm-cli@2026.10.4` into a disposable copy of this repository's real `.agents/pm`, and ran the following commands. Both runtimes exported 160 closed items. Markdown (12602 bytes) and JSON compare byte-identically. The scratch copy was deleted by the exit trap.
 
 ```text
-+ npx -y @unbrained/pm-cli@2026.10.4 package install /tmp/claude-1000/cert-wt/pm-changelog-2026.10.4.tgz --project
++ npx -y @unbrained/pm-cli@2026.10.4 package install <scratch>/cert-wt/pm-changelog-2026.10.4.tgz --project
 action: "install"
 + npx -y @unbrained/pm-cli@2026.10.4 changelog generate --mode replace --output npm-changelog.md --release-version 2026.10.4
-file: "/tmp/claude-1000/cert-wt/pm-changelog-dogfood/npm-changelog.md"
+file: "<scratch>/cert-wt/pm-changelog-dogfood/npm-changelog.md"
 action: "created"
 changed: true
 item_count: 160
@@ -33,7 +33,7 @@ file: "npm-changelog.json"
 format: "json"
 item_count: 160
 + bunx --bun -y @unbrained/pm-cli@2026.10.4 changelog generate --mode replace --output bun-changelog.md --release-version 2026.10.4
-file: "/tmp/claude-1000/cert-wt/pm-changelog-dogfood/bun-changelog.md"
+file: "<scratch>/cert-wt/pm-changelog-dogfood/bun-changelog.md"
 action: "created"
 changed: true
 item_count: 160

@@ -13,7 +13,13 @@ The gate:
 - Type-checks the TypeScript source.
 - Builds and runs the TypeScript-authored test suite.
 - Audits production dependencies.
-- Verifies package contents with `npm pack --dry-run`.
+- Verifies the packed file allowlist with `npm run pack:dry-run`.
+- Packs and scans every archived file with `npm run pack:scan`, rejecting local
+  machine paths and credential patterns. Diagnostics name only the file and rule,
+  never the matched value. Archives are created in a disposable directory.
+- Ships the built runtime, manifest, README, CHANGELOG, and the explicitly listed
+  user guides and examples in `package.json`. Certification, audit validation,
+  and other internal records remain repository-only; links to them use GitHub.
 - Checks that `CHANGELOG.md` is current.
 
 The changelog check derives its release window from git tags, so release

@@ -83,7 +83,7 @@ throws. The default still searches through filesystem root. Plant a decoy
 package above the fixture boundary to prove the missing-package case without
 depending on ambient temporary-directory metadata.
 
-See [backlog verification](backlog-verification.md) for the shipped fixes and
+See [backlog verification](https://github.com/unbraind/pm-changelog/blob/main/docs/backlog-verification.md) for the shipped fixes and
 the remaining statement-coverage, upstream sync, and worker-startup designs.
 
 Verify changelog:
