@@ -52,6 +52,13 @@ Run tests:
 npm test
 ```
 
+`test/help-parser-contract.test.ts` checks root, audit, contracts and upgrades
+help against flag spellings discovered from their parser syntax, including
+short flags and aliases. It also checks each root subcommand synopsis with its
+continuation lines and exercises the flags through the real parsers. When
+adding a command or changing parser structure, update this contract test;
+keep parser inventory independent of the help text and suggestion lists.
+
 Regenerate changelog:
 
 ```bash
@@ -76,7 +83,7 @@ throws. The default still searches through filesystem root. Plant a decoy
 package above the fixture boundary to prove the missing-package case without
 depending on ambient temporary-directory metadata.
 
-See [backlog verification](backlog-verification.md) for the shipped fixes and
+See [backlog verification](https://github.com/unbraind/pm-changelog/blob/main/docs/backlog-verification.md) for the shipped fixes and
 the remaining statement-coverage, upstream sync, and worker-startup designs.
 
 Verify changelog:

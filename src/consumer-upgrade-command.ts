@@ -33,7 +33,7 @@ export async function runConsumerUpgradesCli(args: string[]): Promise<void> {
     throw new ConsumerUpgradeError("invalid_upgrade_options", "Run pm-changelog upgrades --audience operator --from 1.0.0 --to 4.0.0 [--pm-root path] [--format toon|json] [--json]. Text flags need values.");
   }
   if (values.help) {
-    process.stdout.write("pm-changelog upgrades --audience api-user|operator|agent-behavior --from version --to version\n  [--pm-root path] [--format toon|json] [--json]\nCompile explicit breaking-facet obligations for (from,to] as pending core Plan step data. No execution or git required.\n");
+    process.stdout.write("pm-changelog upgrades --audience api-user|operator|agent-behavior --from version --to version\n  [--pm-root path] [--format toon|json] [--json] [-h|--help]\nCompile explicit breaking-facet obligations for (from,to] as pending core Plan step data. No execution or git required.\n");
     return;
   }
   process.stdout.write(await runConsumerUpgradesCommand(resolvePmRoot(process.cwd(), values["pm-root"] as string | undefined), values, values.json === true));

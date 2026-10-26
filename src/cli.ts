@@ -1070,10 +1070,15 @@ function printHelp(): void {
   process.stdout.write(`pm-changelog
 
   contracts [--audience api-user|operator|agent-behavior] [--format toon|json]
-  upgrades --audience operator --from 1.0.0 --to 4.0.0 [--format toon|json]
-            [--pm-root path] [--group-by version|release|milestone]
+            [--pm-root path] [--json] [--group-by version|release|milestone]
             [--section-by category|type|status|label] [--release-version version]
+            [-h|--help]
     Publish explicitly declared audience facets with a shared attribution ledger.
+  upgrades --audience operator --from 1.0.0 --to 4.0.0 [--format toon|json]
+           [--pm-root path] [--json] [-h|--help]
+    Compile consumer upgrade obligations for the selected audience and versions.
+  audit [options]
+    Audit generated claim evidence using the generation options below.
 
 Generate CHANGELOG.md from pm-cli items.
 
@@ -1081,6 +1086,7 @@ Usage:
   pm-changelog [options]
 
 Options:
+  -h, --help                Show this help text
   -o, --output <file>       Write changelog to a file (default: CHANGELOG.md)
       --stdout              Print markdown instead of writing a file
       --json                Print a JSON summary for CI/runners
@@ -1094,10 +1100,11 @@ Options:
                             (--- committed vs +++ generated) to stderr
       --no-check-diff       With --check, suppress the drift diff; exit code unchanged
       --github-output       Write summary fields to $GITHUB_OUTPUT
+      --set-output          Alias for --github-output
       --github-step-summary Append generated markdown to $GITHUB_STEP_SUMMARY
   -i, --input <file>        Read pm JSON from a file instead of running pm
       --stdin               Read pm JSON from stdin
-      --pm-root <dir>       pm project root for an unbounded "pm list --all" read
+      --pm-root <dir>       pm project root for an unbounded whole-tracker list read
       --pm-bin <file>       pm executable to run (default: pm)
       --pm-arg <arg>        Extra global argument passed before the canonical list command (repeatable)
       --pm-cwd <dir>        Working directory for running pm
@@ -1126,7 +1133,9 @@ Options:
                             that has never been released or tagged) and keep the
                             leading Unreleased window instead
       --status <list>       Comma-separated statuses (default: closed)
+      --statuses <list>     Alias for --status
       --exclude-tag <list>  Omit items carrying any of these tags (repeatable, comma-separated)
+      --exclude-tags <list> Alias for --exclude-tag
       --respect-item-release
                             Treat an item's release field as the authority for which single
                             version window it belongs to: keep it when it matches --version
@@ -1156,6 +1165,7 @@ Options:
       --mode <mode>         replace or prepend existing changelog (default: replace)
       --include-empty       Emit an empty release section when no items match
       --include-links       Include item URLs in generated entries (default: false)
+      --no-links            Disable item URLs in generated entries
       --item-url-base <url> Make item IDs clickable links: [pmc-abc]({url}/pmc-abc.toon)
       --item-ref-style <s>  How item IDs render: auto (default), label (neutral, public-safe),
                             toon (force blob link), github (public issue/PR link from the

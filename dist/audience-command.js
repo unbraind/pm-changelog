@@ -37,7 +37,7 @@ export async function runAudienceContractsCli(args) {
         throw new AudienceContractError("invalid_contract_options", "Run pm-changelog contracts with --pm-root, --audience, --format, --group-by, --section-by or --release-version; each text flag needs a value.");
     }
     if (values.help) {
-        process.stdout.write("pm-changelog contracts [--pm-root path] [--audience api-user|operator|agent-behavior]\n  [--format toon|json] [--json] [--group-by version|release|milestone]\n  [--section-by category|type|status|label] [--release-version version]\nPublish only declared facets of closed changes; missing facets produce omissions. No git required.\n");
+        process.stdout.write("pm-changelog contracts [--pm-root path] [--audience api-user|operator|agent-behavior]\n  [--format toon|json] [--json] [--group-by version|release|milestone]\n  [--section-by category|type|status|label] [--release-version version] [-h|--help]\nPublish only declared facets of closed changes; missing facets produce omissions. No git required.\n");
         return;
     }
     const root = resolvePmRoot(process.cwd(), values["pm-root"]);

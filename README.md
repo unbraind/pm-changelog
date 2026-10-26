@@ -421,7 +421,7 @@ git. Output defaults to compact TOON; `--json` selects compact JSON.
 
 Use `buildConsumerUpgrades`, `readConsumerUpgrades` and `formatConsumerUpgrades`
 from the typed SDK. See the [three-release example and range contract](docs/consumer-upgrades.md)
-and [measured public-tracker validation](docs/consumer-upgrade-validation.md).
+and [measured public-tracker validation](https://github.com/unbraind/pm-changelog/blob/main/docs/consumer-upgrade-validation.md).
 
 ## Audience-specific change contracts
 

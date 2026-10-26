@@ -36,7 +36,14 @@
   },
   "files": [
     "dist",
-    "docs",
+    "docs/README.md",
+    "docs/usage.md",
+    "docs/release.md",
+    "docs/development.md",
+    "docs/tracker-milestones.md",
+    "docs/claim-audit-example.md",
+    "docs/consumer-upgrades.md",
+    "docs/audience-contracts.md",
     "manifest.json",
     "README.md",
     "CHANGELOG.md"
@@ -48,9 +55,9 @@
     "changelog:full": "node scripts/project-changelog.ts",
     "changelog:check": "npm run changelog:full -- --check --check-links",
     "audit:prod": "node --input-type=module -e \"import { spawnSync } from 'node:child_process'; import { devNull } from 'node:os'; const env = { ...process.env, npm_config_userconfig: devNull, NPM_CONFIG_USERCONFIG: devNull }; for (const key of Object.keys(env)) if (key.toLowerCase() === 'npm_config_allow_scripts') delete env[key]; const win = process.platform === 'win32'; const r = spawnSync(win ? 'npm.cmd' : 'npm', ['audit', '--omit=dev', '--ignore-scripts'], { stdio: 'inherit', env, shell: win }); process.exit(r.status ?? 1);\"",
-    "pack:dry-run": "npm pack --dry-run",
+    "pack:dry-run": "node scripts/verify-package.ts --dry-run",
     "prepack": "npm run build",
-    "release:check": "npm run check && npm run docstring && npm run coverage && npm run audit:prod && npm run pack:dry-run && npm run changelog:check && npm run verify:release-changelog-date && npm run verify:release-publish-attestation",
+    "release:check": "npm run check && npm run docstring && npm run coverage && npm run audit:prod && npm run pack:dry-run && npm run pack:scan && npm run changelog:check && npm run verify:release-changelog-date && npm run verify:release-publish-attestation",
     "test": "npm run build && npm run build:test && node --test test/*.test.ts",
     "typecheck": "tsc --noEmit",
     "prepublishOnly": "npm run release:check",
@@ -60,7 +67,8 @@
     "coverage": "npm run build && npm run build:test && node scripts/coverage-gate.ts",
     "docstring": "node scripts/docstring-gate.ts",
     "verify:release-changelog-date": "node scripts/verify-release-changelog-date.ts",
-    "verify:release-publish-attestation": "node scripts/verify-release-publish-attestation.ts"
+    "verify:release-publish-attestation": "node scripts/verify-release-publish-attestation.ts",
+    "pack:scan": "node scripts/verify-package.ts"
   },
   "pm": {
     "aliases": [
@@ -103,9 +111,9 @@
   },
   "devDependencies": {
     "@types/node": "26.6.5",
-    "@unbrained/pm-cli": "2026.10.20",
+    "@unbrained/pm-cli": "2026.10.23",
     "marked": "18.1.1",
-    "pm-ops": "2026.10.19",
+    "pm-ops": "2026.10.21",
     "typescript": "7.0.2",
     "typescript5": "npm:typescript@5.9.3"
   },
