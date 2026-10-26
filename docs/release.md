@@ -15,8 +15,18 @@ The gate:
 - Audits production dependencies.
 - Verifies the packed file allowlist with `npm run pack:dry-run`.
 - Packs and scans every archived file with `npm run pack:scan`, rejecting local
-  machine paths and credential patterns. Diagnostics name only the file and rule,
-  never the matched value. Archives are created in a disposable directory.
+  machine paths and credential patterns in both names and contents. Diagnostics
+  name only the file and rule, never the matched value: sensitive path segments
+  become stable `[redacted:<rule>#<hash>]` placeholders, while clean names stay
+  readable. Returned diagnostics (including JSON serialization), console output,
+  and thrown errors share one redaction function. Child command failures report
+  only the command category; raw child output and error properties are withheld
+  because they can contain truncated or escaped credential values.
+  Archives are created in a disposable directory. Allowlist mode (`--dry-run`)
+  also inspects actual archive names, because npm's JSON metadata can mask some
+  sensitive names; it skips scanning file contents. Tar's escaped listing is
+  decoded before checking names, so credential matches spanning tabs or newlines
+  are refused too, while clean escaped and Unicode names remain intact.
 - Ships the built runtime, manifest, README, CHANGELOG, and the explicitly listed
   user guides and examples in `package.json`. Certification, audit validation,
   and other internal records remain repository-only; links to them use GitHub.
