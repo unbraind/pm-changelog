@@ -52,6 +52,13 @@ Run tests:
 npm test
 ```
 
+`test/help-parser-contract.test.ts` checks root, audit, contracts and upgrades
+help against flag spellings discovered from their parser syntax, including
+short flags and aliases. It also checks each root subcommand synopsis with its
+continuation lines and exercises the flags through the real parsers. When
+adding a command or changing parser structure, update this contract test;
+keep parser inventory independent of the help text and suggestion lists.
+
 Regenerate changelog:
 
 ```bash
