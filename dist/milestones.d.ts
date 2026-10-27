@@ -1,4 +1,5 @@
 import { PmCliError } from "@unbrained/pm-cli/sdk";
+import type { RuntimeStatusRegistry } from "@unbrained/pm-cli/sdk";
 import type { ChangelogReleaseWindow, PmItem } from "./types.ts";
 /** Stable refusal identifiers for automation and recovery. */
 export type ReleaseMilestoneErrorCode = "milestone_invalid" | "milestone_membership_changed" | "milestone_missing" | "milestone_storage" | "milestone_options";
@@ -35,14 +36,24 @@ export declare function parseReleaseMilestone(value: unknown): ReleaseMilestone;
 export declare function createReleaseMilestone(store: ReleaseMilestoneStore, name: string, snapshot: TrackerReleaseSnapshot, query?: string): Promise<ReleaseMilestone>;
 /** Read all named boundaries, verifying identities instead of trusting backend rows. */
 export declare function readReleaseMilestones(store: ReleaseMilestoneStore): Promise<ReleaseMilestone[]>;
-/** Attribute each item to its first closed capture, preserving the frozen row.
- * Open captures never reserve membership; live closures stay Unreleased until
- * captured closed. Later tracker edits, reopenings and deletions cannot grow or
- * rewrite an earlier release. */
-export declare function resolveTrackerReleaseHistory(milestones: readonly ReleaseMilestone[], currentItems: readonly PmItem[]): {
+/** Exact owning boundary and original row of an item's first done-role capture. */
+export interface TrackerReleaseClaim {
+    readonly milestone: ReleaseMilestone;
+    readonly item: PmItem;
+}
+/** Verify the entire catalog and select first publication independently of names or input order. */
+export declare function resolveTrackerReleaseLedger(milestones: readonly ReleaseMilestone[], registry?: RuntimeStatusRegistry): {
+    ordered: ReleaseMilestone[];
+    claims: ReadonlyMap<string, TrackerReleaseClaim>;
+};
+/** Attribute each item to its first done-role capture, preserving the frozen row.
+ * Active, blocked and canceled captures never reserve membership. Later edits,
+ * reopenings and recaptures cannot rewrite an earlier published claim. */
+export declare function resolveTrackerReleaseHistory(milestones: readonly ReleaseMilestone[], currentItems: readonly PmItem[], registry?: RuntimeStatusRegistry): {
     items: PmItem[];
     releaseWindows: ChangelogReleaseWindow[];
     releaseMembership: ReadonlyMap<string, string>;
+    includeStatuses: string[];
 };
 /** Fail closed on options that would replace or reinterpret frozen boundaries. */
 export declare function assertTrackerMilestoneOptions(conflicts: readonly unknown[]): void;

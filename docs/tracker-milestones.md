@@ -73,3 +73,13 @@ The directory adapter serializes the final clock check and publication with
 `.writer-lock`. It never steals a held lock. A prolonged lock becomes a recoverable
 storage refusal; check for an active writer before investigating an abandoned
 lock. Database adapters must enforce the same ordering inside their transaction.
+
+## First publication ownership
+
+`resolveTrackerReleaseLedger(milestones, registry)` verifies and orders the whole
+catalog by capture time, then binds each item to its first done-role capture and
+original row. Generation and correction readers share this ledger; later edits,
+recaptures and reopenings cannot move a published claim. Active, blocked and
+canceled captures do not reserve publication. CLI paths load the tracker's SDK
+status registry; SDK callers with custom statuses pass it to the ledger or as the
+third argument of `resolveTrackerReleaseHistory`.

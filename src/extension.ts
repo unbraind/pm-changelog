@@ -9,6 +9,7 @@ import {
   readLocatedItem,
   readSettings,
   resolveItemTypeRegistry,
+  resolveRuntimeStatusRegistry,
   EXIT_CODE,
   PmCliError,
 } from "@unbrained/pm-cli/sdk";
@@ -318,7 +319,8 @@ export default defineExtension({
           dependencyCutoff: untilOption,
         };
         if (milestones) {
-          Object.assign(generationOptions, resolveTrackerReleaseHistory(await readReleaseMilestones(new DirectoryReleaseMilestoneStore(ctx.pm_root)), items));
+          const history = resolveTrackerReleaseHistory(await readReleaseMilestones(new DirectoryReleaseMilestoneStore(ctx.pm_root)), items, resolveRuntimeStatusRegistry((await readSettings(ctx.pm_root)).schema));
+          Object.assign(generationOptions, history, { includeStatuses: generationOptions.includeStatuses ?? history.includeStatuses });
         }
         if (allReleaseTags) {
           try {

@@ -344,10 +344,11 @@ test("maximum valid Unicode producer output survives real UTF-8 JSON/TOON round 
 
 test("SDK reader refuses unrenderable original wording before a correction can be written", async (t) => {
   const { root, client } = await fixture(t);
+  await runCreate({ id: "fix-unrenderable", title: "Native valid title", type: "Feature", status: "closed", closeReason: "Delivered", createMode: "progressive", unset: ["parent", "goal", "objective", "sprint", "release"] }, { path: root, author: "fixture" });
   const snapshot = await readTrackerReleaseSnapshot(root);
-  await createReleaseMilestone(new DirectoryReleaseMilestoneStore(root), "bad-title", { capturedAt: new Date(Date.now() + 1000).toISOString(), items: snapshot.items.map((item) => ({ ...item, title: "invalid\ud800" })) });
-  await assert.rejects(readReleaseCorrectionView(root, "bad-title", "fix-claim0"), refusal("correction_invalid"));
-  assert.equal((await client.notes("fix-claim0")).count, 0);
+  await createReleaseMilestone(new DirectoryReleaseMilestoneStore(root), "bad-title", { capturedAt: new Date(Date.now() + 1000).toISOString(), items: snapshot.items.filter((item) => item.id === "fix-unrenderable").map((item) => ({ ...item, title: "invalid\ud800" })) });
+  await assert.rejects(readReleaseCorrectionView(root, "bad-title", "fix-unrenderable"), refusal("correction_invalid"));
+  assert.equal((await client.notes("fix-unrenderable")).count, 0);
 });
 
 test("competing writers at every compensation boundary recognize the immutable peer assertion", async (t) => {

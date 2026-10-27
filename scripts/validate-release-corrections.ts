@@ -38,7 +38,7 @@ try {
   const nativeBefore = await client.get(done[0].id!, { full: true });
   const store = new DirectoryReleaseMilestoneStore(root);
   const milestone = await createReleaseMilestone(store, "public-baseline", snapshot);
-  const history = async (): Promise<string> => createChangelog(resolveTrackerReleaseHistory(await readReleaseMilestones(store), (await readTrackerReleaseSnapshot(root)).items)).markdown;
+  const history = async (): Promise<string> => createChangelog(resolveTrackerReleaseHistory(await readReleaseMilestones(store), (await readTrackerReleaseSnapshot(root)).items, roles)).markdown;
   const before = await history();
   const claim = done[0].id!;
   const request = { schema: 1, release: milestone.name, item: claim, milestone: milestone.fingerprint, id: "validation-1", supersedes: "", expectedRevision: milestone.fingerprint,

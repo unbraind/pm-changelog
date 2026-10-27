@@ -20,6 +20,15 @@ The standalone equivalents are `pm-changelog corrections view` and
 revision, full linked chain and counts of skipped foreign, invalid and unrelated
 annotations. A refusal exits nonzero with a typed code and remedy.
 
+A claim belongs to its **first done-role capture in chronological capture order**.
+An earlier active/blocked/canceled capture does not publish it. Later recaptures,
+live wording edits and reopenings do not transfer ownership. View and append
+refuse a later snapshot with `correction_missing`; select the original release.
+Generation and correction commands use the same verified catalog ledger, including
+configured status roles. SDK history callers can pass a registry as the third
+argument to `resolveTrackerReleaseHistory`; its returned status selection includes
+all done-role statuses. Explicit CLI status filters still take precedence.
+
 Use the view's `milestone` and `revision`. For the first correction use an empty
 `supersedes`; subsequently use the last correction's `id`.
 

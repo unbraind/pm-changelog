@@ -6,7 +6,7 @@ import { stdin } from "node:process";
 import type { Readable } from "node:stream";
 import { fileURLToPath } from "node:url";
 
-import { resolvePmRoot } from "@unbrained/pm-cli/sdk";
+import { resolvePmRoot, readSettings, resolveRuntimeStatusRegistry } from "@unbrained/pm-cli/sdk";
 import { AudienceContractError } from "./audience-contracts.ts";
 import { runAudienceContractsCli } from "./audience-command.ts";
 import { ReleaseCorrectionError } from "./release-corrections.ts";
@@ -243,7 +243,10 @@ async function main(args: string[] = process.argv.slice(2)): Promise<void> {
   const items = milestoneRoot ? [...(await readTrackerReleaseSnapshot(milestoneRoot)).items] : await loadItems(options);
   const outputPath = resolve(options.output);
   const generationOptions: GenerateChangelogOptions = buildGenerationOptions(options, items);
-  if (milestoneRoot) Object.assign(generationOptions, resolveTrackerReleaseHistory(await readReleaseMilestones(new DirectoryReleaseMilestoneStore(milestoneRoot)), items));
+  if (milestoneRoot) {
+    const history = resolveTrackerReleaseHistory(await readReleaseMilestones(new DirectoryReleaseMilestoneStore(milestoneRoot)), items, resolveRuntimeStatusRegistry((await readSettings(milestoneRoot)).schema));
+    Object.assign(generationOptions, history, { includeStatuses: generationOptions.includeStatuses ?? history.includeStatuses });
+  }
   if (options.allReleaseTags && !options.input && !options.stdin) {
     Object.assign(generationOptions, await resolveGitReleaseHistory(
       generationOptions, resolvePmRoot(options.pmCwd ? resolve(options.pmCwd) : process.cwd(), options.pmRoot),

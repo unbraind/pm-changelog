@@ -1,7 +1,7 @@
 import { createHash } from "node:crypto";
 import { encode } from "@toon-format/toon";
 import { EXIT_CODE, PmCliError, PmClient, commitWorkspaceTransaction, deriveMutationTransactionId, readSettings, resolveRuntimeStatusRegistry } from "@unbrained/pm-cli/sdk";
-import { DirectoryReleaseMilestoneStore, parseReleaseMilestone } from "./milestones.js";
+import { DirectoryReleaseMilestoneStore, parseReleaseMilestone, readReleaseMilestones, resolveTrackerReleaseLedger } from "./milestones.js";
 /** Expected failures retain stable codes and safe recovery instructions. */
 export class ReleaseCorrectionError extends PmCliError {
     /** Public-safe corrective action for a refused operation. */
@@ -49,15 +49,17 @@ export function formatReleaseCorrection(value, format = "toon") {
 export async function readReleaseCorrectionView(pmRoot, release, item, options = {}) {
     // Validate selectors with the same schema before touching a backend.
     parseReleaseCorrection({ schema: 1, release, item, milestone: "0".repeat(64), id: "selector", supersedes: "", expectedRevision: "0".repeat(64), wording: "selector", evidence: ["selector"] });
-    const stored = await (options.milestones ?? new DirectoryReleaseMilestoneStore(pmRoot)).read(release);
+    const store = options.milestones ?? new DirectoryReleaseMilestoneStore(pmRoot);
+    const stored = await store.read(release);
     if (stored === undefined)
         throw new ReleaseCorrectionError("correction_missing", "Capture the named published milestone before correcting a claim.");
-    const milestone = parseReleaseMilestone(stored);
-    const frozen = milestone.items.find((row) => row.id === item);
+    const requested = parseReleaseMilestone(stored);
     const registry = resolveRuntimeStatusRegistry((await readSettings(pmRoot)).schema);
-    if (milestone.name !== release || !frozen || !registry.terminal_done_statuses.has(String(frozen.status))) {
-        throw new ReleaseCorrectionError("correction_missing", "Select an item captured with a done-role status in the named published milestone; capture a milestone before correcting it.");
+    const claim = resolveTrackerReleaseLedger(await readReleaseMilestones(store), registry).claims.get(item);
+    if (requested.name !== release || !claim || claim.milestone.name !== release || claim.milestone.fingerprint !== requested.fingerprint) {
+        throw new ReleaseCorrectionError("correction_missing", "Use the item's first done-role release capture, not a later snapshot; inspect the milestone history to select the original published claim.");
     }
+    const { milestone, item: frozen } = claim;
     parseReleaseCorrection({ schema: 1, release, item, milestone: milestone.fingerprint, id: "selector", supersedes: "", expectedRevision: milestone.fingerprint, wording: frozen.title, evidence: ["selector"] });
     const result = await new PmClient({ pmRoot }).notes(item, { limit: "10001", includeMeta: true, outputBudget: "unbounded", outputLimit: "unbounded" });
     const notes = requireCompleteNotes(result);

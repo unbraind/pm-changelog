@@ -3,7 +3,7 @@ import { appendFileSync, existsSync, readFileSync, realpathSync } from "node:fs"
 import { basename, resolve } from "node:path";
 import { stdin } from "node:process";
 import { fileURLToPath } from "node:url";
-import { resolvePmRoot } from "@unbrained/pm-cli/sdk";
+import { resolvePmRoot, readSettings, resolveRuntimeStatusRegistry } from "@unbrained/pm-cli/sdk";
 import { AudienceContractError } from "./audience-contracts.js";
 import { runAudienceContractsCli } from "./audience-command.js";
 import { ReleaseCorrectionError } from "./release-corrections.js";
@@ -144,8 +144,10 @@ async function main(args = process.argv.slice(2)) {
     const items = milestoneRoot ? [...(await readTrackerReleaseSnapshot(milestoneRoot)).items] : await loadItems(options);
     const outputPath = resolve(options.output);
     const generationOptions = buildGenerationOptions(options, items);
-    if (milestoneRoot)
-        Object.assign(generationOptions, resolveTrackerReleaseHistory(await readReleaseMilestones(new DirectoryReleaseMilestoneStore(milestoneRoot)), items));
+    if (milestoneRoot) {
+        const history = resolveTrackerReleaseHistory(await readReleaseMilestones(new DirectoryReleaseMilestoneStore(milestoneRoot)), items, resolveRuntimeStatusRegistry((await readSettings(milestoneRoot)).schema));
+        Object.assign(generationOptions, history, { includeStatuses: generationOptions.includeStatuses ?? history.includeStatuses });
+    }
     if (options.allReleaseTags && !options.input && !options.stdin) {
         Object.assign(generationOptions, await resolveGitReleaseHistory(generationOptions, resolvePmRoot(options.pmCwd ? resolve(options.pmCwd) : process.cwd(), options.pmRoot)));
     }

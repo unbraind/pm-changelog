@@ -408,6 +408,8 @@ The current view exposes the original, corrected wording, evidence and complete
 correction chain. Exact replays create nothing; stale revisions, reused identities
 and supersession cycles return typed refusals with remedies. Native SDK context events
 and transactions preserve history and coordinate writers without git.
+Corrections target the first capture with a configured done-role status; later
+snapshots, edits and reopenings cannot transfer the published claim to another release.
 See the [input example and typed SDK](docs/release-corrections.md).
 
 ## Without git

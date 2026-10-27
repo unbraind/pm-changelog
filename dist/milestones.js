@@ -1,7 +1,7 @@
 import { createHash, randomUUID } from "node:crypto";
 import { link, mkdir, open, readFile, readdir, rmdir, unlink } from "node:fs/promises";
 import { join } from "node:path";
-import { EXIT_CODE, PmCliError, listAllComplete } from "@unbrained/pm-cli/sdk";
+import { EXIT_CODE, PmCliError, listAllComplete, normalizeStatusInput, resolveRuntimeStatusRegistry, SETTINGS_DEFAULTS } from "@unbrained/pm-cli/sdk";
 /** A recoverable release-source failure, shared by CLI and SDK callers. */
 export class ReleaseMilestoneError extends PmCliError {
     /** Recovery action safe to show in compact CLI error output. */
@@ -175,11 +175,8 @@ export async function readReleaseMilestones(store) {
         return milestone;
     }));
 }
-/** Attribute each item to its first closed capture, preserving the frozen row.
- * Open captures never reserve membership; live closures stay Unreleased until
- * captured closed. Later tracker edits, reopenings and deletions cannot grow or
- * rewrite an earlier release. */
-export function resolveTrackerReleaseHistory(milestones, currentItems) {
+/** Verify the entire catalog and select first publication independently of names or input order. */
+export function resolveTrackerReleaseLedger(milestones, registry = resolveRuntimeStatusRegistry(SETTINGS_DEFAULTS.schema)) {
     const ordered = milestones.map(parseReleaseMilestone).sort((a, b) => Date.parse(a.capturedAt) - Date.parse(b.capturedAt) || compareCodeUnits(a.name, b.name));
     if (new Set(ordered.map((milestone) => milestone.name.toLowerCase())).size !== ordered.length) {
         throw new ReleaseMilestoneError("milestone_invalid", "Duplicate named release boundaries.", "Pass each immutable release milestone once.");
@@ -187,6 +184,20 @@ export function resolveTrackerReleaseHistory(milestones, currentItems) {
     if (new Set(ordered.map((milestone) => Date.parse(milestone.capturedAt))).size !== ordered.length) {
         throw new ReleaseMilestoneError("milestone_invalid", "Milestone capture order is ambiguous.", "Use verified snapshots with distinct capture instants; do not infer order from milestone names.");
     }
+    const claims = new Map();
+    for (const milestone of ordered)
+        for (const item of milestone.items) {
+            const status = normalizeStatusInput(item.status, registry);
+            if (status && registry.terminal_done_statuses.has(status) && !claims.has(item.id))
+                claims.set(item.id, { milestone, item });
+        }
+    return { ordered, claims };
+}
+/** Attribute each item to its first done-role capture, preserving the frozen row.
+ * Active, blocked and canceled captures never reserve membership. Later edits,
+ * reopenings and recaptures cannot rewrite an earlier published claim. */
+export function resolveTrackerReleaseHistory(milestones, currentItems, registry = resolveRuntimeStatusRegistry(SETTINGS_DEFAULTS.schema)) {
+    const { ordered, claims } = resolveTrackerReleaseLedger(milestones, registry);
     const membership = new Map();
     const items = [];
     const windows = [];
@@ -194,10 +205,9 @@ export function resolveTrackerReleaseHistory(milestones, currentItems) {
         const heading = `${milestone.name} - ${new Date(milestone.capturedAt).toISOString().slice(0, 10)}`;
         windows.unshift({ heading, releaseTag: milestone.name });
         for (const frozen of milestone.items) {
-            if (String(frozen.status).toLowerCase() !== "closed" || membership.has(frozen.id))
+            if (claims.get(frozen.id)?.milestone !== milestone)
                 continue;
-            const item = frozen;
-            items.push({ ...item, release: undefined, metadata: { ...item.metadata, release: undefined } });
+            items.push({ ...frozen, release: undefined, metadata: { ...frozen.metadata, release: undefined } });
             membership.set(frozen.id, heading);
         }
     }
@@ -207,7 +217,7 @@ export function resolveTrackerReleaseHistory(milestones, currentItems) {
         items.push({ ...item, release: undefined, metadata: { ...item.metadata, release: undefined } });
         membership.set(item.id, "Unreleased");
     }
-    return { items, releaseWindows: [{ heading: "Unreleased" }, ...windows], releaseMembership: membership };
+    return { items, releaseWindows: [{ heading: "Unreleased" }, ...windows], releaseMembership: membership, includeStatuses: [...registry.terminal_done_statuses] };
 }
 /** Fail closed on options that would replace or reinterpret frozen boundaries. */
 export function assertTrackerMilestoneOptions(conflicts) {

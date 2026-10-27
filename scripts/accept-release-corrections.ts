@@ -4,7 +4,7 @@ import { execFileSync } from "node:child_process";
 import { cpSync, existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
 import { devNull, tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
-import { runInit, runCreate } from "@unbrained/pm-cli/sdk";
+import { runInit, runCreate, PmClient } from "@unbrained/pm-cli/sdk";
 import { decode } from "@toon-format/toon";
 import { createReleaseMilestone, DirectoryReleaseMilestoneStore, readReleaseCorrectionView, readTrackerReleaseSnapshot } from "../src/index.ts";
 
@@ -23,6 +23,9 @@ try {
   await runInit("accept", { path: root }, { defaults: true, agentGuidance: "skip" });
   await runCreate({ id: "accept-claim", title: "Published acceptance claim", type: "Feature", status: "closed", closeReason: "Delivered", createMode: "progressive", unset: ["parent", "goal", "objective", "sprint", "release"] }, { path: root, author: "acceptance" });
   await createReleaseMilestone(new DirectoryReleaseMilestoneStore(root), "v1", await readTrackerReleaseSnapshot(root));
+  const client = new PmClient({ pmRoot: root, author: "acceptance" });
+  await client.update("accept-claim", { title: "Edited wording captured later", unset: ["parent", "goal", "objective", "sprint", "release"] });
+  const later = await createReleaseMilestone(new DirectoryReleaseMilestoneStore(root), "a-later", { ...(await readTrackerReleaseSnapshot(root)), capturedAt: new Date(Date.now() + 1000).toISOString() });
   const prefix = join(scratch, "npm-global");
   run("npm", ["install", "--global", "--prefix", prefix, "--ignore-scripts", "--no-audit", "--no-fund", archive, `@unbrained/pm-cli@${pinned}`]);
   const extension = join(root, "extensions/pm-changelog");
@@ -34,6 +37,15 @@ try {
   /** Check actual append, exact replay and both compact views against the SDK-read state. */
   async function accept(name: string, launch: (args: string[]) => string): Promise<void> {
     const view = await readReleaseCorrectionView(root, "v1", "accept-claim");
+    assert.equal(view.original, "Published acceptance claim");
+    const wrongFile = join(scratch, "later-snapshot.json");
+    writeFileSync(wrongFile, JSON.stringify({ schema: 1, release: later.name, item: "accept-claim", milestone: later.fingerprint, id: `wrong-${name}`, supersedes: "", expectedRevision: later.fingerprint, wording: "Unpublished snapshot wording must refuse", evidence: ["docs/release-corrections.md"] }));
+    for (const format of ["json", "toon"]) for (const action of [["view", "--release", later.name, "--item", "accept-claim"], ["append", "--input", wrongFile]]) {
+      assert.throws(() => launch([...action, "--format", format]), (error: unknown) => {
+        assert.ok(error && typeof error === "object" && "stderr" in error);
+        assert.match(String(error.stderr), /correction_missing/); return true;
+      }); checks++;
+    }
     const file = join(scratch, "correction.json");
     writeFileSync(file, JSON.stringify({ schema: 1, release: "v1", item: "accept-claim", milestone: view.milestone, id: name, supersedes: view.chain.at(-1)?.id ?? "", expectedRevision: view.revision,
       wording: `  Packed ${name} acceptance\r\n `, evidence: ["docs/release-corrections.md"] }));
@@ -58,5 +70,5 @@ try {
   }
   await accept("npx", (args) => run("npx", ["--yes", "--package", archive, "--package", `@unbrained/pm-cli@${pinned}`, "pm-changelog", "corrections", "--pm-root", root, ...args]));
   await accept("bunx", (args) => run("bun", ["x", "--bun", "--package", archive, "pm-changelog", "corrections", "--pm-root", root, ...args]));
-  console.log(JSON.stringify({ installation_modes: 6, launcher_paths: paths, checks, corrections: (await readReleaseCorrectionView(root, "v1", "accept-claim")).chain.length, non_git: true }));
+  console.log(JSON.stringify({ installation_modes: 6, launcher_paths: paths, checks, wrong_release_checks: 32, corrections: (await readReleaseCorrectionView(root, "v1", "accept-claim")).chain.length, non_git: true }));
 } finally { rmSync(scratch, { recursive: true, force: true }); }

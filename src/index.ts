@@ -81,8 +81,9 @@ export {
   readReleaseMilestones,
   readTrackerReleaseSnapshot,
   resolveTrackerReleaseHistory,
+  resolveTrackerReleaseLedger,
 } from "./milestones.ts";
-export type { ReleaseMilestone, ReleaseMilestoneErrorCode, ReleaseMilestoneStore, TrackerReleaseSnapshot } from "./milestones.ts";
+export type { TrackerReleaseClaim, ReleaseMilestone, ReleaseMilestoneErrorCode, ReleaseMilestoneStore, TrackerReleaseSnapshot } from "./milestones.ts";
 export { auditChangelogClaims, assertChangelogClaims, formatClaimAudit, parseClaimTestReceipts, ClaimAuditError, CLAIM_AUDIT_REMEDIES } from "./claim-audit.ts";
 export type { ClaimAuditReport, ClaimAuditRow, ClaimAuditEvidence, ClaimAuditGap, ClaimTestReceipt } from "./claim-audit.ts";
 

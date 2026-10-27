@@ -1,7 +1,8 @@
 import { createHash, randomUUID } from "node:crypto";
 import { link, mkdir, open, readFile, readdir, rmdir, unlink } from "node:fs/promises";
 import { join } from "node:path";
-import { EXIT_CODE, PmCliError, listAllComplete } from "@unbrained/pm-cli/sdk";
+import { EXIT_CODE, PmCliError, listAllComplete, normalizeStatusInput, resolveRuntimeStatusRegistry, SETTINGS_DEFAULTS } from "@unbrained/pm-cli/sdk";
+import type { RuntimeStatusRegistry } from "@unbrained/pm-cli/sdk";
 import type { ChangelogReleaseWindow, PmItem } from "./types.ts";
 
 /** Stable refusal identifiers for automation and recovery. */
@@ -197,12 +198,15 @@ export async function readReleaseMilestones(store: ReleaseMilestoneStore): Promi
   }));
 }
 
-/** Attribute each item to its first closed capture, preserving the frozen row.
- * Open captures never reserve membership; live closures stay Unreleased until
- * captured closed. Later tracker edits, reopenings and deletions cannot grow or
- * rewrite an earlier release. */
-export function resolveTrackerReleaseHistory(milestones: readonly ReleaseMilestone[], currentItems: readonly PmItem[]): {
-  items: PmItem[]; releaseWindows: ChangelogReleaseWindow[]; releaseMembership: ReadonlyMap<string, string>;
+/** Exact owning boundary and original row of an item's first done-role capture. */
+export interface TrackerReleaseClaim {
+  readonly milestone: ReleaseMilestone;
+  readonly item: PmItem;
+}
+
+/** Verify the entire catalog and select first publication independently of names or input order. */
+export function resolveTrackerReleaseLedger(milestones: readonly ReleaseMilestone[], registry: RuntimeStatusRegistry = resolveRuntimeStatusRegistry(SETTINGS_DEFAULTS.schema)): {
+  ordered: ReleaseMilestone[]; claims: ReadonlyMap<string, TrackerReleaseClaim>;
 } {
   const ordered = milestones.map(parseReleaseMilestone).sort((a, b) => Date.parse(a.capturedAt) - Date.parse(b.capturedAt) || compareCodeUnits(a.name, b.name));
   if (new Set(ordered.map((milestone) => milestone.name.toLowerCase())).size !== ordered.length) {
@@ -211,6 +215,21 @@ export function resolveTrackerReleaseHistory(milestones: readonly ReleaseMilesto
   if (new Set(ordered.map((milestone) => Date.parse(milestone.capturedAt))).size !== ordered.length) {
     throw new ReleaseMilestoneError("milestone_invalid", "Milestone capture order is ambiguous.", "Use verified snapshots with distinct capture instants; do not infer order from milestone names.");
   }
+  const claims = new Map<string, TrackerReleaseClaim>();
+  for (const milestone of ordered) for (const item of milestone.items) {
+    const status = normalizeStatusInput(item.status, registry);
+    if (status && registry.terminal_done_statuses.has(status) && !claims.has(item.id!)) claims.set(item.id!, { milestone, item });
+  }
+  return { ordered, claims };
+}
+
+/** Attribute each item to its first done-role capture, preserving the frozen row.
+ * Active, blocked and canceled captures never reserve membership. Later edits,
+ * reopenings and recaptures cannot rewrite an earlier published claim. */
+export function resolveTrackerReleaseHistory(milestones: readonly ReleaseMilestone[], currentItems: readonly PmItem[], registry: RuntimeStatusRegistry = resolveRuntimeStatusRegistry(SETTINGS_DEFAULTS.schema)): {
+  items: PmItem[]; releaseWindows: ChangelogReleaseWindow[]; releaseMembership: ReadonlyMap<string, string>; includeStatuses: string[];
+} {
+  const { ordered, claims } = resolveTrackerReleaseLedger(milestones, registry);
   const membership = new Map<string, string>();
   const items: PmItem[] = [];
   const windows: ChangelogReleaseWindow[] = [];
@@ -218,9 +237,8 @@ export function resolveTrackerReleaseHistory(milestones: readonly ReleaseMilesto
     const heading = `${milestone.name} - ${new Date(milestone.capturedAt).toISOString().slice(0, 10)}`;
     windows.unshift({ heading, releaseTag: milestone.name });
     for (const frozen of milestone.items) {
-      if (String(frozen.status).toLowerCase() !== "closed" || membership.has(frozen.id!)) continue;
-      const item = frozen;
-      items.push({ ...item, release: undefined, metadata: { ...item.metadata, release: undefined } });
+      if (claims.get(frozen.id!)?.milestone !== milestone) continue;
+      items.push({ ...frozen, release: undefined, metadata: { ...frozen.metadata, release: undefined } });
       membership.set(frozen.id!, heading);
     }
   }
@@ -229,7 +247,7 @@ export function resolveTrackerReleaseHistory(milestones: readonly ReleaseMilesto
     items.push({ ...item, release: undefined, metadata: { ...item.metadata, release: undefined } });
     membership.set(item.id, "Unreleased");
   }
-  return { items, releaseWindows: [{ heading: "Unreleased" }, ...windows], releaseMembership: membership };
+  return { items, releaseWindows: [{ heading: "Unreleased" }, ...windows], releaseMembership: membership, includeStatuses: [...registry.terminal_done_statuses] };
 }
 
 /** Fail closed on options that would replace or reinterpret frozen boundaries. */
