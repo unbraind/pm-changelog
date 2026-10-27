@@ -69,7 +69,7 @@ test("strict producer/validator schema rejects sparse arrays, unknown fields and
   const base = input("0".repeat(64));
   const sparse = new Array(2); sparse[1] = "proof";
   const extra = ["proof"]; Object.assign(extra, { hidden: "bad" });
-  const bad: unknown[] = [Object.create(base), new Date(), undefined, null, [], 1, { ...base, extra: true }, ...[0, -1, NaN, Infinity, -Infinity, 1e300].map((schema) => ({ ...base, schema })),
+  const bad: unknown[] = [Object.create(base), new Date(), {}, undefined, null, [], 1, { ...base, extra: true }, ...[0, -1, NaN, Infinity, -Infinity, 1e300].map((schema) => ({ ...base, schema })),
     ...[null, undefined, "", [], [""], [1], sparse, extra, Array(17).fill("proof"), ["x".repeat(513)], ["bad\u0000"], ["\ud800"], ["\udc00"], ["bad\u0085"]].map((evidence) => ({ ...base, evidence })),
     ...["", " ", 1, "x".repeat(4001), "bad\u0000", "\ud800", "\udc00", "bad\u0085", "bad\u009b"].map((wording) => ({ ...base, wording })),
     ...["", "../x", 1, "x".repeat(81), "id\n", "id\r\n", "id\u2028"].flatMap((value) => ["release", "item", "id", "supersedes"].map((field) => ({ ...base, [field]: value === "" && field === "supersedes" ? null : value }))),
