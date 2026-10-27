@@ -282,6 +282,7 @@ test("pure boundaries reject incomplete SDK receipts, sparse outputs and excessi
   }
   assert.deepEqual(requireCompleteNotes({ notes: [] }), []);
   const baseline = await readReleaseCorrectionView(root, "v1", "fix-claim0", { milestones: new DirectoryReleaseMilestoneStore(root) });
+  assert.throws(() => checkTarget({ ...baseline, skipped: { foreign: 10000, invalid: 0, unrelated: 0 } }, parseReleaseCorrection(input(milestone))), refusal("correction_limit"));
   const owned = (correction: unknown): { created_at: string; author: string; text: string; format: "json"; data: { type: string; correction: unknown } } => ({ created_at: "2026-10-01T00:00:00Z", author: "fixture", text: "event", format: "json", data: { type: "pm-changelog.release-correction", correction } });
   for (const data of [null, 1, [], {}, { type: "foreign" }]) {
     const foreign = { created_at: "2026-10-01T00:00:00Z", author: "fixture", text: "foreign", format: "json" as const, data };

@@ -136,7 +136,8 @@ function checkTarget(view: ReleaseCorrectionView, record: ReleaseCorrection): bo
   if (record.expectedRevision !== view.revision || record.supersedes !== (view.chain.at(-1)?.id ?? "")) {
     throw new ReleaseCorrectionError("correction_stale", "Read the current view and review the new wording against its latest revision and last correction id before retrying.");
   }
-  if (view.chain.length === 256) throw new ReleaseCorrectionError("correction_limit", "Publish a new claim after 256 corrections; retain this historical chain.");
+  const annotations = view.chain.length + view.skipped.foreign + view.skipped.invalid + view.skipped.unrelated;
+  if (view.chain.length === 256 || annotations >= 10000) throw new ReleaseCorrectionError("correction_limit", "Publish a new claim after 256 corrections or 10000 annotations; retain this historical chain.");
   return true;
 }
 /** Append exactly one linked correction through the core journal and annotation primitive. */
