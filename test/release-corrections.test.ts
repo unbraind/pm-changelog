@@ -10,6 +10,8 @@ import type { WorkspaceTransactionTransition } from "@unbrained/pm-cli/sdk";
 import { appendReleaseCorrection, createChangelog, createReleaseMilestone, DirectoryReleaseMilestoneStore, formatReleaseCorrection, formatReleaseCorrectionView,
   parseReleaseCorrection, readReleaseCorrectionView, readReleaseMilestones, readTrackerReleaseSnapshot, resolveTrackerReleaseHistory, ReleaseCorrectionError } from "../src/index.ts";
 import type { ReleaseCorrectionInput, ReleaseCorrectionView } from "../src/index.ts";
+import { activateExtensionForTest, runRegisteredCommandForTest } from "@unbrained/pm-cli/sdk/testing";
+import extension from "../src/extension.ts";
 import { releaseCorrectionTestSurface } from "../src/release-corrections.ts";
 import { cliTestSurface } from "../src/cli.ts";
 import { runReleaseCorrectionsCli, runReleaseCorrectionsCommand } from "../src/release-correction-command.ts";
@@ -107,13 +109,13 @@ function random(seed: number): () => number {
 test("seeded model: 500 random operation sequences preserve SDK-read state, old replays, whitespace and relationships", async (t) => {
   const { root, client, milestone } = await fixture(t, 8);
   const rng = random(0xc011ec7);
-  const model = new Map<string, { inputs: ReleaseCorrectionInput[]; revisions: string[] }>();
+  const model = new Map<string, { inputs: ReleaseCorrectionInput[]; revisions: string[]; nativeEvents: unknown[] }>();
   const native = new Map<string, unknown>();
   for (let index = 0; index < 8; index++) {
     const id = `fix-claim${index}`;
     await client.update(id, { dep: [`id=fix-claim${(index + 1) % 8},kind=related`], unset: ["parent", "goal", "objective", "sprint", "release"] });
     native.set(id, (await client.get(id, { fields: "title,body,status,type,priority,tags,parent,goal,objective,sprint,release,dependencies,files,docs,tests" })).item);
-    model.set(id, { inputs: [], revisions: [] });
+    model.set(id, { inputs: [], revisions: [], nativeEvents: [] });
   }
   let operations = 0;
   for (let sequence = 0; sequence < 500; sequence++) {
@@ -156,6 +158,14 @@ test("seeded model: 500 random operation sequences preserve SDK-read state, old 
     const sdk = await client.notes(id, { limit: "10001", includeMeta: true, outputBudget: "unbounded", outputLimit: "unbounded" });
     // Reference is the exact authored data, with no duplicate producer or normalization logic.
     assert.ok("notes" in sdk);
+    assert.deepEqual(sdk.notes.slice(0, state.nativeEvents.length), state.nativeEvents);
+    assert.equal(sdk.notes.length, state.nativeEvents.length + 1);
+    for (const event of sdk.notes) {
+      assert.equal(event.format, "json"); assert.equal(event.event_type, "pm-changelog.release-correction");
+      assert.equal(event.author, "pm-changelog"); assert.ok(Number.isFinite(Date.parse(event.created_at)));
+      assert.equal(typeof event.text, "string"); assert.ok(event.text.length > 0);
+    }
+    state.nativeEvents = structuredClone(sdk.notes);
     const readBack = sdk.notes.map((note) => (note.data as { correction: Record<string, unknown> }).correction);
     assert.deepEqual(readBack.map(({ revision: _revision, ...fields }) => fields), state.inputs);
     assert.deepEqual(readBack.map((row) => row.revision), state.revisions);
@@ -174,8 +184,8 @@ test("competing writers at every commit boundary report one append and truthful 
   for (const [index, boundary] of boundaries.entries()) {
     const request = input(milestone, `fix-claim${index}`);
     let peer: ReturnType<typeof appendReleaseCorrection> | undefined;
-    const owner = await appendReleaseCorrection(root, request, { onTransition(context) {
-      if (context.transition === boundary) peer = appendReleaseCorrection(root, request);
+    const owner = await appendReleaseCorrection(root, request, { author: "owner-writer", onTransition(context) {
+      if (context.transition === boundary) peer = appendReleaseCorrection(root, request, { author: "peer-writer" });
     } });
     assert.equal(owner.changed, true);
     assert.ok(peer);
@@ -305,4 +315,19 @@ test("committed journal replay refuses an item restored out of band to its pre-c
   // Inject foreign storage drift, leaving the journal untouched; assertions read back through the SDK.
   writeFileSync(path, before);
   await assert.rejects(appendReleaseCorrection(root, input(milestone)), refusal("correction_conflict"));
+});
+
+
+test("registered correction handlers use the real SDK tracker and cover missing action refusals", async (t) => {
+  const { root, cwd, milestone } = await fixture(t);
+  const activation = await activateExtensionForTest(extension, { name: "pm-changelog", capabilities: ["commands", "schema", "importers", "renderers"] });
+  assert.deepEqual(activation.failed, []);
+  const file = join(cwd, "input.json"); writeFileSync(file, JSON.stringify(input(milestone)));
+  const appended = await runRegisteredCommandForTest(activation.commands, { command: "changelog corrections", pmRoot: root, args: ["append"], options: { input: file }, global: { author: "fixture" } });
+  assert.ok(appended.result && typeof appended.result === "object" && "output" in appended.result);
+  assert.equal(JSON.parse(String(appended.result.output)).changed, true);
+  const viewed = await runRegisteredCommandForTest(activation.commands, { command: "changelog corrections", pmRoot: root, args: ["view"], options: { release: "v1", item: "fix-claim0" }, global: { json: false } });
+  assert.ok(viewed.result && typeof viewed.result === "object" && "output" in viewed.result);
+  assert.deepEqual(decode(String(viewed.result.output)), await readReleaseCorrectionView(root, "v1", "fix-claim0"));
+  await assert.rejects(runRegisteredCommandForTest(activation.commands, { command: "changelog corrections", pmRoot: root }), refusal("correction_invalid"));
 });
