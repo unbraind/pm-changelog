@@ -170,7 +170,7 @@ function hostValue(value: unknown): unknown {
 }
 
 test("host and standalone generation, export, summary, audit, contracts and upgrades agree without git", async (t) => {
-  const { cwd, root, capture } = await fixture(t);
+  const { cwd, root, capture, items } = await fixture(t);
   const noGit = join(cwd, "bin"); mkdirSync(noGit);
   const env = { ...process.env, PATH: noGit, PM_PATH: root, PM_AUTHOR: "fixture", PM_GLOBAL_PATH: join(cwd, "global"), GIT_CEILING_DIRECTORIES: dirname(cwd), DO_NOT_TRACK: "1" };
   const activation = await activateExtensionForTest(extension, { name: "pm-changelog", capabilities: ["commands", "schema", "importers", "renderers"] }); assert.deepEqual(activation.failed, []);
@@ -188,6 +188,18 @@ test("host and standalone generation, export, summary, audit, contracts and upgr
     const host = await runRegisteredCommandForTest(activation.commands, { command: "changelog generate", pmRoot: root, options: { milestones, stdout: true } });
     assert.ok(host.result && typeof host.result === "object" && "changelog" in host.result); assert.match(String(host.result.changelog), /Closed: Investigation ended/); assert.doesNotMatch(String(host.result.changelog), /Omitted duplicate/);
   }
+  // External JSON needs the same configured registry as native reads; aliases normalize on both sides.
+  const external = JSON.stringify(items.map((item) => item.status === "delivered" ? { ...item, status: "  CONSTRUCTOR\r\n" } : item));
+  const inputPath = join(cwd, "external.json"); writeFileSync(inputPath, external);
+  for (const input of [["--input", inputPath], ["--stdin"]]) {
+    const result = spawnSync(process.execPath, [resolve("dist/cli.js"), ...input, "--pm-root", root, "--changelog-json", "--status", "landed_alias"], { cwd, env, input: external, encoding: "utf8" });
+    assert.equal(result.status, 0, result.stderr);
+    const document = JSON.parse(result.stdout) as ReturnType<typeof buildChangelogDocument>;
+    assert.equal(document.item_count, 2); assert.equal(document.excluded_non_change_count, 2);
+    assert.doesNotMatch(JSON.stringify(document), /Omitted duplicate/); assert.match(JSON.stringify(document), /Closed: Investigation ended/);
+  }
+  const defaults = spawnSync(process.execPath, [resolve("dist/cli.js"), "--input", inputPath, "--changelog-json"], { cwd, env, encoding: "utf8" });
+  assert.equal(defaults.status, 0, defaults.stderr); assert.equal(JSON.parse(defaults.stdout).item_count, 0);
   const exported = hostValue((await runRegisteredCommandForTest(activation.commands, { command: "changelog export", pmRoot: root, options: { format: "json" } })).result) as { item_count: number; excluded_non_change_count: number; markdown: string };
   assert.equal(exported.item_count, 2); assert.equal(exported.excluded_non_change_count, 2); assert.doesNotMatch(exported.markdown, /Omitted duplicate/);
   const contracts = await readAudienceContracts(root);
