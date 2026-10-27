@@ -1,0 +1,56 @@
+[
+  {
+    "schema": 1,
+    "name": "legacy-v1",
+    "query": "*",
+    "capturedAt": "2026-10-01T00:00:00Z",
+    "items": [
+      {
+        "id": "old-claim",
+        "title": "Legacy draft",
+        "status": "mutable_draft",
+        "type": "Feature"
+      },
+      {
+        "id": "old-padded",
+        "title": "Legacy padded draft",
+        "status": " closed ",
+        "type": "Feature"
+      },
+      {
+        "id": "old-uppercase",
+        "title": "Legacy uppercase publication",
+        "status": "CLOSED",
+        "type": "Feature"
+      }
+    ],
+    "fingerprint": "286059a4ed63c673edeb2c7382840f2771d9588ec1dc10396e6e12473e2368a6"
+  },
+  {
+    "schema": 1,
+    "name": "legacy-v2",
+    "query": "*",
+    "capturedAt": "2026-10-02T00:00:00Z",
+    "items": [
+      {
+        "id": "old-claim",
+        "title": "Legacy released wording",
+        "status": "closed",
+        "type": "Feature"
+      },
+      {
+        "id": "old-padded",
+        "title": "Legacy padded publication",
+        "status": "closed",
+        "type": "Feature"
+      },
+      {
+        "id": "old-uppercase",
+        "title": "Legacy uppercase publication",
+        "status": "CLOSED",
+        "type": "Feature"
+      }
+    ],
+    "fingerprint": "439f8163314cb35558802ce02d02834938e306199c2379b73f8d241d87902e8b"
+  }
+]

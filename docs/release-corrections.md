@@ -24,10 +24,15 @@ A claim belongs to its **first done-role capture in chronological capture order*
 An earlier active/blocked/canceled capture does not publish it. Later recaptures,
 live wording edits and reopenings do not transfer ownership. View and append
 refuse a later snapshot with `correction_missing`; select the original release.
-Generation and correction commands use the same verified catalog ledger, including
-configured status roles. SDK history callers can pass a registry as the third
-argument to `resolveTrackerReleaseHistory`; its returned status selection includes
-all done-role statuses. Explicit CLI status filters still take precedence.
+Generation and correction commands use the same verified catalog ledger. New
+schema-2 captures freeze SDK-classified `doneItemIds` in their fingerprint;
+changing status roles or aliases later cannot move ownership, change historical
+wording, hide a correction, or change its replay identity. Schema-1 records retain
+the released SDK-default status meaning and their original fingerprints.
+SDK history callers can pass the current registry as the third argument to
+`resolveTrackerReleaseHistory` for live Unreleased items only. Its per-item
+`statusSelection` preserves frozen eligibility; explicit `includeStatuses` or CLI
+status filters still take precedence. Selection diagnostics use the same rule.
 
 Use the view's `milestone` and `revision`. For the first correction use an empty
 `supersedes`; subsequently use the last correction's `id`.

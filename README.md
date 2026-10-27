@@ -410,6 +410,8 @@ and supersession cycles return typed refusals with remedies. Native SDK context 
 and transactions preserve history and coordinate writers without git.
 Corrections target the first capture with a configured done-role status; later
 snapshots, edits and reopenings cannot transfer the published claim to another release.
+New captures freeze publication eligibility, so later status-role or alias edits
+also leave historical wording and existing correction chains accessible.
 See the [input example and typed SDK](docs/release-corrections.md).
 
 ## Without git

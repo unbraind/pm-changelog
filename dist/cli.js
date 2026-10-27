@@ -146,7 +146,7 @@ async function main(args = process.argv.slice(2)) {
     const generationOptions = buildGenerationOptions(options, items);
     if (milestoneRoot) {
         const history = resolveTrackerReleaseHistory(await readReleaseMilestones(new DirectoryReleaseMilestoneStore(milestoneRoot)), items, resolveRuntimeStatusRegistry((await readSettings(milestoneRoot)).schema));
-        Object.assign(generationOptions, history, { includeStatuses: generationOptions.includeStatuses ?? history.includeStatuses });
+        Object.assign(generationOptions, history);
     }
     if (options.allReleaseTags && !options.input && !options.stdin) {
         Object.assign(generationOptions, await resolveGitReleaseHistory(generationOptions, resolvePmRoot(options.pmCwd ? resolve(options.pmCwd) : process.cwd(), options.pmRoot)));

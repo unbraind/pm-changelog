@@ -6,10 +6,10 @@ status: in_progress
 priority: 2
 tags[2]: append-only,release-corrections
 created_at: "2026-10-27T04:22:07.291Z"
-updated_at: "2026-10-27T08:01:36.700Z"
+updated_at: "2026-10-27T09:06:15.098Z"
 author: codex-agent
 acceptance_criteria: "Replay creates no duplicate correction; supersession cycle refuses; historical output remains byte-identical while a current view exposes original and corrected wording with evidence. Typed SDK and CLI, strict bounded inputs, compact TOON/JSON, non-git and real public-tracker validation, seeded model and concurrency proofs, packed npm/Bun acceptance and CI npm/Bun release gates."
-comments[17]{created_at,author,text}:
+comments[21]{created_at,author,text}:
   "2026-10-27T04:24:20.869Z",codex-agent,"Design: native SDK comments retain versioned correction envelopes; immutable milestone fingerprint plus predecessor revision binds replay identity. Core workspace transaction serializes chain changes, SDK annotation append-if-absent owns normalization/history. Each apply and retry re-reads the target through the SDK; historical generation is unchanged. Current view exposes original wording, each corrected wording and evidence. Malformed and foreign records are skipped independently. No item create/update or journaled multi-target plan is introduced."
   "2026-10-27T04:37:46.275Z",codex-agent,"SDK capability audit found native structured context events (notes addJson), which core treats as immutable and refuses to edit/delete. Corrections now use those events instead of mutable plain comments. Complete internal reads explicitly disable SDK row/token output compaction and enforce annotation/chain bounds; the seeded model exposed the earlier incomplete-read defect. Real public baseline validation: 202 items, 189 done-role items, 202 frozen members, 15130 historical bytes, 2 new corrections, replay 0, chain length 2, 29 native fields unchanged, source tree byte-identical. Source copy is filesystem read-only; mutations occur only in a disposable non-git overlay."
   "2026-10-27T04:42:11.530Z",codex-agent,"Out-of-scope finding recorded in pmc-milestone-status-roles: pre-existing immutable milestone generation compares the literal closed status. New correction reads use SDK terminal_done roles and work with custom registries; this change does not reinterpret historical generation."
@@ -27,18 +27,26 @@ comments[17]{created_at,author,text}:
   "2026-10-27T07:54:12.795Z",codex-agent,"Final re-review local evidence: related focused set 42 passed, zero failures/skips/cancels; final first-publication regression file 4 passed after adding catalog name/fingerprint drift, also passed through pm test --run --only-last --progress. Typecheck, test typecheck, docstring lint and whitespace checks pass. Public read-only validation: 202 items, 189 done-role items, 202 milestone members, 2 corrections, zero replay duplicates, chain length 2; 15130 historical bytes and source bytes unchanged, 28 native fields unchanged. Historical SHA256 d2b5ec65c64e3e79d15796486a78a211a900624a0bc45ce4f7e06bd2f5f7411e. Existing tests and coverage thresholds remain intact; full npm/Bun release gates will run in CI with at most two workers."
   "2026-10-27T07:56:38.027Z",codex-agent,"Packed re-review acceptance passed: 64 checks across 6 installation modes and 8 launcher paths (npm/Bun global and project-local, both global host aliases, npx and bunx); all 32 wrong-release JSON/TOON view/append checks refused, 8 owning-release corrections appended and exact replays created none. Main advanced again with the generated-dist lint configuration change; merged it before the fix commit without touching existing tracker history. Both the supplied blocker and the status-role follow-up are addressed; no additional concrete inline review findings were present."
   "2026-10-27T08:01:31.843Z",codex-agent,"Implementation and local evidence are complete at 84dc631. CI release verification is running at https://github.com/unbraind/pm-changelog/actions/runs/40470314900 (npm/Bun on Node 22 and 26, unchanged 100 percent configured thresholds, two workers). CodeQL passed at https://github.com/unbraind/pm-changelog/actions/runs/40470314754. A tracker-only evidence/claim-release commit will trigger final-head verification; the authoritative final run URL and measured gate counts are maintained in PR https://github.com/unbraind/pm-changelog/pull/291. No merge or release is authorized. The supplied attribution blocker and the status-role follow-up are fixed; reviewer skips/quota notices are not approvals."
-files[10]{path,scope}:
+  "2026-10-27T08:27:08.886Z",codex-agent,"Round-2 blocker is valid: immutable historical decisions must depend on facts captured at publication, never on mutable current registry meaning. Audit covers milestone capture/parser/fingerprint, shared ownership ledger, correction read/append/recovery, generation and selection diagnostics, SDK and standalone/host JSON/TOON, packed consumers and non-git trackers. Plan: persist fingerprint-bound publication eligibility for new captures, give legacy records their released fixed semantics, and keep current roles only for live Unreleased selection. Existing correction identities and historical snapshots must remain readable and unchanged. Branch already contains current main; no merge needed. No additional concrete inline findings were supplied."
+  "2026-10-27T08:44:41.798Z",codex-agent,"Round-2 class fix: schema-2 milestones freeze SDK-classified doneItemIds inside the fingerprint at capture. Ownership and correction replay never consult current custom roles; schema-1 retains released SDK-default semantics and original fingerprints. Live Unreleased eligibility is separate per item, and generation plus selection diagnostics share one predicate; explicit status filters override it. Whole-package audit found and fixed both historical attribution and historical rendering/diagnostics. Behavioral revert proofs each fail with AssertionError when reverting only (1) createReleaseMilestone to the old producer (schema 1 versus expected 2), (2) resolveTrackerReleaseLedger to current-role interpretation (v1 steals v2), or (3) the status predicate to default name filtering (published wording disappears). Sources restored byte-for-byte. Focused related suite 48 passed; final publication regression file 5 passed, zero failures/skips/cancels. Seed 0x291f2 runs 500 registry/JSON/TOON/older-producer-replay sequences with SDK-read correction/native state. A fixture emitted by the released main producer proves legacy read, round trips, correction append/replay and immutable bytes. Dense arrays, duplicates, foreign IDs, hidden properties, non-finite values and a maximum-length sparse array refuse before side effects; oversized eligibility refuses before JSON conversion."
+  "2026-10-27T08:54:04.445Z",codex-agent,"Final legacy compatibility also preserves released canonical-token behavior: uppercase CLOSED remains published, padded closed does not become retroactively published. The expanded released-producer fixture and all five publication tests pass. The initial packed registry-drift run stopped at npx because npm registry metadata timed out before command execution (ETIMEDOUT), not because of a product refusal. The final archive run adds schema-1 correction-chain JSON/TOON reads across every launcher and prefers the public dependency cache already populated by its fresh installs; all refusal assertions remain strict. Real-data validation remains 202 items, 189 done-role items, 2 corrections, replay zero, chain 2, 28 unchanged native fields and 15130 identical historical bytes."
+  "2026-10-27T09:06:12.246Z",codex-agent,"Final packed acceptance passed: 112 checks, 6 installation modes, 8 launcher paths (npm/Bun global, both global host aliases, npm/Bun project-local, npx, bunx), 64 wrong-release JSON/TOON refusals, 9 linked schema-2 corrections and 1 retained schema-1 correction after role promotion/demotion. Every launcher reads both legacy and new chains; exact replays append nothing. npm/npx used the public dependency cache offline with fresh install prefixes after registry/installer timeouts; Bun used its real installers. Behavioral assertions and the production audit gate are unchanged. Typecheck, test typecheck, docstring lint, whitespace, main-history prefix and privacy checks pass. Related focused suite 48 passed; final publication file 5 passed, zero failures/skips/cancels; linked pm test passed. Full unchanged-threshold npm/Bun CI with at most two workers is the remaining verification. Final-head run URL and measured counts are maintained in PR https://github.com/unbraind/pm-changelog/pull/291. Releasing both claims with items unclosed for orchestrator verification; no additional concrete review finding remains unaddressed."
+files[14]{path,scope}:
   scripts/accept-release-corrections.ts,project
   scripts/validate-release-corrections.ts,project
   src/cli.ts,project
   src/extension.ts,project
+  src/generator.ts,project
   src/index.ts,project
   src/milestones.ts,project
   src/release-correction-command.ts,project
   src/release-corrections.ts,project
+  src/types.ts,project
+  test/fixtures/milestones-v1-publication.json,project
   test/release-corrections.test.ts,project
   test/release-ownership.test.ts,project
-tests[2]:
+  test/release-publication.test.ts,project
+tests[3]:
   - command: "node --test --test-concurrency=1 --test-skip-pattern=\"seeded model\" test/release-corrections.test.ts"
     scope: project
     provenance:
@@ -52,6 +60,14 @@ tests[2]:
     provenance:
       author: codex-agent
       created_at: "2026-10-27T07:45:54.642Z"
+      source_kind: local_mutation
+      source_ref: feat/append-only-release-corrections
+  - command: node --test --test-concurrency=2 test/release-publication.test.ts
+    scope: project
+    timeout_seconds: 240
+    provenance:
+      author: codex-agent
+      created_at: "2026-10-27T08:45:26.980Z"
       source_kind: local_mutation
       source_ref: feat/append-only-release-corrections
 docs[3]{path,scope}:

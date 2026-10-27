@@ -1070,10 +1070,15 @@ function filterItemsByStatus(options: GenerateChangelogOptions): PmItem[] {
     .filter((item) => item.title)
     .filter((item) => !hasExcludedTag(item, excludeTags))
     .filter((item) => {
-      if (statuses.size === 0) return true;
-      return statuses.has(String(item.status ?? "").toLowerCase());
+      return matchesStatus(item, options, statuses);
     })
     .sort(compareItems);
+}
+
+/** Keep historical eligibility frozen while explicit status filters retain precedence. */
+function matchesStatus(item: PmItem, options: GenerateChangelogOptions, statuses: ReadonlySet<string>): boolean {
+  if (options.includeStatuses === undefined && item.id && options.statusSelection?.has(item.id)) return options.statusSelection.get(item.id)!;
+  return statuses.size === 0 || statuses.has(String(item.status ?? "").toLowerCase());
 }
 
 /** Normalized lookup set for the opt-in `--exclude-tag` filter. Empty when the
@@ -2256,7 +2261,7 @@ export function explainChangelogSelection(options: GenerateChangelogOptions): Ch
   const afterStatus: PmItem[] = [];
   const excludedByStatus: PmItem[] = [];
   for (const item of afterExcludedTags) {
-    if (statuses.size === 0 || statuses.has(String(item.status ?? "").toLowerCase())) {
+    if (matchesStatus(item, options, statuses)) {
       afterStatus.push(item);
     } else {
       excludedByStatus.push(item);
@@ -2330,6 +2335,7 @@ export function explainChangelogSelection(options: GenerateChangelogOptions): Ch
   return {
     filters: {
       statuses: Array.from(statuses),
+      ...(options.includeStatuses === undefined && options.statusSelection ? { status_selection: "per-item" as const } : {}),
       since: options.since,
       until: options.until,
       release_windows: hasReleaseWindows,

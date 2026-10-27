@@ -1,6 +1,6 @@
 import { createHash } from "node:crypto";
 import { encode } from "@toon-format/toon";
-import { EXIT_CODE, PmCliError, PmClient, commitWorkspaceTransaction, deriveMutationTransactionId, readSettings, resolveRuntimeStatusRegistry } from "@unbrained/pm-cli/sdk";
+import { EXIT_CODE, PmCliError, PmClient, commitWorkspaceTransaction, deriveMutationTransactionId } from "@unbrained/pm-cli/sdk";
 import { DirectoryReleaseMilestoneStore, parseReleaseMilestone, readReleaseMilestones, resolveTrackerReleaseLedger } from "./milestones.js";
 /** Expected failures retain stable codes and safe recovery instructions. */
 export class ReleaseCorrectionError extends PmCliError {
@@ -54,8 +54,7 @@ export async function readReleaseCorrectionView(pmRoot, release, item, options =
     if (stored === undefined)
         throw new ReleaseCorrectionError("correction_missing", "Capture the named published milestone before correcting a claim.");
     const requested = parseReleaseMilestone(stored);
-    const registry = resolveRuntimeStatusRegistry((await readSettings(pmRoot)).schema);
-    const claim = resolveTrackerReleaseLedger(await readReleaseMilestones(store), registry).claims.get(item);
+    const claim = resolveTrackerReleaseLedger(await readReleaseMilestones(store)).claims.get(item);
     if (requested.name !== release || !claim || claim.milestone.name !== release || claim.milestone.fingerprint !== requested.fingerprint) {
         throw new ReleaseCorrectionError("correction_missing", "Use the item's first done-role release capture, not a later snapshot; inspect the milestone history to select the original published claim.");
     }

@@ -899,11 +899,15 @@ function filterItemsByStatus(options) {
         .filter((item) => item.title)
         .filter((item) => !hasExcludedTag(item, excludeTags))
         .filter((item) => {
-        if (statuses.size === 0)
-            return true;
-        return statuses.has(String(item.status ?? "").toLowerCase());
+        return matchesStatus(item, options, statuses);
     })
         .sort(compareItems);
+}
+/** Keep historical eligibility frozen while explicit status filters retain precedence. */
+function matchesStatus(item, options, statuses) {
+    if (options.includeStatuses === undefined && item.id && options.statusSelection?.has(item.id))
+        return options.statusSelection.get(item.id);
+    return statuses.size === 0 || statuses.has(String(item.status ?? "").toLowerCase());
 }
 /** Normalized lookup set for the opt-in `--exclude-tag` filter. Empty when the
  * option is absent, which keeps `hasExcludedTag` a no-op. */
@@ -2040,7 +2044,7 @@ export function explainChangelogSelection(options) {
     const afterStatus = [];
     const excludedByStatus = [];
     for (const item of afterExcludedTags) {
-        if (statuses.size === 0 || statuses.has(String(item.status ?? "").toLowerCase())) {
+        if (matchesStatus(item, options, statuses)) {
             afterStatus.push(item);
         }
         else {
@@ -2104,6 +2108,7 @@ export function explainChangelogSelection(options) {
     return {
         filters: {
             statuses: Array.from(statuses),
+            ...(options.includeStatuses === undefined && options.statusSelection ? { status_selection: "per-item" } : {}),
             since: options.since,
             until: options.until,
             release_windows: hasReleaseWindows,

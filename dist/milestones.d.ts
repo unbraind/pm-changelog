@@ -16,10 +16,12 @@ export declare class ReleaseMilestoneError extends PmCliError {
 export interface TrackerReleaseSnapshot {
     readonly capturedAt: string;
     readonly items: readonly PmItem[];
+    /** SDK-classified done-role IDs at capture time; absent adapters use SDK defaults. */
+    readonly doneItemIds?: readonly string[];
 }
 /** Content-verified, immutable named boundary and its exact tracker membership. */
 export interface ReleaseMilestone extends TrackerReleaseSnapshot {
-    readonly schema: 1;
+    readonly schema: 1 | 2;
     readonly name: string;
     readonly query: string;
     readonly fingerprint: string;
@@ -42,7 +44,7 @@ export interface TrackerReleaseClaim {
     readonly item: PmItem;
 }
 /** Verify the entire catalog and select first publication independently of names or input order. */
-export declare function resolveTrackerReleaseLedger(milestones: readonly ReleaseMilestone[], registry?: RuntimeStatusRegistry): {
+export declare function resolveTrackerReleaseLedger(milestones: readonly ReleaseMilestone[], _registry?: RuntimeStatusRegistry): {
     ordered: ReleaseMilestone[];
     claims: ReadonlyMap<string, TrackerReleaseClaim>;
 };
@@ -53,7 +55,7 @@ export declare function resolveTrackerReleaseHistory(milestones: readonly Releas
     items: PmItem[];
     releaseWindows: ChangelogReleaseWindow[];
     releaseMembership: ReadonlyMap<string, string>;
-    includeStatuses: string[];
+    statusSelection: ReadonlyMap<string, boolean>;
 };
 /** Fail closed on options that would replace or reinterpret frozen boundaries. */
 export declare function assertTrackerMilestoneOptions(conflicts: readonly unknown[]): void;

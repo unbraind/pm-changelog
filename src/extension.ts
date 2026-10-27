@@ -320,7 +320,7 @@ export default defineExtension({
         };
         if (milestones) {
           const history = resolveTrackerReleaseHistory(await readReleaseMilestones(new DirectoryReleaseMilestoneStore(ctx.pm_root)), items, resolveRuntimeStatusRegistry((await readSettings(ctx.pm_root)).schema));
-          Object.assign(generationOptions, history, { includeStatuses: generationOptions.includeStatuses ?? history.includeStatuses });
+          Object.assign(generationOptions, history);
         }
         if (allReleaseTags) {
           try {

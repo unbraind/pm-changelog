@@ -134,6 +134,8 @@ export interface GenerateChangelogOptions {
   since?: string;
   until?: string;
   includeStatuses?: string[];
+  /** Captured per-item status eligibility. Explicit includeStatuses overrides it. */
+  statusSelection?: ReadonlyMap<string, boolean>;
   groupBy?: ChangelogGroupBy;
   /** Ordered release windows (`--all-release-tags`), newest first. Two
    * spellings are deliberately distinct: `undefined` (or omitted) means no
@@ -433,6 +435,8 @@ export interface ChangelogDocument {
 export interface ChangelogSelectionReport {
   filters: {
     statuses: string[];
+    /** Per-item captured eligibility overrides the fallback statuses when present. */
+    status_selection?: "per-item";
     since?: string;
     until?: string;
     release_windows: boolean;

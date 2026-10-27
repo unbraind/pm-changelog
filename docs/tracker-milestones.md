@@ -22,8 +22,11 @@ const notes = createChangelog(resolveTrackerReleaseHistory(releases, current.ite
 console.log(notes.markdown);
 ```
 
-A database or remote SDK adapter can supply `{ capturedAt, items }` from its own
-consistent read and implement `ReleaseMilestoneStore`:
+A database or remote SDK adapter can supply `{ capturedAt, items, doneItemIds }`
+from its own consistent read and implement `ReleaseMilestoneStore`. Derive
+`doneItemIds` through the SDK's capture-time status registry roles. The field is a
+dense array of at most 100000 unique IDs present in the snapshot; query projection
+keeps only selected IDs. Adapters omitting it use the SDK-default registry:
 
 - `read(name)` returns the original complete milestone or `undefined`.
 - `publish(name, milestone)` atomically inserts only if the name is absent and
@@ -57,9 +60,9 @@ compact JSON error on stderr and exits nonzero. Codes cover invalid snapshots or
 queries, changed membership, missing milestones, storage faults and conflicting
 release-source options. A failed read never silently generates an empty release.
 
-The resolver assigns an ID to the first milestone that captures it **closed**,
-using that milestone's frozen row. An earlier open capture reserves no release
-membership. Until a closed row is captured, a live closure remains Unreleased.
+The resolver assigns an ID to the first milestone whose frozen eligibility
+publishes it, using that milestone's frozen row. An earlier active capture reserves
+no release membership. Until a done-role row is captured, a live closure remains Unreleased.
 Later edits, reopenings and deletion cannot add to or rewrite an earlier release.
 
 New milestone names use lowercase ASCII letters, digits, dots, underscores and
@@ -76,10 +79,21 @@ lock. Database adapters must enforce the same ordering inside their transaction.
 
 ## First publication ownership
 
-`resolveTrackerReleaseLedger(milestones, registry)` verifies and orders the whole
+`resolveTrackerReleaseLedger(milestones)` verifies and orders the whole
 catalog by capture time, then binds each item to its first done-role capture and
 original row. Generation and correction readers share this ledger; later edits,
 recaptures and reopenings cannot move a published claim. Active, blocked and
-canceled captures do not reserve publication. CLI paths load the tracker's SDK
-status registry; SDK callers with custom statuses pass it to the ledger or as the
-third argument of `resolveTrackerReleaseHistory`.
+canceled captures do not reserve publication. New schema-2 records include
+fingerprint-bound `doneItemIds`; later status-role and alias changes cannot
+reinterpret them. `readTrackerReleaseSnapshot` captures these IDs through the
+SDK. The ledger's optional registry argument remains accepted for compatibility
+but cannot affect historical decisions. Schema-1 records retain released
+SDK-default status meaning and their exact original fingerprints, without rewrite.
+
+CLI paths load current SDK roles only for live Unreleased items. SDK callers can
+pass that registry as the third argument of `resolveTrackerReleaseHistory`.
+The returned `statusSelection` keeps frozen and live eligibility separate;
+generation and `explainChangelogSelection` share this selection. An explicit
+`includeStatuses` overrides it, including an empty list selecting every status.
+Diagnostics mark `filters.status_selection: per-item` when captured eligibility
+overrides their fallback `filters.statuses` list.
