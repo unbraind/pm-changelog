@@ -18,7 +18,7 @@ export type ChangeFacet = {
     text?: never;
 });
 /** Selection delegates to the existing generator; only closed change items are published. */
-export interface AudienceContractOptions extends Pick<GenerateChangelogOptions, "items" | "version" | "groupBy" | "sectionBy" | "since" | "until" | "excludeTags" | "releaseWindows" | "releaseMembership" | "suppressedPendingRelease" | "limit" | "sinceVersion" | "respectItemRelease"> {
+export interface AudienceContractOptions extends Pick<GenerateChangelogOptions, "items" | "version" | "groupBy" | "sectionBy" | "since" | "until" | "excludeTags" | "releaseWindows" | "releaseMembership" | "suppressedPendingRelease" | "limit" | "sinceVersion" | "respectItemRelease" | "statusRegistry" | "statusSelection"> {
     audience?: ChangeAudience;
 }
 /** Shared, prose-free identity of one selected change in one release section. */

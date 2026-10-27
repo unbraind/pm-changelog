@@ -33,6 +33,7 @@ export type {
   ReleaseTagWindowResolution,
 } from "./release-context.ts";
 export type {
+  ChangelogStatusContext,
   ChangelogAttributionProvenance,
   ChangelogClaimSource,
   ChangelogDocument,

@@ -166,7 +166,7 @@ export default defineExtension({
         { long: "--milestones", description: "Use immutable tracker release milestones instead of git boundaries" },
         { long: "--all-release-tags", description: "Rebuild full history from git release tag windows" },
         { long: "--release-tag-pattern", value_name: "glob", description: "Git tag glob for --all-release-tags (default: v*)" },
-        { long: "--status", value_name: "list", description: "Comma-separated statuses (default: closed)" },
+        { long: "--status", value_name: "list", description: "Comma-separated status IDs/aliases (default: done roles)" },
         { long: "--entry-from", value_name: "field", description: "Prefer title (default) or close_reason; blank resolution falls back to title" },
         { long: "--group-by", value_name: "mode", description: "version, release, or milestone (default: version)" },
         { long: "--section-by", value_name: "mode", description: "Within-release grouping: category, type, status, or label (default: category)" },
@@ -286,6 +286,7 @@ export default defineExtension({
         }
         const generationOptions: GenerateChangelogOptions = {
           items,
+          statusRegistry: resolveRuntimeStatusRegistry((await readSettings(ctx.pm_root)).schema),
           title: titleOption,
           version: releaseContext.version,
           date: dateOption ?? releaseContext.date,
@@ -319,7 +320,7 @@ export default defineExtension({
           dependencyCutoff: untilOption,
         };
         if (milestones) {
-          const history = resolveTrackerReleaseHistory(await readReleaseMilestones(new DirectoryReleaseMilestoneStore(ctx.pm_root)), items, resolveRuntimeStatusRegistry((await readSettings(ctx.pm_root)).schema));
+          const history = resolveTrackerReleaseHistory(await readReleaseMilestones(new DirectoryReleaseMilestoneStore(ctx.pm_root)), items, generationOptions.statusRegistry);
           Object.assign(generationOptions, history);
         }
         if (allReleaseTags) {
@@ -364,7 +365,7 @@ export default defineExtension({
               entries,
               format: "json",
               item_count: entries.length,
-              excluded_non_change_count: countNonChangeClosures(generationOptions.items),
+              excluded_non_change_count: countNonChangeClosures(generationOptions.items, generationOptions),
               ...(selectionReport ? { selection_report: selectionReport } : {}),
             });
           }
@@ -397,7 +398,7 @@ export default defineExtension({
           const suggestion = suggestSemver(generationOptions);
           return renderedCommandResult({
             suggested_semver: suggestion,
-            excluded_non_change_count: countNonChangeClosures(generationOptions.items),
+            excluded_non_change_count: countNonChangeClosures(generationOptions.items, generationOptions),
             format: "json",
             ...(selectionReport ? { selection_report: selectionReport } : {}),
           });
@@ -482,7 +483,7 @@ export default defineExtension({
         { long: "--since-previous-tag", description: "Derive --since from the previous git tag" },
         { long: "--until", value_name: "date", description: "Include items changed on or before this date" },
         { long: "--until-release-tag", description: "Derive --until from the current release tag when it exists" },
-        { long: "--status", value_name: "list", description: "Comma-separated statuses (default: closed)" },
+        { long: "--status", value_name: "list", description: "Comma-separated status IDs/aliases (default: done roles)" },
         { long: "--entry-from", value_name: "field", description: "Prefer title (default) or close_reason; blank resolution falls back to title" },
         { long: "--group-by", value_name: "mode", description: "version, release, or milestone (default: version)" },
         { long: "--include-empty", description: "Emit an empty release section when no items match" },
@@ -528,6 +529,7 @@ export default defineExtension({
       const items = await listWorkspaceItemMetadata(ctx.pm_root);
       const generated = createChangelog({
         items,
+        statusRegistry: resolveRuntimeStatusRegistry((await readSettings(ctx.pm_root)).schema),
         title: stringOption(ctx.options, "title", "title") ?? (releaseNotes ? "Release Notes" : undefined),
         version: releaseContext.version,
         date: stringOption(ctx.options, "date", "date") ?? releaseContext.date,

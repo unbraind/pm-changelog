@@ -4,8 +4,9 @@ import { createHash } from "node:crypto";
 import { chmodSync, cpSync, mkdtempSync, readdirSync, readFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
-import { PmClient, readSettings, resolveRuntimeStatusRegistry } from "@unbrained/pm-cli/sdk";
+import { PmClient, normalizeStatusInput, readSettings, resolveRuntimeStatusRegistry } from "@unbrained/pm-cli/sdk";
 import { appendReleaseCorrection, createChangelog, createReleaseMilestone, DirectoryReleaseMilestoneStore, readReleaseMilestones, readTrackerReleaseSnapshot, resolveTrackerReleaseHistory } from "../src/index.ts";
+import { visibleChangelogItems } from "../src/generator.ts";
 
 /** Hash complete file bytes in stable relative-path order, including native history. */
 function treeHash(root: string): string {
@@ -26,7 +27,7 @@ const sourceBefore = treeHash(source);
 const snapshot = await readTrackerReleaseSnapshot(source);
 assert.equal(treeHash(source), sourceBefore, "Source reads must preserve every byte");
 const roles = resolveRuntimeStatusRegistry((await readSettings(source)).schema);
-const done = snapshot.items.filter((item) => roles.terminal_done_statuses.has(String(item.status)));
+const done = snapshot.items.filter((item) => roles.terminal_done_statuses.has(normalizeStatusInput(item.status, roles) ?? ""));
 assert.ok(done.length);
 const temporary = mkdtempSync(join(tmpdir(), "pm-correction-public-"));
 try {
@@ -35,12 +36,14 @@ try {
   const writable = (directory: string): void => { chmodSync(directory, 0o700); for (const entry of readdirSync(directory, { withFileTypes: true })) { const target = join(directory, entry.name); if (entry.isDirectory()) writable(target); else chmodSync(target, 0o600); } };
   writable(root);
   const client = new PmClient({ pmRoot: root, author: "public-validation" });
-  const nativeBefore = await client.get(done[0].id!, { full: true });
   const store = new DirectoryReleaseMilestoneStore(root);
   const milestone = await createReleaseMilestone(store, "public-baseline", snapshot);
+  const published = visibleChangelogItems(resolveTrackerReleaseHistory([milestone], [], roles));
+  assert.ok(published.length);
+  const claim = published[0].id!;
+  const nativeBefore = await client.get(claim, { full: true });
   const history = async (): Promise<string> => createChangelog(resolveTrackerReleaseHistory(await readReleaseMilestones(store), (await readTrackerReleaseSnapshot(root)).items, roles)).markdown;
   const before = await history();
-  const claim = done[0].id!;
   const request = { schema: 1, release: milestone.name, item: claim, milestone: milestone.fingerprint, id: "validation-1", supersedes: "", expectedRevision: milestone.fingerprint,
     wording: "Public validation correction: this assertion is limited to the measured release evidence.", evidence: ["docs/release-corrections.md"] };
   const first = await appendReleaseCorrection(root, request, { author: "public-validation" });

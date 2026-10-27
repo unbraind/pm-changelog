@@ -56,6 +56,7 @@ export declare function resolveTrackerReleaseHistory(milestones: readonly Releas
     releaseWindows: ChangelogReleaseWindow[];
     releaseMembership: ReadonlyMap<string, string>;
     statusSelection: ReadonlyMap<string, boolean>;
+    statusRegistry: RuntimeStatusRegistry;
 };
 /** Fail closed on options that would replace or reinterpret frozen boundaries. */
 export declare function assertTrackerMilestoneOptions(conflicts: readonly unknown[]): void;

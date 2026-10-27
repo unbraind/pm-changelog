@@ -5,10 +5,9 @@ import { dirname, resolve } from "node:path";
 import { isDeepStrictEqual } from "node:util";
 import { inspectCompleteListResult, resolveCompletionTimestamp } from "@unbrained/pm-cli/sdk";
 import { certifyCompleteListResult } from "@unbrained/pm-cli/sdk/runtime";
-import { isNonChangeClosure, needsNeutralClosure, countNonChangeClosures } from "./closure-policy.js";
+import { isNonChangeClosure, needsNeutralClosure, countNonChangeClosures, isDoneStatus, normalizeChangelogStatus, defaultDoneStatuses } from "./closure-policy.js";
 import { builtinItemFolder, resolveItemFolder } from "./item-links.js";
 const DEFAULT_TITLE = "Changelog";
-const DEFAULT_STATUSES = ["closed"];
 const SUPPRESSED_PENDING_RELEASE = Symbol.for("pm-changelog.suppressedPendingRelease");
 const DEFAULT_PM_JSON_MAX_BUFFER = 64 * 1024 * 1024;
 const DEFAULT_INSTALLED_PM_COMMAND_DEPENDENCIES = {
@@ -213,7 +212,7 @@ export function createChangelog(options, onClaim) {
         while (scannedLines < source.line) {
             physicalLines += lines[scannedLines++].split("\n").length;
         }
-        onClaim({ ...source, category: source.kind === "item" ? classifyItem(source.items[0]) : undefined, line: physicalLines - source.claim.split("\n").length + 1 });
+        onClaim({ ...source, category: source.kind === "item" ? classifyItem(source.items[0], options) : undefined, line: physicalLines - source.claim.split("\n").length + 1 });
     };
     if (sections.length === 0) {
         // A deliberately empty `releaseWindows` list (suppressed pending release
@@ -230,7 +229,7 @@ export function createChangelog(options, onClaim) {
             markdown: lines.join("\n").trimEnd() + "\n",
             sections,
             itemCount: items.length,
-            excludedNonChangeCount: countNonChangeClosures(options.items),
+            excludedNonChangeCount: countNonChangeClosures(options.items, options),
         };
     }
     if (visibleSections.length === 0) {
@@ -238,7 +237,7 @@ export function createChangelog(options, onClaim) {
             markdown: lines.join("\n").trimEnd() + "\n",
             sections,
             itemCount: 0,
-            excludedNonChangeCount: countNonChangeClosures(options.items),
+            excludedNonChangeCount: countNonChangeClosures(options.items, options),
         };
     }
     for (const section of visibleSections) {
@@ -251,7 +250,7 @@ export function createChangelog(options, onClaim) {
             // up front. Items still appear in their normal category/field group below,
             // so this is purely additive and absent by default.
             if (options.breakingChanges) {
-                const breaking = section.items.filter(isBreakingItem);
+                const breaking = section.items.filter((item) => isBreakingItem(item, options));
                 if (breaking.length > 0) {
                     lines.push(`### ${maybeEmoji("Breaking Changes", options)}`, "");
                     for (const item of breaking) {
@@ -299,7 +298,7 @@ export function createChangelog(options, onClaim) {
         markdown: lines.join("\n").trimEnd() + "\n",
         sections,
         itemCount: visibleSections.reduce((sum, section) => sum + section.items.length, 0),
-        excludedNonChangeCount: countNonChangeClosures(options.items),
+        excludedNonChangeCount: countNonChangeClosures(options.items, options),
     };
 }
 /**
@@ -369,8 +368,8 @@ function selectChangelogSections(options) {
 /** Build the canonical ordered groups for one visible release section. */
 function groupSectionItems(section, sectionBy, options) {
     if (sectionBy !== "category")
-        return groupByField(section.items, sectionBy);
-    const grouped = groupByCategory(section.items);
+        return groupByField(section.items, sectionBy, options);
+    const grouped = groupByCategory(section.items, options);
     const result = [];
     for (const category of CATEGORY_ORDER) {
         const categoryItems = grouped.get(category);
@@ -403,7 +402,7 @@ export function buildChangelogDocument(options) {
             sections: sectionGroups,
             contributors: options.contributors ? collectContributors(section.items) : undefined,
             breaking_changes: options.breakingChanges
-                ? section.items.filter(isBreakingItem).map((item) => toDocumentItem(item, options))
+                ? section.items.filter((item) => isBreakingItem(item, options)).map((item) => toDocumentItem(item, options))
                 : undefined,
             dependencies: section.dependencyCommits?.map((commit) => ({
                 subject: commit.subject,
@@ -418,12 +417,12 @@ export function buildChangelogDocument(options) {
         ...(options.entryFrom ? { entry_from: options.entryFrom } : {}),
         section_by: sectionBy,
         item_count: visibleSections.reduce((sum, section) => sum + section.items.length, 0),
-        excluded_non_change_count: countNonChangeClosures(options.items),
+        excluded_non_change_count: countNonChangeClosures(options.items, options),
         releases,
         // Classify the same visible-section items emitted above, not the full
         // filtered set, so the bump matches the released sections (GH #28).
         suggested_semver: options.suggestSemver
-            ? suggestSemverForItems(visibleSections.flatMap((section) => section.items))
+            ? suggestSemverForItems(visibleSections.flatMap((section) => section.items), options)
             : undefined,
     };
 }
@@ -892,10 +891,10 @@ function filterItems(options) {
  * rendering. An empty status set means "accept every status" rather than
  * "accept none", so an explicit empty list cannot silently empty a release. */
 function filterItemsByStatus(options) {
-    const statuses = new Set((options.includeStatuses ?? DEFAULT_STATUSES).map((status) => status.toLowerCase()));
+    const statuses = new Set((options.includeStatuses ?? defaultDoneStatuses(options)).map((status) => normalizeChangelogStatus(status, options)));
     const excludeTags = normalizeExcludeTags(options.excludeTags);
     return options.items
-        .filter((item) => !isNonChangeClosure(item))
+        .filter((item) => !isNonChangeClosure(item, options))
         .filter((item) => item.title)
         .filter((item) => !hasExcludedTag(item, excludeTags))
         .filter((item) => {
@@ -905,9 +904,9 @@ function filterItemsByStatus(options) {
 }
 /** Keep historical eligibility frozen while explicit status filters retain precedence. */
 function matchesStatus(item, options, statuses) {
-    if (options.includeStatuses === undefined && item.id && options.statusSelection?.has(item.id))
-        return options.statusSelection.get(item.id);
-    return statuses.size === 0 || statuses.has(String(item.status ?? "").toLowerCase());
+    if (options.includeStatuses === undefined)
+        return isDoneStatus(item, options);
+    return statuses.size === 0 || statuses.has(normalizeChangelogStatus(item.status, options));
 }
 /** Normalized lookup set for the opt-in `--exclude-tag` filter. Empty when the
  * option is absent, which keeps `hasExcludedTag` a no-op. */
@@ -1430,7 +1429,7 @@ const CONVENTIONAL_HEADINGS = {
  * "Unlabeled" bucket. For `label`, an item may appear under several headings
  * (one per tag) — this is by design and clearly opt-in.
  */
-function groupByField(items, sectionBy) {
+function groupByField(items, sectionBy, context) {
     const groups = new Map();
     const push = (heading, item) => {
         const bucket = groups.get(heading) ?? [];
@@ -1438,7 +1437,7 @@ function groupByField(items, sectionBy) {
         groups.set(heading, bucket);
     };
     for (const item of items) {
-        if (needsNeutralClosure(item)) {
+        if (needsNeutralClosure(item, context)) {
             push("Closed", item);
         }
         else if (sectionBy === "type") {
@@ -1510,10 +1509,10 @@ function pickContributor(value) {
 }
 /** Bucket items under their keep-a-changelog category, preserving the order
  * they arrived in within each bucket. */
-function groupByCategory(items) {
+function groupByCategory(items, context) {
     const grouped = new Map();
     for (const item of items) {
-        const category = classifyItem(item);
+        const category = classifyItem(item, context);
         const categoryItems = grouped.get(category) ?? [];
         categoryItems.push(item);
         grouped.set(category, categoryItems);
@@ -1532,8 +1531,8 @@ const REMOVED_NEEDLES = ["removed", "remove", "deleted", "delete"];
  * consulted only as a fallback, because descriptive prose collides with command
  * names and would misfile a defect in `pm update` as a "Changed" entry.
  */
-function classifyItem(item) {
-    if (needsNeutralClosure(item))
+function classifyItem(item, context) {
+    if (needsNeutralClosure(item, context))
         return "Closed";
     // Strip CLI-flag-like tokens from titles before scanning. Without this, an
     // item titled "pm <cmd> --add fails..." gets classified as "Added" because
@@ -1801,7 +1800,7 @@ export function parseChangelogEntryFrom(value) {
 /** Resolve entry prose without mutating the tracker title or its classification.
  * Empty, whitespace-only and non-string resolutions fall back to title. */
 function resolveEntryTitle(item, options) {
-    if (needsNeutralClosure(item))
+    if (needsNeutralClosure(item, options))
         return `Closed: ${toSingleLine(item.title)}`;
     if (options.entryFrom === "close_reason") {
         const resolution = resolveChangelogResolution(item);
@@ -1828,7 +1827,7 @@ export function lintChangelogEntries(options) {
         if (seen.has(item))
             continue;
         seen.add(item);
-        if (String(item.status).toLowerCase() !== "closed" || classifyItem(item) !== "Fixed")
+        if (!isDoneStatus(item, options) || classifyItem(item, options) !== "Fixed")
             continue;
         if (typeof item.close_reason === "string" && item.close_reason.trim())
             continue;
@@ -1939,8 +1938,8 @@ const HEADING_EMOJI = {
  * as non-breaking no longer triggers a major-bump suggestion (GH #26).
  * Used only by the opt-in `--breaking-changes` / `--suggest-semver` features.
  */
-function isBreakingItem(item) {
-    if (needsNeutralClosure(item))
+function isBreakingItem(item, context) {
+    if (needsNeutralClosure(item, context))
         return false;
     if (isTruthyFlag(item.breaking))
         return true;
@@ -1993,7 +1992,7 @@ export function suggestSemver(options) {
     // bump is never reported from releases hidden by visibility flags (GH #28).
     // With no narrowing flags this is exactly filterItems(options), so the
     // default suggestion is unchanged.
-    return suggestSemverForItems(visibleChangelogItems(options));
+    return suggestSemverForItems(visibleChangelogItems(options), options);
 }
 /**
  * The items that actually render for the given options: the union of all
@@ -2018,7 +2017,7 @@ export function visibleChangelogItems(options) {
  * output is unexpectedly empty or smaller than expected.
  */
 export function explainChangelogSelection(options) {
-    const statuses = new Set((options.includeStatuses ?? DEFAULT_STATUSES).map((status) => status.toLowerCase()));
+    const statuses = new Set((options.includeStatuses ?? defaultDoneStatuses(options)).map((status) => normalizeChangelogStatus(status, options)));
     // Window mode is active for a non-empty list, or a deliberately empty one
     // (suppressed pending release asserted). An accidentally empty list — zero
     // tags, no suppression asserted — is absent history, so the report mirrors
@@ -2026,7 +2025,7 @@ export function explainChangelogSelection(options) {
     const hasReleaseWindows = isInReleaseWindowMode(options);
     const withTitle = [];
     const missingTitle = [];
-    for (const item of options.items.filter((item) => !isNonChangeClosure(item))) {
+    for (const item of options.items.filter((item) => !isNonChangeClosure(item, options))) {
         if (item.title)
             withTitle.push(item);
         else
@@ -2093,7 +2092,7 @@ export function explainChangelogSelection(options) {
     const candidateItems = candidateSections.flatMap((section) => section.items);
     const visibleItems = visibleSections.flatMap((section) => section.items);
     const attributionProvenance = buildAttributionProvenance(visibleItems, options);
-    const nonChangeCount = countNonChangeClosures(options.items);
+    const nonChangeCount = countNonChangeClosures(options.items, options);
     const excludedCounts = {
         ...(nonChangeCount > 0 ? { non_change: nonChangeCount } : {}),
         missing_title: missingTitle.length,
@@ -2152,19 +2151,19 @@ export function explainChangelogSelection(options) {
 }
 /** Classify an explicit item set into a semver bump, excluding non-change and
  * neutral closures even when the caller has not applied option-driven filtering. */
-export function suggestSemverForItems(items) {
+export function suggestSemverForItems(items, context = {}) {
     let breaking = 0;
     let feature = 0;
     let fix = 0;
     let other = 0;
     for (const item of items) {
-        if (isNonChangeClosure(item) || needsNeutralClosure(item))
+        if (isNonChangeClosure(item, context) || needsNeutralClosure(item, context))
             continue;
-        if (isBreakingItem(item)) {
+        if (isBreakingItem(item, context)) {
             breaking++;
             continue;
         }
-        const category = classifyItem(item);
+        const category = classifyItem(item, context);
         if (category === "Added")
             feature++;
         else if (category === "Fixed")

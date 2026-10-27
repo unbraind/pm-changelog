@@ -1,10 +1,10 @@
 import { encode } from "@toon-format/toon";
-import { RelationshipGraph, analyzeRelationshipExecution, listAllComplete } from "@unbrained/pm-cli/sdk";
+import { RelationshipGraph, analyzeRelationshipExecution, listAllComplete, readSettings, resolveRuntimeStatusRegistry } from "@unbrained/pm-cli/sdk";
 import type { PlanResultPlan, RelationshipEdge } from "@unbrained/pm-cli/sdk";
 import { buildAudienceContracts, parseChangeAudience } from "./audience-contracts.ts";
 import type { ChangeAudience } from "./audience-contracts.ts";
 import { compareVersionStrings } from "./generator.ts";
-import type { PmItem } from "./types.ts";
+import type { ChangelogStatusContext, PmItem } from "./types.ts";
 import { ConsumerUpgradeError, parseUpgradeActions } from "./upgrade-actions.ts";
 import type { UpgradeAction } from "./upgrade-actions.ts";
 export { ConsumerUpgradeError, parseUpgradeActions } from "./upgrade-actions.ts";
@@ -17,7 +17,7 @@ export interface ConsumerUpgradeStep extends UpgradeAction, Pick<CorePlanStep, "
   attribution: { item: string; release: string }[];
 }
 /** Installed version is exclusive; target version is inclusive. Both are explicit. */
-export interface ConsumerUpgradeOptions {
+export interface ConsumerUpgradeOptions extends ChangelogStatusContext {
   items: PmItem[];
   audience: ChangeAudience;
   from: string;
@@ -52,7 +52,7 @@ export function buildConsumerUpgrades(options: ConsumerUpgradeOptions): Consumer
   const audience = parseChangeAudience(options.audience);
   const from = version(options.from), to = version(options.to);
   if (compareVersionStrings(from, to) >= 0) throw new ConsumerUpgradeError("invalid_upgrade_options", "Choose an installed --from version strictly below the target --to version.");
-  const contracts = buildAudienceContracts({ items: options.items, audience, groupBy: "release" });
+  const contracts = buildAudienceContracts({ items: options.items, audience, groupBy: "release", statusRegistry: options.statusRegistry, statusSelection: options.statusSelection });
   const items = new Map(options.items.map((item) => [item.id!, item]));
   const catalog = new Map<string, { action: UpgradeAction; introduced: string; attribution: ConsumerUpgradeStep["attribution"] }>();
   const omissions: ConsumerUpgradeReport["omissions"] = [];
@@ -104,7 +104,7 @@ export function buildConsumerUpgrades(options: ConsumerUpgradeOptions): Consumer
 /** Read certified complete native metadata through the backend-aware SDK; never invoke git. */
 export async function readConsumerUpgrades(pmRoot: string, options: Omit<ConsumerUpgradeOptions, "items">): Promise<ConsumerUpgradeReport> {
   const result = await listAllComplete({ includeBody: false }, { pmRoot });
-  return buildConsumerUpgrades({ ...options, items: result.items });
+  return buildConsumerUpgrades({ ...options, items: result.items, statusRegistry: resolveRuntimeStatusRegistry((await readSettings(pmRoot)).schema) });
 }
 
 /** Emit compact agent output without duplicating source prose or tracker state. */

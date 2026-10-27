@@ -259,7 +259,7 @@ export function resolveTrackerReleaseHistory(milestones, currentItems, registry 
         membership.set(item.id, "Unreleased");
         statusSelection.set(item.id, doneIds([item], registry).length > 0);
     }
-    return { items, releaseWindows: [{ heading: "Unreleased" }, ...windows], releaseMembership: membership, statusSelection };
+    return { items, releaseWindows: [{ heading: "Unreleased" }, ...windows], releaseMembership: membership, statusSelection, statusRegistry: registry };
 }
 /** Fail closed on options that would replace or reinterpret frozen boundaries. */
 export function assertTrackerMilestoneOptions(conflicts) {

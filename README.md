@@ -412,6 +412,10 @@ Corrections target the first capture with a configured done-role status; later
 snapshots, edits and reopenings cannot transfer the published claim to another release.
 New captures freeze publication eligibility, so later status-role or alias edits
 also leave historical wording and existing correction chains accessible.
+Closure evidence uses that same frozen meaning: custom done-role duplicates are
+omitted, and issue closures without repair evidence stay under `Closed` without
+contributing a breaking change or fix. Live commands load configured SDK roles;
+SDK callers pass `statusRegistry`, or use the context returned by the milestone resolver.
 See the [input example and typed SDK](docs/release-corrections.md).
 
 ## Without git

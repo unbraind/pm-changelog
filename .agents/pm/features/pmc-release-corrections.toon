@@ -6,10 +6,12 @@ status: in_progress
 priority: 2
 tags[2]: append-only,release-corrections
 created_at: "2026-10-27T04:22:07.291Z"
-updated_at: "2026-10-27T09:50:19.194Z"
+updated_at: "2026-10-27T11:23:23.099Z"
+assignee: codex-agent
+claim_principal: codex-agent
 author: codex-agent
 acceptance_criteria: "Replay creates no duplicate correction; supersession cycle refuses; historical output remains byte-identical while a current view exposes original and corrected wording with evidence. Typed SDK and CLI, strict bounded inputs, compact TOON/JSON, non-git and real public-tracker validation, seeded model and concurrency proofs, packed npm/Bun acceptance and CI npm/Bun release gates."
-comments[24]{created_at,author,text}:
+comments[29]{created_at,author,text}:
   "2026-10-27T04:24:20.869Z",codex-agent,"Design: native SDK comments retain versioned correction envelopes; immutable milestone fingerprint plus predecessor revision binds replay identity. Core workspace transaction serializes chain changes, SDK annotation append-if-absent owns normalization/history. Each apply and retry re-reads the target through the SDK; historical generation is unchanged. Current view exposes original wording, each corrected wording and evidence. Malformed and foreign records are skipped independently. No item create/update or journaled multi-target plan is introduced."
   "2026-10-27T04:37:46.275Z",codex-agent,"SDK capability audit found native structured context events (notes addJson), which core treats as immutable and refuses to edit/delete. Corrections now use those events instead of mutable plain comments. Complete internal reads explicitly disable SDK row/token output compaction and enforce annotation/chain bounds; the seeded model exposed the earlier incomplete-read defect. Real public baseline validation: 202 items, 189 done-role items, 202 frozen members, 15130 historical bytes, 2 new corrections, replay 0, chain length 2, 29 native fields unchanged, source tree byte-identical. Source copy is filesystem read-only; mutations occur only in a disposable non-git overlay."
   "2026-10-27T04:42:11.530Z",codex-agent,"Out-of-scope finding recorded in pmc-milestone-status-roles: pre-existing immutable milestone generation compares the literal closed status. New correction reads use SDK terminal_done roles and work with custom registries; this change does not reinterpret historical generation."
@@ -34,10 +36,18 @@ comments[24]{created_at,author,text}:
   "2026-10-27T09:15:18.080Z",codex-agent,"CI run https://github.com/unbraind/pm-changelog/actions/runs/40478487612 executed all 932 tests successfully on both Node 22 and 26, zero failures/skips/cancellations, but the unchanged 100 percent branch gate refused at 99.96 percent overall (milestones.ts 99.57 percent). Bun and runtime smokes were therefore skipped and are not counted as passes. Inspecting the one missing validation branch and adding an adversarial input case; product thresholds and assertions remain unchanged."
   "2026-10-27T09:19:03.082Z",codex-agent,"Coverage follow-up is test-only: schema-2 items values undefined, null, a non-array object and a null row now explicitly require typed milestone_invalid refusals. Isolated LCOV reproduced the missing raw-items branch at milestones.ts line 129 with zero hits before; after the added cases all four line-129 branch entries have positive hits. The linked full publication file passes all 5 tests with zero failures/skips/cancels. Product source, generated package files, strict assertions and coverage thresholds are unchanged, so the 112-check packed evidence remains applicable. Pushing this test/evidence follow-up for the full unchanged-threshold npm/Bun gates; final run URL/counts remain authoritative in PR https://github.com/unbraind/pm-changelog/pull/291."
   "2026-10-27T09:50:19.182Z",codex-agent,"Bounded CI handoff under the queue wait rule: https://github.com/unbraind/pm-changelog/actions/runs/40480602451 verifies code/test commit efc023c3d8cf5108f0f57b1219448f54224904f1. At the handoff check both Node 22 and Node 26 jobs remained queued with no steps executed; npm/Bun release gates and direct runtime smokes are pending, not passes. Automatic Actions did not appear for this commit, so the existing CI workflow was dispatched manually. Stopping the wait within 30 minutes after the final code/test push; the orchestrator pipeline owns remaining verification. Prior run 40478487612 executed 932 tests per runtime with zero test failures but failed the unchanged branch threshold; the isolated missing branch is now covered by malformed-items cases, and the linked full publication file passes all 5 tests. Product/package source is unchanged by this handoff. Local 48-test focused set, 5 publication regressions, 112 packed checks across 6 installs/8 launchers, three behavioral revert proofs, real-data counts and history/privacy evidence remain recorded above. Both claims remain released, both items unclosed, no merge or release performed. PR https://github.com/unbraind/pm-changelog/pull/291 records the final pending run and counts honestly."
-files[14]{path,scope}:
+  "2026-10-27T10:08:48.877Z",codex-agent,"Round-3 rule: admission, closure disposition, repair-evidence classification, breaking/semver decisions, diagnostics and output counts must use the same SDK-derived or frozen status meaning. The supplied blocker is valid: literal closed checks let a captured custom done-role duplicate issue appear as Fixed. Whole-package audit includes closure-policy helpers and all generator consumers, SDK/CLI/host, JSON/TOON/document/summary/export/audit, audience contracts and upgrades, packed installers and non-git trackers. Merged main release 2026.10.27 first; resolved only the generated source-map conflict by rebuilding. No additional concrete inline finding was supplied. Plan: propagate one explicit status context, preserving capture-time semantics for history and configured SDK roles for live inputs; never rewrite frozen rows or native metadata."
+  "2026-10-27T10:58:45.403Z",codex-agent,"Round-3 class implementation is complete: ChangelogStatusContext carries configured SDK roles plus capture-time per-item meaning through admission, terminal disposition filtering, neutral issue evidence, grouping/prose, breaking/semver, lint, claim audit and exclusion counters. Native statuses/rows are never rewritten. Audience contracts/upgrades and live host/standalone export/generation now load and forward SDK registry context; explicit IDs/aliases normalize both sides through one SDK-backed function. Omitted non-change captures refuse correction view/append before writes, while native history remains intact. Existing 165 closure tests plus three new tests pass (168 total); closure-policy.ts is measured 100 percent lines/branches/functions locally. Seed 0x291f3 executes 500 sequences across eight real SDK registry configurations, aliases including constructor, whitespace/CRLF variants, JSON/TOON captures, SDK-read native state and all projection policies. Four behavioral revert proofs fail independently when reverting only non-change filtering, neutral issue gating, non-category grouping propagation, or correction target eligibility; source restored byte-for-byte."
+  "2026-10-27T10:58:53.691Z",codex-agent,"SDK observation, not a blocker and no upstream change filed: a real non-git probe using pinned SDK 2026.10.24 creates a closed Issue with close_reason Duplicate, but the same create call with configured custom done status delivered returns close_reason null and rejects completedAt with the message that it requires a terminal create status. Supported SDK update persists the reason correctly; test fixtures use that path and assert the value read back through SDK before exercising generation. This is reported for owner follow-up rather than re-implementing core behavior."
+  "2026-10-27T11:21:21.220Z",codex-agent,"Round-3 related SDK/host/export/audience/upgrades/correction/ownership/publication cohort passes all 51 tests, zero failures/skips/cancellations. Exact command: node --test --test-concurrency=2 --test-skip-pattern=\"seeded|500|1000\" test/extension.test.ts test/audience-contracts.test.ts test/consumer-upgrades.test.ts test/release-corrections.test.ts test/release-publication.test.ts test/release-ownership.test.ts. The linked three-test custom-role suite also passed via pm test --run --only-last --progress. Existing tests and full CI models remain intact; no separate lint script exists, and typecheck, test typecheck and docstring checks pass."
+  "2026-10-27T11:23:23.077Z",codex-agent,"Round-3 real-data validation passed on the filesystem-read-only public origin/main tracker plus disposable non-git overlay: 202 items, 189 SDK-normalized done-role items, 202 milestone members, two corrections created, exact replay zero, chain length two, 25 unchanged native fields. Historical output remains exactly 15130 bytes with SHA256 d2b5ec65c64e3e79d15796486a78a211a900624a0bc45ce4f7e06bd2f5f7411e; source tree is byte-identical. The validator selects an actually rendered claim through the shared generator, rather than an arbitrary done row. Existing main and prior-handoff history prefixes remain byte-identical; new history streams have no main predecessor. Added-content privacy checks pass."
+files[18]{path,scope}:
   scripts/accept-release-corrections.ts,project
   scripts/validate-release-corrections.ts,project
+  src/audience-contracts.ts,project
   src/cli.ts,project
+  src/closure-policy.ts,project
+  src/consumer-upgrades.ts,project
   src/extension.ts,project
   src/generator.ts,project
   src/index.ts,project
@@ -45,11 +55,12 @@ files[14]{path,scope}:
   src/release-correction-command.ts,project
   src/release-corrections.ts,project
   src/types.ts,project
+  test/closure-status-roles.test.ts,project
   test/fixtures/milestones-v1-publication.json,project
   test/release-corrections.test.ts,project
   test/release-ownership.test.ts,project
   test/release-publication.test.ts,project
-tests[3]:
+tests[4]:
   - command: "node --test --test-concurrency=1 --test-skip-pattern=\"seeded model\" test/release-corrections.test.ts"
     scope: project
     provenance:
@@ -71,6 +82,14 @@ tests[3]:
     provenance:
       author: codex-agent
       created_at: "2026-10-27T08:45:26.980Z"
+      source_kind: local_mutation
+      source_ref: feat/append-only-release-corrections
+  - command: node --test --test-concurrency=2 test/closure-status-roles.test.ts
+    scope: project
+    timeout_seconds: 240
+    provenance:
+      author: codex-agent
+      created_at: "2026-10-27T10:59:22.409Z"
       source_kind: local_mutation
       source_ref: feat/append-only-release-corrections
 docs[3]{path,scope}:

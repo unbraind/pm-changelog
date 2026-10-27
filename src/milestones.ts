@@ -268,7 +268,7 @@ export function resolveTrackerReleaseLedger(milestones: readonly ReleaseMileston
  * Active, blocked and canceled captures never reserve membership. Later edits,
  * reopenings and recaptures cannot rewrite an earlier published claim. */
 export function resolveTrackerReleaseHistory(milestones: readonly ReleaseMilestone[], currentItems: readonly PmItem[], registry: RuntimeStatusRegistry = resolveRuntimeStatusRegistry(SETTINGS_DEFAULTS.schema)): {
-  items: PmItem[]; releaseWindows: ChangelogReleaseWindow[]; releaseMembership: ReadonlyMap<string, string>; statusSelection: ReadonlyMap<string, boolean>;
+  items: PmItem[]; releaseWindows: ChangelogReleaseWindow[]; releaseMembership: ReadonlyMap<string, string>; statusSelection: ReadonlyMap<string, boolean>; statusRegistry: RuntimeStatusRegistry;
 } {
   const { ordered, claims } = resolveTrackerReleaseLedger(milestones, registry);
   const membership = new Map<string, string>();
@@ -291,7 +291,7 @@ export function resolveTrackerReleaseHistory(milestones: readonly ReleaseMilesto
     membership.set(item.id, "Unreleased");
     statusSelection.set(item.id, doneIds([item], registry).length > 0);
   }
-  return { items, releaseWindows: [{ heading: "Unreleased" }, ...windows], releaseMembership: membership, statusSelection };
+  return { items, releaseWindows: [{ heading: "Unreleased" }, ...windows], releaseMembership: membership, statusSelection, statusRegistry: registry };
 }
 
 /** Fail closed on options that would replace or reinterpret frozen boundaries. */

@@ -1,6 +1,6 @@
 import { createHash } from "node:crypto";
 import { encode } from "@toon-format/toon";
-import { EXIT_CODE, PmCliError, listAllComplete } from "@unbrained/pm-cli/sdk";
+import { EXIT_CODE, PmCliError, listAllComplete, readSettings, resolveRuntimeStatusRegistry } from "@unbrained/pm-cli/sdk";
 import { buildChangelogDocument, resolveChangelogResolution } from "./generator.ts";
 import type { GenerateChangelogOptions, PmItem } from "./types.ts";
 import { parseUpgradeActions } from "./upgrade-actions.ts";
@@ -15,7 +15,7 @@ export type ChangeFacet = { audience: ChangeAudience; breaking?: true; upgrade_a
 /** Selection delegates to the existing generator; only closed change items are published. */
 export interface AudienceContractOptions extends Pick<GenerateChangelogOptions,
   "items" | "version" | "groupBy" | "sectionBy" | "since" | "until" | "excludeTags" |
-  "releaseWindows" | "releaseMembership" | "suppressedPendingRelease" | "limit" | "sinceVersion" | "respectItemRelease"> {
+  "releaseWindows" | "releaseMembership" | "suppressedPendingRelease" | "limit" | "sinceVersion" | "respectItemRelease" | "statusRegistry" | "statusSelection"> {
   audience?: ChangeAudience;
 }
 /** Shared, prose-free identity of one selected change in one release section. */
@@ -93,7 +93,7 @@ export function buildAudienceContracts(options: AudienceContractOptions): Audien
   // Normalize input before selection too: generator presentation comparators must
   // never let tracker enumeration order decide release or group tie placement.
   const canonicalItems = [...items.values()].sort((left, right) => compareCanonicalKeys(left.id!, right.id!));
-  const document = buildChangelogDocument({ ...options, items: canonicalItems, includeStatuses: ["closed"], entryFrom: "close_reason" });
+  const document = buildChangelogDocument({ ...options, items: canonicalItems, includeStatuses: undefined, entryFrom: "close_reason" });
   const ledger: ChangeAttribution[] = [];
   const contracts: AudienceChangeContract[] = audiences.map((audience) => ({ audience, notes: [], omissions: [] }));
   for (const release of document.releases) {
@@ -136,7 +136,7 @@ export function buildAudienceContracts(options: AudienceContractOptions): Audien
 /** Read complete core metadata through the backend-aware SDK; this path never invokes git. */
 export async function readAudienceContracts(pmRoot: string, options: Omit<AudienceContractOptions, "items"> = {}): Promise<AudienceContractReport> {
   const result = await listAllComplete({ includeBody: false }, { pmRoot });
-  return buildAudienceContracts({ ...options, items: result.items });
+  return buildAudienceContracts({ ...options, items: result.items, statusRegistry: resolveRuntimeStatusRegistry((await readSettings(pmRoot)).schema) });
 }
 
 /** Compact JSON or TOON tables, storing the shared attribution ledger exactly once. */

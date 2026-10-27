@@ -92,8 +92,20 @@ SDK-default status meaning and their exact original fingerprints, without rewrit
 
 CLI paths load current SDK roles only for live Unreleased items. SDK callers can
 pass that registry as the third argument of `resolveTrackerReleaseHistory`.
-The returned `statusSelection` keeps frozen and live eligibility separate;
-generation and `explainChangelogSelection` share this selection. An explicit
-`includeStatuses` overrides it, including an empty list selecting every status.
+The returned `statusSelection` and `statusRegistry` keep frozen and live meaning
+separate. Admission, closure dispositions, neutral wording, category grouping,
+breaking/semver decisions, counts and selection diagnostics share this context.
+Custom done-role issues closed as duplicates or other non-changes are omitted;
+issues without repair evidence remain neutral `Closed` entries. Canceled terminal
+non-change dispositions are omitted too. An explicit `includeStatuses` overrides
+admission only, including an empty list selecting every status; it never bypasses
+closure evidence or reinterprets a frozen done-role row. Status IDs and aliases
+are normalized through the same SDK-backed function on both sides of selection.
 Diagnostics mark `filters.status_selection: per-item` when captured eligibility
 overrides their fallback `filters.statuses` list.
+
+For live SDK inputs, pass `statusRegistry: resolveRuntimeStatusRegistry((await
+readSettings(tracker)).schema)` to generation, documents, summaries, audits,
+audience contracts or consumer upgrades. Host commands load it automatically.
+Standalone file/stdin inputs use SDK defaults unless `--pm-root` supplies the
+tracker registry. No item status or stored row is rewritten for presentation.

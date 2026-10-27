@@ -144,8 +144,12 @@ async function main(args = process.argv.slice(2)) {
     const items = milestoneRoot ? [...(await readTrackerReleaseSnapshot(milestoneRoot)).items] : await loadItems(options);
     const outputPath = resolve(options.output);
     const generationOptions = buildGenerationOptions(options, items);
+    if ((!options.input && !options.stdin) || options.pmRoot) {
+        const trackerRoot = milestoneRoot ?? resolvePmRoot(options.pmCwd ? resolve(options.pmCwd) : process.cwd(), options.pmRoot);
+        generationOptions.statusRegistry = resolveRuntimeStatusRegistry((await readSettings(trackerRoot)).schema);
+    }
     if (milestoneRoot) {
-        const history = resolveTrackerReleaseHistory(await readReleaseMilestones(new DirectoryReleaseMilestoneStore(milestoneRoot)), items, resolveRuntimeStatusRegistry((await readSettings(milestoneRoot)).schema));
+        const history = resolveTrackerReleaseHistory(await readReleaseMilestones(new DirectoryReleaseMilestoneStore(milestoneRoot)), items, generationOptions.statusRegistry);
         Object.assign(generationOptions, history);
     }
     if (options.allReleaseTags && !options.input && !options.stdin) {
@@ -191,7 +195,7 @@ async function main(args = process.argv.slice(2)) {
         if (options.format === "json") {
             const payload = {
                 entries,
-                excluded_non_change_count: countNonChangeClosures(generationOptions.items),
+                excluded_non_change_count: countNonChangeClosures(generationOptions.items, generationOptions),
                 format: "json",
                 item_count: entries.length,
                 ...(selectionReport ? { selection_report: selectionReport } : {}),
@@ -223,8 +227,8 @@ async function main(args = process.argv.slice(2)) {
     if (options.suggestSemver) {
         const suggestion = suggestSemver(generationOptions);
         const payload = selectionReport
-            ? { ...suggestion, excluded_non_change_count: countNonChangeClosures(generationOptions.items), selection_report: selectionReport }
-            : { ...suggestion, excluded_non_change_count: countNonChangeClosures(generationOptions.items) };
+            ? { ...suggestion, excluded_non_change_count: countNonChangeClosures(generationOptions.items, generationOptions), selection_report: selectionReport }
+            : { ...suggestion, excluded_non_change_count: countNonChangeClosures(generationOptions.items, generationOptions) };
         process.stdout.write(JSON.stringify(payload, null, 2) + "\n");
         return;
     }
@@ -995,7 +999,7 @@ Options:
                             --release-version-from-package (e.g. a package.json version
                             that has never been released or tagged) and keep the
                             leading Unreleased window instead
-      --status <list>       Comma-separated statuses (default: closed)
+      --status <list>       Comma-separated status IDs/aliases (default: done roles)
       --statuses <list>     Alias for --status
       --exclude-tag <list>  Omit items carrying any of these tags (repeatable, comma-separated)
       --exclude-tags <list> Alias for --exclude-tag

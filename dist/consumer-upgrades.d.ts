@@ -1,6 +1,6 @@
 import type { PlanResultPlan } from "@unbrained/pm-cli/sdk";
 import type { ChangeAudience } from "./audience-contracts.ts";
-import type { PmItem } from "./types.ts";
+import type { ChangelogStatusContext, PmItem } from "./types.ts";
 import type { UpgradeAction } from "./upgrade-actions.ts";
 export { ConsumerUpgradeError, parseUpgradeActions } from "./upgrade-actions.ts";
 export type { ConsumerUpgradeErrorCode, UpgradeAction } from "./upgrade-actions.ts";
@@ -14,7 +14,7 @@ export interface ConsumerUpgradeStep extends UpgradeAction, Pick<CorePlanStep, "
     }[];
 }
 /** Installed version is exclusive; target version is inclusive. Both are explicit. */
-export interface ConsumerUpgradeOptions {
+export interface ConsumerUpgradeOptions extends ChangelogStatusContext {
     items: PmItem[];
     audience: ChangeAudience;
     from: string;

@@ -33,6 +33,11 @@ SDK history callers can pass the current registry as the third argument to
 `resolveTrackerReleaseHistory` for live Unreleased items only. Its per-item
 `statusSelection` preserves frozen eligibility; explicit `includeStatuses` or CLI
 status filters still take precedence. Selection diagnostics use the same rule.
+Explicit filters change admission, never closure evidence: non-change
+dispositions are omitted for every terminal status, and neutral issue closures
+cannot become fixes or breaking changes. A non-change capture is not a published
+claim target; correction view/append refuse it with `correction_missing` before
+writing. Native annotations and historical snapshots remain intact.
 
 Use the view's `milestone` and `revision`. For the first correction use an empty
 `supersedes`; subsequently use the last correction's `id`.

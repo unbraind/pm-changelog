@@ -1,4 +1,34 @@
-import type { PmItem } from "./types.ts";
+import { normalizeStatusInput, resolveRuntimeStatusRegistry, SETTINGS_DEFAULTS } from "@unbrained/pm-cli/sdk";
+import type { ChangelogStatusContext, PmItem } from "./types.ts";
+
+const DEFAULT_REGISTRY = resolveRuntimeStatusRegistry(SETTINGS_DEFAULTS.schema);
+
+/** Resolve a status token identically on both sides of explicit selection comparisons. */
+export function normalizeChangelogStatus(value: unknown, context: ChangelogStatusContext): string {
+  return normalizeStatusInput(value, context.statusRegistry ?? DEFAULT_REGISTRY)
+    ?? (typeof value === "string" ? value.trim().toLowerCase() : "");
+}
+
+/** SDK default selection follows configured done roles, never status-name guesses. */
+export function defaultDoneStatuses(context: ChangelogStatusContext): readonly string[] {
+  return [...(context.statusRegistry ?? DEFAULT_REGISTRY).terminal_done_statuses];
+}
+
+/** Frozen capture meaning wins over current roles; live rows use the SDK registry. */
+export function isDoneStatus(item: PmItem, context: ChangelogStatusContext): boolean {
+  if (item.id && context.statusSelection?.has(item.id)) return context.statusSelection.get(item.id)!;
+  const registry = context.statusRegistry ?? DEFAULT_REGISTRY;
+  const status = normalizeStatusInput(item.status, registry);
+  return status !== undefined && registry.terminal_done_statuses.has(status);
+}
+
+/** Terminal non-change dispositions include canceled roles; frozen done rows remain terminal. */
+function isTerminalClosure(item: PmItem, context: ChangelogStatusContext): boolean {
+  if (isDoneStatus(item, context)) return true;
+  const registry = context.statusRegistry ?? DEFAULT_REGISTRY;
+  const status = normalizeStatusInput(item.status, registry);
+  return status !== undefined && registry.terminal_statuses.has(status) && !registry.terminal_done_statuses.has(status);
+}
 
 const ISSUE_TYPES = new Set(["issue", "bug", "bugfix", "defect"]);
 // Dispositions must lead the reason, optionally after a factual closure prefix.
@@ -11,8 +41,8 @@ const DELIVERY = /\b(?:merged|delivered|shipped|landed)\b/i;
 const DELIVERY_REF = /\b(?:PR|pull request)\s+#\d+\b|\bcommit\s+[a-f0-9]{7,40}\b|https:\/\/github\.com\/[^\s/]+\/[^\s/]+\/(?:pull\/\d+|commit\/[a-f0-9]{7,40}\b)|\bmerged\s+(?:(?:in|as|at|via)\s+)?(?:(?:[\w.-]+\/[\w.-]+)?#\d+\b|[a-f0-9]{7,40}\b)/i;
 
 /** Only terminal issue-like types use the evidence gate; other types keep their rules. */
-function isClosedIssue(item: PmItem): boolean {
-  return String(item.status).trim().toLowerCase() === "closed"
+function isClosedIssue(item: PmItem, context: ChangelogStatusContext): boolean {
+  return isTerminalClosure(item, context)
     && ISSUE_TYPES.has(String(item.type).trim().toLowerCase());
 }
 
@@ -22,8 +52,8 @@ function prose(value: unknown): string {
 }
 
 /** Explicit non-change dispositions override links and old repair evidence. */
-export function isNonChangeClosure(item: PmItem): boolean {
-  return String(item.status).trim().toLowerCase() === "closed"
+export function isNonChangeClosure(item: PmItem, context: ChangelogStatusContext = {}): boolean {
+  return isTerminalClosure(item, context)
     && [item.close_reason, item.resolution].some((value) => NON_CHANGE.test(prose(value)));
 }
 
@@ -65,11 +95,11 @@ export function hasRepairEvidence(item: PmItem): boolean {
 }
 
 /** A factual closure without recorded repair evidence must use neutral wording. */
-export function needsNeutralClosure(item: PmItem): boolean {
-  return isClosedIssue(item) && !hasRepairEvidence(item);
+export function needsNeutralClosure(item: PmItem, context: ChangelogStatusContext = {}): boolean {
+  return isClosedIssue(item, context) && !hasRepairEvidence(item);
 }
 
 /** Count explicit non-change closures across input before status/release narrowing. */
-export function countNonChangeClosures(items: readonly PmItem[]): number {
-  return items.filter(isNonChangeClosure).length;
+export function countNonChangeClosures(items: readonly PmItem[], context: ChangelogStatusContext = {}): number {
+  return items.filter((item) => isNonChangeClosure(item, context)).length;
 }
