@@ -23,9 +23,10 @@ export function parseReleaseCorrection(value) {
     if (!value || typeof value !== "object" || Array.isArray(value) || ![Object.prototype, null].includes(Object.getPrototypeOf(value)))
         return refuse();
     const row = value;
-    const name = (entry) => typeof entry === "string" && /^[a-zA-Z0-9][a-zA-Z0-9._:-]{0,79}$/.test(entry);
-    const hash = (entry) => typeof entry === "string" && /^[a-f0-9]{64}$/.test(entry);
-    const prose = (entry, max) => typeof entry === "string" && entry.length <= max && entry.trim().length > 0 && !/[\u0000-\u0008\u000b\u000c\u000e-\u001f\u007f]/.test(entry);
+    const name = (entry) => typeof entry === "string" && entry === entry.trim() && /^[a-zA-Z0-9][a-zA-Z0-9._:-]{0,79}$/.test(entry);
+    const hash = (entry) => typeof entry === "string" && entry.length === 64 && /^[a-f0-9]{64}$/.test(entry);
+    const prose = (entry, max) => typeof entry === "string" && entry.length <= max && entry.trim().length > 0 && !/[\u0000-\u0008\u000b\u000c\u000e-\u001f\u007f-\u009f]/.test(entry)
+        && !/[\uD800-\uDBFF](?![\uDC00-\uDFFF])|(?<![\uD800-\uDBFF])[\uDC00-\uDFFF]/.test(entry);
     if (KEYS.slice(0, -1).some((key) => !Object.hasOwn(row, key)) || Object.keys(row).some((key) => !KEYS.includes(key)) || row.schema !== 1 || !name(row.release) || !name(row.item) || !name(row.id)
         || !(row.supersedes === "" || name(row.supersedes)) || !hash(row.milestone) || !hash(row.expectedRevision) || !prose(row.wording, 4000)
         || !Array.isArray(row.evidence) || row.evidence.length < 1 || row.evidence.length > 16
@@ -57,6 +58,7 @@ export async function readReleaseCorrectionView(pmRoot, release, item, options =
     if (milestone.name !== release || !frozen || !registry.terminal_done_statuses.has(String(frozen.status))) {
         throw new ReleaseCorrectionError("correction_missing", "Select an item captured with a done-role status in the named published milestone; capture a milestone before correcting it.");
     }
+    parseReleaseCorrection({ schema: 1, release, item, milestone: milestone.fingerprint, id: "selector", supersedes: "", expectedRevision: milestone.fingerprint, wording: frozen.title, evidence: ["selector"] });
     const result = await new PmClient({ pmRoot }).notes(item, { limit: "10001", includeMeta: true, outputBudget: "unbounded", outputLimit: "unbounded" });
     const notes = requireCompleteNotes(result);
     const view = { schema: 1, release, item, milestone: milestone.fingerprint, original: frozen.title, current: frozen.title,

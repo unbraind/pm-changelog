@@ -70,10 +70,10 @@ test("strict producer/validator schema rejects sparse arrays, unknown fields and
   const sparse = new Array(2); sparse[1] = "proof";
   const extra = ["proof"]; Object.assign(extra, { hidden: "bad" });
   const bad: unknown[] = [Object.create(base), new Date(), undefined, null, [], 1, { ...base, extra: true }, ...[0, -1, NaN, Infinity, -Infinity, 1e300].map((schema) => ({ ...base, schema })),
-    ...[null, undefined, "", [], [""], [1], sparse, extra, Array(17).fill("proof"), ["x".repeat(513)], ["bad\u0000"]].map((evidence) => ({ ...base, evidence })),
-    ...["", " ", 1, "x".repeat(4001), "bad\u0000"].map((wording) => ({ ...base, wording })),
-    ...["", "../x", 1, "x".repeat(81)].flatMap((value) => ["release", "item", "id", "supersedes"].map((field) => ({ ...base, [field]: value === "" && field === "supersedes" ? null : value }))),
-    ...["", 1, "A".repeat(64)].flatMap((value) => ["milestone", "expectedRevision", "revision"].map((field) => ({ ...base, [field]: value })))];
+    ...[null, undefined, "", [], [""], [1], sparse, extra, Array(17).fill("proof"), ["x".repeat(513)], ["bad\u0000"], ["\ud800"], ["\udc00"], ["bad\u0085"]].map((evidence) => ({ ...base, evidence })),
+    ...["", " ", 1, "x".repeat(4001), "bad\u0000", "\ud800", "\udc00", "bad\u0085", "bad\u009b"].map((wording) => ({ ...base, wording })),
+    ...["", "../x", 1, "x".repeat(81), "id\n", "id\r\n", "id\u2028"].flatMap((value) => ["release", "item", "id", "supersedes"].map((field) => ({ ...base, [field]: value === "" && field === "supersedes" ? null : value }))),
+    ...["", 1, "A".repeat(64), "0".repeat(64) + "\n"].flatMap((value) => ["milestone", "expectedRevision", "revision"].map((field) => ({ ...base, [field]: value })))];
   for (const value of bad) assert.throws(() => parseReleaseCorrection(value), refusal("correction_invalid"));
   const view = { chain: [], skipped: { foreign: Infinity, invalid: 0, unrelated: 0 } } as unknown as ReleaseCorrectionView;
   for (const count of [NaN, Infinity, -Infinity, -1, 1.1, 10001]) assert.throws(() => formatReleaseCorrectionView({ ...view, skipped: { ...view.skipped, foreign: count } }), refusal("correction_invalid"));
@@ -331,4 +331,21 @@ test("registered correction handlers use the real SDK tracker and cover missing 
   assert.ok(viewed.result && typeof viewed.result === "object" && "output" in viewed.result);
   assert.deepEqual(decode(String(viewed.result.output)), await readReleaseCorrectionView(root, "v1", "fix-claim0"));
   await assert.rejects(runRegisteredCommandForTest(activation.commands, { command: "changelog corrections", pmRoot: root }), refusal("correction_invalid"));
+});
+
+
+test("maximum valid Unicode producer output survives real UTF-8 JSON/TOON round trips", () => {
+  const record = parseReleaseCorrection({ ...input("0".repeat(64)), wording: "😀".repeat(2000), evidence: Array.from({ length: 16 }, (_, index) => "界".repeat(500) + index) });
+  for (const format of ["json", "toon"] as const) {
+    const text = Buffer.from(formatReleaseCorrection(record, format), "utf8").toString("utf8");
+    assert.deepEqual(parseReleaseCorrection(format === "json" ? JSON.parse(text) : decode(text)), record);
+  }
+});
+
+test("SDK reader refuses unrenderable original wording before a correction can be written", async (t) => {
+  const { root, client } = await fixture(t);
+  const snapshot = await readTrackerReleaseSnapshot(root);
+  await createReleaseMilestone(new DirectoryReleaseMilestoneStore(root), "bad-title", { capturedAt: new Date(Date.now() + 1000).toISOString(), items: snapshot.items.map((item) => ({ ...item, title: "invalid\ud800" })) });
+  await assert.rejects(readReleaseCorrectionView(root, "bad-title", "fix-claim0"), refusal("correction_invalid"));
+  assert.equal((await client.notes("fix-claim0")).count, 0);
 });

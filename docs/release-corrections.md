@@ -36,10 +36,10 @@ Use the view's `milestone` and `revision`. For the first correction use an empty
 ```
 
 IDs are 1–80 letters, digits, dots, underscores, colons or hyphens, starting with a
-letter or digit; release names also follow milestone naming rules. Wording is
-nonblank text up to 4000 characters. Evidence contains 1–16 nonblank references of
+letter or digit; release names also follow milestone naming rules. Published and corrected wording must be
+nonblank valid Unicode up to 4000 UTF-16 code units. Evidence contains 1–16 nonblank references of
 at most 512 characters each. Arrays must be dense and have no extra properties.
-Unknown fields, control characters and incorrect optional `revision` hashes refuse.
+Unknown fields, malformed Unicode, unsupported control characters and incorrect optional `revision` hashes refuse.
 Prose, including CRLF and surrounding whitespace, is preserved exactly. JSON input
 must be a regular UTF-8 file of at most 128 KiB. No evidence reference is fetched or
 executed. Keep public corrections free of private data.
