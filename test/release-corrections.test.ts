@@ -349,3 +349,21 @@ test("SDK reader refuses unrenderable original wording before a correction can b
   await assert.rejects(readReleaseCorrectionView(root, "bad-title", "fix-claim0"), refusal("correction_invalid"));
   assert.equal((await client.notes("fix-claim0")).count, 0);
 });
+
+test("competing writers at every compensation boundary recognize the immutable peer assertion", async (t) => {
+  const { root, milestone } = await fixture(t, 4);
+  const boundaries: WorkspaceTransactionTransition[] = ["compensating", "step_compensating", "step_compensated", "compensated"];
+  for (const [index, boundary] of boundaries.entries()) {
+    const request = input(milestone, `fix-claim${index}`);
+    let peer: ReturnType<typeof appendReleaseCorrection> | undefined;
+    await assert.rejects(appendReleaseCorrection(root, request, { author: "owner-writer", onTransition(context) {
+      if (context.transition === "step_applied") throw new Error("Injected ordinary failure");
+      if (context.transition === boundary) peer = appendReleaseCorrection(root, request, { author: "peer-writer" });
+    } }), /Injected ordinary failure/);
+    assert.ok(peer);
+    assert.equal((await peer).changed, false);
+    const view = await readReleaseCorrectionView(root, "v1", request.item);
+    assert.equal(view.chain.length, 1);
+    assert.equal(view.current, request.wording);
+  }
+});
