@@ -2,6 +2,12 @@
 
 > Compatibility: explicit tag options (--all-release-tags, --since-previous-tag, --until-release-tag) now require an accessible Git repository and fail with MissingTagHistoryError in source archives and container contexts without Git history. Use tracker-only generation or --milestones there.
 
+## Unreleased
+
+### Other
+
+- Stop Hound from linting generated dist/ output ([pmc-hound-generated-dist](https://github.com/unbraind/pm-changelog/blob/main/.agents/pm/chores/pmc-hound-generated-dist.toon))
+
 ## 2026.10.27 - 2026-10-27
 
 ### Other
