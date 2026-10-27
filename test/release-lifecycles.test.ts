@@ -124,6 +124,7 @@ test("500 seeded native lifecycles across 2-4 releases preserve published bytes,
   const publishedBytes = new Map<string, string>();
   const releaseCounts = new Set<number>();
   const seenDispositions = new Set<string>();
+  let latestMarkdown = "";
   for (let phase = 0; phase < 4; phase++) {
     for (let earlier = 0; earlier < phase; earlier++) {
       await schemaAddStatus(`done_${earlier}`, { role: ["active"] }, { pmRoot: root });
@@ -144,7 +145,7 @@ test("500 seeded native lifecycles across 2-4 releases preserve published bytes,
       const filteredRepair = phase === 0 && model.prelude === 2;
       const status = filteredRepair ? "closed" : repaired ? (model.seed & 1 ? done : "closed") : model.prelude === 1 ? draft : model.seed & 2 ? canceled : done;
       const reason = filteredRepair ? "Fixed staged parser failure" : repaired ? "Fixed reproducible parser failure" : model.prelude === 1 ? "Investigation in progress" : model.disposition;
-      if (!repaired && model.prelude !== 1) seenDispositions.add(model.disposition);
+      if (!repaired && !filteredRepair && model.prelude !== 1) seenDispositions.add(model.disposition);
       model.native = await update(client, model.id, { title: `${repaired ? "Repair" : "Omitted"} ${model.id} phase ${phase}`, status, closeReason: reason, tags: phase === 0 && model.prelude === 2 ? "hidden" : "shipping" });
       assert.equal(normalizeStatusInput(model.native.status, registry), normalizeStatusInput(status, registry));
       assert.equal(model.native.close_reason, reason);
@@ -166,7 +167,7 @@ test("500 seeded native lifecycles across 2-4 releases preserve published bytes,
     assert.equal(document.item_count, expected.length); assert.equal(summary.length, expected.length);
     assert.equal(suggestSemver(history).counts.fix, expected.length);
     assert.equal(explainChangelogSelection(history).stage_counts.visible_items, expected.length);
-    const markdown = createChangelog(history).markdown;
+    const markdown = createChangelog(history).markdown; latestMarkdown = markdown;
     for (const block of markdown.split(/(?=^## )/m).slice(1)) {
       const heading = block.slice(0, block.indexOf("\n"));
       if (publishedBytes.has(heading)) assert.equal(block, publishedBytes.get(heading));
@@ -212,12 +213,18 @@ test("500 seeded native lifecycles across 2-4 releases preserve published bytes,
     const reread = resolveTrackerReleaseHistory(await readReleaseMilestones(store), [], currentRegistry);
     assert.equal(createChangelog(reread).markdown, markdown);
   }
+  await schemaAddStatus("done_3", { role: ["active"] }, { pmRoot: root });
+  await schemaAddStatus("draft_3", { role: ["terminal", "terminal_done"] }, { pmRoot: root });
+  await schemaAddStatus("canceled_3", { role: ["terminal", "terminal_done"] }, { pmRoot: root });
+  const finalRegistry = resolveRuntimeStatusRegistry((await readSettings(root)).schema);
+  assert.equal(createChangelog(resolveTrackerReleaseHistory(await readReleaseMilestones(store), [], finalRegistry)).markdown, latestMarkdown);
   assert.deepEqual([...releaseCounts].sort(), [2, 3, 4]); assert.deepEqual([...seenDispositions].sort(), [...dispositions].sort());
   assert.equal(models.filter((model) => model.owner).length, 500);
   for (const model of models) {
     const notes = await client.notes(model.id, { limit: "10001", includeMeta: true, outputBudget: "unbounded", outputLimit: "unbounded" });
     assert.ok("count" in notes);
     assert.equal(notes.count, model.seed & 4 ? 2 : 1);
+    assert.equal((await readReleaseCorrectionView(root, model.owner!.capture.name, model.id)).original, model.owner!.title);
   }
   t.diagnostic("seed=0x291f4 lifecycles=500 releases=2-4; native reopen/closure/repair, SDK roles before/after publication, JSON/TOON/older replays, immutable Markdown and current correction chains");
 });
