@@ -6,6 +6,8 @@ import { fileURLToPath } from "node:url";
 import { resolvePmRoot } from "@unbrained/pm-cli/sdk";
 import { AudienceContractError } from "./audience-contracts.js";
 import { runAudienceContractsCli } from "./audience-command.js";
+import { ReleaseCorrectionError } from "./release-corrections.js";
+import { runReleaseCorrectionsCli } from "./release-correction-command.js";
 import { ConsumerUpgradeError } from "./consumer-upgrades.js";
 import { runConsumerUpgradesCli } from "./consumer-upgrade-command.js";
 import { ReleaseMilestoneError, DirectoryReleaseMilestoneStore, assertTrackerMilestoneOptions, readReleaseMilestones, readTrackerReleaseSnapshot, resolveTrackerReleaseHistory } from "./milestones.js";
@@ -123,6 +125,8 @@ const KNOWN_OPTIONS = [
 /** Run one CLI invocation end to end: parse flags, resolve the release context
  * from git, load items, generate, then write or compare. */
 async function main(args = process.argv.slice(2)) {
+    if (args[0] === "corrections")
+        return runReleaseCorrectionsCli(args.slice(1));
     if (args[0] === "contracts")
         return runAudienceContractsCli(args.slice(1));
     if (args[0] === "upgrades")
@@ -923,6 +927,9 @@ function requireAnyValue(args, index, flag) {
 function printHelp() {
     process.stdout.write(`pm-changelog
 
+  corrections append --input file.json [--pm-root path] [--format toon|json] [--json]
+  corrections view --release name --item id [--pm-root path] [--format toon|json] [--json]
+
   contracts [--audience api-user|operator|agent-behavior] [--format toon|json]
             [--pm-root path] [--json] [--group-by version|release|milestone]
             [--section-by category|type|status|label] [--release-version version]
@@ -1086,7 +1093,7 @@ export async function runCliEntry(argv = process.argv) {
 }
 /** Convert an unknown CLI failure into a stable human-readable message. */
 function errorMessage(error) {
-    if (error instanceof ReleaseMilestoneError || error instanceof AudienceContractError || error instanceof ConsumerUpgradeError)
+    if (error instanceof ReleaseCorrectionError || error instanceof ReleaseMilestoneError || error instanceof AudienceContractError || error instanceof ConsumerUpgradeError)
         return JSON.stringify({ error: { code: error.code, message: error.message, remedy: error.remedy } });
     return error instanceof Error ? error.message : String(error);
 }

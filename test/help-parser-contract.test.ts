@@ -94,6 +94,7 @@ const commands = new Map<string, ParserFlag[]>([
   ["", rootFlags], ["audit", rootFlags],
   ["contracts", subcommandParserFlags("../src/audience-command.ts")],
   ["upgrades", subcommandParserFlags("../src/consumer-upgrade-command.ts")],
+  ["corrections", subcommandParserFlags("../src/release-correction-command.ts")],
 ]);
 
 test("help contract covers every standalone command dispatched by main", () => {

@@ -141,8 +141,8 @@ test("extension command exposes item-url-base for clickable item IDs", async () 
   assert.deepEqual(
     rendererOwnership.map((override) => ({ format: override.format, commands: override.commands })),
     [
-      { format: "toon", commands: ["changelog generate", "changelog export", "changelog audit", "changelog contracts", "changelog upgrades"] },
-      { format: "json", commands: ["changelog generate", "changelog export", "changelog audit", "changelog contracts", "changelog upgrades"] },
+      { format: "toon", commands: ["changelog generate", "changelog export", "changelog audit", "changelog contracts", "changelog upgrades", "changelog corrections"] },
+      { format: "json", commands: ["changelog generate", "changelog export", "changelog audit", "changelog contracts", "changelog upgrades", "changelog corrections"] },
     ],
   );
   for (const override of rendererOwnership) {

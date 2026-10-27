@@ -2,6 +2,7 @@ import { readFileSync, writeFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { defineExtension, getActiveExtensionRegistrations, listAllItemMetadata, locateItem, readLocatedItem, readSettings, resolveItemTypeRegistry, EXIT_CODE, PmCliError, } from "@unbrained/pm-cli/sdk";
 import { AUDIENCE_CONTRACT_FLAGS, runAudienceContractsCommand } from "./audience-command.js";
+import { RELEASE_CORRECTION_FLAGS, runReleaseCorrectionsCommand } from "./release-correction-command.js";
 import { CONSUMER_UPGRADE_FLAGS, runConsumerUpgradesCommand } from "./consumer-upgrade-command.js";
 import { DirectoryReleaseMilestoneStore, assertTrackerMilestoneOptions, createReleaseMilestone, readReleaseMilestones, readTrackerReleaseSnapshot, resolveTrackerReleaseHistory } from "./milestones.js";
 import { auditChangelogClaims, assertChangelogClaims, formatClaimAudit, parseClaimTestReceipts } from "./claim-audit.js";
@@ -45,6 +46,15 @@ export default defineExtension({
     version: "2026.10.26",
     activate(api) {
         api.registerItemFields([{ name: "change_facets", type: "array", optional: true }]);
+        api.registerCommand({
+            name: "changelog corrections",
+            description: "Append or view linked factual corrections without rewriting published milestones; no git required.",
+            arguments: [{ name: "action", required: true, description: "append or view" }],
+            flags: RELEASE_CORRECTION_FLAGS,
+            async run(ctx) {
+                return { pmChangelogRendered: true, output: await runReleaseCorrectionsCommand(ctx.pm_root, ctx.args[0] ?? "", ctx.options, ctx.global.json, ctx.global.author) };
+            },
+        });
         api.registerCommand({
             name: "changelog upgrades",
             description: "Compile ordered explicit breaking-change obligations for a consumer release range; read-only, no git required.",
@@ -507,7 +517,7 @@ export default defineExtension({
             // call site is still fully checked). The host enforces `commands` +
             // `resultDiscriminator` before invoking either callback.
             const rendererOwnership = {
-                commands: ["changelog generate", "changelog export", "changelog audit", "changelog contracts", "changelog upgrades"],
+                commands: ["changelog generate", "changelog export", "changelog audit", "changelog contracts", "changelog upgrades", "changelog corrections"],
                 resultDiscriminator: isRenderedCommandResult,
             };
             api.registerRenderer("toon", renderCommandResult, rendererOwnership);

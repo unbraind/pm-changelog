@@ -394,9 +394,25 @@ receipts are assertions: maintainers must verify their relevance to the release.
 `pm-review` owns review validation; `pm-ops` owns publication provenance.
 See the [SDK and receipt example](docs/claim-audit-example.md).
 
+## Append-only release corrections
+
+Correct a published milestone claim while retaining the original wording and
+historical output:
+
+```sh
+pm changelog corrections view --release v1 --item example-claim --format json
+pm changelog corrections append --input correction.json --format json
+```
+
+The current view exposes the original, corrected wording, evidence and complete
+correction chain. Exact replays create nothing; stale revisions, reused identities
+and supersession cycles return typed refusals with remedies. Native SDK context events
+and transactions preserve history and coordinate writers without git.
+See the [input example and typed SDK](docs/release-corrections.md).
+
 ## Without git
 
-Tracker milestone creation/generation, ordinary generation, export, audience contracts, consumer upgrades and claim audits
+Tracker milestone creation/generation, ordinary generation, export, audience contracts, consumer upgrades, release corrections and claim audits
 work in plain directories and through caller-supplied SDK items without Git.
 Milestone paths invoke no Git subprocess. Git tag windows, historical
 Git membership and dependency commit collection require a Git repository. Use

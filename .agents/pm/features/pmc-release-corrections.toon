@@ -1,0 +1,33 @@
+id: pmc-release-corrections
+title: Preserve published claims with append-only release corrections
+description: "Record explicitly linked post-publication factual corrections, preserving immutable milestone wording and exposing the correction chain in a current view. Overlap rechecked against CLI and sibling source: claim-audit validates before publication; pm-evidence owns source-fragment validity; core owns item history, annotations and transactional coordination. No existing release correction chain found."
+type: Feature
+status: in_progress
+priority: 2
+tags[2]: append-only,release-corrections
+created_at: "2026-10-27T04:22:07.291Z"
+updated_at: "2026-10-27T04:54:32.226Z"
+author: codex-agent
+acceptance_criteria: "Replay creates no duplicate correction; supersession cycle refuses; historical output remains byte-identical while a current view exposes original and corrected wording with evidence. Typed SDK and CLI, strict bounded inputs, compact TOON/JSON, non-git and real public-tracker validation, seeded model and concurrency proofs, packed npm/Bun acceptance and CI npm/Bun release gates."
+comments[6]{created_at,author,text}:
+  "2026-10-27T04:24:20.869Z",codex-agent,"Design: native SDK comments retain versioned correction envelopes; immutable milestone fingerprint plus predecessor revision binds replay identity. Core workspace transaction serializes chain changes, SDK annotation append-if-absent owns normalization/history. Each apply and retry re-reads the target through the SDK; historical generation is unchanged. Current view exposes original wording, each corrected wording and evidence. Malformed and foreign records are skipped independently. No item create/update or journaled multi-target plan is introduced."
+  "2026-10-27T04:37:46.275Z",codex-agent,"SDK capability audit found native structured context events (notes addJson), which core treats as immutable and refuses to edit/delete. Corrections now use those events instead of mutable plain comments. Complete internal reads explicitly disable SDK row/token output compaction and enforce annotation/chain bounds; the seeded model exposed the earlier incomplete-read defect. Real public baseline validation: 202 items, 189 done-role items, 202 frozen members, 15130 historical bytes, 2 new corrections, replay 0, chain length 2, 29 native fields unchanged, source tree byte-identical. Source copy is filesystem read-only; mutations occur only in a disposable non-git overlay."
+  "2026-10-27T04:42:11.530Z",codex-agent,"Out-of-scope finding recorded in pmc-milestone-status-roles: pre-existing immutable milestone generation compares the literal closed status. New correction reads use SDK terminal_done roles and work with custom registries; this change does not reinterpret historical generation."
+  "2026-10-27T04:46:08.229Z",codex-agent,"Behavioral revert proof: replacing only appendReleaseCorrection persistence with an unchanged read-only receipt makes the append/replay/chain regression fail (expected changed true, actual false; exit 1). Production source restored byte-for-byte. Final native-event model: seed 0x0c011ec7, 500 random-data operation sequences, 2500 operations, 500 SDK-read events, all pass; exact prose/CRLF, historical replays, relationships and ambient focus preserved. Real tracker source reads require a filesystem read-only source copy because SDK reads can populate operational caches; no source bytes changed in measured validation."
+  "2026-10-27T04:51:11.090Z",codex-agent,"Packed acceptance passed: 6 installation modes (npm/Bun global, npm/Bun local, npx, bunx), 8 launcher paths including both global pm aliases, 32 behavioral checks and 8 linked corrections on one non-git tracker. Native JSON context events reject edits/deletion. Final property scheduler now shuffles append, older replay, stale attempt and JSON/TOON round-trip operations per sequence; CI will repeat 500 sequences at the exact pushed head. Local typecheck, test typecheck, docstring lint and whitespace checks pass. Full unchanged-threshold npm/Bun release gates are reserved for CI because of host load."
+  "2026-10-27T04:54:28.461Z",codex-agent,"Final public-source native-event validation: 202 items, 189 done-role items, 202 milestone members; 15130 historical bytes unchanged (SHA256 d2b5ec65c64e3e79d15796486a78a211a900624a0bc45ce4f7e06bd2f5f7411e). Two corrections, replay zero, two-link chain; 28 native fields unchanged and the derived note count increases by exactly two. This supersedes the earlier 29-field measurement from the mutable-comment prototype. Source remains byte-identical and filesystem read-only; all writes stay in a disposable overlay. Compatibility/docs/pack-scan tests: 80 passed, 0 failed/skipped. Linked pm test: 11 passed, 0 failed/skipped. Transaction identity now uses the SDK deriveMutationTransactionId over the canonical target-bound record."
+files[8]{path,scope}:
+  scripts/accept-release-corrections.ts,project
+  scripts/validate-release-corrections.ts,project
+  src/cli.ts,project
+  src/extension.ts,project
+  src/index.ts,project
+  src/release-correction-command.ts,project
+  src/release-corrections.ts,project
+  test/release-corrections.test.ts,project
+tests[1]{command,scope,provenance{author,created_at,source_kind,source_ref}}:
+  "node --test --test-concurrency=1 --test-skip-pattern=\"seeded model\" test/release-corrections.test.ts",project,codex-agent,"2026-10-27T04:46:10.838Z",local_mutation,feat/append-only-release-corrections
+docs[2]{path,scope}:
+  docs/release-corrections.md,project
+  README.md,project
+body: ""

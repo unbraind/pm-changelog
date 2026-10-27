@@ -13,4 +13,6 @@ export { DirectoryReleaseMilestoneStore, ReleaseMilestoneError, assertTrackerMil
 export type { ReleaseMilestone, ReleaseMilestoneErrorCode, ReleaseMilestoneStore, TrackerReleaseSnapshot } from "./milestones.ts";
 export { auditChangelogClaims, assertChangelogClaims, formatClaimAudit, parseClaimTestReceipts, ClaimAuditError, CLAIM_AUDIT_REMEDIES } from "./claim-audit.ts";
 export type { ClaimAuditReport, ClaimAuditRow, ClaimAuditEvidence, ClaimAuditGap, ClaimTestReceipt } from "./claim-audit.ts";
+export { ReleaseCorrectionError, parseReleaseCorrection, formatReleaseCorrection, readReleaseCorrectionView, appendReleaseCorrection, formatReleaseCorrectionView } from "./release-corrections.ts";
+export type { ReleaseCorrection, ReleaseCorrectionInput, ReleaseCorrectionView, ReleaseCorrectionOptions, ReleaseCorrectionErrorCode } from "./release-corrections.ts";
 //# sourceMappingURL=index.d.ts.map

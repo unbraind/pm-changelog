@@ -15,6 +15,7 @@ import {
 
 import type { ImportExportRegistrationOptions } from "@unbrained/pm-cli/sdk/authoring";
 import { AUDIENCE_CONTRACT_FLAGS, runAudienceContractsCommand } from "./audience-command.ts";
+import { RELEASE_CORRECTION_FLAGS, runReleaseCorrectionsCommand } from "./release-correction-command.ts";
 import { CONSUMER_UPGRADE_FLAGS, runConsumerUpgradesCommand } from "./consumer-upgrade-command.ts";
 
 import { DirectoryReleaseMilestoneStore, assertTrackerMilestoneOptions, createReleaseMilestone, readReleaseMilestones, readTrackerReleaseSnapshot, resolveTrackerReleaseHistory } from "./milestones.ts";
@@ -94,6 +95,15 @@ export default defineExtension({
 
   activate(api) {
     api.registerItemFields([{ name: "change_facets", type: "array", optional: true }]);
+    api.registerCommand({
+      name: "changelog corrections",
+      description: "Append or view linked factual corrections without rewriting published milestones; no git required.",
+      arguments: [{ name: "action", required: true, description: "append or view" }],
+      flags: RELEASE_CORRECTION_FLAGS,
+      async run(ctx) {
+        return { pmChangelogRendered: true, output: await runReleaseCorrectionsCommand(ctx.pm_root, ctx.args[0] ?? "", ctx.options, ctx.global.json, ctx.global.author) };
+      },
+    });
     api.registerCommand({
       name: "changelog upgrades",
       description: "Compile ordered explicit breaking-change obligations for a consumer release range; read-only, no git required.",
@@ -571,7 +581,7 @@ export default defineExtension({
       // call site is still fully checked). The host enforces `commands` +
       // `resultDiscriminator` before invoking either callback.
       const rendererOwnership = {
-        commands: ["changelog generate", "changelog export", "changelog audit", "changelog contracts", "changelog upgrades"],
+        commands: ["changelog generate", "changelog export", "changelog audit", "changelog contracts", "changelog upgrades", "changelog corrections"],
         resultDiscriminator: isRenderedCommandResult,
       };
       api.registerRenderer("toon", renderCommandResult, rendererOwnership);
