@@ -128,6 +128,9 @@ test("publication eligibility is validated and fingerprint-bound; released schem
   }
   assert.throws(() => parseReleaseMilestone({ ...released, doneItemIds: [] }), { code: "milestone_invalid" });
   assert.throws(() => parseReleaseMilestone({ ...released, unexpected: true }), { code: "milestone_invalid" });
+  for (const items of [undefined, null, {}, [null]]) {
+    assert.throws(() => parseReleaseMilestone({ ...released, items, doneItemIds: [] }), { code: "milestone_invalid" });
+  }
   assert.throws(() => parseReleaseMilestone({ ...released, items: released.items.map((item) => ({ ...item, toJSON: () => ({ ...item, id: "transformed" }) })) }), { code: "milestone_invalid" });
   assert.throws(() => parseReleaseMilestone({ toJSON: () => released }), { code: "milestone_invalid" });
   assert.equal(await store.read("bad"), undefined);
