@@ -671,11 +671,11 @@ test("the pm host gate refuses every version below the declared floor", () => {
   const manifest = JSON.parse(
     readFileSync(new URL("../manifest.json", import.meta.url), "utf8"),
   ) as Record<string, unknown>;
-  const below = checkExtensionManifestCompatibility(manifest, { pmVersion: "2026.10.3" });
+  const below = checkExtensionManifestCompatibility(manifest, { pmVersion: "2026.10.22" });
   assert.equal(below.compatible, false, "the immediately preceding host must be refused");
   assert.deepEqual(below.findings.map((f) => f.code), ["pm_min_version_unmet"]);
   assert.equal(
-    checkExtensionManifestCompatibility(manifest, { pmVersion: "2026.10.4" }).compatible,
+    checkExtensionManifestCompatibility(manifest, { pmVersion: "2026.10.23" }).compatible,
     true,
     "the exact declared host floor must be accepted",
   );

@@ -1,5 +1,7 @@
 # Correct a published release claim
 
+Requires pm-cli 2026.10.23 or newer for the typed transaction and complete-read SDK surface.
+
 A release milestone freezes the published item title and membership. A later factual
 correction adds a linked assertion; it never edits that snapshot or replaces a
 historical changelog entry. Claim auditing remains the pre-publication check.

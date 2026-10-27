@@ -49,7 +49,7 @@ options, and supports `--release-version` as a compatibility alias for
 Caller-supplied `--stdin` and `--input` JSON refuses envelopes whose explicit
 pagination, source completeness, field omission, or compaction receipts report
 unsafe delivery. Refusal exits nonzero before writing, preserving an existing
-changelog. The public pm SDK (peer minimum `2026.10.4`) inspects these receipts. Ordinary status/date
+changelog. The public pm SDK (peer minimum `2026.10.23`) inspects these receipts. Ordinary status/date
 filters select the caller's scope and do not imply incomplete retrieval.
 Bare arrays and receipt-free `{ "items": [...] }` documents retain their
 intentional subset contract: the caller owns their scope and must supply the
