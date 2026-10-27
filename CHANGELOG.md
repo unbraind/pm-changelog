@@ -7,6 +7,7 @@
 ### Other
 
 - Use the pm SDK for whole-tracker completeness validation ([pmc-sdk-completeness-1025](https://github.com/unbraind/pm-changelog/blob/main/.agents/pm/chores/pmc-sdk-completeness-1025.toon))
+- Stop Hound from linting generated dist/ output ([pmc-hound-generated-dist](https://github.com/unbraind/pm-changelog/blob/main/.agents/pm/chores/pmc-hound-generated-dist.toon))
 
 ## 2026.10.26 - 2026-10-26
 
