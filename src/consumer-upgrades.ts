@@ -52,7 +52,7 @@ export function buildConsumerUpgrades(options: ConsumerUpgradeOptions): Consumer
   const audience = parseChangeAudience(options.audience);
   const from = version(options.from), to = version(options.to);
   if (compareVersionStrings(from, to) >= 0) throw new ConsumerUpgradeError("invalid_upgrade_options", "Choose an installed --from version strictly below the target --to version.");
-  const contracts = buildAudienceContracts({ items: options.items, audience, groupBy: "release", statusRegistry: options.statusRegistry, statusSelection: options.statusSelection });
+  const contracts = buildAudienceContracts({ items: options.items, audience, groupBy: "release", statusRegistry: options.statusRegistry, statusSelection: options.statusSelection, omittedNonChangeIds: options.omittedNonChangeIds });
   const items = new Map(options.items.map((item) => [item.id!, item]));
   const catalog = new Map<string, { action: UpgradeAction; introduced: string; attribution: ConsumerUpgradeStep["attribution"] }>();
   const omissions: ConsumerUpgradeReport["omissions"] = [];

@@ -408,8 +408,10 @@ The current view exposes the original, corrected wording, evidence and complete
 correction chain. Exact replays create nothing; stale revisions, reused identities
 and supersession cycles return typed refusals with remedies. Native SDK context events
 and transactions preserve history and coordinate writers without git.
-Corrections target the first capture with a configured done-role status; later
+Corrections target the first capture that actually publishes the claim; later
 snapshots, edits and reopenings cannot transfer the published claim to another release.
+Omitted duplicates, other non-change closures, query-filtered rows and empty titles
+reserve no ownership; a later repair publishes once in its first eligible release.
 New captures freeze publication eligibility, so later status-role or alias edits
 also leave historical wording and existing correction chains accessible.
 Closure evidence uses that same frozen meaning: custom done-role duplicates are

@@ -2,7 +2,6 @@ import { createHash } from "node:crypto";
 import { encode } from "@toon-format/toon";
 import { EXIT_CODE, PmCliError, PmClient, commitWorkspaceTransaction, deriveMutationTransactionId } from "@unbrained/pm-cli/sdk";
 import { DirectoryReleaseMilestoneStore, parseReleaseMilestone, readReleaseMilestones, resolveTrackerReleaseLedger } from "./milestones.js";
-import { isNonChangeClosure } from "./closure-policy.js";
 /** Expected failures retain stable codes and safe recovery instructions. */
 export class ReleaseCorrectionError extends PmCliError {
     /** Public-safe corrective action for a refused operation. */
@@ -57,12 +56,9 @@ export async function readReleaseCorrectionView(pmRoot, release, item, options =
     const requested = parseReleaseMilestone(stored);
     const claim = resolveTrackerReleaseLedger(await readReleaseMilestones(store)).claims.get(item);
     if (requested.name !== release || !claim || claim.milestone.name !== release || claim.milestone.fingerprint !== requested.fingerprint) {
-        throw new ReleaseCorrectionError("correction_missing", "Use the item's first done-role release capture, not a later snapshot; inspect the milestone history to select the original published claim.");
+        throw new ReleaseCorrectionError("correction_missing", "Use the item's first published claim, not an omitted capture or later snapshot; inspect the milestone history to select the original published claim.");
     }
     const { milestone, item: frozen } = claim;
-    if (isNonChangeClosure(frozen, { statusSelection: new Map([[item, true]]) })) {
-        throw new ReleaseCorrectionError("correction_missing", "Select a published change or neutral closure; duplicate, invalid and other non-change dispositions are omitted from release claims.");
-    }
     parseReleaseCorrection({ schema: 1, release, item, milestone: milestone.fingerprint, id: "selector", supersedes: "", expectedRevision: milestone.fingerprint, wording: frozen.title, evidence: ["selector"] });
     const result = await new PmClient({ pmRoot }).notes(item, { limit: "10001", includeMeta: true, outputBudget: "unbounded", outputLimit: "unbounded" });
     const notes = requireCompleteNotes(result);

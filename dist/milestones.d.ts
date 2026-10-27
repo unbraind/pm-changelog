@@ -38,7 +38,7 @@ export declare function parseReleaseMilestone(value: unknown): ReleaseMilestone;
 export declare function createReleaseMilestone(store: ReleaseMilestoneStore, name: string, snapshot: TrackerReleaseSnapshot, query?: string): Promise<ReleaseMilestone>;
 /** Read all named boundaries, verifying identities instead of trusting backend rows. */
 export declare function readReleaseMilestones(store: ReleaseMilestoneStore): Promise<ReleaseMilestone[]>;
-/** Exact owning boundary and original row of an item's first done-role capture. */
+/** Exact owning boundary and original row of an item's first published claim. */
 export interface TrackerReleaseClaim {
     readonly milestone: ReleaseMilestone;
     readonly item: PmItem;
@@ -47,9 +47,10 @@ export interface TrackerReleaseClaim {
 export declare function resolveTrackerReleaseLedger(milestones: readonly ReleaseMilestone[], _registry?: RuntimeStatusRegistry): {
     ordered: ReleaseMilestone[];
     claims: ReadonlyMap<string, TrackerReleaseClaim>;
+    omittedNonChanges: ReadonlyMap<string, PmItem>;
 };
-/** Attribute each item to its first done-role capture, preserving the frozen row.
- * Active, blocked and canceled captures never reserve membership. Later edits,
+/** Attribute each item to its first published claim, preserving the frozen row.
+ * Omitted, active, blocked and canceled captures never reserve membership. Later edits,
  * reopenings and recaptures cannot rewrite an earlier published claim. */
 export declare function resolveTrackerReleaseHistory(milestones: readonly ReleaseMilestone[], currentItems: readonly PmItem[], registry?: RuntimeStatusRegistry): {
     items: PmItem[];
@@ -57,6 +58,7 @@ export declare function resolveTrackerReleaseHistory(milestones: readonly Releas
     releaseMembership: ReadonlyMap<string, string>;
     statusSelection: ReadonlyMap<string, boolean>;
     statusRegistry: RuntimeStatusRegistry;
+    omittedNonChangeIds: ReadonlySet<string>;
 };
 /** Fail closed on options that would replace or reinterpret frozen boundaries. */
 export declare function assertTrackerMilestoneOptions(conflicts: readonly unknown[]): void;

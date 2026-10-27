@@ -4,6 +4,8 @@ import { join } from "node:path";
 import { EXIT_CODE, PmCliError, listAllComplete, normalizeStatusInput, readSettings, resolveRuntimeStatusRegistry, SETTINGS_DEFAULTS } from "@unbrained/pm-cli/sdk";
 import type { RuntimeStatusRegistry } from "@unbrained/pm-cli/sdk";
 import type { ChangelogReleaseWindow, PmItem } from "./types.ts";
+import { visibleChangelogItems } from "./generator.ts";
+import { isNonChangeClosure } from "./closure-policy.ts";
 
 /** Stable refusal identifiers for automation and recovery. */
 export type ReleaseMilestoneErrorCode = "milestone_invalid" | "milestone_membership_changed" | "milestone_missing" | "milestone_storage" | "milestone_options";
@@ -238,7 +240,7 @@ export async function readReleaseMilestones(store: ReleaseMilestoneStore): Promi
   }));
 }
 
-/** Exact owning boundary and original row of an item's first done-role capture. */
+/** Exact owning boundary and original row of an item's first published claim. */
 export interface TrackerReleaseClaim {
   readonly milestone: ReleaseMilestone;
   readonly item: PmItem;
@@ -246,7 +248,7 @@ export interface TrackerReleaseClaim {
 
 /** Verify the entire catalog and select first publication independently of names or input order. */
 export function resolveTrackerReleaseLedger(milestones: readonly ReleaseMilestone[], _registry?: RuntimeStatusRegistry): {
-  ordered: ReleaseMilestone[]; claims: ReadonlyMap<string, TrackerReleaseClaim>;
+  ordered: ReleaseMilestone[]; claims: ReadonlyMap<string, TrackerReleaseClaim>; omittedNonChanges: ReadonlyMap<string, PmItem>;
 } {
   const ordered = milestones.map(parseReleaseMilestone).sort((a, b) => Date.parse(a.capturedAt) - Date.parse(b.capturedAt) || compareCodeUnits(a.name, b.name));
   if (new Set(ordered.map((milestone) => milestone.name.toLowerCase())).size !== ordered.length) {
@@ -256,21 +258,28 @@ export function resolveTrackerReleaseLedger(milestones: readonly ReleaseMileston
     throw new ReleaseMilestoneError("milestone_invalid", "Milestone capture order is ambiguous.", "Use verified snapshots with distinct capture instants; do not infer order from milestone names.");
   }
   const claims = new Map<string, TrackerReleaseClaim>();
+  const omittedNonChanges = new Map<string, PmItem>();
   for (const milestone of ordered) {
     // Schema 1 was released with SDK-default status meaning; never reinterpret it using current custom roles.
     const eligible = new Set(milestone.schema === 2 ? milestone.doneItemIds : doneIds(milestone.items, resolveRuntimeStatusRegistry(SETTINGS_DEFAULTS.schema), true));
-    for (const item of milestone.items) if (eligible.has(item.id!) && !claims.has(item.id!)) claims.set(item.id!, { milestone, item });
+    const context = { statusSelection: new Map(milestone.items.map((item) => [item.id!, eligible.has(item.id!)])) };
+    // Rendering is the publication oracle. Merely appearing in a done-role capture owns nothing.
+    const published = new Set(visibleChangelogItems({ items: [...milestone.items], ...context }).map((item) => item.id!));
+    for (const item of milestone.items) {
+      if (published.has(item.id!) && !claims.has(item.id!)) claims.set(item.id!, { milestone, item });
+      if (eligible.has(item.id!) && isNonChangeClosure(item, context) && !omittedNonChanges.has(item.id!)) omittedNonChanges.set(item.id!, item);
+    }
   }
-  return { ordered, claims };
+  return { ordered, claims, omittedNonChanges };
 }
 
-/** Attribute each item to its first done-role capture, preserving the frozen row.
- * Active, blocked and canceled captures never reserve membership. Later edits,
+/** Attribute each item to its first published claim, preserving the frozen row.
+ * Omitted, active, blocked and canceled captures never reserve membership. Later edits,
  * reopenings and recaptures cannot rewrite an earlier published claim. */
 export function resolveTrackerReleaseHistory(milestones: readonly ReleaseMilestone[], currentItems: readonly PmItem[], registry: RuntimeStatusRegistry = resolveRuntimeStatusRegistry(SETTINGS_DEFAULTS.schema)): {
-  items: PmItem[]; releaseWindows: ChangelogReleaseWindow[]; releaseMembership: ReadonlyMap<string, string>; statusSelection: ReadonlyMap<string, boolean>; statusRegistry: RuntimeStatusRegistry;
+  items: PmItem[]; releaseWindows: ChangelogReleaseWindow[]; releaseMembership: ReadonlyMap<string, string>; statusSelection: ReadonlyMap<string, boolean>; statusRegistry: RuntimeStatusRegistry; omittedNonChangeIds: ReadonlySet<string>;
 } {
-  const { ordered, claims } = resolveTrackerReleaseLedger(milestones, registry);
+  const { ordered, claims, omittedNonChanges } = resolveTrackerReleaseLedger(milestones, registry);
   const membership = new Map<string, string>();
   const items: PmItem[] = [];
   const windows: ChangelogReleaseWindow[] = [];
@@ -291,7 +300,12 @@ export function resolveTrackerReleaseHistory(milestones: readonly ReleaseMilesto
     membership.set(item.id, "Unreleased");
     statusSelection.set(item.id, doneIds([item], registry).length > 0);
   }
-  return { items, releaseWindows: [{ heading: "Unreleased" }, ...windows], releaseMembership: membership, statusSelection, statusRegistry: registry };
+  // Keep omitted-only diagnostic rows compatible without granting them membership or hiding live work.
+  for (const [id, item] of omittedNonChanges) if (!statusSelection.has(id)) {
+    items.push(item);
+    statusSelection.set(id, true);
+  }
+  return { items, releaseWindows: [{ heading: "Unreleased" }, ...windows], releaseMembership: membership, statusSelection, statusRegistry: registry, omittedNonChangeIds: new Set(omittedNonChanges.keys()) };
 }
 
 /** Fail closed on options that would replace or reinterpret frozen boundaries. */

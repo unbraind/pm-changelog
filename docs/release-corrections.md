@@ -20,8 +20,8 @@ The standalone equivalents are `pm-changelog corrections view` and
 revision, full linked chain and counts of skipped foreign, invalid and unrelated
 annotations. A refusal exits nonzero with a typed code and remedy.
 
-A claim belongs to its **first done-role capture in chronological capture order**.
-An earlier active/blocked/canceled capture does not publish it. Later recaptures,
+A claim belongs to its **first actually published capture in chronological order**.
+An earlier active/blocked/canceled, non-change, query-filtered or empty-title capture does not publish it and reserves no ownership. A later repair belongs to the first eligible release that actually renders it. Later recaptures,
 live wording edits and reopenings do not transfer ownership. View and append
 refuse a later snapshot with `correction_missing`; select the original release.
 Generation and correction commands use the same verified catalog ledger. New

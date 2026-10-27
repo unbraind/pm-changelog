@@ -80,7 +80,7 @@ lock. Database adapters must enforce the same ordering inside their transaction.
 ## First publication ownership
 
 `resolveTrackerReleaseLedger(milestones)` verifies and orders the whole
-catalog by capture time, then binds each item to its first done-role capture and
+catalog by capture time, then binds each item to its first actually published capture and
 original row. Generation and correction readers share this ledger; later edits,
 recaptures and reopenings cannot move a published claim. Active, blocked and
 canceled captures do not reserve publication. New schema-2 records include
@@ -109,3 +109,18 @@ readSettings(tracker)).schema)` to generation, documents, summaries, audits,
 audience contracts or consumer upgrades. Host commands load it automatically.
 Standalone file/stdin inputs use SDK defaults unless `--pm-root` supplies the
 tracker registry. No item status or stored row is rewritten for presentation.
+
+Ownership uses `visibleChangelogItems`, the same selector used by Markdown,
+structured documents and semver. Capture-time query selection, frozen done-role
+eligibility, non-change dispositions and empty-title omission therefore agree.
+An omitted capture owns nothing: a duplicate in v1 can be reopened and repaired,
+then published exactly once in v2 and corrected there. Read-time presentation
+filters narrow a view; they do not rewrite a release's captured publication.
+
+`omittedNonChanges` on the ledger and `omittedNonChangeIds` on the returned history
+context retain frozen omission diagnostics without granting release membership.
+The history contains one row per item: a published claim takes precedence, then
+live state, then omitted-only diagnostic rows. Later repairs remain selectable;
+old omitted rows cannot shadow them or duplicate their IDs. Omission counts stay
+available even after the same item publishes a repair. Pass the full history
+context to generation, contracts and upgrade projections to preserve these counts.

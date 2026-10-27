@@ -101,5 +101,7 @@ export function needsNeutralClosure(item: PmItem, context: ChangelogStatusContex
 
 /** Count explicit non-change closures across input before status/release narrowing. */
 export function countNonChangeClosures(items: readonly PmItem[], context: ChangelogStatusContext = {}): number {
-  return items.filter((item) => isNonChangeClosure(item, context)).length;
+  const omitted = items.filter((item) => isNonChangeClosure(item, context));
+  const present = new Set(omitted.map((item) => item.id));
+  return omitted.length + [...(context.omittedNonChangeIds ?? [])].filter((id) => !present.has(id)).length;
 }

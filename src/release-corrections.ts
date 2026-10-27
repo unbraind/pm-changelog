@@ -4,7 +4,6 @@ import { EXIT_CODE, PmCliError, PmClient, commitWorkspaceTransaction, deriveMuta
 import type { CommitWorkspaceTransactionOptions, NotesResult, LogNote, PmReadOutputReceipt } from "@unbrained/pm-cli/sdk";
 import { DirectoryReleaseMilestoneStore, parseReleaseMilestone, readReleaseMilestones, resolveTrackerReleaseLedger } from "./milestones.ts";
 import type { ReleaseMilestoneStore } from "./milestones.ts";
-import { isNonChangeClosure } from "./closure-policy.ts";
 
 /** Refusals distinguish bad input, stale targets and cyclic supersession. */
 export type ReleaseCorrectionErrorCode = "correction_invalid" | "correction_missing" | "correction_stale" | "correction_conflict" | "correction_cycle" | "correction_limit";
@@ -92,12 +91,9 @@ export async function readReleaseCorrectionView(pmRoot: string, release: string,
   const requested = parseReleaseMilestone(stored);
   const claim = resolveTrackerReleaseLedger(await readReleaseMilestones(store)).claims.get(item);
   if (requested.name !== release || !claim || claim.milestone.name !== release || claim.milestone.fingerprint !== requested.fingerprint) {
-    throw new ReleaseCorrectionError("correction_missing", "Use the item's first done-role release capture, not a later snapshot; inspect the milestone history to select the original published claim.");
+    throw new ReleaseCorrectionError("correction_missing", "Use the item's first published claim, not an omitted capture or later snapshot; inspect the milestone history to select the original published claim.");
   }
   const { milestone, item: frozen } = claim;
-  if (isNonChangeClosure(frozen, { statusSelection: new Map([[item, true]]) })) {
-    throw new ReleaseCorrectionError("correction_missing", "Select a published change or neutral closure; duplicate, invalid and other non-change dispositions are omitted from release claims.");
-  }
   parseReleaseCorrection({ schema: 1, release, item, milestone: milestone.fingerprint, id: "selector", supersedes: "", expectedRevision: milestone.fingerprint, wording: frozen.title, evidence: ["selector"] });
   const result = await new PmClient({ pmRoot }).notes(item, { limit: "10001", includeMeta: true, outputBudget: "unbounded", outputLimit: "unbounded" });
   const notes = requireCompleteNotes(result);

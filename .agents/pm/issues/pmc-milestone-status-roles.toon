@@ -6,10 +6,10 @@ status: in_progress
 priority: 2
 tags[3]: follow-up,milestones,status-roles
 created_at: "2026-10-27T04:42:06.623Z"
-updated_at: "2026-10-27T11:48:40.287Z"
+updated_at: "2026-10-27T15:24:55.931Z"
 author: codex-agent
 acceptance_criteria: "Resolve lifecycle meaning through the SDK status registry, preserve immutable release attribution, and add non-git custom-registry regression evidence."
-comments[8]{created_at,author,text}:
+comments[9]{created_at,author,text}:
   "2026-10-27T07:44:30.725Z",codex-agent,"Addressed with the shared chronological release ledger for PR #291: SDK status normalization and terminal_done registry roles determine publication ownership. CLI and host generation forward the tracker registry and preserve explicit status filters. Adversarial non-git fixtures include a custom done-role status named active_named_done, early active captures, edits and reopening; the owning frozen row remains stable across 500 catalog permutations."
   "2026-10-27T07:54:18.264Z",codex-agent,"Final regression evidence: test/release-ownership.test.ts passes 4 tests with zero failures/skips/cancels, including 500 catalog permutations, SDK status-role classification, actual host/standalone generation and explicit status filters without git. The linked test command passes. Shared generation/correction behavior is documented in docs/tracker-milestones.md and docs/release-corrections.md."
   "2026-10-27T08:01:34.045Z",codex-agent,"Implementation complete with focused and packed evidence linked on pmc-release-corrections and PR https://github.com/unbraind/pm-changelog/pull/291. Final-head npm/Bun CI evidence is recorded in the PR after completion. Releasing the claim while retaining this item unclosed for orchestrator verification."
@@ -18,8 +18,10 @@ comments[8]{created_at,author,text}:
   "2026-10-27T10:58:58.732Z",codex-agent,"Round-3 extends the shared role context through every closure-policy consumer: duplicate/invalid/canceled terminal dispositions, neutral issue wording, grouping, breaking/semver, diagnostics, counters, exports, contracts and upgrade projections. Frozen done-role captures remain terminal after current roles change. 168 focused tests pass, including 500 SDK-registry/alias sequences and actual standalone/host commands without git; closure-policy coverage is 100 percent in all configured dimensions. Four isolated function reverts fail. No concrete non-blocking inline finding was supplied; all identified instances of literal closed semantics in these paths are replaced with SDK/context decisions."
   "2026-10-27T11:33:35.208Z",codex-agent,"Round-3 packed consumer proof passes 168 checks across 6 install modes and 8 real npm/Bun/host/npx/bunx launchers. All 56 added closure-role checks pass after registry role edits: duplicate claims omitted and refused by correction commands, neutral closures remain neutral, semver/diagnostics/counters agree. Related cohort 51 and focused closure cohort 168 pass. Full CI and CodeQL are queued; pending is not approval. Exact run URLs and final evidence remain on pmc-release-corrections and PR #291."
   "2026-10-27T11:48:40.278Z",codex-agent,"Round-3 closure semantics fix, packed consumers and five behavioral revert proofs are complete; both claims are released and items remain unclosed for orchestrator verification. Current-main and final-test head a750079 is pushed. Full npm/Bun Node 22/26 gates remain queued with zero steps at https://github.com/unbraind/pm-changelog/actions/runs/40498185138; CodeQL remains pending. Counts are pending, not passes. The bounded handoff, exact local evidence, public-copy numbers and SDK observations are recorded on pmc-release-corrections and PR https://github.com/unbraind/pm-changelog/pull/291."
-files[14]{path,scope}:
+  "2026-10-27T15:07:35.133Z",codex-agent,"Round-4 extends frozen-role ownership to actual publication. The shared generator selector now decides ledger claims, so a custom done-role duplicate can be reopened and repaired in a later release without the omitted capture reserving ownership. Frozen omission diagnostics are separate from claims and cannot hide later native rows. A 500-item native SDK lifecycle state machine covers 2-4 releases, done/active/canceled custom roles, all non-change dispositions, query filters, reopenings, repairs, immutable rendered claims and correction chains. Dedicated native empty-title and host/standalone JSON/TOON regressions cover other omitted rows. Disposable CI mutation copies prove both the omitted-capture defect and the round-2 mutable-role defect; fixed source is restored in finally before the model runs again. Focused/packed/real-data evidence and unchanged-threshold exact-head npm/Bun results are maintained in PR https://github.com/unbraind/pm-changelog/pull/291; pending checks are never counted as passes."
+files[16]{path,scope}:
   scripts/accept-release-corrections.ts,project
+  scripts/verify-release-lifecycles.ts,project
   src/audience-contracts.ts,project
   src/cli.ts,project
   src/closure-policy.ts,project
@@ -31,12 +33,41 @@ files[14]{path,scope}:
   src/types.ts,project
   test/closure-status-roles.test.ts,project
   test/fixtures/milestones-v1-publication.json,project
+  test/release-lifecycles.test.ts,project
   test/release-ownership.test.ts,project
   test/release-publication.test.ts,project
-tests[3]{command,scope,timeout_seconds,provenance{author,created_at,source_kind,source_ref}}:
-  node --test --test-concurrency=2 test/release-ownership.test.ts,project,240,codex-agent,"2026-10-27T07:46:01.261Z",local_mutation,feat/append-only-release-corrections
-  node --test --test-concurrency=2 test/release-publication.test.ts,project,240,codex-agent,"2026-10-27T08:45:36.784Z",local_mutation,feat/append-only-release-corrections
-  node --test --test-concurrency=2 test/closure-status-roles.test.ts,project,240,codex-agent,"2026-10-27T10:59:30.739Z",local_mutation,feat/append-only-release-corrections
+tests[4]:
+  - command: node --test --test-concurrency=2 test/release-ownership.test.ts
+    scope: project
+    timeout_seconds: 240
+    provenance:
+      author: codex-agent
+      created_at: "2026-10-27T07:46:01.261Z"
+      source_kind: local_mutation
+      source_ref: feat/append-only-release-corrections
+  - command: node --test --test-concurrency=2 test/release-publication.test.ts
+    scope: project
+    timeout_seconds: 240
+    provenance:
+      author: codex-agent
+      created_at: "2026-10-27T08:45:36.784Z"
+      source_kind: local_mutation
+      source_ref: feat/append-only-release-corrections
+  - command: node --test --test-concurrency=2 test/closure-status-roles.test.ts
+    scope: project
+    timeout_seconds: 240
+    provenance:
+      author: codex-agent
+      created_at: "2026-10-27T10:59:30.739Z"
+      source_kind: local_mutation
+      source_ref: feat/append-only-release-corrections
+  - command: "node --test --test-concurrency=2 --test-name-pattern=\"omitted and filtered captures\" test/release-lifecycles.test.ts"
+    scope: project
+    provenance:
+      author: codex-agent
+      created_at: "2026-10-27T15:10:37.711Z"
+      source_kind: local_mutation
+      source_ref: feat/append-only-release-corrections
 docs[2]{path,scope}:
   docs/release-corrections.md,project
   docs/tracker-milestones.md,project

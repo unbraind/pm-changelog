@@ -2,6 +2,8 @@ import { createHash, randomUUID } from "node:crypto";
 import { link, mkdir, open, readFile, readdir, rmdir, unlink } from "node:fs/promises";
 import { join } from "node:path";
 import { EXIT_CODE, PmCliError, listAllComplete, normalizeStatusInput, readSettings, resolveRuntimeStatusRegistry, SETTINGS_DEFAULTS } from "@unbrained/pm-cli/sdk";
+import { visibleChangelogItems } from "./generator.js";
+import { isNonChangeClosure } from "./closure-policy.js";
 /** A recoverable release-source failure, shared by CLI and SDK callers. */
 export class ReleaseMilestoneError extends PmCliError {
     /** Recovery action safe to show in compact CLI error output. */
@@ -223,20 +225,27 @@ export function resolveTrackerReleaseLedger(milestones, _registry) {
         throw new ReleaseMilestoneError("milestone_invalid", "Milestone capture order is ambiguous.", "Use verified snapshots with distinct capture instants; do not infer order from milestone names.");
     }
     const claims = new Map();
+    const omittedNonChanges = new Map();
     for (const milestone of ordered) {
         // Schema 1 was released with SDK-default status meaning; never reinterpret it using current custom roles.
         const eligible = new Set(milestone.schema === 2 ? milestone.doneItemIds : doneIds(milestone.items, resolveRuntimeStatusRegistry(SETTINGS_DEFAULTS.schema), true));
-        for (const item of milestone.items)
-            if (eligible.has(item.id) && !claims.has(item.id))
+        const context = { statusSelection: new Map(milestone.items.map((item) => [item.id, eligible.has(item.id)])) };
+        // Rendering is the publication oracle. Merely appearing in a done-role capture owns nothing.
+        const published = new Set(visibleChangelogItems({ items: [...milestone.items], ...context }).map((item) => item.id));
+        for (const item of milestone.items) {
+            if (published.has(item.id) && !claims.has(item.id))
                 claims.set(item.id, { milestone, item });
+            if (eligible.has(item.id) && isNonChangeClosure(item, context) && !omittedNonChanges.has(item.id))
+                omittedNonChanges.set(item.id, item);
+        }
     }
-    return { ordered, claims };
+    return { ordered, claims, omittedNonChanges };
 }
-/** Attribute each item to its first done-role capture, preserving the frozen row.
- * Active, blocked and canceled captures never reserve membership. Later edits,
+/** Attribute each item to its first published claim, preserving the frozen row.
+ * Omitted, active, blocked and canceled captures never reserve membership. Later edits,
  * reopenings and recaptures cannot rewrite an earlier published claim. */
 export function resolveTrackerReleaseHistory(milestones, currentItems, registry = resolveRuntimeStatusRegistry(SETTINGS_DEFAULTS.schema)) {
-    const { ordered, claims } = resolveTrackerReleaseLedger(milestones, registry);
+    const { ordered, claims, omittedNonChanges } = resolveTrackerReleaseLedger(milestones, registry);
     const membership = new Map();
     const items = [];
     const windows = [];
@@ -259,7 +268,13 @@ export function resolveTrackerReleaseHistory(milestones, currentItems, registry 
         membership.set(item.id, "Unreleased");
         statusSelection.set(item.id, doneIds([item], registry).length > 0);
     }
-    return { items, releaseWindows: [{ heading: "Unreleased" }, ...windows], releaseMembership: membership, statusSelection, statusRegistry: registry };
+    // Keep omitted-only diagnostic rows compatible without granting them membership or hiding live work.
+    for (const [id, item] of omittedNonChanges)
+        if (!statusSelection.has(id)) {
+            items.push(item);
+            statusSelection.set(id, true);
+        }
+    return { items, releaseWindows: [{ heading: "Unreleased" }, ...windows], releaseMembership: membership, statusSelection, statusRegistry: registry, omittedNonChangeIds: new Set(omittedNonChanges.keys()) };
 }
 /** Fail closed on options that would replace or reinterpret frozen boundaries. */
 export function assertTrackerMilestoneOptions(conflicts) {

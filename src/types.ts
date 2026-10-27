@@ -127,6 +127,8 @@ export interface ChangelogStatusContext {
   statusRegistry?: RuntimeStatusRegistry;
   /** Captured per-item done-role meaning, authoritative even with explicit filters. */
   statusSelection?: ReadonlyMap<string, boolean>;
+  /** Frozen diagnostic omissions, independent of release ownership and live row selection. */
+  omittedNonChangeIds?: ReadonlySet<string>;
 }
 
 /** Everything shaping a rendering. Opt-in presentation never bypasses closure evidence or non-change exclusions. */

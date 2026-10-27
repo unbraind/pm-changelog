@@ -1,5 +1,6 @@
 /** Exercise the packed correction feature through real npm/Bun installation and launcher modes. */
 import assert from "node:assert/strict";
+import { createHash } from "node:crypto";
 import { execFileSync } from "node:child_process";
 import { cpSync, existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
 import { devNull, tmpdir } from "node:os";
@@ -12,7 +13,7 @@ import type { ChangelogDocument, ChangelogSummaryEntry, ChangelogSelectionReport
 const scratch = mkdtempSync(join(tmpdir(), "pm-correction-pack-"));
 const repository = resolve(import.meta.dirname, "..");
 const pinned = (JSON.parse(readFileSync(join(repository, "package.json"), "utf8")) as { devDependencies: Record<string, string> }).devDependencies["@unbrained/pm-cli"];
-const childEnv = { ...process.env, NPM_CONFIG_PREFER_OFFLINE: "true", NPM_CONFIG_AUDIT: "false", NPM_CONFIG_FUND: "false", NPM_CONFIG_USERCONFIG: devNull, npm_config_userconfig: devNull, DO_NOT_TRACK: "1", GIT_CEILING_DIRECTORIES: dirname(scratch), BUN_INSTALL: join(scratch, "bun-global"), BUN_INSTALL_CACHE_DIR: join(scratch, "bun-cache") };
+const childEnv = { PATH: process.env.PATH, HOME: process.env.HOME, NPM_CONFIG_PREFER_OFFLINE: "true", NPM_CONFIG_AUDIT: "false", NPM_CONFIG_FUND: "false", NPM_CONFIG_USERCONFIG: devNull, npm_config_userconfig: devNull, DO_NOT_TRACK: "1", GIT_CEILING_DIRECTORIES: dirname(scratch), BUN_INSTALL: join(scratch, "bun-global"), BUN_INSTALL_CACHE_DIR: join(scratch, "bun-cache") };
 /** Capture commands without publishing installer noise or scratch paths. */
 function run(binary: string, args: string[], cwd = scratch): string {
   return execFileSync(binary, args, { cwd, env: binary === "npm" || binary === "npx" ? { ...childEnv, NPM_CONFIG_OFFLINE: "true" } : childEnv, encoding: "utf8", stdio: ["ignore", "pipe", "pipe"], maxBuffer: 8 * 1024 * 1024, timeout: 180000 });
@@ -20,6 +21,7 @@ function run(binary: string, args: string[], cwd = scratch): string {
 try {
   const packed = JSON.parse(run("npm", ["pack", "--ignore-scripts", "--json", "--pack-destination", scratch], repository)) as { filename: string }[];
   const archive = join(scratch, packed[0].filename);
+  const archiveSha512 = createHash("sha512").update(readFileSync(archive)).digest("hex");
   const root = join(scratch, "tracker/.agents/pm");
   await runInit("accept", { path: root }, { defaults: true, agentGuidance: "skip" });
   const legacy = JSON.parse(readFileSync(join(repository, "test/fixtures/milestones-v1-publication.json"), "utf8")) as ReleaseMilestone[];
@@ -48,12 +50,27 @@ try {
   await appendReleaseCorrection(root, { schema: 1, release: "v1", item: "accept-claim", milestone: published.fingerprint, id: "before-role-edit", supersedes: "", expectedRevision: published.fingerprint, wording: "Correction recorded before registry edits", evidence: ["docs/release-corrections.md"] });
   await schemaAddStatus("mutable_draft", { role: ["terminal", "terminal_done"] }, { pmRoot: root });
   await schemaAddStatus("mutable_done", { role: ["blocked"] }, { pmRoot: root });
+  // A separate native tracker preserves every earlier assertion while exercising omitted-then-repaired ownership.
+  const lifecycleRoot = join(scratch, "lifecycle/.agents/pm");
+  await runInit("later", { path: lifecycleRoot }, { defaults: true, agentGuidance: "skip" });
+  await schemaAddStatus("custom_done", { role: ["terminal", "terminal_done"] }, { pmRoot: lifecycleRoot });
+  await runCreate({ id: "later-repair", title: "Packed omitted duplicate", type: "Issue", status: "open", createMode: "progressive", unset: ["parent", "goal", "objective", "sprint", "release"] }, { path: lifecycleRoot, author: "acceptance" });
+  const lifecycleClient = new PmClient({ pmRoot: lifecycleRoot, author: "acceptance" });
+  await lifecycleClient.update("later-repair", { status: "custom_done", closeReason: "Duplicate", unset: ["parent", "goal", "objective", "sprint", "release"] });
+  const lifecycleStore = new DirectoryReleaseMilestoneStore(lifecycleRoot);
+  const omittedCapture = await createReleaseMilestone(lifecycleStore, "v1", await readTrackerReleaseSnapshot(lifecycleRoot));
+  await lifecycleClient.update("later-repair", { status: "open", closeReason: "Investigating", unset: ["parent", "goal", "objective", "sprint", "release"] });
+  await schemaAddStatus("custom_done", { role: ["active"] }, { pmRoot: lifecycleRoot });
+  await lifecycleClient.update("later-repair", { status: "closed", title: "Packed later repaired claim", closeReason: "Fixed parser failure", unset: ["parent", "goal", "objective", "sprint", "release"] });
+  const repairedSnapshot = await readTrackerReleaseSnapshot(lifecycleRoot);
+  const repairCapture = await createReleaseMilestone(lifecycleStore, "v2", { ...repairedSnapshot, capturedAt: new Date(Math.max(Date.parse(repairedSnapshot.capturedAt), Date.parse(omittedCapture.capturedAt) + 1)).toISOString() });
   const prefix = join(scratch, "npm-global");
   run("npm", ["install", "--global", "--prefix", prefix, "--ignore-scripts", "--no-audit", "--no-fund", archive, `@unbrained/pm-cli@${pinned}`]);
   const extension = join(root, "extensions/pm-changelog");
   cpSync(join(prefix, "lib/node_modules/pm-changelog"), extension, { recursive: true });
   mkdirSync(join(extension, "node_modules"), { recursive: true });
   if (!existsSync(join(extension, "node_modules/@unbrained"))) symlinkSync(join(prefix, "lib/node_modules/@unbrained"), join(extension, "node_modules/@unbrained"), "junction");
+  cpSync(extension, join(lifecycleRoot, "extensions/pm-changelog"), { recursive: true });
   const paths: string[] = [];
   let checks = 0;
   /** Check actual append, exact replay and both compact views against the SDK-read state. */
@@ -107,6 +124,32 @@ try {
       }); checks++;
     }
     assert.equal((await client.notes("accept-duplicate")).count, 0);
+    const laterLaunch = (args: string[]): string => raw(host ? ["--path", lifecycleRoot, "changelog", "corrections", ...args] : ["corrections", "--pm-root", lifecycleRoot, ...args]);
+    const laterGenerate = (args: string[]): string => raw(host ? ["--path", lifecycleRoot, "changelog", "generate", ...args] : ["--pm-root", lifecycleRoot, ...args]);
+    const laterView = await readReleaseCorrectionView(lifecycleRoot, "v2", "later-repair");
+    const lifecycleFile = join(scratch, "lifecycle-correction.json");
+    writeFileSync(lifecycleFile, JSON.stringify({ schema: 1, release: "v1", item: "later-repair", milestone: omittedCapture.fingerprint, id: name, supersedes: "", expectedRevision: omittedCapture.fingerprint, wording: "Unpublished duplicate must refuse", evidence: ["docs/release-corrections.md"] }));
+    for (const format of ["json", "toon"]) for (const action of [["view", "--release", "v1", "--item", "later-repair"], ["append", "--input", lifecycleFile]]) {
+      assert.throws(() => laterLaunch([...action, "--format", format]), (error: unknown) => {
+        assert.ok(error && typeof error === "object" && "stderr" in error); assert.match(String(error.stderr), /correction_missing/); return true;
+      }); checks++;
+    }
+    writeFileSync(lifecycleFile, JSON.stringify({ schema: 1, release: "v2", item: "later-repair", milestone: repairCapture.fingerprint, id: name, supersedes: laterView.chain.at(-1)?.id ?? "", expectedRevision: laterView.revision, wording: `Reviewed later repair ${name}`, evidence: ["docs/release-corrections.md"] }));
+    assert.equal(JSON.parse(laterLaunch(["append", "--input", lifecycleFile, "--json"])).changed, true); checks++;
+    assert.equal(JSON.parse(laterLaunch(["append", "--input", lifecycleFile, "--json"])).changed, false); checks++;
+    for (const format of ["json", "toon"]) {
+      const output = laterLaunch(["view", "--release", "v2", "--item", "later-repair", "--format", format]);
+      assert.deepEqual(format === "json" ? JSON.parse(output) : decode(output), await readReleaseCorrectionView(lifecycleRoot, "v2", "later-repair")); checks++;
+    }
+    const laterWire = JSON.parse(laterGenerate(["--milestones", "--changelog-json", "--suggest-semver"])) as ChangelogDocument & { document?: ChangelogDocument };
+    const laterDocument = host ? laterWire.document! : laterWire;
+    assert.equal(laterDocument.item_count, 1); assert.equal(laterDocument.excluded_non_change_count, 1);
+    assert.equal(laterDocument.releases.flatMap((release) => release.sections.flatMap((section) => section.items)).filter((item) => item.id === "later-repair").length, 1); checks++;
+    const laterSummary = JSON.parse(laterGenerate(["--milestones", "--summary", "--format", "json"])) as { entries: ChangelogSummaryEntry[] };
+    assert.equal(laterSummary.entries.length, 1); assert.equal(laterSummary.entries[0].title, "Packed later repaired claim"); checks++;
+    const laterSemver = JSON.parse(laterGenerate(["--milestones", "--suggest-semver", "--json"])) as SemverSuggestion & { suggested_semver?: SemverSuggestion };
+    assert.equal((host ? laterSemver.suggested_semver! : laterSemver).bump, "patch"); checks++;
+    assert.equal(createHash("sha512").update(readFileSync(archive)).digest("hex"), archiveSha512);
     paths.push(name);
   }
   await accept("npm-global", (args) => run(join(prefix, "bin/pm-changelog"), args));
@@ -121,8 +164,9 @@ try {
   }
   await accept("npx", (args) => run("npx", ["--yes", "--package", archive, "--package", `@unbrained/pm-cli@${pinned}`, "pm-changelog", ...args]));
   await accept("bunx", (args) => run("bun", ["x", "--bun", "--package", archive, "pm-changelog", ...args]));
-  assert.equal(checks, 168); assert.equal(paths.length, 8);
+  assert.equal(checks, 256); assert.equal(paths.length, 8);
   assert.equal((await readReleaseCorrectionView(root, "v1", "accept-claim")).chain.length, 9);
   assert.equal((await readReleaseCorrectionView(root, "legacy-v2", "old-claim")).chain.length, 1);
-  console.log(JSON.stringify({ installation_modes: 6, launcher_paths: paths, checks, wrong_release_checks: 64, corrections: (await readReleaseCorrectionView(root, "v1", "accept-claim")).chain.length, legacy_corrections: (await readReleaseCorrectionView(root, "legacy-v2", "old-claim")).chain.length, registry_drift: true, closure_role_checks: 56, non_git: true }));
+  assert.equal((await readReleaseCorrectionView(lifecycleRoot, "v2", "later-repair")).chain.length, 8);
+  console.log(JSON.stringify({ installation_modes: 6, launcher_paths: paths, checks, archive_sha512: archiveSha512, lifecycle_checks: 88, later_corrections: (await readReleaseCorrectionView(lifecycleRoot, "v2", "later-repair")).chain.length, wrong_release_checks: 96, corrections: (await readReleaseCorrectionView(root, "v1", "accept-claim")).chain.length, legacy_corrections: (await readReleaseCorrectionView(root, "legacy-v2", "old-claim")).chain.length, registry_drift: true, closure_role_checks: 56, non_git: true }));
 } finally { rmSync(scratch, { recursive: true, force: true }); }
