@@ -39,6 +39,10 @@ jobs:
           run("npm", ["run", "build"]);
           run("npm", ["run", "build:test"]);
           run("npm", ["run", "docstring"]);
+          // https://github.com/unbraind/pm-cli/issues/1615
+          // remove when upstream trusts unchanged commands across refs
+          // Pinned CLI alias for testing.allow_untrusted_linked_tests; this checkout only.
+          run(process.execPath, ["node_modules/@unbrained/pm-cli/dist/cli.js", "--path", ".agents/pm", "config", "set", "untrusted-linked-test-execution", "enabled"]);
           run(process.execPath, ["node_modules/@unbrained/pm-cli/dist/cli.js", "test", "pmc-release-corrections", "--run", "--only-last", "--progress", "--allow-untrusted-linked-tests", "--timeout", "1200"]);
           run(process.execPath, ["node_modules/@unbrained/pm-cli/dist/cli.js", "test", "pmc-milestone-status-roles", "--run", "--only-last", "--progress", "--allow-untrusted-linked-tests", "--timeout", "240"]);
           run(process.execPath, ["--test", "--test-concurrency=2", "test/closure-status-roles.test.ts", "test/release-publication.test.ts", "test/release-ownership.test.ts"]);
