@@ -3,7 +3,7 @@ import { appendFileSync, existsSync, readFileSync, realpathSync } from "node:fs"
 import { basename, resolve } from "node:path";
 import { stdin } from "node:process";
 import { fileURLToPath } from "node:url";
-import { resolvePmRoot, readSettings, resolveRuntimeStatusRegistry } from "@unbrained/pm-cli/sdk";
+import { resolvePmRoot, readSettings, resolveRuntimeStatusRegistry, parseBootstrapGlobalOptions } from "@unbrained/pm-cli/sdk";
 import { AudienceContractError } from "./audience-contracts.js";
 import { runAudienceContractsCli } from "./audience-command.js";
 import { ReleaseCorrectionError } from "./release-corrections.js";
@@ -15,7 +15,7 @@ import { auditChangelogClaims, assertChangelogClaims, formatClaimAudit, parseCla
 import { countNonChangeClosures } from "./closure-policy.js";
 import { checkItemLinks } from "./item-links.js";
 import { createUnifiedDiff, DEFAULT_MAX_DIFF_LINES } from "./diff.js";
-import { buildChangelogDocument, createChangelog, createChangelogSummary, explainChangelogSelection, formatInferredSources, formatSummaryLine, lintChangelogEntries, parseChangelogEntryFrom, mergeChangelog, parsePmItemsJson, readPmItems, suggestSemver, writeChangelog, } from "./generator.js";
+import { buildChangelogDocument, buildPmListArgs, createChangelog, createChangelogSummary, explainChangelogSelection, formatInferredSources, formatSummaryLine, lintChangelogEntries, parseChangelogEntryFrom, mergeChangelog, parsePmItemsJson, readPmItems, suggestSemver, writeChangelog, } from "./generator.js";
 import { resolveGenerationReleaseWindows, resolveReleaseContext, resolveReleaseTagWindowResolution, } from "./release-context.js";
 import { resolveGitReleaseHistory } from "./release-membership.js";
 // Compatibility aliases for value-taking options. Kept intentionally small and
@@ -140,12 +140,14 @@ async function main(args = process.argv.slice(2)) {
         ]);
     else
         applyReleaseContext(options);
-    const milestoneRoot = options.milestones ? resolvePmRoot(options.pmCwd ? resolve(options.pmCwd) : process.cwd(), options.pmRoot) : undefined;
+    // Resolve the exact argv used by the item producer through the SDK's global parser.
+    // All dependent reads must follow that target, including forwarded path aliases.
+    const trackerRoot = resolvePmRoot(options.pmCwd ? resolve(options.pmCwd) : process.cwd(), parseBootstrapGlobalOptions(buildPmListArgs(options)).path);
+    const milestoneRoot = options.milestones ? trackerRoot : undefined;
     const items = milestoneRoot ? [...(await readTrackerReleaseSnapshot(milestoneRoot)).items] : await loadItems(options);
     const outputPath = resolve(options.output);
     const generationOptions = buildGenerationOptions(options, items);
     if ((!options.input && !options.stdin) || options.pmRoot) {
-        const trackerRoot = milestoneRoot ?? resolvePmRoot(options.pmCwd ? resolve(options.pmCwd) : process.cwd(), options.pmRoot);
         generationOptions.statusRegistry = resolveRuntimeStatusRegistry((await readSettings(trackerRoot)).schema);
     }
     if (milestoneRoot) {
@@ -153,7 +155,7 @@ async function main(args = process.argv.slice(2)) {
         Object.assign(generationOptions, history);
     }
     if (options.allReleaseTags && !options.input && !options.stdin) {
-        Object.assign(generationOptions, await resolveGitReleaseHistory(generationOptions, resolvePmRoot(options.pmCwd ? resolve(options.pmCwd) : process.cwd(), options.pmRoot)));
+        Object.assign(generationOptions, await resolveGitReleaseHistory(generationOptions, trackerRoot));
     }
     if (options.auditEvidence) {
         const receipts = options.auditReceipts === undefined ? [] : parseClaimTestReceipts(readFileSync(options.auditReceipts, "utf-8"));
@@ -174,7 +176,7 @@ async function main(args = process.argv.slice(2)) {
         const markdown = options.mode === "prepend" && existsSync(outputPath)
             ? mergeChangelog(readFileSync(outputPath, "utf-8"), generated.markdown, { title: options.title }).markdown
             : generated.markdown;
-        checkItemLinks(markdown, resolvePmRoot(options.pmCwd ? resolve(options.pmCwd) : process.cwd(), options.pmRoot), options.itemUrlBase);
+        checkItemLinks(markdown, trackerRoot, options.itemUrlBase);
     }
     const selectionReport = options.explain ? explainChangelogSelection(generationOptions) : undefined;
     // OPT-IN (`--format json` without `--summary`): alias for the structured

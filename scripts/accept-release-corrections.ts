@@ -64,6 +64,11 @@ try {
   await lifecycleClient.update("later-repair", { status: "closed", title: "Packed later repaired claim", closeReason: "Fixed parser failure", unset: ["parent", "goal", "objective", "sprint", "release"] });
   const repairedSnapshot = await readTrackerReleaseSnapshot(lifecycleRoot);
   const repairCapture = await createReleaseMilestone(lifecycleStore, "v2", { ...repairedSnapshot, capturedAt: new Date(Math.max(Date.parse(repairedSnapshot.capturedAt), Date.parse(omittedCapture.capturedAt) + 1)).toISOString() });
+  const selectedRoot = join(scratch, "selected/.agents/pm");
+  await runInit("selected", { path: selectedRoot }, { defaults: true, agentGuidance: "skip" });
+  await schemaAddStatus("shipped_elsewhere", { role: ["terminal", "terminal_done"] }, { pmRoot: selectedRoot });
+  await runCreate({ id: "selected-repair", title: "Selected tracker repair", type: "Issue", status: "open", createMode: "progressive", unset: ["parent", "goal", "objective", "sprint", "release"] }, { path: selectedRoot, author: "acceptance" });
+  await new PmClient({ pmRoot: selectedRoot, author: "acceptance" }).update("selected-repair", { status: "shipped_elsewhere", closeReason: "Fixed selected defect", unset: ["parent", "goal", "objective", "sprint", "release"] });
   const prefix = join(scratch, "npm-global");
   run("npm", ["install", "--global", "--prefix", prefix, "--ignore-scripts", "--no-audit", "--no-fund", archive, `@unbrained/pm-cli@${pinned}`]);
   const extension = join(root, "extensions/pm-changelog");
@@ -150,6 +155,17 @@ try {
     const laterSemver = JSON.parse(laterGenerate(["--milestones", "--suggest-semver", "--json"])) as SemverSuggestion & { suggested_semver?: SemverSuggestion };
     assert.equal((host ? laterSemver.suggested_semver! : laterSemver).bump, "patch"); checks++;
     assert.equal(createHash("sha512").update(readFileSync(archive)).digest("hex"), archiveSha512);
+    if (!host) {
+      const selected = (args: string[]): string => raw(["--pm-arg=--path", `--pm-arg=${selectedRoot}`, ...args]);
+      assert.equal((JSON.parse(selected(["--changelog-json"])) as ChangelogDocument).item_count, 1); checks++;
+      assert.equal((JSON.parse(selected(["--summary", "--format", "json"])) as { entries: ChangelogSummaryEntry[] }).entries[0].title, "Selected tracker repair"); checks++;
+      assert.equal((JSON.parse(selected(["--suggest-semver", "--json"])) as SemverSuggestion).counts.fix, 1); checks++;
+      for (const format of ["json", "toon"]) {
+        const output = selected(["--audit-evidence", ...(format === "json" ? ["--json"] : [])]);
+        const audit = (format === "json" ? JSON.parse(output) : decode(output)) as { claim_count: number };
+        assert.equal(audit.claim_count, 1); checks++;
+      }
+    }
     paths.push(name);
   }
   await accept("npm-global", (args) => run(join(prefix, "bin/pm-changelog"), args));
@@ -164,7 +180,7 @@ try {
   }
   await accept("npx", (args) => run("npx", ["--yes", "--package", archive, "--package", `@unbrained/pm-cli@${pinned}`, "pm-changelog", ...args]));
   await accept("bunx", (args) => run("bun", ["x", "--bun", "--package", archive, "pm-changelog", ...args]));
-  assert.equal(checks, 256); assert.equal(paths.length, 8);
+  assert.equal(checks, 286); assert.equal(paths.length, 8);
   assert.equal((await readReleaseCorrectionView(root, "v1", "accept-claim")).chain.length, 9);
   assert.equal((await readReleaseCorrectionView(root, "legacy-v2", "old-claim")).chain.length, 1);
   assert.equal((await readReleaseCorrectionView(lifecycleRoot, "v2", "later-repair")).chain.length, 8);

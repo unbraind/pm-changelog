@@ -238,7 +238,11 @@ test("the producer's empty-title filter cannot reserve a later published claim",
   const empty = await createReleaseMilestone(store, "v1", { ...snapshot, items: snapshot.items.map((item) => ({ ...item, title: "" })) });
   assert.equal(resolveTrackerReleaseLedger([empty]).claims.size, 0);
   await assert.rejects(readReleaseCorrectionView(root, "v1", "life-empty"), { code: "correction_missing" });
-  await update(client, "life-empty", { title: "Published repair", status: "closed", closeReason: "Fixed parser failure" });
+  // Editing wording does not request a second terminal transition.
+  await client.update("life-empty", { title: "Published repair", unset });
+  const edited = (await client.get("life-empty", { full: true })).item;
+  assert.equal(edited.status, "closed");
+  assert.equal(edited.title, "Published repair");
   const current = await readTrackerReleaseSnapshot(root);
   const fixed = await createReleaseMilestone(store, "v2", { ...current, capturedAt: new Date(Math.max(Date.parse(current.capturedAt), Date.parse(empty.capturedAt) + 1)).toISOString() });
   assert.equal(resolveTrackerReleaseLedger([empty, fixed]).claims.get("life-empty")!.milestone.name, "v2");

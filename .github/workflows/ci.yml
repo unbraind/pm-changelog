@@ -45,7 +45,7 @@ jobs:
           run(process.execPath, ["node_modules/@unbrained/pm-cli/dist/cli.js", "--path", ".agents/pm", "config", "set", "untrusted-linked-test-execution", "enabled"]);
           run(process.execPath, ["node_modules/@unbrained/pm-cli/dist/cli.js", "test", "pmc-release-corrections", "--run", "--only-last", "--progress", "--allow-untrusted-linked-tests", "--timeout", "1200"]);
           run(process.execPath, ["node_modules/@unbrained/pm-cli/dist/cli.js", "test", "pmc-milestone-status-roles", "--run", "--only-last", "--progress", "--allow-untrusted-linked-tests", "--timeout", "240"]);
-          run(process.execPath, ["--test", "--test-concurrency=2", "test/closure-status-roles.test.ts", "test/release-publication.test.ts", "test/release-ownership.test.ts"]);
+          run(process.execPath, ["--test", "--test-concurrency=2", "test/cli-tracker-target.test.ts", "test/closure-status-roles.test.ts", "test/release-publication.test.ts", "test/release-ownership.test.ts"]);
           run(process.execPath, ["scripts/verify-release-lifecycles.ts"]);
           run(process.execPath, ["scripts/accept-release-corrections.ts"]);
           run("npm", ["run", "changelog:full"]);

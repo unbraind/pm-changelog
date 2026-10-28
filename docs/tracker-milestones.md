@@ -123,4 +123,7 @@ The history contains one row per item: a published claim takes precedence, then
 live state, then omitted-only diagnostic rows. Later repairs remain selectable;
 old omitted rows cannot shadow them or duplicate their IDs. Omission counts stay
 available even after the same item publishes a repair. Pass the full history
-context to generation, contracts and upgrade projections to preserve these counts.
+context to changelog generation to preserve these counts. Milestones retain only
+render inputs and omit `change_facets`. Contract and upgrade projections need
+native items carrying those facets; projecting the compact milestone items alone
+reports `missing_facet` and cannot reconstruct upgrade actions or breaking facets.
