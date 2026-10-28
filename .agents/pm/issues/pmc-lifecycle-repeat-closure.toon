@@ -1,0 +1,15 @@
+id: pmc-lifecycle-repeat-closure
+title: Use supported lifecycle transitions in the empty-title fixture
+description: "The CI trust workaround for upstream pm-cli#1615 succeeds: source run 40719721104 reports trust_refusal zero and passes the native repair case plus the 500-lifecycle model. Its third existing test creates life-empty closed, then requests closed again through the update helper. The main-inherited SDK terminal guard refuses this repeat closure. Tests were intentionally left unchanged under the workflow-only instruction. Follow up by using the supported reopen/update lifecycle in this fixture while preserving every ownership, immutability and correction assertion; do not disable the terminal guard."
+type: Issue
+status: open
+priority: 2
+tags[3]: ci,lifecycle,sdk-compatibility
+created_at: "2026-10-28T16:21:46.104Z"
+updated_at: "2026-10-28T16:21:53.661Z"
+author: codex-agent
+acceptance_criteria: Preserve all existing assertions; use a supported SDK lifecycle transition; the empty-title case and lifecycle CI pass without bypassing terminal-state guards.
+parent: pmc-release-corrections
+files[1]{path,scope}:
+  test/release-lifecycles.test.ts,project
+body: ""
