@@ -1,5 +1,5 @@
 import type { ChangelogClaimSource } from "./types.ts";
-import type { ChangelogDocument, ChangelogEntryFrom, ChangelogSelectionReport, ChangelogSummaryEntry, DependencyCommit, GeneratedChangelog, GenerateChangelogOptions, MergeChangelogOptions, MergeChangelogResult, PmItem, ReadPmItemsOptions, SemverSuggestion, WriteChangelogOptions, WriteChangelogResult } from "./types.ts";
+import type { ChangelogStatusContext, ChangelogDocument, ChangelogEntryFrom, ChangelogSelectionReport, ChangelogSummaryEntry, DependencyCommit, GeneratedChangelog, GenerateChangelogOptions, MergeChangelogOptions, MergeChangelogResult, PmItem, ReadPmItemsOptions, SemverSuggestion, WriteChangelogOptions, WriteChangelogResult } from "./types.ts";
 type PmCommand = {
     bin: string;
     argsPrefix: string[];
@@ -211,6 +211,6 @@ export declare function visibleChangelogItems(options: GenerateChangelogOptions)
 export declare function explainChangelogSelection(options: GenerateChangelogOptions): ChangelogSelectionReport;
 /** Classify an explicit item set into a semver bump, excluding non-change and
  * neutral closures even when the caller has not applied option-driven filtering. */
-export declare function suggestSemverForItems(items: PmItem[]): SemverSuggestion;
+export declare function suggestSemverForItems(items: PmItem[], context?: ChangelogStatusContext): SemverSuggestion;
 export {};
 //# sourceMappingURL=generator.d.ts.map

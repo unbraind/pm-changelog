@@ -49,7 +49,7 @@ options, and supports `--release-version` as a compatibility alias for
 Caller-supplied `--stdin` and `--input` JSON refuses envelopes whose explicit
 pagination, source completeness, field omission, or compaction receipts report
 unsafe delivery. Refusal exits nonzero before writing, preserving an existing
-changelog. The public pm SDK (peer minimum `2026.10.4`) inspects these receipts. Ordinary status/date
+changelog. The public pm SDK (peer minimum `2026.10.23`) inspects these receipts. Ordinary status/date
 filters select the caller's scope and do not imply incomplete retrieval.
 Bare arrays and receipt-free `{ "items": [...] }` documents retain their
 intentional subset contract: the caller owns their scope and must supply the
@@ -394,9 +394,35 @@ receipts are assertions: maintainers must verify their relevance to the release.
 `pm-review` owns review validation; `pm-ops` owns publication provenance.
 See the [SDK and receipt example](docs/claim-audit-example.md).
 
+## Append-only release corrections
+
+Correct a published milestone claim while retaining the original wording and
+historical output:
+
+```sh
+pm changelog corrections view --release v1 --item example-claim --format json
+pm changelog corrections append --input correction.json --format json
+```
+
+The current view exposes the original, corrected wording, evidence and complete
+correction chain. Exact replays create nothing; stale revisions, reused identities
+and supersession cycles return typed refusals with remedies. Native SDK context events
+and transactions preserve history and coordinate writers without git.
+Corrections target the first capture that actually publishes the claim; later
+snapshots, edits and reopenings cannot transfer the published claim to another release.
+Omitted duplicates, other non-change closures, query-filtered rows and empty titles
+reserve no ownership; a later repair publishes once in its first eligible release.
+New captures freeze publication eligibility, so later status-role or alias edits
+also leave historical wording and existing correction chains accessible.
+Closure evidence uses that same frozen meaning: custom done-role duplicates are
+omitted, and issue closures without repair evidence stay under `Closed` without
+contributing a breaking change or fix. Live commands load configured SDK roles;
+SDK callers pass `statusRegistry`, or use the context returned by the milestone resolver.
+See the [input example and typed SDK](docs/release-corrections.md).
+
 ## Without git
 
-Tracker milestone creation/generation, ordinary generation, export, audience contracts, consumer upgrades and claim audits
+Tracker milestone creation/generation, ordinary generation, export, audience contracts, consumer upgrades, release corrections and claim audits
 work in plain directories and through caller-supplied SDK items without Git.
 Milestone paths invoke no Git subprocess. Git tag windows, historical
 Git membership and dependency commit collection require a Git repository. Use

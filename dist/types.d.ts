@@ -1,4 +1,5 @@
 import type { ChangeFacet } from "./audience-contracts.ts";
+import type { RuntimeStatusRegistry } from "@unbrained/pm-cli/sdk";
 /** Lifecycle state of a pm item. The trailing `string` keeps custom workspace
  * statuses assignable, since pm lets a project define its own vocabulary and a
  * closed union would reject items this package must still be able to read. */
@@ -104,11 +105,17 @@ export interface ChangelogReleaseWindow {
     sinceExclusive?: boolean;
     until?: string;
 }
-/** Everything that shapes one changelog rendering, from the item set through
- * every opt-in flag. Each field marked OPT-IN is inert when absent: the default
- * rendering uses evidence-aware keep-a-changelog sections. Opt-in flags below
- * do not bypass the closure evidence or non-change exclusion policy. */
-export interface GenerateChangelogOptions {
+/** Lifecycle context shared by admission, closure evidence, classification and output counts. */
+export interface ChangelogStatusContext {
+    /** Configured SDK roles for live rows; omitted contexts use SDK defaults. */
+    statusRegistry?: RuntimeStatusRegistry;
+    /** Captured per-item done-role meaning, authoritative even with explicit filters. */
+    statusSelection?: ReadonlyMap<string, boolean>;
+    /** Frozen diagnostic omissions, independent of release ownership and live row selection. */
+    omittedNonChangeIds?: ReadonlySet<string>;
+}
+/** Everything shaping a rendering. Opt-in presentation never bypasses closure evidence or non-change exclusions. */
+export interface GenerateChangelogOptions extends ChangelogStatusContext {
     items: PmItem[];
     /** OPT-IN: prefer close_reason for entry prose; blank/absent values use title. */
     entryFrom?: ChangelogEntryFrom;
@@ -398,6 +405,8 @@ export interface ChangelogDocument {
 export interface ChangelogSelectionReport {
     filters: {
         statuses: string[];
+        /** Per-item captured eligibility overrides the fallback statuses when present. */
+        status_selection?: "per-item";
         since?: string;
         until?: string;
         release_windows: boolean;

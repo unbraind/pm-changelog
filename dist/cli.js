@@ -3,9 +3,11 @@ import { appendFileSync, existsSync, readFileSync, realpathSync } from "node:fs"
 import { basename, resolve } from "node:path";
 import { stdin } from "node:process";
 import { fileURLToPath } from "node:url";
-import { resolvePmRoot } from "@unbrained/pm-cli/sdk";
+import { resolvePmRoot, readSettings, resolveRuntimeStatusRegistry, parseBootstrapGlobalOptions } from "@unbrained/pm-cli/sdk";
 import { AudienceContractError } from "./audience-contracts.js";
 import { runAudienceContractsCli } from "./audience-command.js";
+import { ReleaseCorrectionError } from "./release-corrections.js";
+import { runReleaseCorrectionsCli } from "./release-correction-command.js";
 import { ConsumerUpgradeError } from "./consumer-upgrades.js";
 import { runConsumerUpgradesCli } from "./consumer-upgrade-command.js";
 import { ReleaseMilestoneError, DirectoryReleaseMilestoneStore, assertTrackerMilestoneOptions, readReleaseMilestones, readTrackerReleaseSnapshot, resolveTrackerReleaseHistory } from "./milestones.js";
@@ -13,7 +15,7 @@ import { auditChangelogClaims, assertChangelogClaims, formatClaimAudit, parseCla
 import { countNonChangeClosures } from "./closure-policy.js";
 import { checkItemLinks } from "./item-links.js";
 import { createUnifiedDiff, DEFAULT_MAX_DIFF_LINES } from "./diff.js";
-import { buildChangelogDocument, createChangelog, createChangelogSummary, explainChangelogSelection, formatInferredSources, formatSummaryLine, lintChangelogEntries, parseChangelogEntryFrom, mergeChangelog, parsePmItemsJson, readPmItems, suggestSemver, writeChangelog, } from "./generator.js";
+import { buildChangelogDocument, buildPmListArgs, createChangelog, createChangelogSummary, explainChangelogSelection, formatInferredSources, formatSummaryLine, lintChangelogEntries, parseChangelogEntryFrom, mergeChangelog, parsePmItemsJson, readPmItems, suggestSemver, writeChangelog, } from "./generator.js";
 import { resolveGenerationReleaseWindows, resolveReleaseContext, resolveReleaseTagWindowResolution, } from "./release-context.js";
 import { resolveGitReleaseHistory } from "./release-membership.js";
 // Compatibility aliases for value-taking options. Kept intentionally small and
@@ -123,6 +125,8 @@ const KNOWN_OPTIONS = [
 /** Run one CLI invocation end to end: parse flags, resolve the release context
  * from git, load items, generate, then write or compare. */
 async function main(args = process.argv.slice(2)) {
+    if (args[0] === "corrections")
+        return runReleaseCorrectionsCli(args.slice(1));
     if (args[0] === "contracts")
         return runAudienceContractsCli(args.slice(1));
     if (args[0] === "upgrades")
@@ -136,14 +140,22 @@ async function main(args = process.argv.slice(2)) {
         ]);
     else
         applyReleaseContext(options);
-    const milestoneRoot = options.milestones ? resolvePmRoot(options.pmCwd ? resolve(options.pmCwd) : process.cwd(), options.pmRoot) : undefined;
+    // Resolve the exact argv used by the item producer through the SDK's global parser.
+    // All dependent reads must follow that target, including forwarded path aliases.
+    const trackerRoot = resolvePmRoot(options.pmCwd ? resolve(options.pmCwd) : process.cwd(), parseBootstrapGlobalOptions(buildPmListArgs(options)).path);
+    const milestoneRoot = options.milestones ? trackerRoot : undefined;
     const items = milestoneRoot ? [...(await readTrackerReleaseSnapshot(milestoneRoot)).items] : await loadItems(options);
     const outputPath = resolve(options.output);
     const generationOptions = buildGenerationOptions(options, items);
-    if (milestoneRoot)
-        Object.assign(generationOptions, resolveTrackerReleaseHistory(await readReleaseMilestones(new DirectoryReleaseMilestoneStore(milestoneRoot)), items));
+    if ((!options.input && !options.stdin) || options.pmRoot) {
+        generationOptions.statusRegistry = resolveRuntimeStatusRegistry((await readSettings(trackerRoot)).schema);
+    }
+    if (milestoneRoot) {
+        const history = resolveTrackerReleaseHistory(await readReleaseMilestones(new DirectoryReleaseMilestoneStore(milestoneRoot)), items, generationOptions.statusRegistry);
+        Object.assign(generationOptions, history);
+    }
     if (options.allReleaseTags && !options.input && !options.stdin) {
-        Object.assign(generationOptions, await resolveGitReleaseHistory(generationOptions, resolvePmRoot(options.pmCwd ? resolve(options.pmCwd) : process.cwd(), options.pmRoot)));
+        Object.assign(generationOptions, await resolveGitReleaseHistory(generationOptions, trackerRoot));
     }
     if (options.auditEvidence) {
         const receipts = options.auditReceipts === undefined ? [] : parseClaimTestReceipts(readFileSync(options.auditReceipts, "utf-8"));
@@ -164,7 +176,7 @@ async function main(args = process.argv.slice(2)) {
         const markdown = options.mode === "prepend" && existsSync(outputPath)
             ? mergeChangelog(readFileSync(outputPath, "utf-8"), generated.markdown, { title: options.title }).markdown
             : generated.markdown;
-        checkItemLinks(markdown, resolvePmRoot(options.pmCwd ? resolve(options.pmCwd) : process.cwd(), options.pmRoot), options.itemUrlBase);
+        checkItemLinks(markdown, trackerRoot, options.itemUrlBase);
     }
     const selectionReport = options.explain ? explainChangelogSelection(generationOptions) : undefined;
     // OPT-IN (`--format json` without `--summary`): alias for the structured
@@ -185,7 +197,7 @@ async function main(args = process.argv.slice(2)) {
         if (options.format === "json") {
             const payload = {
                 entries,
-                excluded_non_change_count: countNonChangeClosures(generationOptions.items),
+                excluded_non_change_count: countNonChangeClosures(generationOptions.items, generationOptions),
                 format: "json",
                 item_count: entries.length,
                 ...(selectionReport ? { selection_report: selectionReport } : {}),
@@ -217,8 +229,8 @@ async function main(args = process.argv.slice(2)) {
     if (options.suggestSemver) {
         const suggestion = suggestSemver(generationOptions);
         const payload = selectionReport
-            ? { ...suggestion, excluded_non_change_count: countNonChangeClosures(generationOptions.items), selection_report: selectionReport }
-            : { ...suggestion, excluded_non_change_count: countNonChangeClosures(generationOptions.items) };
+            ? { ...suggestion, excluded_non_change_count: countNonChangeClosures(generationOptions.items, generationOptions), selection_report: selectionReport }
+            : { ...suggestion, excluded_non_change_count: countNonChangeClosures(generationOptions.items, generationOptions) };
         process.stdout.write(JSON.stringify(payload, null, 2) + "\n");
         return;
     }
@@ -923,6 +935,9 @@ function requireAnyValue(args, index, flag) {
 function printHelp() {
     process.stdout.write(`pm-changelog
 
+  corrections append --input file.json [--pm-root path] [--format toon|json] [--json]
+  corrections view --release name --item id [--pm-root path] [--format toon|json] [--json]
+
   contracts [--audience api-user|operator|agent-behavior] [--format toon|json]
             [--pm-root path] [--json] [--group-by version|release|milestone]
             [--section-by category|type|status|label] [--release-version version]
@@ -986,7 +1001,7 @@ Options:
                             --release-version-from-package (e.g. a package.json version
                             that has never been released or tagged) and keep the
                             leading Unreleased window instead
-      --status <list>       Comma-separated statuses (default: closed)
+      --status <list>       Comma-separated status IDs/aliases (default: done roles)
       --statuses <list>     Alias for --status
       --exclude-tag <list>  Omit items carrying any of these tags (repeatable, comma-separated)
       --exclude-tags <list> Alias for --exclude-tag
@@ -1086,7 +1101,7 @@ export async function runCliEntry(argv = process.argv) {
 }
 /** Convert an unknown CLI failure into a stable human-readable message. */
 function errorMessage(error) {
-    if (error instanceof ReleaseMilestoneError || error instanceof AudienceContractError || error instanceof ConsumerUpgradeError)
+    if (error instanceof ReleaseCorrectionError || error instanceof ReleaseMilestoneError || error instanceof AudienceContractError || error instanceof ConsumerUpgradeError)
         return JSON.stringify({ error: { code: error.code, message: error.message, remedy: error.remedy } });
     return error instanceof Error ? error.message : String(error);
 }

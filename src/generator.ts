@@ -9,11 +9,12 @@ import { inspectCompleteListResult, resolveCompletionTimestamp } from "@unbraine
 import { certifyCompleteListResult } from "@unbrained/pm-cli/sdk/runtime";
 import type { SchemaListResult, CompletionTimestampSource } from "@unbrained/pm-cli/sdk";
 
-import { isNonChangeClosure, needsNeutralClosure, countNonChangeClosures } from "./closure-policy.ts";
+import { isNonChangeClosure, needsNeutralClosure, countNonChangeClosures, isDoneStatus, normalizeChangelogStatus, defaultDoneStatuses } from "./closure-policy.ts";
 
 import { builtinItemFolder, resolveItemFolder } from "./item-links.ts";
 
 import type {
+  ChangelogStatusContext,
   ChangelogAttributionProvenance,
   ChangelogDocument,
   ChangelogEntryFrom,
@@ -39,7 +40,6 @@ import type {
 } from "./types.ts";
 
 const DEFAULT_TITLE = "Changelog";
-const DEFAULT_STATUSES = ["closed"];
 const SUPPRESSED_PENDING_RELEASE = Symbol.for("pm-changelog.suppressedPendingRelease");
 const DEFAULT_PM_JSON_MAX_BUFFER = 64 * 1024 * 1024;
 
@@ -286,7 +286,7 @@ export function createChangelog(
     while (scannedLines < source.line) {
       physicalLines += lines[scannedLines++]!.split("\n").length;
     }
-    onClaim({ ...source, category: source.kind === "item" ? classifyItem(source.items[0]!) : undefined, line: physicalLines - source.claim.split("\n").length + 1 });
+    onClaim({ ...source, category: source.kind === "item" ? classifyItem(source.items[0]!, options) : undefined, line: physicalLines - source.claim.split("\n").length + 1 });
   };
 
   if (sections.length === 0) {
@@ -304,7 +304,7 @@ export function createChangelog(
       markdown: lines.join("\n").trimEnd() + "\n",
       sections,
       itemCount: items.length,
-      excludedNonChangeCount: countNonChangeClosures(options.items),
+      excludedNonChangeCount: countNonChangeClosures(options.items, options),
     };
   }
 
@@ -313,7 +313,7 @@ export function createChangelog(
       markdown: lines.join("\n").trimEnd() + "\n",
       sections,
       itemCount: 0,
-      excludedNonChangeCount: countNonChangeClosures(options.items),
+      excludedNonChangeCount: countNonChangeClosures(options.items, options),
     };
   }
 
@@ -328,7 +328,7 @@ export function createChangelog(
       // up front. Items still appear in their normal category/field group below,
       // so this is purely additive and absent by default.
       if (options.breakingChanges) {
-        const breaking = section.items.filter(isBreakingItem);
+        const breaking = section.items.filter((item) => isBreakingItem(item, options));
         if (breaking.length > 0) {
           lines.push(`### ${maybeEmoji("Breaking Changes", options)}`, "");
           for (const item of breaking) {
@@ -381,7 +381,7 @@ export function createChangelog(
     markdown: lines.join("\n").trimEnd() + "\n",
     sections,
     itemCount: visibleSections.reduce((sum, section) => sum + section.items.length, 0),
-    excludedNonChangeCount: countNonChangeClosures(options.items),
+    excludedNonChangeCount: countNonChangeClosures(options.items, options),
   };
 }
 
@@ -474,9 +474,9 @@ function groupSectionItems(
   sectionBy: ChangelogSectionBy,
   options: GenerateChangelogOptions
 ): ChangelogItemGroup[] {
-  if (sectionBy !== "category") return groupByField(section.items, sectionBy);
+  if (sectionBy !== "category") return groupByField(section.items, sectionBy, options);
 
-  const grouped = groupByCategory(section.items);
+  const grouped = groupByCategory(section.items, options);
   const result: ChangelogItemGroup[] = [];
   for (const category of CATEGORY_ORDER) {
     const categoryItems = grouped.get(category);
@@ -510,7 +510,7 @@ export function buildChangelogDocument(options: GenerateChangelogOptions): Chang
       sections: sectionGroups,
       contributors: options.contributors ? collectContributors(section.items) : undefined,
       breaking_changes: options.breakingChanges
-        ? section.items.filter(isBreakingItem).map((item) => toDocumentItem(item, options))
+        ? section.items.filter((item) => isBreakingItem(item, options)).map((item) => toDocumentItem(item, options))
         : undefined,
       dependencies: section.dependencyCommits?.map((commit) => ({
         subject: commit.subject,
@@ -526,12 +526,12 @@ export function buildChangelogDocument(options: GenerateChangelogOptions): Chang
     ...(options.entryFrom ? { entry_from: options.entryFrom } : {}),
     section_by: sectionBy,
     item_count: visibleSections.reduce((sum, section) => sum + section.items.length, 0),
-    excluded_non_change_count: countNonChangeClosures(options.items),
+    excluded_non_change_count: countNonChangeClosures(options.items, options),
     releases,
     // Classify the same visible-section items emitted above, not the full
     // filtered set, so the bump matches the released sections (GH #28).
     suggested_semver: options.suggestSemver
-      ? suggestSemverForItems(visibleSections.flatMap((section) => section.items))
+      ? suggestSemverForItems(visibleSections.flatMap((section) => section.items), options)
       : undefined,
   };
 }
@@ -1061,19 +1061,24 @@ function filterItems(options: GenerateChangelogOptions): PmItem[] {
  * "accept none", so an explicit empty list cannot silently empty a release. */
 function filterItemsByStatus(options: GenerateChangelogOptions): PmItem[] {
   const statuses = new Set(
-    (options.includeStatuses ?? DEFAULT_STATUSES).map((status) => status.toLowerCase())
+    (options.includeStatuses ?? defaultDoneStatuses(options)).map((status) => normalizeChangelogStatus(status, options))
   );
   const excludeTags = normalizeExcludeTags(options.excludeTags);
 
   return options.items
-    .filter((item) => !isNonChangeClosure(item))
+    .filter((item) => !isNonChangeClosure(item, options))
     .filter((item) => item.title)
     .filter((item) => !hasExcludedTag(item, excludeTags))
     .filter((item) => {
-      if (statuses.size === 0) return true;
-      return statuses.has(String(item.status ?? "").toLowerCase());
+      return matchesStatus(item, options, statuses);
     })
     .sort(compareItems);
+}
+
+/** Keep historical eligibility frozen while explicit status filters retain precedence. */
+function matchesStatus(item: PmItem, options: GenerateChangelogOptions, statuses: ReadonlySet<string>): boolean {
+  if (options.includeStatuses === undefined) return isDoneStatus(item, options);
+  return statuses.size === 0 || statuses.has(normalizeChangelogStatus(item.status, options));
 }
 
 /** Normalized lookup set for the opt-in `--exclude-tag` filter. Empty when the
@@ -1631,7 +1636,8 @@ const CONVENTIONAL_HEADINGS: Record<Category, string> = {
  */
 function groupByField(
   items: PmItem[],
-  sectionBy: Exclude<ChangelogSectionBy, "category">
+  sectionBy: Exclude<ChangelogSectionBy, "category">,
+  context: ChangelogStatusContext
 ): Array<{ heading: string; items: PmItem[] }> {
   const groups = new Map<string, PmItem[]>();
   const push = (heading: string, item: PmItem): void => {
@@ -1641,7 +1647,7 @@ function groupByField(
   };
 
   for (const item of items) {
-    if (needsNeutralClosure(item)) {
+    if (needsNeutralClosure(item, context)) {
       push("Closed", item);
     } else if (sectionBy === "type") {
       push(titleCase(typeof item.type === "string" && item.type.trim() ? item.type.trim() : "Other"), item);
@@ -1711,10 +1717,10 @@ function pickContributor(value: unknown): string | undefined {
 
 /** Bucket items under their keep-a-changelog category, preserving the order
  * they arrived in within each bucket. */
-function groupByCategory(items: PmItem[]): Map<Category, PmItem[]> {
+function groupByCategory(items: PmItem[], context: ChangelogStatusContext): Map<Category, PmItem[]> {
   const grouped = new Map<Category, PmItem[]>();
   for (const item of items) {
-    const category = classifyItem(item);
+    const category = classifyItem(item, context);
     const categoryItems = grouped.get(category) ?? [];
     categoryItems.push(item);
     grouped.set(category, categoryItems);
@@ -1735,8 +1741,8 @@ const REMOVED_NEEDLES = ["removed", "remove", "deleted", "delete"];
  * consulted only as a fallback, because descriptive prose collides with command
  * names and would misfile a defect in `pm update` as a "Changed" entry.
  */
-function classifyItem(item: PmItem): Category {
-  if (needsNeutralClosure(item)) return "Closed";
+function classifyItem(item: PmItem, context: ChangelogStatusContext): Category {
+  if (needsNeutralClosure(item, context)) return "Closed";
   // Strip CLI-flag-like tokens from titles before scanning. Without this, an
   // item titled "pm <cmd> --add fails..." gets classified as "Added" because
   // the word "add" matches inside "--add". The pattern:
@@ -2019,7 +2025,7 @@ export function parseChangelogEntryFrom(value: string): ChangelogEntryFrom {
 /** Resolve entry prose without mutating the tracker title or its classification.
  * Empty, whitespace-only and non-string resolutions fall back to title. */
 function resolveEntryTitle(item: PmItem, options: GenerateChangelogOptions): string {
-  if (needsNeutralClosure(item)) return `Closed: ${toSingleLine(item.title)}`;
+  if (needsNeutralClosure(item, options)) return `Closed: ${toSingleLine(item.title)}`;
   if (options.entryFrom === "close_reason") {
     const resolution = resolveChangelogResolution(item);
     if (resolution !== undefined) return resolution;
@@ -2044,7 +2050,7 @@ export function lintChangelogEntries(options: GenerateChangelogOptions): string[
   for (const item of visibleSections.flatMap((section) => section.items)) {
     if (seen.has(item)) continue;
     seen.add(item);
-    if (String(item.status).toLowerCase() !== "closed" || classifyItem(item) !== "Fixed") continue;
+    if (!isDoneStatus(item, options) || classifyItem(item, options) !== "Fixed") continue;
     if (typeof item.close_reason === "string" && item.close_reason.trim()) continue;
     const title = toSingleLine(item.title);
     if (/^(?:fix(?:ed)?|correct(?:ed)?|repair(?:ed)?|resolve(?:d)?|prevent(?:ed)?|make|ensure)\b/i.test(title)) continue;
@@ -2148,8 +2154,8 @@ const HEADING_EMOJI: Record<string, string> = {
  * as non-breaking no longer triggers a major-bump suggestion (GH #26).
  * Used only by the opt-in `--breaking-changes` / `--suggest-semver` features.
  */
-function isBreakingItem(item: PmItem): boolean {
-  if (needsNeutralClosure(item)) return false;
+function isBreakingItem(item: PmItem, context: ChangelogStatusContext): boolean {
+  if (needsNeutralClosure(item, context)) return false;
   if (isTruthyFlag(item.breaking)) return true;
   if (isTruthyFlag(item.metadata?.["breaking"])) return true;
 
@@ -2204,7 +2210,7 @@ export function suggestSemver(options: GenerateChangelogOptions): SemverSuggesti
   // bump is never reported from releases hidden by visibility flags (GH #28).
   // With no narrowing flags this is exactly filterItems(options), so the
   // default suggestion is unchanged.
-  return suggestSemverForItems(visibleChangelogItems(options));
+  return suggestSemverForItems(visibleChangelogItems(options), options);
 }
 
 /**
@@ -2231,7 +2237,7 @@ export function visibleChangelogItems(options: GenerateChangelogOptions): PmItem
  * output is unexpectedly empty or smaller than expected.
  */
 export function explainChangelogSelection(options: GenerateChangelogOptions): ChangelogSelectionReport {
-  const statuses = new Set((options.includeStatuses ?? DEFAULT_STATUSES).map((status) => status.toLowerCase()));
+  const statuses = new Set((options.includeStatuses ?? defaultDoneStatuses(options)).map((status) => normalizeChangelogStatus(status, options)));
   // Window mode is active for a non-empty list, or a deliberately empty one
   // (suppressed pending release asserted). An accidentally empty list — zero
   // tags, no suppression asserted — is absent history, so the report mirrors
@@ -2240,7 +2246,7 @@ export function explainChangelogSelection(options: GenerateChangelogOptions): Ch
 
   const withTitle: PmItem[] = [];
   const missingTitle: PmItem[] = [];
-  for (const item of options.items.filter((item) => !isNonChangeClosure(item))) {
+  for (const item of options.items.filter((item) => !isNonChangeClosure(item, options))) {
     if (item.title) withTitle.push(item);
     else missingTitle.push(item);
   }
@@ -2256,7 +2262,7 @@ export function explainChangelogSelection(options: GenerateChangelogOptions): Ch
   const afterStatus: PmItem[] = [];
   const excludedByStatus: PmItem[] = [];
   for (const item of afterExcludedTags) {
-    if (statuses.size === 0 || statuses.has(String(item.status ?? "").toLowerCase())) {
+    if (matchesStatus(item, options, statuses)) {
       afterStatus.push(item);
     } else {
       excludedByStatus.push(item);
@@ -2314,7 +2320,7 @@ export function explainChangelogSelection(options: GenerateChangelogOptions): Ch
   const candidateItems = candidateSections.flatMap((section) => section.items);
   const visibleItems = visibleSections.flatMap((section) => section.items);
   const attributionProvenance = buildAttributionProvenance(visibleItems, options);
-  const nonChangeCount = countNonChangeClosures(options.items);
+  const nonChangeCount = countNonChangeClosures(options.items, options);
   const excludedCounts = {
     ...(nonChangeCount > 0 ? { non_change: nonChangeCount } : {}),
     missing_title: missingTitle.length,
@@ -2330,6 +2336,7 @@ export function explainChangelogSelection(options: GenerateChangelogOptions): Ch
   return {
     filters: {
       statuses: Array.from(statuses),
+      ...(options.includeStatuses === undefined && options.statusSelection ? { status_selection: "per-item" as const } : {}),
       since: options.since,
       until: options.until,
       release_windows: hasReleaseWindows,
@@ -2374,18 +2381,18 @@ export function explainChangelogSelection(options: GenerateChangelogOptions): Ch
 
 /** Classify an explicit item set into a semver bump, excluding non-change and
  * neutral closures even when the caller has not applied option-driven filtering. */
-export function suggestSemverForItems(items: PmItem[]): SemverSuggestion {
+export function suggestSemverForItems(items: PmItem[], context: ChangelogStatusContext = {}): SemverSuggestion {
   let breaking = 0;
   let feature = 0;
   let fix = 0;
   let other = 0;
   for (const item of items) {
-    if (isNonChangeClosure(item) || needsNeutralClosure(item)) continue;
-    if (isBreakingItem(item)) {
+    if (isNonChangeClosure(item, context) || needsNeutralClosure(item, context)) continue;
+    if (isBreakingItem(item, context)) {
       breaking++;
       continue;
     }
-    const category = classifyItem(item);
+    const category = classifyItem(item, context);
     if (category === "Added") feature++;
     else if (category === "Fixed") fix++;
     else other++;

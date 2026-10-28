@@ -1,8 +1,11 @@
 import { createHash, randomUUID } from "node:crypto";
 import { link, mkdir, open, readFile, readdir, rmdir, unlink } from "node:fs/promises";
 import { join } from "node:path";
-import { EXIT_CODE, PmCliError, listAllComplete } from "@unbrained/pm-cli/sdk";
+import { EXIT_CODE, PmCliError, listAllComplete, normalizeStatusInput, readSettings, resolveRuntimeStatusRegistry, SETTINGS_DEFAULTS } from "@unbrained/pm-cli/sdk";
+import type { RuntimeStatusRegistry } from "@unbrained/pm-cli/sdk";
 import type { ChangelogReleaseWindow, PmItem } from "./types.ts";
+import { visibleChangelogItems } from "./generator.ts";
+import { isNonChangeClosure } from "./closure-policy.ts";
 
 /** Stable refusal identifiers for automation and recovery. */
 export type ReleaseMilestoneErrorCode = "milestone_invalid" | "milestone_membership_changed" | "milestone_missing" | "milestone_storage" | "milestone_options";
@@ -24,11 +27,13 @@ export class ReleaseMilestoneError extends PmCliError {
 export interface TrackerReleaseSnapshot {
   readonly capturedAt: string;
   readonly items: readonly PmItem[];
+  /** SDK-classified done-role IDs at capture time; absent adapters use SDK defaults. */
+  readonly doneItemIds?: readonly string[];
 }
 
 /** Content-verified, immutable named boundary and its exact tracker membership. */
 export interface ReleaseMilestone extends TrackerReleaseSnapshot {
-  readonly schema: 1;
+  readonly schema: 1 | 2;
   readonly name: string;
   readonly query: string;
   readonly fingerprint: string;
@@ -94,20 +99,51 @@ function renderItem(item: PmItem): PmItem {
   return row;
 }
 
+/** Validate captured eligibility without accepting sparse, duplicate or foreign IDs. */
+function publicationIds(value: unknown, items: readonly PmItem[]): readonly string[] {
+  const refuse = (): never => {
+    throw new ReleaseMilestoneError("milestone_invalid", "Invalid captured publication eligibility.", "Supply a dense array of at most 100000 unique IDs present in the snapshot; capture done-role eligibility through the SDK before publication.");
+  };
+  if (!Array.isArray(value) || value.length > 100000 || Reflect.ownKeys(value).length !== value.length + 1) return refuse();
+  const ids = new Set(items.map((item) => item?.id));
+  const seen = new Set<string>();
+  for (let index = 0; index < value.length; index++) {
+    const id: unknown = value[index];
+    if (!Object.hasOwn(value, index) || typeof id !== "string" || !ids.has(id) || seen.has(id)) return refuse();
+    seen.add(id);
+  }
+  return value as string[];
+}
+
+/** Classify captures through SDK roles; legacy replay uses fixed defaults and exact tokens. */
+function doneIds(items: readonly PmItem[], registry: RuntimeStatusRegistry, exactLegacyTokens = false): string[] {
+  return items.filter((item) => {
+    const status = normalizeStatusInput(item.status, registry);
+    return status !== undefined && registry.terminal_done_statuses.has(status)
+      && (!exactLegacyTokens || String(item.status).toLowerCase() === status);
+  }).map((item) => item.id!);
+}
+
 /** Validate unknown persisted data before it can affect release attribution. */
 export function parseReleaseMilestone(value: unknown): ReleaseMilestone {
+  const raw = value as Partial<ReleaseMilestone> | null | undefined;
+  // Bound new eligibility before JSON conversion can allocate a sparse or oversized array.
+  const capturedIds = raw?.schema === 2 ? [...publicationIds(raw.doneItemIds, Array.isArray(raw.items) ? raw.items : [])] : undefined;
   let record: Partial<ReleaseMilestone> | null;
   try { record = JSON.parse(JSON.stringify(value)) as Partial<ReleaseMilestone> | null; }
   catch { record = null; }
-  if (!record || record.schema !== 1 || typeof record.name !== "string" || typeof record.query !== "string"
+  if (!record || ![1, 2].includes(record.schema!) || typeof record.name !== "string" || typeof record.query !== "string"
     || typeof record.capturedAt !== "string"
     || !Array.isArray(record.items) || typeof record.fingerprint !== "string") {
-    throw new ReleaseMilestoneError("milestone_invalid", "Invalid release milestone snapshot.", "Read a complete version-1 milestone from its original backend; do not edit snapshots.");
+    throw new ReleaseMilestoneError("milestone_invalid", "Invalid release milestone snapshot.", "Read a complete version-1 or version-2 milestone from its original backend; do not edit snapshots.");
   }
   if (!validCaptureTime(record.capturedAt)) {
     throw new ReleaseMilestoneError("milestone_invalid", "Capture time must be a calendar-valid RFC 3339 instant with an explicit offset.", "Supply a complete timestamp ending in Z or a numeric offset, such as 2026-10-01T12:00:00Z; never edit persisted snapshots.");
   }
   checkName(record.name);
+  if (record.schema === 2 && (!capturedIds || Object.keys(record).some((key) => !["schema", "name", "query", "capturedAt", "items", "doneItemIds", "fingerprint"].includes(key)))) {
+    throw new ReleaseMilestoneError("milestone_invalid", "Unexpected version-2 milestone fields.", "Use the producer's schema-2 record without extra fields; keep legacy records unchanged.");
+  }
   const ids = new Set<string>();
   for (const item of record.items) {
     if (!item || typeof item.id !== "string" || !item.id.trim() || typeof item.title !== "string" || ids.has(item.id)) {
@@ -115,7 +151,11 @@ export function parseReleaseMilestone(value: unknown): ReleaseMilestone {
     }
     ids.add(item.id);
   }
-  const payload = { schema: 1 as const, name: record.name, query: record.query, capturedAt: record.capturedAt, items: record.items };
+  if (record.schema === 2 && capturedIds!.some((id) => !ids.has(id))) {
+    throw new ReleaseMilestoneError("milestone_invalid", "Captured publication IDs must survive snapshot normalization.", "Use SDK item IDs unchanged; recapture the source without transforming item identities.");
+  }
+  const payload = { schema: record.schema!, name: record.name, query: record.query, capturedAt: record.capturedAt, items: record.items,
+    ...(record.schema === 2 ? { doneItemIds: capturedIds } : {}) };
   if (fingerprint(payload) !== record.fingerprint) {
     throw new ReleaseMilestoneError("milestone_invalid", "Release milestone fingerprint does not match its content.", "Recover the original immutable snapshot from the backend or a verified backup.");
   }
@@ -168,7 +208,10 @@ export async function createReleaseMilestone(store: ReleaseMilestoneStore, name:
   checkName(name);
   if (name !== name.toLowerCase()) throw new ReleaseMilestoneError("milestone_invalid", "New milestone names must be portable across filesystems.", "Use a lowercase milestone name; case variants are not separate releases.");
   const items = JSON.parse(JSON.stringify(selectItems(snapshot.items, query).map(renderItem))) as PmItem[];
-  const payload = { schema: 1 as const, name, query, capturedAt: snapshot.capturedAt, items };
+  const eligible = new Set(snapshot.doneItemIds === undefined
+    ? doneIds(snapshot.items, resolveRuntimeStatusRegistry(SETTINGS_DEFAULTS.schema))
+    : publicationIds(snapshot.doneItemIds, snapshot.items));
+  const payload = { schema: 2 as const, name, query, capturedAt: snapshot.capturedAt, items, doneItemIds: items.filter((item) => eligible.has(item.id!)).map((item) => item.id!) };
   const candidate = parseReleaseMilestone({ ...payload, fingerprint: fingerprint(payload) });
   const existing = await store.read(name);
   if (existing === undefined) {
@@ -197,12 +240,15 @@ export async function readReleaseMilestones(store: ReleaseMilestoneStore): Promi
   }));
 }
 
-/** Attribute each item to its first closed capture, preserving the frozen row.
- * Open captures never reserve membership; live closures stay Unreleased until
- * captured closed. Later tracker edits, reopenings and deletions cannot grow or
- * rewrite an earlier release. */
-export function resolveTrackerReleaseHistory(milestones: readonly ReleaseMilestone[], currentItems: readonly PmItem[]): {
-  items: PmItem[]; releaseWindows: ChangelogReleaseWindow[]; releaseMembership: ReadonlyMap<string, string>;
+/** Exact owning boundary and original row of an item's first published claim. */
+export interface TrackerReleaseClaim {
+  readonly milestone: ReleaseMilestone;
+  readonly item: PmItem;
+}
+
+/** Verify the entire catalog and select first publication independently of names or input order. */
+export function resolveTrackerReleaseLedger(milestones: readonly ReleaseMilestone[], _registry?: RuntimeStatusRegistry): {
+  ordered: ReleaseMilestone[]; claims: ReadonlyMap<string, TrackerReleaseClaim>; omittedNonChanges: ReadonlyMap<string, PmItem>;
 } {
   const ordered = milestones.map(parseReleaseMilestone).sort((a, b) => Date.parse(a.capturedAt) - Date.parse(b.capturedAt) || compareCodeUnits(a.name, b.name));
   if (new Set(ordered.map((milestone) => milestone.name.toLowerCase())).size !== ordered.length) {
@@ -211,25 +257,55 @@ export function resolveTrackerReleaseHistory(milestones: readonly ReleaseMilesto
   if (new Set(ordered.map((milestone) => Date.parse(milestone.capturedAt))).size !== ordered.length) {
     throw new ReleaseMilestoneError("milestone_invalid", "Milestone capture order is ambiguous.", "Use verified snapshots with distinct capture instants; do not infer order from milestone names.");
   }
+  const claims = new Map<string, TrackerReleaseClaim>();
+  const omittedNonChanges = new Map<string, PmItem>();
+  for (const milestone of ordered) {
+    // Schema 1 was released with SDK-default status meaning; never reinterpret it using current custom roles.
+    const eligible = new Set(milestone.schema === 2 ? milestone.doneItemIds : doneIds(milestone.items, resolveRuntimeStatusRegistry(SETTINGS_DEFAULTS.schema), true));
+    const context = { statusSelection: new Map(milestone.items.map((item) => [item.id!, eligible.has(item.id!)])) };
+    // Rendering is the publication oracle. Merely appearing in a done-role capture owns nothing.
+    const published = new Set(visibleChangelogItems({ items: [...milestone.items], ...context }).map((item) => item.id!));
+    for (const item of milestone.items) {
+      if (published.has(item.id!) && !claims.has(item.id!)) claims.set(item.id!, { milestone, item });
+      if (eligible.has(item.id!) && isNonChangeClosure(item, context) && !omittedNonChanges.has(item.id!)) omittedNonChanges.set(item.id!, item);
+    }
+  }
+  return { ordered, claims, omittedNonChanges };
+}
+
+/** Attribute each item to its first published claim, preserving the frozen row.
+ * Omitted, active, blocked and canceled captures never reserve membership. Later edits,
+ * reopenings and recaptures cannot rewrite an earlier published claim. */
+export function resolveTrackerReleaseHistory(milestones: readonly ReleaseMilestone[], currentItems: readonly PmItem[], registry: RuntimeStatusRegistry = resolveRuntimeStatusRegistry(SETTINGS_DEFAULTS.schema)): {
+  items: PmItem[]; releaseWindows: ChangelogReleaseWindow[]; releaseMembership: ReadonlyMap<string, string>; statusSelection: ReadonlyMap<string, boolean>; statusRegistry: RuntimeStatusRegistry; omittedNonChangeIds: ReadonlySet<string>;
+} {
+  const { ordered, claims, omittedNonChanges } = resolveTrackerReleaseLedger(milestones, registry);
   const membership = new Map<string, string>();
   const items: PmItem[] = [];
   const windows: ChangelogReleaseWindow[] = [];
+  const statusSelection = new Map<string, boolean>();
   for (const milestone of ordered) {
     const heading = `${milestone.name} - ${new Date(milestone.capturedAt).toISOString().slice(0, 10)}`;
     windows.unshift({ heading, releaseTag: milestone.name });
     for (const frozen of milestone.items) {
-      if (String(frozen.status).toLowerCase() !== "closed" || membership.has(frozen.id!)) continue;
-      const item = frozen;
-      items.push({ ...item, release: undefined, metadata: { ...item.metadata, release: undefined } });
+      if (claims.get(frozen.id!)?.milestone !== milestone) continue;
+      items.push({ ...frozen, release: undefined, metadata: { ...frozen.metadata, release: undefined } });
       membership.set(frozen.id!, heading);
+      statusSelection.set(frozen.id!, true);
     }
   }
   for (const item of currentItems) {
     if (!item.id || membership.has(item.id)) continue;
     items.push({ ...item, release: undefined, metadata: { ...item.metadata, release: undefined } });
     membership.set(item.id, "Unreleased");
+    statusSelection.set(item.id, doneIds([item], registry).length > 0);
   }
-  return { items, releaseWindows: [{ heading: "Unreleased" }, ...windows], releaseMembership: membership };
+  // Keep omitted-only diagnostic rows compatible without granting them membership or hiding live work.
+  for (const [id, item] of omittedNonChanges) if (!statusSelection.has(id)) {
+    items.push(item);
+    statusSelection.set(id, true);
+  }
+  return { items, releaseWindows: [{ heading: "Unreleased" }, ...windows], releaseMembership: membership, statusSelection, statusRegistry: registry, omittedNonChangeIds: new Set(omittedNonChanges.keys()) };
 }
 
 /** Fail closed on options that would replace or reinterpret frozen boundaries. */
@@ -240,7 +316,9 @@ export function assertTrackerMilestoneOptions(conflicts: readonly unknown[]): vo
 /** Capture a certified full tracker read through the pinned public SDK, without git. */
 export async function readTrackerReleaseSnapshot(pmRoot: string): Promise<TrackerReleaseSnapshot> {
   const result = await listAllComplete({ includeBody: false }, { pmRoot });
-  return { capturedAt: new Date().toISOString(), items: result.items.map(renderItem) };
+  const registry = resolveRuntimeStatusRegistry((await readSettings(pmRoot)).schema);
+  const items = result.items.map(renderItem);
+  return { capturedAt: new Date().toISOString(), items, doneItemIds: doneIds(items, registry) };
 }
 
 /** Filesystem implementation with atomic no-replace publication for concurrent writers. */

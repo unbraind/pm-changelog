@@ -369,7 +369,7 @@ and its history untouched in the tracker. Both flags are reported by `--explain`
 | `--stdin` | false | Read pm JSON from stdin |
 | `--pm-root <dir>` | - | Run an unbounded `pm --pm-path <dir> --output-budget unbounded --output-limit unbounded list --all --json` read |
 | `--pm-bin <file>` | `pm` | pm executable to run |
-| `--pm-arg <arg>` | - | Extra global argument passed before the canonical list command; repeat for multiple args |
+| `--pm-arg <arg>` | - | Extra global argument passed before the canonical list command; repeat for multiple args. Forwarded SDK `--path` / `--pm-path` selectors also select status roles, link checks and git release history. |
 | `--pm-cwd <dir>` | - | Working directory for running pm |
 | `--version <version>` | `Unreleased` | Version heading for the standalone CLI |
 | `--release-version <version>` | - | Compatibility alias for `--version` (matches extension syntax) |

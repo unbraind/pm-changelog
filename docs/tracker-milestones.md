@@ -22,8 +22,11 @@ const notes = createChangelog(resolveTrackerReleaseHistory(releases, current.ite
 console.log(notes.markdown);
 ```
 
-A database or remote SDK adapter can supply `{ capturedAt, items }` from its own
-consistent read and implement `ReleaseMilestoneStore`:
+A database or remote SDK adapter can supply `{ capturedAt, items, doneItemIds }`
+from its own consistent read and implement `ReleaseMilestoneStore`. Derive
+`doneItemIds` through the SDK's capture-time status registry roles. The field is a
+dense array of at most 100000 unique IDs present in the snapshot; query projection
+keeps only selected IDs. Adapters omitting it use the SDK-default registry:
 
 - `read(name)` returns the original complete milestone or `undefined`.
 - `publish(name, milestone)` atomically inserts only if the name is absent and
@@ -57,9 +60,9 @@ compact JSON error on stderr and exits nonzero. Codes cover invalid snapshots or
 queries, changed membership, missing milestones, storage faults and conflicting
 release-source options. A failed read never silently generates an empty release.
 
-The resolver assigns an ID to the first milestone that captures it **closed**,
-using that milestone's frozen row. An earlier open capture reserves no release
-membership. Until a closed row is captured, a live closure remains Unreleased.
+The resolver assigns an ID to the first milestone whose frozen eligibility
+publishes it, using that milestone's frozen row. An earlier active capture reserves
+no release membership. Until a done-role row is captured, a live closure remains Unreleased.
 Later edits, reopenings and deletion cannot add to or rewrite an earlier release.
 
 New milestone names use lowercase ASCII letters, digits, dots, underscores and
@@ -73,3 +76,54 @@ The directory adapter serializes the final clock check and publication with
 `.writer-lock`. It never steals a held lock. A prolonged lock becomes a recoverable
 storage refusal; check for an active writer before investigating an abandoned
 lock. Database adapters must enforce the same ordering inside their transaction.
+
+## First publication ownership
+
+`resolveTrackerReleaseLedger(milestones)` verifies and orders the whole
+catalog by capture time, then binds each item to its first actually published capture and
+original row. Generation and correction readers share this ledger; later edits,
+recaptures and reopenings cannot move a published claim. Active, blocked and
+canceled captures do not reserve publication. New schema-2 records include
+fingerprint-bound `doneItemIds`; later status-role and alias changes cannot
+reinterpret them. `readTrackerReleaseSnapshot` captures these IDs through the
+SDK. The ledger's optional registry argument remains accepted for compatibility
+but cannot affect historical decisions. Schema-1 records retain released
+SDK-default status meaning and their exact original fingerprints, without rewrite.
+
+CLI paths load current SDK roles only for live Unreleased items. SDK callers can
+pass that registry as the third argument of `resolveTrackerReleaseHistory`.
+The returned `statusSelection` and `statusRegistry` keep frozen and live meaning
+separate. Admission, closure dispositions, neutral wording, category grouping,
+breaking/semver decisions, counts and selection diagnostics share this context.
+Custom done-role issues closed as duplicates or other non-changes are omitted;
+issues without repair evidence remain neutral `Closed` entries. Canceled terminal
+non-change dispositions are omitted too. An explicit `includeStatuses` overrides
+admission only, including an empty list selecting every status; it never bypasses
+closure evidence or reinterprets a frozen done-role row. Status IDs and aliases
+are normalized through the same SDK-backed function on both sides of selection.
+Diagnostics mark `filters.status_selection: per-item` when captured eligibility
+overrides their fallback `filters.statuses` list.
+
+For live SDK inputs, pass `statusRegistry: resolveRuntimeStatusRegistry((await
+readSettings(tracker)).schema)` to generation, documents, summaries, audits,
+audience contracts or consumer upgrades. Host commands load it automatically.
+Standalone file/stdin inputs use SDK defaults unless `--pm-root` supplies the
+tracker registry. No item status or stored row is rewritten for presentation.
+
+Ownership uses `visibleChangelogItems`, the same selector used by Markdown,
+structured documents and semver. Capture-time query selection, frozen done-role
+eligibility, non-change dispositions and empty-title omission therefore agree.
+An omitted capture owns nothing: a duplicate in v1 can be reopened and repaired,
+then published exactly once in v2 and corrected there. Read-time presentation
+filters narrow a view; they do not rewrite a release's captured publication.
+
+`omittedNonChanges` on the ledger and `omittedNonChangeIds` on the returned history
+context retain frozen omission diagnostics without granting release membership.
+The history contains one row per item: a published claim takes precedence, then
+live state, then omitted-only diagnostic rows. Later repairs remain selectable;
+old omitted rows cannot shadow them or duplicate their IDs. Omission counts stay
+available even after the same item publishes a repair. Pass the full history
+context to changelog generation to preserve these counts. Milestones retain only
+render inputs and omit `change_facets`. Contract and upgrade projections need
+native items carrying those facets; projecting the compact milestone items alone
+reports `missing_facet` and cannot reconstruct upgrade actions or breaking facets.

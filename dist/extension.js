@@ -1,7 +1,8 @@
 import { readFileSync, writeFileSync } from "node:fs";
 import { resolve } from "node:path";
-import { defineExtension, getActiveExtensionRegistrations, listAllItemMetadata, locateItem, readLocatedItem, readSettings, resolveItemTypeRegistry, EXIT_CODE, PmCliError, } from "@unbrained/pm-cli/sdk";
+import { defineExtension, getActiveExtensionRegistrations, listAllItemMetadata, locateItem, readLocatedItem, readSettings, resolveItemTypeRegistry, resolveRuntimeStatusRegistry, EXIT_CODE, PmCliError, } from "@unbrained/pm-cli/sdk";
 import { AUDIENCE_CONTRACT_FLAGS, runAudienceContractsCommand } from "./audience-command.js";
+import { RELEASE_CORRECTION_FLAGS, runReleaseCorrectionsCommand } from "./release-correction-command.js";
 import { CONSUMER_UPGRADE_FLAGS, runConsumerUpgradesCommand } from "./consumer-upgrade-command.js";
 import { DirectoryReleaseMilestoneStore, assertTrackerMilestoneOptions, createReleaseMilestone, readReleaseMilestones, readTrackerReleaseSnapshot, resolveTrackerReleaseHistory } from "./milestones.js";
 import { auditChangelogClaims, assertChangelogClaims, formatClaimAudit, parseClaimTestReceipts } from "./claim-audit.js";
@@ -45,6 +46,15 @@ export default defineExtension({
     version: "2026.10.28",
     activate(api) {
         api.registerItemFields([{ name: "change_facets", type: "array", optional: true }]);
+        api.registerCommand({
+            name: "changelog corrections",
+            description: "Append or view linked factual corrections without rewriting published milestones; no git required.",
+            arguments: [{ name: "action", required: true, description: "append or view" }],
+            flags: RELEASE_CORRECTION_FLAGS,
+            async run(ctx) {
+                return { pmChangelogRendered: true, output: await runReleaseCorrectionsCommand(ctx.pm_root, ctx.args[0] ?? "", ctx.options, ctx.global.json, ctx.global.author) };
+            },
+        });
         api.registerCommand({
             name: "changelog upgrades",
             description: "Compile ordered explicit breaking-change obligations for a consumer release range; read-only, no git required.",
@@ -105,7 +115,7 @@ export default defineExtension({
                 { long: "--milestones", description: "Use immutable tracker release milestones instead of git boundaries" },
                 { long: "--all-release-tags", description: "Rebuild full history from git release tag windows" },
                 { long: "--release-tag-pattern", value_name: "glob", description: "Git tag glob for --all-release-tags (default: v*)" },
-                { long: "--status", value_name: "list", description: "Comma-separated statuses (default: closed)" },
+                { long: "--status", value_name: "list", description: "Comma-separated status IDs/aliases (default: done roles)" },
                 { long: "--entry-from", value_name: "field", description: "Prefer title (default) or close_reason; blank resolution falls back to title" },
                 { long: "--group-by", value_name: "mode", description: "version, release, or milestone (default: version)" },
                 { long: "--section-by", value_name: "mode", description: "Within-release grouping: category, type, status, or label (default: category)" },
@@ -222,6 +232,7 @@ export default defineExtension({
                 }
                 const generationOptions = {
                     items,
+                    statusRegistry: resolveRuntimeStatusRegistry((await readSettings(ctx.pm_root)).schema),
                     title: titleOption,
                     version: releaseContext.version,
                     date: dateOption ?? releaseContext.date,
@@ -255,7 +266,8 @@ export default defineExtension({
                     dependencyCutoff: untilOption,
                 };
                 if (milestones) {
-                    Object.assign(generationOptions, resolveTrackerReleaseHistory(await readReleaseMilestones(new DirectoryReleaseMilestoneStore(ctx.pm_root)), items));
+                    const history = resolveTrackerReleaseHistory(await readReleaseMilestones(new DirectoryReleaseMilestoneStore(ctx.pm_root)), items, generationOptions.statusRegistry);
+                    Object.assign(generationOptions, history);
                 }
                 if (allReleaseTags) {
                     try {
@@ -300,7 +312,7 @@ export default defineExtension({
                             entries,
                             format: "json",
                             item_count: entries.length,
-                            excluded_non_change_count: countNonChangeClosures(generationOptions.items),
+                            excluded_non_change_count: countNonChangeClosures(generationOptions.items, generationOptions),
                             ...(selectionReport ? { selection_report: selectionReport } : {}),
                         });
                     }
@@ -331,7 +343,7 @@ export default defineExtension({
                     const suggestion = suggestSemver(generationOptions);
                     return renderedCommandResult({
                         suggested_semver: suggestion,
-                        excluded_non_change_count: countNonChangeClosures(generationOptions.items),
+                        excluded_non_change_count: countNonChangeClosures(generationOptions.items, generationOptions),
                         format: "json",
                         ...(selectionReport ? { selection_report: selectionReport } : {}),
                     });
@@ -412,7 +424,7 @@ export default defineExtension({
                 { long: "--since-previous-tag", description: "Derive --since from the previous git tag" },
                 { long: "--until", value_name: "date", description: "Include items changed on or before this date" },
                 { long: "--until-release-tag", description: "Derive --until from the current release tag when it exists" },
-                { long: "--status", value_name: "list", description: "Comma-separated statuses (default: closed)" },
+                { long: "--status", value_name: "list", description: "Comma-separated status IDs/aliases (default: done roles)" },
                 { long: "--entry-from", value_name: "field", description: "Prefer title (default) or close_reason; blank resolution falls back to title" },
                 { long: "--group-by", value_name: "mode", description: "version, release, or milestone (default: version)" },
                 { long: "--include-empty", description: "Emit an empty release section when no items match" },
@@ -455,6 +467,7 @@ export default defineExtension({
             const items = await listWorkspaceItemMetadata(ctx.pm_root);
             const generated = createChangelog({
                 items,
+                statusRegistry: resolveRuntimeStatusRegistry((await readSettings(ctx.pm_root)).schema),
                 title: stringOption(ctx.options, "title", "title") ?? (releaseNotes ? "Release Notes" : undefined),
                 version: releaseContext.version,
                 date: stringOption(ctx.options, "date", "date") ?? releaseContext.date,
@@ -507,7 +520,7 @@ export default defineExtension({
             // call site is still fully checked). The host enforces `commands` +
             // `resultDiscriminator` before invoking either callback.
             const rendererOwnership = {
-                commands: ["changelog generate", "changelog export", "changelog audit", "changelog contracts", "changelog upgrades"],
+                commands: ["changelog generate", "changelog export", "changelog audit", "changelog contracts", "changelog upgrades", "changelog corrections"],
                 resultDiscriminator: isRenderedCommandResult,
             };
             api.registerRenderer("toon", renderCommandResult, rendererOwnership);

@@ -10,7 +10,67 @@ permissions:
   contents: read
 
 jobs:
+  lifecycle:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout without persisted credentials
+        uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+          fetch-depth: 0
+      - name: Setup Node.js
+        uses: actions/setup-node@v7
+        with:
+          node-version: 26
+          cache: npm
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2.2.0
+      - name: Focused model and behavioral revert proofs without inherited credentials
+        run: |
+          node --input-type=module <<'NODE'
+          import { execFileSync } from "node:child_process";
+          import { chmodSync, mkdtempSync, readdirSync, rmSync } from "node:fs";
+          import { tmpdir } from "node:os";
+          import { join } from "node:path";
+          const lifecycleHome = mkdtempSync(join(tmpdir(), "pm-lifecycle-ci-"));
+          const childEnv = { PATH: process.env.PATH, HOME: lifecycleHome, NPM_CONFIG_USERCONFIG: "/dev/null", GIT_CONFIG_GLOBAL: "/dev/null", GIT_CONFIG_NOSYSTEM: "1", GIT_CEILING_DIRECTORIES: tmpdir(), PM_AUTHOR: "codex-agent", DO_NOT_TRACK: "1" };
+          const run = (binary, args) => execFileSync(binary, args, { env: childEnv, stdio: "inherit" });
+          run("npm", ["ci", "--ignore-scripts"]);
+          run("npm", ["run", "build"]);
+          run("npm", ["run", "build:test"]);
+          run("npm", ["run", "docstring"]);
+          // https://github.com/unbraind/pm-cli/issues/1615
+          // remove when upstream trusts unchanged commands across refs
+          // Pinned CLI alias for testing.allow_untrusted_linked_tests; this checkout only.
+          run(process.execPath, ["node_modules/@unbrained/pm-cli/dist/cli.js", "--path", ".agents/pm", "config", "set", "untrusted-linked-test-execution", "enabled"]);
+          run(process.execPath, ["node_modules/@unbrained/pm-cli/dist/cli.js", "test", "pmc-release-corrections", "--run", "--only-last", "--progress", "--allow-untrusted-linked-tests", "--timeout", "1200"]);
+          run(process.execPath, ["node_modules/@unbrained/pm-cli/dist/cli.js", "test", "pmc-milestone-status-roles", "--run", "--only-last", "--progress", "--allow-untrusted-linked-tests", "--timeout", "240"]);
+          run(process.execPath, ["--test", "--test-concurrency=2", "test/cli-tracker-target.test.ts", "test/closure-status-roles.test.ts", "test/release-publication.test.ts", "test/release-ownership.test.ts"]);
+          run(process.execPath, ["scripts/verify-release-lifecycles.ts"]);
+          run(process.execPath, ["scripts/accept-release-corrections.ts"]);
+          run("npm", ["run", "changelog:full"]);
+          run("npm", ["run", "changelog:check"]);
+          const publicCopy = mkdtempSync(join(tmpdir(), "pm-public-tracker-"));
+          const archive = execFileSync("git", ["archive", "origin/main", ".agents/pm"], { env: childEnv, maxBuffer: 64 * 1024 * 1024 });
+          execFileSync("tar", ["-xf", "-", "-C", publicCopy], { input: archive, env: childEnv });
+          const source = join(publicCopy, ".agents/pm");
+          const mode = (directory, readOnly) => {
+            chmodSync(directory, readOnly ? 0o555 : 0o700);
+            for (const entry of readdirSync(directory, { withFileTypes: true })) {
+              const path = join(directory, entry.name);
+              if (entry.isDirectory()) mode(path, readOnly);
+              else if (entry.isFile()) chmodSync(path, readOnly ? 0o444 : 0o600);
+              else throw new Error("Public tracker source must contain regular files only");
+            }
+          };
+          try {
+            mode(source, true);
+            run(process.execPath, ["scripts/validate-release-corrections.ts", source]);
+          } finally { mode(source, false); rmSync(publicCopy, { recursive: true, force: true }); }
+          NODE
+
   test:
+    needs: lifecycle
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
@@ -22,6 +82,7 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v7
         with:
+          persist-credentials: false
           fetch-depth: 0
           fetch-tags: true
 

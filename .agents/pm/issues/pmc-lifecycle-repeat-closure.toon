@@ -1,0 +1,23 @@
+id: pmc-lifecycle-repeat-closure
+title: Use supported lifecycle transitions in the empty-title fixture
+description: "The CI trust workaround for upstream pm-cli#1615 succeeds: source run 40719721104 reports trust_refusal zero and passes the native repair case plus the 500-lifecycle model. Its third existing test creates life-empty closed, then requests closed again through the update helper. The main-inherited SDK terminal guard refuses this repeat closure. Tests were intentionally left unchanged under the workflow-only instruction. Follow up by using the supported reopen/update lifecycle in this fixture while preserving every ownership, immutability and correction assertion; do not disable the terminal guard."
+type: Issue
+status: in_progress
+priority: 2
+tags[3]: ci,lifecycle,sdk-compatibility
+created_at: "2026-10-28T16:21:46.104Z"
+updated_at: "2026-10-28T16:53:24.985Z"
+author: codex-agent
+acceptance_criteria: Preserve all existing assertions; use a supported SDK lifecycle transition; the empty-title case and lifecycle CI pass without bypassing terminal-state guards.
+parent: pmc-release-corrections
+comments[3]{created_at,author,text}:
+  "2026-10-28T16:50:18.678Z",codex-agent,"Fix: change only wording through PmClient.update with explicit unset scope; SDK read-back must retain closed status and the new title. Keep all existing empty-title ownership/correction assertions. Class audit of native release fixtures and packed acceptance found no other repeat-closure edit; other lifecycle updates reopen first. The cross-tracker regression uses real SDK-created custom status registries and all standalone projections, without git."
+  "2026-10-28T16:52:22.737Z",codex-agent,"Behavioral revert proof: unchanged empty-title assertions now pass; reverting only the old repeated status=closed fixture call makes the pinned SDK refuse already-terminal before those assertions. Restored fixture plus forwarded-target regression passes 2/2, zero skips or cancellations. No guard bypass or existing test deletion."
+  "2026-10-28T16:53:24.985Z",codex-agent,"Linked verification executed in a disposable checkout: pm test pmc-lifecycle-repeat-closure --run --only-last --progress --allow-untrusted-linked-tests --timeout 240. Linked command passed 2/2 tests, zero failures/skips/cancellations; trust_refusal=0 and assertion_failure=0. Trust opt-in was confined to the disposable checkout. Both feature and fixture claims released; neither item closed."
+files[2]{path,scope}:
+  test/cli-tracker-target.test.ts,project
+  test/release-lifecycles.test.ts,project
+tests[2]{command,scope,provenance{author,created_at,source_kind,source_ref}}:
+  "node --test --test-concurrency=2 --test-name-pattern=\"empty-title\" test/release-lifecycles.test.ts",project,codex-agent,"2026-10-28T16:50:30.441Z",local_mutation,feat/append-only-release-corrections
+  "node --test --test-concurrency=2 --test-name-pattern=\"forwarded tracker|empty-title\" test/cli-tracker-target.test.ts test/release-lifecycles.test.ts",project,codex-agent,"2026-10-28T16:51:37.411Z",local_mutation,feat/append-only-release-corrections
+body: ""

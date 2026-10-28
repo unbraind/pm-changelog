@@ -1,4 +1,5 @@
 import { PmCliError } from "@unbrained/pm-cli/sdk";
+import type { RuntimeStatusRegistry } from "@unbrained/pm-cli/sdk";
 import type { ChangelogReleaseWindow, PmItem } from "./types.ts";
 /** Stable refusal identifiers for automation and recovery. */
 export type ReleaseMilestoneErrorCode = "milestone_invalid" | "milestone_membership_changed" | "milestone_missing" | "milestone_storage" | "milestone_options";
@@ -15,10 +16,12 @@ export declare class ReleaseMilestoneError extends PmCliError {
 export interface TrackerReleaseSnapshot {
     readonly capturedAt: string;
     readonly items: readonly PmItem[];
+    /** SDK-classified done-role IDs at capture time; absent adapters use SDK defaults. */
+    readonly doneItemIds?: readonly string[];
 }
 /** Content-verified, immutable named boundary and its exact tracker membership. */
 export interface ReleaseMilestone extends TrackerReleaseSnapshot {
-    readonly schema: 1;
+    readonly schema: 1 | 2;
     readonly name: string;
     readonly query: string;
     readonly fingerprint: string;
@@ -35,14 +38,27 @@ export declare function parseReleaseMilestone(value: unknown): ReleaseMilestone;
 export declare function createReleaseMilestone(store: ReleaseMilestoneStore, name: string, snapshot: TrackerReleaseSnapshot, query?: string): Promise<ReleaseMilestone>;
 /** Read all named boundaries, verifying identities instead of trusting backend rows. */
 export declare function readReleaseMilestones(store: ReleaseMilestoneStore): Promise<ReleaseMilestone[]>;
-/** Attribute each item to its first closed capture, preserving the frozen row.
- * Open captures never reserve membership; live closures stay Unreleased until
- * captured closed. Later tracker edits, reopenings and deletions cannot grow or
- * rewrite an earlier release. */
-export declare function resolveTrackerReleaseHistory(milestones: readonly ReleaseMilestone[], currentItems: readonly PmItem[]): {
+/** Exact owning boundary and original row of an item's first published claim. */
+export interface TrackerReleaseClaim {
+    readonly milestone: ReleaseMilestone;
+    readonly item: PmItem;
+}
+/** Verify the entire catalog and select first publication independently of names or input order. */
+export declare function resolveTrackerReleaseLedger(milestones: readonly ReleaseMilestone[], _registry?: RuntimeStatusRegistry): {
+    ordered: ReleaseMilestone[];
+    claims: ReadonlyMap<string, TrackerReleaseClaim>;
+    omittedNonChanges: ReadonlyMap<string, PmItem>;
+};
+/** Attribute each item to its first published claim, preserving the frozen row.
+ * Omitted, active, blocked and canceled captures never reserve membership. Later edits,
+ * reopenings and recaptures cannot rewrite an earlier published claim. */
+export declare function resolveTrackerReleaseHistory(milestones: readonly ReleaseMilestone[], currentItems: readonly PmItem[], registry?: RuntimeStatusRegistry): {
     items: PmItem[];
     releaseWindows: ChangelogReleaseWindow[];
     releaseMembership: ReadonlyMap<string, string>;
+    statusSelection: ReadonlyMap<string, boolean>;
+    statusRegistry: RuntimeStatusRegistry;
+    omittedNonChangeIds: ReadonlySet<string>;
 };
 /** Fail closed on options that would replace or reinterpret frozen boundaries. */
 export declare function assertTrackerMilestoneOptions(conflicts: readonly unknown[]): void;

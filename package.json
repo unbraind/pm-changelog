@@ -44,6 +44,7 @@
     "docs/claim-audit-example.md",
     "docs/consumer-upgrades.md",
     "docs/audience-contracts.md",
+    "docs/release-corrections.md",
     "manifest.json",
     "README.md",
     "CHANGELOG.md"
@@ -107,7 +108,7 @@
     ]
   },
   "peerDependencies": {
-    "@unbrained/pm-cli": ">=2026.10.4"
+    "@unbrained/pm-cli": ">=2026.10.23"
   },
   "devDependencies": {
     "@types/node": "26.6.5",

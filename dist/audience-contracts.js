@@ -1,6 +1,6 @@
 import { createHash } from "node:crypto";
 import { encode } from "@toon-format/toon";
-import { EXIT_CODE, PmCliError, listAllComplete } from "@unbrained/pm-cli/sdk";
+import { EXIT_CODE, PmCliError, listAllComplete, readSettings, resolveRuntimeStatusRegistry } from "@unbrained/pm-cli/sdk";
 import { buildChangelogDocument, resolveChangelogResolution } from "./generator.js";
 import { parseUpgradeActions } from "./upgrade-actions.js";
 /** Explicit publishing targets, in canonical output order. */
@@ -63,7 +63,7 @@ export function buildAudienceContracts(options) {
     // Normalize input before selection too: generator presentation comparators must
     // never let tracker enumeration order decide release or group tie placement.
     const canonicalItems = [...items.values()].sort((left, right) => compareCanonicalKeys(left.id, right.id));
-    const document = buildChangelogDocument({ ...options, items: canonicalItems, includeStatuses: ["closed"], entryFrom: "close_reason" });
+    const document = buildChangelogDocument({ ...options, items: canonicalItems, includeStatuses: undefined, entryFrom: "close_reason" });
     const ledger = [];
     const contracts = audiences.map((audience) => ({ audience, notes: [], omissions: [] }));
     for (const release of document.releases) {
@@ -112,7 +112,7 @@ export function buildAudienceContracts(options) {
 /** Read complete core metadata through the backend-aware SDK; this path never invokes git. */
 export async function readAudienceContracts(pmRoot, options = {}) {
     const result = await listAllComplete({ includeBody: false }, { pmRoot });
-    return buildAudienceContracts({ ...options, items: result.items });
+    return buildAudienceContracts({ ...options, items: result.items, statusRegistry: resolveRuntimeStatusRegistry((await readSettings(pmRoot)).schema) });
 }
 /** Compact JSON or TOON tables, storing the shared attribution ledger exactly once. */
 export function formatAudienceContracts(report, format) {
