@@ -16,7 +16,7 @@ const pinned = (JSON.parse(readFileSync(join(repository, "package.json"), "utf8"
 const childEnv = { PATH: process.env.PATH, HOME: process.env.HOME, NPM_CONFIG_PREFER_OFFLINE: "true", NPM_CONFIG_AUDIT: "false", NPM_CONFIG_FUND: "false", NPM_CONFIG_USERCONFIG: devNull, npm_config_userconfig: devNull, DO_NOT_TRACK: "1", GIT_CEILING_DIRECTORIES: dirname(scratch), BUN_INSTALL: join(scratch, "bun-global"), BUN_INSTALL_CACHE_DIR: join(scratch, "bun-cache") };
 /** Capture commands without publishing installer noise or scratch paths. */
 function run(binary: string, args: string[], cwd = scratch): string {
-  return execFileSync(binary, args, { cwd, env: binary === "npm" || binary === "npx" ? { ...childEnv, NPM_CONFIG_OFFLINE: "true" } : childEnv, encoding: "utf8", stdio: ["ignore", "pipe", "pipe"], maxBuffer: 8 * 1024 * 1024, timeout: 180000 });
+  return execFileSync(binary, args, { cwd, env: childEnv, encoding: "utf8", stdio: ["ignore", "pipe", "pipe"], maxBuffer: 8 * 1024 * 1024, timeout: 180000 });
 }
 try {
   const packed = JSON.parse(run("npm", ["pack", "--ignore-scripts", "--json", "--pack-destination", scratch], repository)) as { filename: string }[];
