@@ -1,7 +1,7 @@
 import { encode } from "@toon-format/toon";
 import { EXIT_CODE, PmCliError, listAllComplete, readSettings, resolveRuntimeStatusRegistry } from "@unbrained/pm-cli/sdk";
 import { buildChangelogDocument, compareVersionStrings } from "./generator.js";
-import { isContractReleaseAfter, parseContractRelease as releaseVersion } from "./contract-versions.js";
+import { isContractReleaseAfter, parseContractRelease as releaseVersion, parseContractReleaseHeading } from "./contract-versions.js";
 /** Expected refusals carry a stable discriminator and public-safe recovery instructions. */
 export class AgentContractDriftError extends PmCliError {
     /** Actionable recovery without source prose or operator paths. */
@@ -103,7 +103,7 @@ export function buildAgentContractDrift(options) {
     for (const release of document.releases) {
         if (isContractReleaseAfter(release.heading, range.to))
             continue;
-        const version = releaseVersion(release.heading);
+        const version = parseContractReleaseHeading(release.heading);
         for (const section of release.sections)
             for (const selected of section.items) {
                 const item = byId.get(selected.id);

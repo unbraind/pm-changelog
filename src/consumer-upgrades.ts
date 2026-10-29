@@ -3,7 +3,7 @@ import { RelationshipGraph, analyzeRelationshipExecution, listAllComplete, readS
 import type { PlanResultPlan, RelationshipEdge } from "@unbrained/pm-cli/sdk";
 import { buildAudienceContracts, parseChangeAudience } from "./audience-contracts.ts";
 import type { ChangeAudience } from "./audience-contracts.ts";
-import { parseContractRelease } from "./contract-versions.ts";
+import { parseContractRelease, parseContractReleaseHeading } from "./contract-versions.ts";
 import { compareVersionStrings } from "./generator.ts";
 import type { ChangelogStatusContext, PmItem } from "./types.ts";
 import { ConsumerUpgradeError, parseUpgradeActions } from "./upgrade-actions.ts";
@@ -62,7 +62,7 @@ export function buildConsumerUpgrades(options: ConsumerUpgradeOptions): Consumer
     for (const facet of item.change_facets ?? []) {
       if (facet.audience !== audience || !facet.breaking) continue;
       // Facets without published numeric release attribution cannot become upgrade obligations.
-      const release = version(row.release);
+      const release = version(parseContractReleaseHeading(row.release));
       const actions = parseUpgradeActions(facet.upgrade_actions, facet.breaking);
       if (!actions.length && compareVersionStrings(release, from) > 0 && compareVersionStrings(release, to) <= 0) {
         omissions.push({ item: row.item, release, reason: "missing_actions" });

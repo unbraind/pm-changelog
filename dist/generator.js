@@ -334,8 +334,7 @@ function limitSections(sections, options) {
 /** Return the normalized version portion of a release heading, or undefined
  * for the special `Unreleased` heading. */
 function sectionVersionKey(heading) {
-    const separatorStart = findReleaseSeparatorStart(heading);
-    const version = heading.slice(0, separatorStart ?? heading.length).trim();
+    const version = normalizeReleaseHeadingKey(heading);
     if (!version || version.toLowerCase() === "unreleased")
         return undefined;
     return normalizeReleaseKey(version);
@@ -1351,7 +1350,7 @@ function isLineTerminator(character) {
 }
 /** Reduce a heading to the same version key used by the historical heading
  * regex, while keeping malformed caller input on a bounded linear path. */
-function normalizeReleaseHeadingKey(heading) {
+export function normalizeReleaseHeadingKey(heading) {
     const trimmed = heading.trim();
     const version = parseBracketedReleaseVersion(trimmed);
     const fallback = version ?? trimmed.slice(0, findReleaseSeparatorStart(trimmed) ?? trimmed.length);

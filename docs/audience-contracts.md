@@ -97,3 +97,10 @@ Expected refusals exit nonzero; standalone stderr includes `error.code`,
 completeness receipts. This publishes author-declared delivery notes; it does not
 independently verify deployment, test success or the truth of declared prose. Use
 `pm changelog audit` for recorded claim-evidence support.
+
+SDK callers may set `untilVersion: "2.0.0"` with `groupBy: "release"` to
+exclude later numeric releases before validating their facets. The comparison
+uses the generator's release-heading identity, including dated `releaseWindows`
+headings such as `3.0.0 - 2026-10-29` and bracketed headings. Published attribution
+retains the original heading. Unknown legacy headings keep their existing
+behavior; range inputs must be bare stable numeric versions.

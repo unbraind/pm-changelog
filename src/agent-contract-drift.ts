@@ -1,7 +1,7 @@
 import { encode } from "@toon-format/toon";
 import { EXIT_CODE, PmCliError, listAllComplete, readSettings, resolveRuntimeStatusRegistry } from "@unbrained/pm-cli/sdk";
 import { buildChangelogDocument, compareVersionStrings } from "./generator.ts";
-import { isContractReleaseAfter, parseContractRelease as releaseVersion } from "./contract-versions.ts";
+import { isContractReleaseAfter, parseContractRelease as releaseVersion, parseContractReleaseHeading } from "./contract-versions.ts";
 import type { ChangelogStatusContext, PmItem } from "./types.ts";
 
 /** Stable, explicit identity and behavior; evidence is provenance rather than an assumption. */
@@ -131,7 +131,7 @@ export function buildAgentContractDrift(options: AgentContractDriftOptions): Age
   let recordCount = 0;
   for (const release of document.releases) {
     if (isContractReleaseAfter(release.heading, range.to)) continue;
-    const version = releaseVersion(release.heading);
+    const version = parseContractReleaseHeading(release.heading);
     for (const section of release.sections) for (const selected of section.items) {
       const item = byId.get(selected.id!)!;
       if (item.change_facets === undefined) continue;

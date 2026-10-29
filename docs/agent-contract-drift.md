@@ -108,7 +108,10 @@ publication-only byte limit. Every orphan-removal contributor keeps its own item
 and facet/obligation coordinates.
 
 Known numeric releases after `to` are excluded before reading or validating their
-facets and before charging facet/declaration budgets. They cannot introduce
+facets and before charging facet/declaration budgets. Release identity uses the
+generator's heading normalization, so dated headings such as `3.0.0 - 2026-10-29`
+and bracketed headings obey the same bound in stored releases and SDK
+`releaseWindows`. Range arguments remain bare stable numeric versions. They cannot introduce
 omissions, ambiguities or schema refusals into an earlier report. Unknown legacy
 release headings still produce their documented omissions. Consumer upgrades use
 the same early temporal selection through the audience SDK's optional inclusive

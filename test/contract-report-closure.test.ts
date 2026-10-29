@@ -6,7 +6,8 @@ import { dirname, join, resolve } from "node:path";
 import test from "node:test";
 import { listAllComplete, runCreate, runInit, runWithActiveExtensions } from "@unbrained/pm-cli/sdk";
 import { decodeToon } from "@unbrained/pm-cli/sdk/testing";
-import { buildAgentContractDrift, buildAudienceContracts, buildConsumerUpgrades, formatAgentContractDrift, formatAudienceContracts, formatConsumerUpgrades, readAgentContractDrift, readConsumerUpgrades } from "../src/index.ts";
+import { buildAgentContractDrift, buildAudienceContracts, buildChangelogDocument, buildConsumerUpgrades, formatAgentContractDrift, formatAudienceContracts, formatConsumerUpgrades, readAgentContractDrift, readConsumerUpgrades } from "../src/index.ts";
+import { isContractReleaseAfter, parseContractRelease, parseContractReleaseHeading } from "../src/contract-versions.ts";
 import type { AgentContractDriftReport, AgentObligation, ChangeFacet, PmItem } from "../src/index.ts";
 
 const interval = { from: "1.0.0", to: "2.0.0" };
@@ -132,6 +133,67 @@ test("release scope: 500 future-metadata variants cannot change reports, errors,
   assert.throws(() => buildAudienceContracts({ items: [current, change("invalid", "2.0.0", null)], groupBy: "release", untilVersion: "2.0.0" }), /invalid_facets/);
 });
 
+test("release headings: 500 generated window and persisted heading variants share numeric scope before validation", () => {
+  const facet = [{ audience: "agent-behavior", text: "Explicit", obligations: [declaration()], breaking: true,
+    upgrade_actions: [{ id: "upgrade", title: "Read revision", requires: [] }] }];
+  const current = change("current", "2.0.0", facet);
+  const expectedDrift = buildAgentContractDrift({ ...interval, items: [current] });
+  const expectedUpgrades = buildConsumerUpgrades({ ...interval, audience: "agent-behavior", items: [current] });
+  const next = random(0x298da7e), seen = new Set<number>();
+  const decorate = (version: string, variant: number): string => [version, `${version} - 2026-10-29`,
+    `v${version} - 2026-10-29`, ` [v${version}] - 2026-10-29 `,
+    `[${version}](https://example.invalid/release) - 2026-10-29`, ` V${version}  -  2026-10-29 `][variant];
+  for (let index = 0; index < 500; index++) {
+    const variant = next() % 6; seen.add(variant);
+    const heading = decorate("3.0.0", variant), present = decorate("2.0.0", next() % 6);
+    const bad = [null, [null], { invalid: true }, [{ audience: "operator", text: "Future published prose" }], facet][next() % 5];
+    const future = change("future", "3.0.0", bad);
+    const windows = [{ heading, releaseTag: "v3.0.0" }, { heading: present, releaseTag: "v2.0.0" }];
+    const options = { groupBy: "release" as const, untilVersion: "2.0.0", releaseWindows: windows };
+    const expected = buildAudienceContracts({ ...options, items: [current] });
+    const items = next() % 2 ? [current, future] : [future, current];
+    assert.doesNotThrow(() => {
+      const lower = buildChangelogDocument({ items: [...items, change("past", "1.0.0", facet)], sinceVersion: "2.0.0",
+        releaseWindows: [...windows, { heading: decorate("1.0.0", variant), releaseTag: "v1.0.0" }] });
+      assert.deepEqual(lower.releases.flatMap((release) => release.sections.flatMap((section) => section.items.map((item) => item.id))).sort(), ["current", "future"]);
+      const audience = buildAudienceContracts({ ...options, items });
+      assert.deepEqual(audience, expected); assert.equal(audience.item_count, 1);
+      assert.equal(audience.ledger[0].release, present);
+      // Persisted native release headings use the same scope grammar as releaseWindows.
+      const decorated = [change("current", present, facet), change("future", heading, bad)];
+      const drift = buildAgentContractDrift({ ...interval, items: decorated });
+      const upgrades = buildConsumerUpgrades({ ...interval, audience: "agent-behavior", items: decorated });
+      assert.deepEqual(drift, expectedDrift); assert.deepEqual(upgrades, expectedUpgrades);
+      for (const format of ["json", "toon"] as const) {
+        assert.equal(formatAudienceContracts(audience, format), formatAudienceContracts(expected, format));
+        assert.equal(formatAgentContractDrift(drift, format), formatAgentContractDrift(expectedDrift, format));
+        assert.equal(formatConsumerUpgrades(upgrades, format), formatConsumerUpgrades(expectedUpgrades, format));
+      }
+      assert.equal(isContractReleaseAfter(heading, "2.0.0"), true);
+      assert.equal(isContractReleaseAfter(present, "2.0.0"), false);
+    });
+  }
+  assert.equal(seen.size, 6);
+  for (const legacy of [undefined, null, 3, "Unreleased", "legacy - 2026-10-29", "1.0.0-rc.1 - 2026-10-29"]) {
+    assert.equal(parseContractReleaseHeading(legacy), undefined);
+    assert.equal(isContractReleaseAfter(legacy, "2.0.0"), false);
+  }
+  // Range arguments remain strict; presentation decoration is accepted only on stored headings.
+  for (const input of ["2.0.0 - 2026-10-29", "[2.0.0]", " 2.0.0 ", "V2.0.0"]) {
+    assert.equal(parseContractRelease(input), undefined);
+    assert.throws(() => buildAgentContractDrift({ from: "1.0.0", to: input, items: [] }), /invalid_drift_options/);
+    assert.throws(() => buildConsumerUpgrades({ from: "1.0.0", to: input, audience: "operator", items: [] }), /invalid_upgrade_options/);
+    assert.throws(() => buildAudienceContracts({ items: [], groupBy: "release", untilVersion: input }), /invalid_contract_options/);
+  }
+  assert.throws(() => buildAudienceContracts({ items: [change("bad", "2.0.0", null)], groupBy: "release", untilVersion: "2.0.0",
+    releaseWindows: [{ heading: "2.0.0 - 2026-10-29", releaseTag: "v2.0.0" }] }), /invalid_facets/);
+  assert.equal(buildAudienceContracts({ items: [current], groupBy: "release", untilVersion: "2.0.0",
+    releaseWindows: [{ heading: "legacy", releaseTag: "v2.0.0" }] }).item_count, 1);
+  const unbounded = { groupBy: "release" as const, releaseWindows: [{ heading: "3.0.0 - 2026-10-29", releaseTag: "v3.0.0" }] };
+  assert.equal(buildAudienceContracts({ ...unbounded, items: [change("future", "3.0.0", facet)] }).item_count, 1);
+  assert.throws(() => buildAudienceContracts({ ...unbounded, items: [change("future", "3.0.0", null)] }), /invalid_facets/);
+});
+
 test("release scope and producer closure: SDK and both real CLIs agree in a non-git tracker", async (t) => {
   const cwd = mkdtempSync(join(tmpdir(), "pm-contract-closure-")); t.after(() => rmSync(cwd, { recursive: true, force: true }));
   const root = join(cwd, ".agents/pm");
@@ -140,7 +202,7 @@ test("release scope and producer closure: SDK and both real CLIs agree in a non-
   cpSync(resolve("dist"), join(target, "dist"), { recursive: true }); cpSync(resolve("manifest.json"), join(target, "manifest.json"));
   writeFileSync(join(target, "package.json"), JSON.stringify({ type: "module" })); symlinkSync(resolve("node_modules"), join(target, "node_modules"), "junction");
   await runWithActiveExtensions({ path: root }, async () => {
-    for (const item of [change("large", "2.0.0", largeFacets()), change("future", "3.0.0", [null])]) await runCreate({ id: item.id, title: item.title,
+    for (const item of [change("large", "2.0.0", largeFacets()), change("future", "3.0.0", [null]), change("dated-future", "3.0.0 - 2026-10-29", [null])]) await runCreate({ id: item.id, title: item.title,
       type: "Feature", status: "closed", closeReason: "Delivered", release: item.release, createMode: "progressive", field: [`change_facets=${JSON.stringify(item.change_facets)}`],
       unset: ["parent", "goal", "objective", "sprint", "assignee", "reviewer"] }, { path: root, author: "fixture" });
   });

@@ -1,7 +1,7 @@
 import { encode } from "@toon-format/toon";
 import { RelationshipGraph, analyzeRelationshipExecution, listAllComplete, readSettings, resolveRuntimeStatusRegistry } from "@unbrained/pm-cli/sdk";
 import { buildAudienceContracts, parseChangeAudience } from "./audience-contracts.js";
-import { parseContractRelease } from "./contract-versions.js";
+import { parseContractRelease, parseContractReleaseHeading } from "./contract-versions.js";
 import { compareVersionStrings } from "./generator.js";
 import { ConsumerUpgradeError, parseUpgradeActions } from "./upgrade-actions.js";
 export { ConsumerUpgradeError, parseUpgradeActions } from "./upgrade-actions.js";
@@ -33,7 +33,7 @@ export function buildConsumerUpgrades(options) {
             if (facet.audience !== audience || !facet.breaking)
                 continue;
             // Facets without published numeric release attribution cannot become upgrade obligations.
-            const release = version(row.release);
+            const release = version(parseContractReleaseHeading(row.release));
             const actions = parseUpgradeActions(facet.upgrade_actions, facet.breaking);
             if (!actions.length && compareVersionStrings(release, from) > 0 && compareVersionStrings(release, to) <= 0) {
                 omissions.push({ item: row.item, release, reason: "missing_actions" });

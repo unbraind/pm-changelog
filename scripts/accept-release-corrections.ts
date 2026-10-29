@@ -93,8 +93,10 @@ try {
     }
   });
   await runWithActiveExtensions({ path: driftRoot }, async () => {
-    await runCreate({ title: "Foreign future metadata", type: "Feature", status: "closed", closeReason: "Delivered", release: "6.0.0", createMode: "progressive",
-      field: ["change_facets=[null]"], unset: ["parent", "goal", "objective", "sprint", "assignee", "reviewer"] }, { path: driftRoot, author: "acceptance" });
+    for (const release of ["6.0.0", "6.0.0 - 2026-10-29", "[v6.0.0] - 2026-10-29"]) {
+      await runCreate({ title: "Foreign future metadata", type: "Feature", status: "closed", closeReason: "Delivered", release, createMode: "progressive",
+        field: ["change_facets=[null]"], unset: ["parent", "goal", "objective", "sprint", "assignee", "reviewer"] }, { path: driftRoot, author: "acceptance" });
+    }
   });
   const driftExpected = await readAgentContractDrift(driftRoot, { from: "1.0.0", to: "5.0.0" });
   assert.equal(driftExpected.complete, true);
@@ -104,6 +106,21 @@ try {
   assert.equal(driftExpected.unchanged.length, 1);
   const paths: string[] = [];
   let checks = 0;
+  // Import the captured archive's SDK, rather than source or an unrelated installed version.
+  const headingChecks = run(process.execPath, ["--input-type=module", "-e", `
+    import assert from "node:assert/strict";
+    import { buildAudienceContracts, formatAudienceContracts } from ${JSON.stringify(join(extension, "dist/index.js"))};
+    const current = { id: "current", title: "Current", status: "closed", release: "2.0.0", change_facets: [{ audience: "operator", text: "Current" }] };
+    const future = { id: "future", title: "Future", status: "closed", release: "3.0.0", change_facets: null };
+    const options = { groupBy: "release", untilVersion: "2.0.0", releaseWindows: [
+      { heading: "3.0.0 - 2026-10-29", releaseTag: "v3.0.0" }, { heading: "2.0.0 - 2026-10-28", releaseTag: "v2.0.0" }] };
+    const expected = buildAudienceContracts({ ...options, items: [current] });
+    const actual = buildAudienceContracts({ ...options, items: [future, current] });
+    assert.equal(actual.item_count, 1);
+    for (const format of ["json", "toon"]) assert.equal(formatAudienceContracts(actual, format), formatAudienceContracts(expected, format));
+    console.log("2");
+  `]);
+  assert.equal(headingChecks.trim(), "2"); checks += 2;
   /** Check actual append, exact replay and both compact views against the SDK-read state. */
   async function accept(name: string, raw: (args: string[]) => string, host = false): Promise<void> {
     const launch = (args: string[]): string => raw(host ? ["--path", root, "changelog", "corrections", ...args] : ["corrections", "--pm-root", root, ...args]);
@@ -221,9 +238,9 @@ try {
   }
   await accept("npx", (args) => run("npx", ["--yes", "--package", archive, "--package", `@unbrained/pm-cli@${pinned}`, "pm-changelog", ...args]));
   await accept("bunx", (args) => run("bun", ["x", "--bun", "--package", archive, "pm-changelog", ...args]));
-  assert.equal(checks, 334); assert.equal(paths.length, 8);
+  assert.equal(checks, 336); assert.equal(paths.length, 8);
   assert.equal((await readReleaseCorrectionView(root, "v1", "accept-claim")).chain.length, 9);
   assert.equal((await readReleaseCorrectionView(root, "legacy-v2", "old-claim")).chain.length, 1);
   assert.equal((await readReleaseCorrectionView(lifecycleRoot, "v2", "later-repair")).chain.length, 8);
-  console.log(JSON.stringify({ installation_modes: 6, drift_checks: 32, release_scope_checks: 16, aggregate_evidence_ids: 100032, launcher_paths: paths, checks, archive_sha512: archiveSha512, lifecycle_checks: 88, later_corrections: (await readReleaseCorrectionView(lifecycleRoot, "v2", "later-repair")).chain.length, wrong_release_checks: 96, corrections: (await readReleaseCorrectionView(root, "v1", "accept-claim")).chain.length, legacy_corrections: (await readReleaseCorrectionView(root, "legacy-v2", "old-claim")).chain.length, registry_drift: true, closure_role_checks: 56, non_git: true }));
+  console.log(JSON.stringify({ installation_modes: 6, drift_checks: 32, release_scope_checks: 16, heading_forms: 3, heading_sdk_checks: 2, aggregate_evidence_ids: 100032, launcher_paths: paths, checks, archive_sha512: archiveSha512, lifecycle_checks: 88, later_corrections: (await readReleaseCorrectionView(lifecycleRoot, "v2", "later-repair")).chain.length, wrong_release_checks: 96, corrections: (await readReleaseCorrectionView(root, "v1", "accept-claim")).chain.length, legacy_corrections: (await readReleaseCorrectionView(root, "legacy-v2", "old-claim")).chain.length, registry_drift: true, closure_role_checks: 56, non_git: true }));
 } finally { rmSync(scratch, { recursive: true, force: true }); }
