@@ -6,7 +6,7 @@ import { dirname, join, resolve } from "node:path";
 import test from "node:test";
 import { listAllComplete, runCreate, runInit, runWithActiveExtensions } from "@unbrained/pm-cli/sdk";
 import { decodeToon } from "@unbrained/pm-cli/sdk/testing";
-import { buildAgentContractDrift, buildAudienceContracts, buildChangelogDocument, buildConsumerUpgrades, formatAgentContractDrift, formatAudienceContracts, formatConsumerUpgrades, readAgentContractDrift, readConsumerUpgrades } from "../src/index.ts";
+import { buildAgentContractDrift, buildAudienceContracts, buildChangelogDocument, buildConsumerUpgrades, formatAgentContractDrift, formatAudienceContracts, formatConsumerUpgrades, mergeChangelog, readAgentContractDrift, readAudienceContracts, readConsumerUpgrades } from "../src/index.ts";
 import { isContractReleaseAfter, parseContractRelease, parseContractReleaseHeading } from "../src/contract-versions.ts";
 import type { AgentContractDriftReport, AgentObligation, ChangeFacet, PmItem } from "../src/index.ts";
 
@@ -194,6 +194,73 @@ test("release headings: 500 generated window and persisted heading variants shar
   assert.throws(() => buildAudienceContracts({ ...unbounded, items: [change("future", "3.0.0", null)] }), /invalid_facets/);
 });
 
+test("release padding: 500 canonical models preserve padded obligations, bounds, aliases and merge identity", () => {
+  const next = random(0x298ca1), seen = new Set<number>();
+  const facets = (assumption: string, id: string, requires: string[]) => [{ audience: "agent-behavior", text: "Explicit",
+    obligations: [declaration(assumption)], breaking: true, upgrade_actions: [{ id, title: id, requires }] }];
+  const old = facets("Read revision", "baseline", []), current = facets("Read revision and history", "upgrade", ["baseline"]);
+  const example = buildAgentContractDrift({ from: "2026.6.1", to: "2026.6.8", items: [change("example", "v2026.06.07", current)] });
+  assert.equal(example.changes.length, 1); assert.equal(example.changes[0].release, "2026.6.7"); assert.equal(example.complete, true);
+  for (let index = 0; index < 500; index++) {
+    const year = index % 2 ? 2020 + next() % 100 : 1 + next() % 20, month = 1 + next() % 12, day = 2 + next() % 26;
+    const suffix = ["", "-1", "-2"][next() % 3], variant = next() % 6; seen.add(variant);
+    const canonical = (value: number) => `${year}.${month}.${value}${suffix}`;
+    const padded = (value: number, form: number) => {
+      const version = `${String(year).padStart(4 + next() % 3, "0")}.${String(month).padStart(2 + next() % 3, "0")}.${String(value).padStart(2 + next() % 3, "0")}${suffix}`;
+      return [version, `v${version}`, `${version} - 2026-10-29`, ` [v${version}] - 2026-10-29 `,
+        `[${version}](https://example.invalid/release) - 2026-10-29`, ` V${version}  -  2026-10-29 `][form];
+    };
+    const range = { from: canonical(day - 1), to: canonical(day) };
+    const model = [change("baseline", range.from, old), change("current", range.to, current), change("repeat", range.to, current)];
+    const expectedDrift = buildAgentContractDrift({ ...range, items: model });
+    const expectedUpgrades = buildConsumerUpgrades({ ...range, audience: "agent-behavior", items: model });
+    const present = padded(day, variant), future = padded(day + 1, variant), baseline = padded(day - 1, variant);
+    const invalid = [null, [null], { foreign: true }, [{ audience: "operator", text: "Future" }], current][next() % 5];
+    const items = [change("baseline", baseline, old), change("current", present, current),
+      change("repeat", padded(day, next() % 6), current), change("future", future, invalid)];
+    if (next() % 2) items.reverse();
+    assert.doesNotThrow(() => {
+      const drift = buildAgentContractDrift({ ...range, items });
+      const upgrades = buildConsumerUpgrades({ ...range, audience: "agent-behavior", items });
+      assert.deepEqual(drift, expectedDrift); assert.deepEqual(upgrades, expectedUpgrades);
+      assert.equal(drift.complete, true); assert.deepEqual(drift.changes[0].items, ["current", "repeat"]);
+      assert.deepEqual(upgrades.satisfied_prerequisites, ["baseline"]);
+      assert.equal(parseContractReleaseHeading(present), range.to);
+      assert.equal(isContractReleaseAfter(future, range.to), true);
+      assert.equal(isContractReleaseAfter(present, range.to), false);
+      const audienceOptions = { groupBy: "release" as const, untilVersion: range.to, releaseWindows: [
+        { heading: future, releaseTag: canonical(day + 1) }, { heading: present, releaseTag: range.to }, { heading: baseline, releaseTag: range.from }] };
+      const windowItems = [change("baseline", range.from, old), change("current", range.to, current), change("future", canonical(day + 1), invalid)];
+      const audience = buildAudienceContracts({ ...audienceOptions, items: windowItems });
+      const expectedAudience = buildAudienceContracts({ ...audienceOptions, items: windowItems.filter((item) => item.id !== "future") });
+      assert.deepEqual(audience, expectedAudience); assert.equal(audience.item_count, 2);
+      assert.equal(audience.ledger.find((row) => row.item === "current")!.release, present);
+      const lower = buildChangelogDocument({ ...audienceOptions, items: windowItems, sinceVersion: range.to });
+      assert.deepEqual(lower.releases.flatMap((release) => release.sections.flatMap((section) => section.items.map((item) => item.id))).sort(), ["current", "future"]);
+      for (const format of ["json", "toon"] as const) {
+        assert.equal(formatAgentContractDrift(drift, format), formatAgentContractDrift(expectedDrift, format));
+        assert.equal(formatConsumerUpgrades(upgrades, format), formatConsumerUpgrades(expectedUpgrades, format));
+        assert.equal(formatAudienceContracts(audience, format), formatAudienceContracts(expectedAudience, format));
+      }
+      // Replacing the same release must not duplicate it when one side uses legacy padding.
+      for (const [existing, generated] of [[present, range.to], [range.to, present]]) {
+        const merged = mergeChangelog(`# Changes\n\n## ${existing}\n\nOld wording\n`, `# Changes\n\n## ${generated}\n\nNew wording\n`);
+        assert.equal(merged.markdown.match(/^## /gm)!.length, 1);
+        assert.match(merged.markdown, /New wording/); assert.doesNotMatch(merged.markdown, /Old wording/);
+      }
+    });
+  }
+  assert.equal(seen.size, 6);
+  // Stored compatibility does not widen strict new range arguments or accept unsafe numeric identities.
+  for (const input of ["2026.06.07", "v2026.06.07", "1.02.03"]) {
+    assert.equal(parseContractRelease(input), undefined);
+    assert.throws(() => buildAudienceContracts({ items: [], groupBy: "release", untilVersion: input }), /invalid_contract_options/);
+  }
+  for (const input of ["9007199254740992.06.07", "2026.06.07-rc.1", "2026.06.07+build", "2026.06.07-01"]) {
+    assert.equal(parseContractReleaseHeading(input), undefined);
+  }
+});
+
 test("release scope and producer closure: SDK and both real CLIs agree in a non-git tracker", async (t) => {
   const cwd = mkdtempSync(join(tmpdir(), "pm-contract-closure-")); t.after(() => rmSync(cwd, { recursive: true, force: true }));
   const root = join(cwd, ".agents/pm");
@@ -216,6 +283,48 @@ test("release scope and producer closure: SDK and both real CLIs agree in a non-
   ]) {
     const args = [...prefix, "--from", interval.from, "--to", interval.to, "--format", format, ...(command === "upgrades" ? ["--audience", "operator"] : [])];
     const result = spawnSync(process.execPath, args, { cwd, env: childEnv, encoding: "utf8", maxBuffer: 64 * 1024 * 1024 });
+    assert.equal(result.status, 0, result.stderr);
+    assert.deepEqual(format === "json" ? JSON.parse(result.stdout) : decodeToon(result.stdout), command === "drift" ? drift : upgrades);
+  }
+  assert.deepEqual((await listAllComplete({ includeBody: true }, { pmRoot: root })).items, before);
+});
+
+
+test("release padding native: SDK and both CLIs retain calendar obligations and ignore padded futures without git", async (t) => {
+  const cwd = mkdtempSync(join(tmpdir(), "pm-calendar-contract-")); t.after(() => rmSync(cwd, { recursive: true, force: true }));
+  const root = join(cwd, ".agents/pm");
+  await runInit("calendar", { path: root }, { defaults: true, agentGuidance: "skip" });
+  const target = join(root, "extensions/pm-changelog"); mkdirSync(target, { recursive: true });
+  cpSync(resolve("dist"), join(target, "dist"), { recursive: true }); cpSync(resolve("manifest.json"), join(target, "manifest.json"));
+  writeFileSync(join(target, "package.json"), JSON.stringify({ type: "module" })); symlinkSync(resolve("node_modules"), join(target, "node_modules"), "junction");
+  const facets = (assumption: string, id: string, requires: string[]) => [{ audience: "agent-behavior", text: "Explicit",
+    obligations: [declaration(assumption)], breaking: true, upgrade_actions: [{ id, title: id, requires }] }];
+  const nativeIds = new Map<string, string>();
+  await runWithActiveExtensions({ path: root }, async () => {
+    for (const item of [change("baseline", "v2026.06.01", facets("Read revision", "base", [])),
+      change("current", "v2026.06.07", facets("Read revision and history", "upgrade", ["base"])),
+      change("alias", "2026.6.7", facets("Read revision and history", "upgrade", ["base"])),
+      change("future", "[v2026.06.09] - 2026-06-09", [null])]) {
+      const created = await runCreate({ id: item.id, title: item.title, type: "Feature", status: "closed", closeReason: "Delivered", release: item.release,
+        createMode: "progressive", field: [`change_facets=${JSON.stringify(item.change_facets)}`],
+        unset: ["parent", "goal", "objective", "sprint", "assignee", "reviewer"] }, { path: root, author: "fixture" });
+      nativeIds.set(item.id!, created.item.id);
+    }
+  });
+  const before = (await listAllComplete({ includeBody: true }, { pmRoot: root })).items;
+  const range = { from: "2026.6.1", to: "2026.6.8" };
+  const drift = await readAgentContractDrift(root, range), upgrades = await readConsumerUpgrades(root, { ...range, audience: "agent-behavior" });
+  const audience = await readAudienceContracts(root, { groupBy: "release", untilVersion: range.to });
+  assert.equal(drift.complete, true); assert.deepEqual(drift.changes.map((row) => [row.kind, row.release, row.items]), [["changed", "2026.6.7", [nativeIds.get("alias"), nativeIds.get("current")]]]);
+  assert.equal(upgrades.action_count, 1); assert.equal(upgrades.steps[0].id, "upgrade"); assert.deepEqual(upgrades.satisfied_prerequisites, ["base"]);
+  assert.equal(audience.item_count, 3); assert.ok(audience.ledger.every((row) => row.item !== nativeIds.get("future")));
+  const noGit = join(cwd, "bin"); mkdirSync(noGit);
+  const childEnv = { PATH: noGit, DO_NOT_TRACK: "1", PM_GLOBAL_PATH: join(cwd, "global"), GIT_CEILING_DIRECTORIES: dirname(cwd) };
+  for (const format of ["json", "toon"] as const) for (const command of ["drift", "upgrades"]) for (const prefix of [
+    [resolve("dist/cli.js"), command, "--pm-root", root], [resolve("node_modules/@unbrained/pm-cli/dist/cli.js"), "--path", root, "changelog", command],
+  ]) {
+    const args = [...prefix, "--from", range.from, "--to", range.to, "--format", format, ...(command === "upgrades" ? ["--audience", "agent-behavior"] : [])];
+    const result = spawnSync(process.execPath, args, { cwd, env: childEnv, encoding: "utf8", maxBuffer: 8 * 1024 * 1024 });
     assert.equal(result.status, 0, result.stderr);
     assert.deepEqual(format === "json" ? JSON.parse(result.stdout) : decodeToon(result.stdout), command === "drift" ? drift : upgrades);
   }

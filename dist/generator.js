@@ -1348,13 +1348,13 @@ function parseBracketedReleaseVersion(heading) {
 function isLineTerminator(character) {
     return "\n\r\u2028\u2029".includes(character);
 }
-/** Reduce a heading to the same version key used by the historical heading
- * regex, while keeping malformed caller input on a bounded linear path. */
+/** Extract heading identity and reuse release placement's zero-padding normalization,
+ * while keeping malformed caller input on a bounded linear path. */
 export function normalizeReleaseHeadingKey(heading) {
     const trimmed = heading.trim();
     const version = parseBracketedReleaseVersion(trimmed);
     const fallback = version ?? trimmed.slice(0, findReleaseSeparatorStart(trimmed) ?? trimmed.length);
-    return fallback.trim().replace(/^v/i, "").toLowerCase();
+    return normalizeReleaseKey(fallback);
 }
 function ensureTitle(markdown, title) {
     if (findMarkdownHeadings(markdown, "#").length > 0)

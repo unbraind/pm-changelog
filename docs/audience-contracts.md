@@ -104,3 +104,9 @@ uses the generator's release-heading identity, including dated `releaseWindows`
 headings such as `3.0.0 - 2026-10-29` and bracketed headings. Published attribution
 retains the original heading. Unknown legacy headings keep their existing
 behavior; range inputs must be bare stable numeric versions.
+
+Stored zero-padded releases use the generator's identity normalization before
+comparison: `v2026.06.07` and `2026.6.7` share the same numeric boundary. Dated
+and bracketed window headings follow that rule too. Ledger entries keep the
+authored presentation heading; strict new range arguments use canonical numeric
+versions such as `2026.6.7`.

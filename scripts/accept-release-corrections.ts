@@ -104,12 +104,28 @@ try {
   const upgradeExpected = await readConsumerUpgrades(driftRoot, { audience: "agent-behavior", from: "1.0.0", to: "5.0.0" });
   assert.deepEqual(driftExpected.changes.map((row) => row.kind), ["changed", "removed", "added"]);
   assert.equal(driftExpected.unchanged.length, 1);
+  const calendarRoot = join(scratch, "calendar/.agents/pm");
+  await runInit("calendar", { path: calendarRoot }, { defaults: true, agentGuidance: "skip" });
+  cpSync(extension, join(calendarRoot, "extensions/pm-changelog"), { recursive: true });
+  await runWithActiveExtensions({ path: calendarRoot }, async () => {
+    for (const release of ["v2026.06.07", "[v2026.06.09] - 2026-06-09"]) {
+      const facets = release === "v2026.06.07" ? [{ audience: "agent-behavior", text: "Calendar contract", obligations: [{ id: "calendar", assumption: "Read revision", commands: ["pm example apply"], evidence: ["calendar"] }],
+        breaking: true, upgrade_actions: [{ id: "calendar", title: "Read revision", requires: [] }] }] : [null];
+      await runCreate({ title: "Calendar contract", type: "Feature", status: "closed", closeReason: "Delivered", release, createMode: "progressive",
+        field: [`change_facets=${JSON.stringify(facets)}`], unset: ["parent", "goal", "objective", "sprint", "assignee", "reviewer"] }, { path: calendarRoot, author: "acceptance" });
+    }
+  });
+  const calendarRange = { from: "2026.6.1", to: "2026.6.8" };
+  const calendarDrift = await readAgentContractDrift(calendarRoot, calendarRange);
+  const calendarUpgrades = await readConsumerUpgrades(calendarRoot, { ...calendarRange, audience: "agent-behavior" });
+  assert.equal(calendarDrift.complete, true); assert.equal(calendarDrift.changes.length, 1); assert.equal(calendarDrift.changes[0].release, "2026.6.7");
+  assert.equal(calendarUpgrades.action_count, 1);
   const paths: string[] = [];
   let checks = 0;
   // Import the captured archive's SDK, rather than source or an unrelated installed version.
   const headingChecks = run(process.execPath, ["--input-type=module", "-e", `
     import assert from "node:assert/strict";
-    import { buildAudienceContracts, formatAudienceContracts } from ${JSON.stringify(join(extension, "dist/index.js"))};
+    import { buildAudienceContracts, formatAudienceContracts, buildAgentContractDrift, formatAgentContractDrift, buildConsumerUpgrades, formatConsumerUpgrades } from ${JSON.stringify(join(extension, "dist/index.js"))};
     const current = { id: "current", title: "Current", status: "closed", release: "2.0.0", change_facets: [{ audience: "operator", text: "Current" }] };
     const future = { id: "future", title: "Future", status: "closed", release: "3.0.0", change_facets: null };
     const options = { groupBy: "release", untilVersion: "2.0.0", releaseWindows: [
@@ -118,9 +134,28 @@ try {
     const actual = buildAudienceContracts({ ...options, items: [future, current] });
     assert.equal(actual.item_count, 1);
     for (const format of ["json", "toon"]) assert.equal(formatAudienceContracts(actual, format), formatAudienceContracts(expected, format));
-    console.log("2");
+    const facets = [{ audience: "agent-behavior", text: "Calendar", obligations: [{ id: "calendar", assumption: "Read revision", commands: ["pm example apply"], evidence: ["calendar"] }],
+      breaking: true, upgrade_actions: [{ id: "calendar", title: "Read revision", requires: [] }] }];
+    const calendar = { id: "calendar", title: "Calendar", status: "closed", release: "v2026.06.07", change_facets: facets };
+    const later = { ...future, release: "v2026.06.09" };
+    const range = { from: "2026.6.1", to: "2026.6.8" };
+    const calendarOptions = { groupBy: "release", untilVersion: range.to, releaseWindows: [
+      { heading: "v2026.06.09 - 2026-06-09", releaseTag: "v2026.6.9" }, { heading: "v2026.06.07 - 2026-06-07", releaseTag: "v2026.6.7" }] };
+    const calendarAudience = buildAudienceContracts({ ...calendarOptions, items: [calendar, later] });
+    assert.equal(calendarAudience.item_count, 1);
+    const drift = buildAgentContractDrift({ ...range, items: [calendar, later] });
+    assert.equal(drift.complete, true); assert.equal(drift.changes.length, 1); assert.equal(drift.changes[0].release, "2026.6.7");
+    const upgrades = buildConsumerUpgrades({ ...range, audience: "agent-behavior", items: [calendar, later] });
+    assert.equal(upgrades.action_count, 1);
+    const model = { ...calendar, release: "2026.6.7" };
+    for (const format of ["json", "toon"]) {
+      assert.equal(formatAudienceContracts(calendarAudience, format), formatAudienceContracts(buildAudienceContracts({ ...calendarOptions, items: [calendar] }), format));
+      assert.equal(formatAgentContractDrift(drift, format), formatAgentContractDrift(buildAgentContractDrift({ ...range, items: [model] }), format));
+      assert.equal(formatConsumerUpgrades(upgrades, format), formatConsumerUpgrades(buildConsumerUpgrades({ ...range, audience: "agent-behavior", items: [model] }), format));
+    }
+    console.log("8");
   `]);
-  assert.equal(headingChecks.trim(), "2"); checks += 2;
+  assert.equal(headingChecks.trim(), "8"); checks += 8;
   /** Check actual append, exact replay and both compact views against the SDK-read state. */
   async function accept(name: string, raw: (args: string[]) => string, host = false): Promise<void> {
     const launch = (args: string[]): string => raw(host ? ["--path", root, "changelog", "corrections", ...args] : ["corrections", "--pm-root", root, ...args]);
@@ -224,6 +259,13 @@ try {
       assert.deepEqual(format === "json" ? JSON.parse(output) : decode(output), upgradeExpected); checks++;
     }
     assert.deepEqual((await listAllComplete({ includeBody: true }, { pmRoot: driftRoot })).items, driftBefore); checks++;
+    const calendarBefore = (await listAllComplete({ includeBody: true }, { pmRoot: calendarRoot })).items;
+    for (const format of ["json", "toon"]) for (const command of ["drift", "upgrades"]) {
+      const args = ["--from", calendarRange.from, "--to", calendarRange.to, "--format", format, ...(command === "upgrades" ? ["--audience", "agent-behavior"] : [])];
+      const output = raw(host ? ["--path", calendarRoot, "changelog", command, ...args] : [command, "--pm-root", calendarRoot, ...args]);
+      assert.deepEqual(format === "json" ? JSON.parse(output) : decode(output), command === "drift" ? calendarDrift : calendarUpgrades); checks++;
+    }
+    assert.deepEqual((await listAllComplete({ includeBody: true }, { pmRoot: calendarRoot })).items, calendarBefore); checks++;
     paths.push(name);
   }
   await accept("npm-global", (args) => run(join(prefix, "bin/pm-changelog"), args));
@@ -238,9 +280,9 @@ try {
   }
   await accept("npx", (args) => run("npx", ["--yes", "--package", archive, "--package", `@unbrained/pm-cli@${pinned}`, "pm-changelog", ...args]));
   await accept("bunx", (args) => run("bun", ["x", "--bun", "--package", archive, "pm-changelog", ...args]));
-  assert.equal(checks, 336); assert.equal(paths.length, 8);
+  assert.equal(checks, 382); assert.equal(paths.length, 8);
   assert.equal((await readReleaseCorrectionView(root, "v1", "accept-claim")).chain.length, 9);
   assert.equal((await readReleaseCorrectionView(root, "legacy-v2", "old-claim")).chain.length, 1);
   assert.equal((await readReleaseCorrectionView(lifecycleRoot, "v2", "later-repair")).chain.length, 8);
-  console.log(JSON.stringify({ installation_modes: 6, drift_checks: 32, release_scope_checks: 16, heading_forms: 3, heading_sdk_checks: 2, aggregate_evidence_ids: 100032, launcher_paths: paths, checks, archive_sha512: archiveSha512, lifecycle_checks: 88, later_corrections: (await readReleaseCorrectionView(lifecycleRoot, "v2", "later-repair")).chain.length, wrong_release_checks: 96, corrections: (await readReleaseCorrectionView(root, "v1", "accept-claim")).chain.length, legacy_corrections: (await readReleaseCorrectionView(root, "legacy-v2", "old-claim")).chain.length, registry_drift: true, closure_role_checks: 56, non_git: true }));
+  console.log(JSON.stringify({ installation_modes: 6, drift_checks: 32, release_scope_checks: 16, heading_forms: 3, heading_sdk_checks: 8, calendar_launcher_checks: 40, aggregate_evidence_ids: 100032, launcher_paths: paths, checks, archive_sha512: archiveSha512, lifecycle_checks: 88, later_corrections: (await readReleaseCorrectionView(lifecycleRoot, "v2", "later-repair")).chain.length, wrong_release_checks: 96, corrections: (await readReleaseCorrectionView(root, "v1", "accept-claim")).chain.length, legacy_corrections: (await readReleaseCorrectionView(root, "legacy-v2", "old-claim")).chain.length, registry_drift: true, closure_role_checks: 56, non_git: true }));
 } finally { rmSync(scratch, { recursive: true, force: true }); }

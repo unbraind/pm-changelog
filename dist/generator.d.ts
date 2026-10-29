@@ -153,8 +153,8 @@ export declare function compareVersionHeadings(a: string, b: string, fallback: s
  * both segments are numbers so `1.10.0` sorts above `1.9.0`, and lexically
  * otherwise so prerelease suffixes still order deterministically. */
 export declare function compareVersionStrings(a: string, b: string): number;
-/** Reduce a heading to the same version key used by the historical heading
- * regex, while keeping malformed caller input on a bounded linear path. */
+/** Extract heading identity and reuse release placement's zero-padding normalization,
+ * while keeping malformed caller input on a bounded linear path. */
 export declare function normalizeReleaseHeadingKey(heading: string): string;
 /**
  * Summarize how the visible items' release-window placement was timestamped:

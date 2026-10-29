@@ -59,6 +59,8 @@ try {
       revert: (body: string) => body.replace('parseContractReleaseHeading(release.heading)', 'releaseVersion(release.heading)') },
     { file: "consumer-upgrades.ts", name: "buildConsumerUpgrades", rule: "upgrade attribution uses heading identity", match: "^release headings:",
       revert: (body: string) => body.replace('version(parseContractReleaseHeading(row.release))', 'version(row.release)') },
+    { file: "generator.ts", name: "normalizeReleaseHeadingKey", rule: "stored releases share generator zero-padding identity", match: "^release padding:",
+      revert: (body: string) => body.replace('return normalizeReleaseKey(fallback);', 'return fallback.trim().replace(/^v/i, "").toLowerCase();') },
     { file: "cli.ts", name: "printHelp", rule: "parser help agreement", match: "root .* synopsis", testFile: "help-parser-contract.test.ts",
       revert: (body: string) => body.replace('        [--pm-root path] [--json] [-h|--help]\n', '')
         .replace('corrections view --release name --item id [--pm-root path] [--format toon|json] [--json] [-h|--help]',

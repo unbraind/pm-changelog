@@ -111,7 +111,9 @@ Known numeric releases after `to` are excluded before reading or validating thei
 facets and before charging facet/declaration budgets. Release identity uses the
 generator's heading normalization, so dated headings such as `3.0.0 - 2026-10-29`
 and bracketed headings obey the same bound in stored releases and SDK
-`releaseWindows`. Range arguments remain bare stable numeric versions. They cannot introduce
+`releaseWindows`. Stored numeric padding also follows generator identity:
+`v2026.06.07`, `2026.6.7` and `[2026.06.07] - 2026-06-07` describe the
+same release, including when seeding a baseline or excluding future metadata. Range arguments remain bare canonical numeric versions (for example `2026.6.7`). They cannot introduce
 omissions, ambiguities or schema refusals into an earlier report. Unknown legacy
 release headings still produce their documented omissions. Consumer upgrades use
 the same early temporal selection through the audience SDK's optional inclusive
