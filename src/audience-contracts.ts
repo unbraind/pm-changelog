@@ -1,6 +1,6 @@
 import type { AgentObligation } from "./agent-contract-drift.ts";
 import { createHash } from "node:crypto";
-import { encode } from "@toon-format/toon";
+import { encodeUnicodeOutput as encode, stringifyUnicodeOutput, normalizeUnicodeText, normalizeUnicodeOutput } from "./output-unicode.ts";
 import { EXIT_CODE, PmCliError, listAllComplete, readSettings, resolveRuntimeStatusRegistry } from "@unbrained/pm-cli/sdk";
 import { buildChangelogDocument, resolveChangelogResolution } from "./generator.ts";
 import type { GenerateChangelogOptions, PmItem } from "./types.ts";
@@ -70,7 +70,7 @@ function readFacets(value: unknown): ChangeFacet[] {
     const audience = parseChangeAudience(row.audience);
     if (Object.keys(row).some((key) => !["audience", "text", "source", "breaking", "upgrade_actions", "obligations"].includes(key)) || (row.breaking !== undefined && row.breaking !== true)) return refuse();
     parseUpgradeActions(row.upgrade_actions, row.breaking);
-    if (typeof row.text === "string" && row.text.trim() && row.source === undefined) return { audience, text: row.text };
+    if (typeof row.text === "string" && row.text.trim() && row.source === undefined) return { audience, text: normalizeUnicodeText(row.text) };
     if (row.source === "close_reason" && row.text === undefined) return { audience, source: "close_reason" };
     return refuse();
   });
@@ -89,7 +89,8 @@ export function buildAudienceContracts(options: AudienceContractOptions): Audien
   if (options.untilVersion !== undefined && (!parseContractRelease(options.untilVersion) || options.groupBy !== "release")) throw new AudienceContractError("invalid_contract_options", "Use groupBy: release with a stable numeric untilVersion such as 2.0.0 or 2026.10.28-1.");
   const audiences = options.audience === undefined ? CHANGE_AUDIENCES : [parseChangeAudience(options.audience)];
   const items = new Map<string, PmItem>();
-  for (const item of options.items) {
+  for (const source of options.items) {
+    const item = { ...source, id: typeof source.id === "string" ? normalizeUnicodeText(source.id) : source.id };
     if (typeof item.id !== "string" || !item.id.trim() || items.has(item.id)) {
       throw new AudienceContractError("ambiguous_items", "Supply a complete tracker read with unique nonblank item IDs.");
     }
@@ -98,7 +99,9 @@ export function buildAudienceContracts(options: AudienceContractOptions): Audien
   // Normalize input before selection too: generator presentation comparators must
   // never let tracker enumeration order decide release or group tie placement.
   const canonicalItems = [...items.values()].sort((left, right) => compareCanonicalKeys(left.id!, right.id!));
-  const document = buildChangelogDocument({ ...options, items: canonicalItems, includeStatuses: undefined, entryFrom: "close_reason" });
+  const document = buildChangelogDocument({ ...options, items: canonicalItems, includeStatuses: undefined, entryFrom: "close_reason",
+    statusSelection: options.statusSelection === undefined ? undefined : normalizeUnicodeOutput(new Map(options.statusSelection)),
+    omittedNonChangeIds: options.omittedNonChangeIds === undefined ? undefined : normalizeUnicodeOutput(new Set(options.omittedNonChangeIds)) });
   const ledger: ChangeAttribution[] = [];
   const contracts: AudienceChangeContract[] = audiences.map((audience) => ({ audience, notes: [], omissions: [] }));
   for (const release of document.releases) {
@@ -110,7 +113,7 @@ export function buildAudienceContracts(options: AudienceContractOptions): Audien
         const item = items.get(row.id!)!;
         const facets = readFacets(item.change_facets);
         const attribution = ledger.length;
-        ledger.push({ item: row.id!, release: release.heading, section: section.heading });
+        ledger.push({ item: row.id!, release: normalizeUnicodeText(release.heading), section: normalizeUnicodeText(section.heading) });
         for (const contract of contracts) {
           const declared = facets.filter((facet) => facet.audience === contract.audience);
           if (!declared.length) contract.omissions.push({ attribution, reason: "missing_facet" });
@@ -120,7 +123,7 @@ export function buildAudienceContracts(options: AudienceContractOptions): Audien
             if (facet.source === "close_reason") {
               const resolution = resolveChangelogResolution(item);
               if (resolution === undefined) missingResolution = true;
-              else notes.add(resolution);
+              else notes.add(normalizeUnicodeText(resolution));
             } else notes.add(facet.text);
           }
           for (const text of [...notes].sort()) contract.notes.push({ attribution, text });
@@ -147,6 +150,6 @@ export async function readAudienceContracts(pmRoot: string, options: Omit<Audien
 
 /** Compact JSON or TOON tables, storing the shared attribution ledger exactly once. */
 export function formatAudienceContracts(report: AudienceContractReport, format: "json" | "toon"): string {
-  if (format === "json") return `${JSON.stringify(report)}\n`;
+  if (format === "json") return `${stringifyUnicodeOutput(report)}\n`;
   return `${encode(report)}\n`;
 }

@@ -1,5 +1,5 @@
 import { createHash } from "node:crypto";
-import { encode } from "@toon-format/toon";
+import { encodeUnicodeOutput as encode, stringifyUnicodeOutput, normalizeUnicodeText, normalizeUnicodeOutput } from "./output-unicode.js";
 import { EXIT_CODE, PmCliError, listAllComplete, readSettings, resolveRuntimeStatusRegistry } from "@unbrained/pm-cli/sdk";
 import { buildChangelogDocument, resolveChangelogResolution } from "./generator.js";
 import { isContractReleaseAfter, parseContractRelease } from "./contract-versions.js";
@@ -38,7 +38,7 @@ function readFacets(value) {
             return refuse();
         parseUpgradeActions(row.upgrade_actions, row.breaking);
         if (typeof row.text === "string" && row.text.trim() && row.source === undefined)
-            return { audience, text: row.text };
+            return { audience, text: normalizeUnicodeText(row.text) };
         if (row.source === "close_reason" && row.text === undefined)
             return { audience, source: "close_reason" };
         return refuse();
@@ -57,7 +57,8 @@ export function buildAudienceContracts(options) {
         throw new AudienceContractError("invalid_contract_options", "Use groupBy: release with a stable numeric untilVersion such as 2.0.0 or 2026.10.28-1.");
     const audiences = options.audience === undefined ? CHANGE_AUDIENCES : [parseChangeAudience(options.audience)];
     const items = new Map();
-    for (const item of options.items) {
+    for (const source of options.items) {
+        const item = { ...source, id: typeof source.id === "string" ? normalizeUnicodeText(source.id) : source.id };
         if (typeof item.id !== "string" || !item.id.trim() || items.has(item.id)) {
             throw new AudienceContractError("ambiguous_items", "Supply a complete tracker read with unique nonblank item IDs.");
         }
@@ -66,7 +67,9 @@ export function buildAudienceContracts(options) {
     // Normalize input before selection too: generator presentation comparators must
     // never let tracker enumeration order decide release or group tie placement.
     const canonicalItems = [...items.values()].sort((left, right) => compareCanonicalKeys(left.id, right.id));
-    const document = buildChangelogDocument({ ...options, items: canonicalItems, includeStatuses: undefined, entryFrom: "close_reason" });
+    const document = buildChangelogDocument({ ...options, items: canonicalItems, includeStatuses: undefined, entryFrom: "close_reason",
+        statusSelection: options.statusSelection === undefined ? undefined : normalizeUnicodeOutput(new Map(options.statusSelection)),
+        omittedNonChangeIds: options.omittedNonChangeIds === undefined ? undefined : normalizeUnicodeOutput(new Set(options.omittedNonChangeIds)) });
     const ledger = [];
     const contracts = audiences.map((audience) => ({ audience, notes: [], omissions: [] }));
     for (const release of document.releases) {
@@ -79,7 +82,7 @@ export function buildAudienceContracts(options) {
                 const item = items.get(row.id);
                 const facets = readFacets(item.change_facets);
                 const attribution = ledger.length;
-                ledger.push({ item: row.id, release: release.heading, section: section.heading });
+                ledger.push({ item: row.id, release: normalizeUnicodeText(release.heading), section: normalizeUnicodeText(section.heading) });
                 for (const contract of contracts) {
                     const declared = facets.filter((facet) => facet.audience === contract.audience);
                     if (!declared.length)
@@ -92,7 +95,7 @@ export function buildAudienceContracts(options) {
                             if (resolution === undefined)
                                 missingResolution = true;
                             else
-                                notes.add(resolution);
+                                notes.add(normalizeUnicodeText(resolution));
                         }
                         else
                             notes.add(facet.text);
@@ -122,7 +125,7 @@ export async function readAudienceContracts(pmRoot, options = {}) {
 /** Compact JSON or TOON tables, storing the shared attribution ledger exactly once. */
 export function formatAudienceContracts(report, format) {
     if (format === "json")
-        return `${JSON.stringify(report)}\n`;
+        return `${stringifyUnicodeOutput(report)}\n`;
     return `${encode(report)}\n`;
 }
 //# sourceMappingURL=audience-contracts.js.map

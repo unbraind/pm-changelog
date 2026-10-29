@@ -1,3 +1,4 @@
+import { normalizeUnicodeText } from "./output-unicode.ts";
 import { EXIT_CODE, PmCliError } from "@unbrained/pm-cli/sdk";
 import type { PlanResultPlan } from "@unbrained/pm-cli/sdk";
 
@@ -33,6 +34,6 @@ export function parseUpgradeActions(value: unknown, breaking: unknown): UpgradeA
       || typeof row.title !== "string" || !row.title.trim()
       || (row.body !== undefined && (typeof row.body !== "string" || !row.body.trim()))
       || !Array.isArray(row.requires) || !row.requires.every(validId)) return refuse();
-    return { id: row.id, title: row.title, ...(row.body === undefined ? {} : { body: row.body as string }), requires: [...new Set(row.requires as string[])].sort() };
+    return { id: row.id, title: normalizeUnicodeText(row.title), ...(row.body === undefined ? {} : { body: normalizeUnicodeText(row.body as string) }), requires: [...new Set(row.requires as string[])].sort() };
   });
 }

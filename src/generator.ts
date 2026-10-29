@@ -1,3 +1,4 @@
+import { normalizeUnicodeText } from "./output-unicode.ts";
 import type { ChangelogClaimSource } from "./types.ts";
 import { spawnSync } from "node:child_process";
 import { existsSync, readFileSync, writeFileSync } from "node:fs";
@@ -2105,9 +2106,10 @@ function formatBodyPreview(item: PmItem, options: GenerateChangelogOptions): str
       : typeof item.description === "string"
         ? item.description
         : "";
-  const body = toSingleLine(rawSource);
+  const body = toSingleLine(normalizeUnicodeText(rawSource));
   if (!body) return "";
-  const truncated = body.length > limit ? `${body.slice(0, limit)}…` : body;
+  const characters = Array.from(body);
+  const truncated = characters.length > limit ? `${characters.slice(0, limit).join("")}…` : body;
   return ` — ${escapeMarkdown(truncated)}`;
 }
 
@@ -2457,7 +2459,7 @@ function toonItemRef(item: PmItem, id: string, itemUrlBase: string, options: Gen
 
 /** Encode a URL path segment, including parentheses that delimit Markdown links. */
 function encodeItemPathSegment(segment: string): string {
-  return encodeURIComponent(segment).replace(/[()]/g, (parenthesis) => parenthesis === "(" ? "%28" : "%29");
+  return encodeURIComponent(normalizeUnicodeText(segment)).replace(/[()]/g, (parenthesis) => parenthesis === "(" ? "%28" : "%29");
 }
 
 /** Public GitHub issue/PR link from the item's provenance tag, or `undefined`.

@@ -1,3 +1,4 @@
+import { normalizeUnicodeText } from "./output-unicode.js";
 import { spawnSync } from "node:child_process";
 import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import { createRequire } from "node:module";
@@ -1890,10 +1891,11 @@ function formatBodyPreview(item, options) {
         : typeof item.description === "string"
             ? item.description
             : "";
-    const body = toSingleLine(rawSource);
+    const body = toSingleLine(normalizeUnicodeText(rawSource));
     if (!body)
         return "";
-    const truncated = body.length > limit ? `${body.slice(0, limit)}…` : body;
+    const characters = Array.from(body);
+    const truncated = characters.length > limit ? `${characters.slice(0, limit).join("")}…` : body;
     return ` — ${escapeMarkdown(truncated)}`;
 }
 /**
@@ -2228,7 +2230,7 @@ function toonItemRef(item, id, itemUrlBase, options) {
 }
 /** Encode a URL path segment, including parentheses that delimit Markdown links. */
 function encodeItemPathSegment(segment) {
-    return encodeURIComponent(segment).replace(/[()]/g, (parenthesis) => parenthesis === "(" ? "%28" : "%29");
+    return encodeURIComponent(normalizeUnicodeText(segment)).replace(/[()]/g, (parenthesis) => parenthesis === "(" ? "%28" : "%29");
 }
 /** Public GitHub issue/PR link from the item's provenance tag, or `undefined`.
  * `/issues/N` resolves to the PR view too, so one form covers issues and PRs. */

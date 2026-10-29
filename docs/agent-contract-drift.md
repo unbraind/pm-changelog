@@ -158,3 +158,24 @@ output bounds. The self-contained function-only revert helper
 mutates only disposable copies and does not require retained git history; SDK and CLI execution
 remain independent of git. Packed acceptance exercises the same cases through
 npm/Bun global and local installs, npx and bunx.
+
+Unicode text uses explicit U+FFFD replacement for each lone UTF-16 surrogate.
+Valid pairs (including emoji), combining sequences, whitespace and CRLF remain
+unchanged. Obligation assumptions, command/evidence strings, audience notes and
+upgrade title/body fields use this policy at their shared producer boundary.
+Native item IDs and release/section attribution use the same policy in reports;
+IDs that collide after replacement refuse rather than merge unrelated items.
+JSON and TOON output apply the same replacement to every remaining string leaf
+and dynamic key, including legacy native metadata. Ambiguous keys refuse with
+`UnicodeOutputError` (`invalid_unicode_output`, field `object key`) and a remedy.
+The policy affects projections only: tracker data, historical snapshots, digest
+inputs and signed correction records are not rewritten. Signed corrections keep
+their existing strict validation and typed refusals for malformed new values.
+
+For example, the SDK declaration assumption `"\ud800"` becomes `"�"`
+before comparison and serialization; it does not block another obligation in the
+same facet. Stable ASCII obligation/action IDs still obey their existing schemas,
+so a malformed ID remains a typed refusal or a per-record omission. Body previews
+and fallback date labels count whole Unicode characters when truncating, keeping
+emoji pairs intact; URI path components use the same replacement policy before
+percent encoding.

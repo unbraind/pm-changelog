@@ -1,3 +1,5 @@
+import { escapeString } from "@toon-format/toon";
+import { normalizeUnicodeOutput, encodeUnicodeOutput } from "./output-unicode.ts";
 import { spawnSync } from "node:child_process";
 import { createHash } from "node:crypto";
 import { createChangelog } from "./generator.ts";
@@ -202,14 +204,15 @@ export function assertChangelogClaims(report: ClaimAuditReport): void {
 
 /** Compact JSON or TOON with one table row per claim and no repeated tracker bodies. */
 export function formatClaimAudit(report: ClaimAuditReport, format: "json" | "toon"): string {
+  report = normalizeUnicodeOutput(report);
   if (format === "json") return `${JSON.stringify(report)}\n`;
   const lines = [
-    `schema_version: 1`, `markdown_sha256: ${report.markdown_sha256}`,
+    `schema_version: 1`, encodeUnicodeOutput({ markdown_sha256: report.markdown_sha256 }),
     `claim_count: ${report.claim_count}`, `unsupported_count: ${report.unsupported_count}`, `ready: ${report.ready}`,
     `claims[${report.claims.length}]{line,release,section,claim,items,gaps}:`,
   ];
   for (const row of report.claims) {
-    lines.push(`  ${[row.line, row.release, row.section, row.claim, JSON.stringify(row.items), JSON.stringify(row.gaps)].map((value) => JSON.stringify(value)).join(",")}`);
+    lines.push(`  ${[row.line, row.release, row.section, row.claim, JSON.stringify(row.items), JSON.stringify(row.gaps)].map((value) => typeof value === "string" ? `"${escapeString(value)}"` : JSON.stringify(value)).join(",")}`);
   }
   // Nested evidence remains compact JSON scalars inside valid TOON, avoiding lossy CSV flattening.
   lines.push(`evidence[${report.evidence.length}]:`);

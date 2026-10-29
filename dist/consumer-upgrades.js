@@ -1,4 +1,4 @@
-import { encode } from "@toon-format/toon";
+import { encodeUnicodeOutput as encode, stringifyUnicodeOutput, normalizeUnicodeText } from "./output-unicode.js";
 import { RelationshipGraph, analyzeRelationshipExecution, listAllComplete, readSettings, resolveRuntimeStatusRegistry } from "@unbrained/pm-cli/sdk";
 import { buildAudienceContracts, parseChangeAudience } from "./audience-contracts.js";
 import { parseContractRelease, parseContractReleaseHeading } from "./contract-versions.js";
@@ -24,7 +24,7 @@ export function buildConsumerUpgrades(options) {
     if (compareVersionStrings(from, to) >= 0)
         throw new ConsumerUpgradeError("invalid_upgrade_options", "Choose an installed --from version strictly below the target --to version.");
     const contracts = buildAudienceContracts({ items: options.items, audience, groupBy: "release", untilVersion: to, statusRegistry: options.statusRegistry, statusSelection: options.statusSelection, omittedNonChangeIds: options.omittedNonChangeIds });
-    const items = new Map(options.items.map((item) => [item.id, item]));
+    const items = new Map(options.items.map((item) => [normalizeUnicodeText(item.id), item]));
     const catalog = new Map();
     const omissions = [];
     for (const row of contracts.ledger) {
@@ -85,6 +85,6 @@ export async function readConsumerUpgrades(pmRoot, options) {
 }
 /** Emit compact agent output without duplicating source prose or tracker state. */
 export function formatConsumerUpgrades(report, format) {
-    return `${format === "json" ? JSON.stringify(report) : encode(report)}\n`;
+    return `${format === "json" ? stringifyUnicodeOutput(report) : encode(report)}\n`;
 }
 //# sourceMappingURL=consumer-upgrades.js.map

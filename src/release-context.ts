@@ -1,3 +1,4 @@
+import { normalizeUnicodeText } from "./output-unicode.ts";
 import { execFileSync, spawnSync } from "node:child_process";
 import { existsSync, readFileSync } from "node:fs";
 import { dirname, join, parse, resolve } from "node:path";
@@ -692,7 +693,7 @@ function formatTagVersion(tag: string): string {
  */
 export function formatDate(timestamp: string): string {
   const date = new Date(timestamp);
-  if (Number.isNaN(date.getTime())) return timestamp.slice(0, 10);
+  if (Number.isNaN(date.getTime())) return Array.from(normalizeUnicodeText(timestamp)).slice(0, 10).join("");
   return date.toISOString().slice(0, 10);
 }
 

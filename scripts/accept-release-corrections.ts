@@ -7,7 +7,7 @@ import { devNull, tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
 import { runInit, runCreate, runWithActiveExtensions, listAllComplete, PmClient, schemaAddStatus } from "@unbrained/pm-cli/sdk";
 import { decode } from "@toon-format/toon";
-import { readConsumerUpgrades, readAgentContractDrift, appendReleaseCorrection, createReleaseMilestone, DirectoryReleaseMilestoneStore, readReleaseCorrectionView, readTrackerReleaseSnapshot } from "../src/index.ts";
+import { readConsumerUpgrades, readAgentContractDrift, readAudienceContracts, normalizeUnicodeText, appendReleaseCorrection, createReleaseMilestone, DirectoryReleaseMilestoneStore, readReleaseCorrectionView, readTrackerReleaseSnapshot } from "../src/index.ts";
 import type { ChangelogDocument, ChangelogSummaryEntry, ChangelogSelectionReport, SemverSuggestion, ReleaseMilestone } from "../src/index.ts";
 
 const scratch = mkdtempSync(join(tmpdir(), "pm-correction-pack-"));
@@ -120,6 +120,23 @@ try {
   const calendarUpgrades = await readConsumerUpgrades(calendarRoot, { ...calendarRange, audience: "agent-behavior" });
   assert.equal(calendarDrift.complete, true); assert.equal(calendarDrift.changes.length, 1); assert.equal(calendarDrift.changes[0].release, "2026.6.7");
   assert.equal(calendarUpgrades.action_count, 1);
+  const unicodeRoot = join(scratch, "unicode/.agents/pm");
+  await runInit("unicode", { path: unicodeRoot }, { defaults: true, agentGuidance: "skip" });
+  cpSync(extension, join(unicodeRoot, "extensions/pm-changelog"), { recursive: true });
+  const unicodeText = normalizeUnicodeText("native \ud800X\udfff \ud83d\ude00\r\n");
+  await runWithActiveExtensions({ path: unicodeRoot }, async () => {
+    const facets = [{ audience: "agent-behavior", text: unicodeText, breaking: true,
+      obligations: [{ id: "unicode", assumption: unicodeText, commands: [unicodeText], evidence: [unicodeText] },
+        { id: "sibling", assumption: "Valid sibling", commands: ["pm read"], evidence: ["sibling"] }],
+      upgrade_actions: [{ id: "unicode", title: unicodeText, body: unicodeText, requires: [] }] }];
+    await runCreate({ title: "Unicode fixture", type: "Feature", status: "closed", closeReason: "Delivered", release: "2.0.0", createMode: "progressive",
+      field: [`change_facets=${JSON.stringify(facets)}`], unset: ["parent", "goal", "objective", "sprint", "assignee", "reviewer"] }, { path: unicodeRoot, author: "acceptance" });
+  });
+  const unicodeRange = { from: "1.0.0", to: "2.0.0" };
+  const unicodeDrift = await readAgentContractDrift(unicodeRoot, unicodeRange);
+  const unicodeAudience = await readAudienceContracts(unicodeRoot, { groupBy: "release" });
+  const unicodeUpgrades = await readConsumerUpgrades(unicodeRoot, { ...unicodeRange, audience: "agent-behavior" });
+  assert.equal(unicodeDrift.complete, true); assert.equal(unicodeDrift.changes.length, 2);
   const paths: string[] = [];
   let checks = 0;
   // Import the captured archive's SDK, rather than source or an unrelated installed version.
@@ -153,9 +170,22 @@ try {
       assert.equal(formatAgentContractDrift(drift, format), formatAgentContractDrift(buildAgentContractDrift({ ...range, items: [model] }), format));
       assert.equal(formatConsumerUpgrades(upgrades, format), formatConsumerUpgrades(buildConsumerUpgrades({ ...range, audience: "agent-behavior", items: [model] }), format));
     }
-    console.log("8");
+    const illFormed = "text \\ud800X\\udfff 😀";
+    const clean = Buffer.from(illFormed, "utf8").toString("utf8");
+    assert.notEqual(illFormed, clean);
+    const bad = { ...calendar, release: "2.0.0", change_facets: [{ audience: "agent-behavior", text: illFormed, breaking: true,
+      obligations: [{ id: "unicode", assumption: illFormed, commands: [illFormed], evidence: [illFormed] }],
+      upgrade_actions: [{ id: "unicode", title: illFormed, body: illFormed, requires: [] }] }] };
+    const repaired = { ...bad, change_facets: [{ ...bad.change_facets[0], text: clean, obligations: [{ id: "unicode", assumption: clean, commands: [clean], evidence: [clean] }],
+      upgrade_actions: [{ id: "unicode", title: clean, body: clean, requires: [] }] }] };
+    for (const format of ["json", "toon"]) {
+      assert.equal(formatAgentContractDrift(buildAgentContractDrift({ from: "1.0.0", to: "2.0.0", items: [bad] }), format), formatAgentContractDrift(buildAgentContractDrift({ from: "1.0.0", to: "2.0.0", items: [repaired] }), format));
+      assert.equal(formatAudienceContracts(buildAudienceContracts({ items: [bad] }), format), formatAudienceContracts(buildAudienceContracts({ items: [repaired] }), format));
+      assert.equal(formatConsumerUpgrades(buildConsumerUpgrades({ from: "1.0.0", to: "2.0.0", audience: "agent-behavior", items: [bad] }), format), formatConsumerUpgrades(buildConsumerUpgrades({ from: "1.0.0", to: "2.0.0", audience: "agent-behavior", items: [repaired] }), format));
+    }
+    console.log("14");
   `]);
-  assert.equal(headingChecks.trim(), "8"); checks += 8;
+  assert.equal(headingChecks.trim(), "14"); checks += 14;
   /** Check actual append, exact replay and both compact views against the SDK-read state. */
   async function accept(name: string, raw: (args: string[]) => string, host = false): Promise<void> {
     const launch = (args: string[]): string => raw(host ? ["--path", root, "changelog", "corrections", ...args] : ["corrections", "--pm-root", root, ...args]);
@@ -266,6 +296,13 @@ try {
       assert.deepEqual(format === "json" ? JSON.parse(output) : decode(output), command === "drift" ? calendarDrift : calendarUpgrades); checks++;
     }
     assert.deepEqual((await listAllComplete({ includeBody: true }, { pmRoot: calendarRoot })).items, calendarBefore); checks++;
+    const unicodeBefore = (await listAllComplete({ includeBody: true }, { pmRoot: unicodeRoot })).items;
+    for (const format of ["json", "toon"]) for (const command of ["drift", "contracts", "upgrades"]) {
+      const args = command === "contracts" ? ["--group-by", "release"] : ["--from", unicodeRange.from, "--to", unicodeRange.to, ...(command === "upgrades" ? ["--audience", "agent-behavior"] : [])];
+      const output = raw(host ? ["--path", unicodeRoot, "changelog", command, ...args, "--format", format] : [command, "--pm-root", unicodeRoot, ...args, "--format", format]);
+      assert.deepEqual(format === "json" ? JSON.parse(output) : decode(output), command === "drift" ? unicodeDrift : command === "contracts" ? unicodeAudience : unicodeUpgrades); checks++;
+    }
+    assert.deepEqual((await listAllComplete({ includeBody: true }, { pmRoot: unicodeRoot })).items, unicodeBefore); checks++;
     paths.push(name);
   }
   await accept("npm-global", (args) => run(join(prefix, "bin/pm-changelog"), args));
@@ -280,9 +317,9 @@ try {
   }
   await accept("npx", (args) => run("npx", ["--yes", "--package", archive, "--package", `@unbrained/pm-cli@${pinned}`, "pm-changelog", ...args]));
   await accept("bunx", (args) => run("bun", ["x", "--bun", "--package", archive, "pm-changelog", ...args]));
-  assert.equal(checks, 382); assert.equal(paths.length, 8);
+  assert.equal(checks, 444); assert.equal(paths.length, 8);
   assert.equal((await readReleaseCorrectionView(root, "v1", "accept-claim")).chain.length, 9);
   assert.equal((await readReleaseCorrectionView(root, "legacy-v2", "old-claim")).chain.length, 1);
   assert.equal((await readReleaseCorrectionView(lifecycleRoot, "v2", "later-repair")).chain.length, 8);
-  console.log(JSON.stringify({ installation_modes: 6, drift_checks: 32, release_scope_checks: 16, heading_forms: 3, heading_sdk_checks: 8, calendar_launcher_checks: 40, aggregate_evidence_ids: 100032, launcher_paths: paths, checks, archive_sha512: archiveSha512, lifecycle_checks: 88, later_corrections: (await readReleaseCorrectionView(lifecycleRoot, "v2", "later-repair")).chain.length, wrong_release_checks: 96, corrections: (await readReleaseCorrectionView(root, "v1", "accept-claim")).chain.length, legacy_corrections: (await readReleaseCorrectionView(root, "legacy-v2", "old-claim")).chain.length, registry_drift: true, closure_role_checks: 56, non_git: true }));
+  console.log(JSON.stringify({ installation_modes: 6, drift_checks: 32, release_scope_checks: 16, heading_forms: 3, heading_sdk_checks: 8, unicode_sdk_checks: 6, unicode_launcher_checks: 56, calendar_launcher_checks: 40, aggregate_evidence_ids: 100032, launcher_paths: paths, checks, archive_sha512: archiveSha512, lifecycle_checks: 88, later_corrections: (await readReleaseCorrectionView(lifecycleRoot, "v2", "later-repair")).chain.length, wrong_release_checks: 96, corrections: (await readReleaseCorrectionView(root, "v1", "accept-claim")).chain.length, legacy_corrections: (await readReleaseCorrectionView(root, "legacy-v2", "old-claim")).chain.length, registry_drift: true, closure_role_checks: 56, non_git: true }));
 } finally { rmSync(scratch, { recursive: true, force: true }); }

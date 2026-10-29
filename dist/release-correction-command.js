@@ -1,7 +1,7 @@
 import { constants } from "node:fs";
 import { open } from "node:fs/promises";
 import { parseArgs } from "node:util";
-import { encode } from "@toon-format/toon";
+import { encodeUnicodeOutput as encode, stringifyUnicodeOutput } from "./output-unicode.js";
 import { resolvePmRoot } from "@unbrained/pm-cli/sdk";
 import { ReleaseCorrectionError, appendReleaseCorrection, formatReleaseCorrectionView, readReleaseCorrectionView } from "./release-corrections.js";
 /** Host and standalone transports share the same bounded file-ingestion options. */
@@ -52,7 +52,7 @@ export async function runReleaseCorrectionsCommand(pmRoot, action, options, json
     }
     const { changed, correction } = await appendReleaseCorrection(pmRoot, input, { author });
     const result = { changed, correction };
-    return (format === "json" ? JSON.stringify(result) : encode(result)) + "\n";
+    return (format === "json" ? stringifyUnicodeOutput(result) : encode(result)) + "\n";
 }
 /** Parse standalone correction commands independently from historical generation flags. */
 export async function runReleaseCorrectionsCli(args) {

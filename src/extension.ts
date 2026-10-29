@@ -1,3 +1,4 @@
+import { stringifyUnicodeOutput } from "./output-unicode.ts";
 import { readFileSync, writeFileSync } from "node:fs";
 import { resolve } from "node:path";
 
@@ -78,7 +79,7 @@ function renderedCommandResult(value: unknown): RenderedCommandResult {
   // `value` is `unknown`, so `undefined`/functions/symbols are reachable inputs;
   // `JSON.stringify` returns `undefined` for those, which would print the literal
   // string "undefined" instead of JSON. Reject rather than emit invalid output.
-  const serialized = JSON.stringify(value, null, 2);
+  const serialized = stringifyUnicodeOutput(value, 2);
   if (serialized === undefined) {
     throw new TypeError("Rendered changelog value is not JSON-serializable");
   }
@@ -571,7 +572,7 @@ export default defineExtension({
           markdown: generated.markdown,
         };
         if (outputPath) {
-          writeFileSync(resolve(outputPath), JSON.stringify(payload, null, 2) + "\n", "utf-8");
+          writeFileSync(resolve(outputPath), stringifyUnicodeOutput(payload, 2) + "\n", "utf-8");
           return { file: outputPath, format: "json", item_count: generated.itemCount, excluded_non_change_count: generated.excludedNonChangeCount };
         }
         return renderedCommandResult(payload);

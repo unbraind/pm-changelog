@@ -8,4 +8,5 @@ export { DirectoryReleaseMilestoneStore, ReleaseMilestoneError, assertTrackerMil
 export { auditChangelogClaims, assertChangelogClaims, formatClaimAudit, parseClaimTestReceipts, ClaimAuditError, CLAIM_AUDIT_REMEDIES } from "./claim-audit.js";
 export { ReleaseCorrectionError, parseReleaseCorrection, formatReleaseCorrection, readReleaseCorrectionView, appendReleaseCorrection, formatReleaseCorrectionView } from "./release-corrections.js";
 export { AgentContractDriftError, parseAgentObligation, parseAgentContractRange, buildAgentContractDrift, readAgentContractDrift, formatAgentContractDrift } from "./agent-contract-drift.js";
+export { UnicodeOutputError, normalizeUnicodeText } from "./output-unicode.js";
 //# sourceMappingURL=index.js.map

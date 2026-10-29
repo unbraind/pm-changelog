@@ -1,4 +1,4 @@
-import { encode } from "@toon-format/toon";
+import { encodeUnicodeOutput as encode, stringifyUnicodeOutput, normalizeUnicodeText, normalizeUnicodeOutput } from "./output-unicode.js";
 import { EXIT_CODE, PmCliError, listAllComplete, readSettings, resolveRuntimeStatusRegistry } from "@unbrained/pm-cli/sdk";
 import { buildChangelogDocument, compareVersionStrings } from "./generator.js";
 import { isContractReleaseAfter, parseContractRelease as releaseVersion, parseContractReleaseHeading } from "./contract-versions.js";
@@ -34,12 +34,12 @@ function array(value, max = MAX_ROWS) {
     }
     return value;
 }
-/** Preserve authored prose exactly, including CRLF, while bounding its UTF-8 size. */
+/** Preserve valid Unicode and CRLF; replace lone code units within the UTF-8 byte bound. */
 function text(value, max) {
     if (typeof value !== "string" || !value.trim() || Buffer.byteLength(value) > max) {
         throw new AgentContractDriftError("invalid_obligation", "Use nonblank text within the documented UTF-8 byte limit.");
     }
-    return value;
+    return normalizeUnicodeText(value);
 }
 /** Canonicalize set-valued declarations without changing command spellings or authored prose. */
 function strings(value, max, bytes) {
@@ -91,13 +91,15 @@ export function buildAgentContractDrift(options) {
     for (const value of items) {
         if (!value || typeof value !== "object" || Array.isArray(value))
             throw new AgentContractDriftError("invalid_drift_options", "Supply a complete tracker read with unique nonblank item IDs and text titles.");
-        const item = value;
+        const source = value;
+        const item = { ...source, id: typeof source.id === "string" ? normalizeUnicodeText(source.id) : source.id };
         if (typeof item.id !== "string" || !item.id.trim() || typeof item.title !== "string" || byId.has(item.id))
             throw new AgentContractDriftError("invalid_drift_options", "Supply a complete tracker read with unique nonblank item IDs and text titles.");
         byId.set(item.id, item);
     }
     const document = buildChangelogDocument({ items: [...byId.values()], groupBy: "release",
-        statusRegistry: options.statusRegistry, statusSelection: options.statusSelection, omittedNonChangeIds: options.omittedNonChangeIds });
+        statusRegistry: options.statusRegistry, statusSelection: options.statusSelection === undefined ? undefined : normalizeUnicodeOutput(new Map(options.statusSelection)),
+        omittedNonChangeIds: options.omittedNonChangeIds === undefined ? undefined : normalizeUnicodeOutput(new Set(options.omittedNonChangeIds)) });
     const omissions = [], observations = new Map();
     let recordCount = 0;
     for (const release of document.releases) {
@@ -283,6 +285,6 @@ export function formatAgentContractDrift(report, format) {
     catch {
         throw new AgentContractDriftError("invalid_drift_report", "Rebuild the report through buildAgentContractDrift or readAgentContractDrift; do not edit definition references or emit nonfinite numbers.");
     }
-    return `${format === "json" ? JSON.stringify(report) : encode(report)}\n`;
+    return `${format === "json" ? stringifyUnicodeOutput(report) : encode(report)}\n`;
 }
 //# sourceMappingURL=agent-contract-drift.js.map

@@ -1,5 +1,5 @@
 import { createHash } from "node:crypto";
-import { encode } from "@toon-format/toon";
+import { encodeUnicodeOutput as encode, stringifyUnicodeOutput } from "./output-unicode.ts";
 import { EXIT_CODE, PmCliError, PmClient, commitWorkspaceTransaction, deriveMutationTransactionId } from "@unbrained/pm-cli/sdk";
 import type { CommitWorkspaceTransactionOptions, NotesResult, LogNote, PmReadOutputReceipt } from "@unbrained/pm-cli/sdk";
 import { DirectoryReleaseMilestoneStore, parseReleaseMilestone, readReleaseMilestones, resolveTrackerReleaseLedger } from "./milestones.ts";
@@ -79,7 +79,7 @@ export function parseReleaseCorrection(value: unknown): ReleaseCorrection {
 /** Serialize only schema-verified records; the exact output can be submitted again. */
 export function formatReleaseCorrection(value: unknown, format: "json" | "toon" = "toon"): string {
   const record = parseReleaseCorrection(value);
-  return (format === "json" ? JSON.stringify(record) : encode(record)) + "\n";
+  return (format === "json" ? stringifyUnicodeOutput(record) : encode(record)) + "\n";
 }
 /** Read the frozen claim and complete native annotations through the supported SDK. */
 export async function readReleaseCorrectionView(pmRoot: string, release: string, item: string, options: ReleaseCorrectionOptions = {}): Promise<ReleaseCorrectionView> {
@@ -184,7 +184,7 @@ export function formatReleaseCorrectionView(view: ReleaseCorrectionView, format:
   const output: ReleaseCorrectionView = { schema: selector.schema, release: selector.release, item: selector.item, milestone: selector.milestone,
     original: view.original, current: view.current, revision: selector.expectedRevision, chain: view.chain.map(parseReleaseCorrection),
     skipped: { foreign: view.skipped.foreign, invalid: view.skipped.invalid, unrelated: view.skipped.unrelated } };
-  return (format === "json" ? JSON.stringify(output) : encode(output)) + "\n";
+  return (format === "json" ? stringifyUnicodeOutput(output) : encode(output)) + "\n";
 }
 
 /** Package-local pure boundary probes; SDK integration tests always use real trackers. */

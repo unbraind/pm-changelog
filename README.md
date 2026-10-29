@@ -483,3 +483,8 @@ assumptions, affected commands and evidence IDs. Unchanged declarations referenc
 a shared definition table; ordinary prose is never interpreted. Legacy or malformed
 declarations produce individual omissions. The typed SDK and both commands work
 without git. See the [declaration example, output and limits](docs/agent-contract-drift.md).
+
+Agent contract JSON and TOON share a Unicode policy: lone UTF-16 surrogates are
+replaced with U+FFFD, while valid Unicode and authored whitespace stay intact.
+See [the drift example and Unicode rules](docs/agent-contract-drift.md). Native
+tracker data and historical digests are unchanged.
