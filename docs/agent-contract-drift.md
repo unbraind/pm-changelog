@@ -149,7 +149,7 @@ output references, and checks host/standalone/SDK parity without git.
 The regression suite covers 100032 merged evidence IDs across every transition,
 150000 combined omissions, long native IDs, exact orphan coordinates and 500
 unrelated future-metadata variants. It also rejects arrays above the derived
-output bounds. The function-only revert helper reads the reviewed commit from
-the source checkout and mutates only disposable copies; SDK and CLI execution
+output bounds. The self-contained function-only revert helper
+mutates only disposable copies and does not require retained git history; SDK and CLI execution
 remain independent of git. Packed acceptance exercises the same cases through
 npm/Bun global and local installs, npx and bunx.

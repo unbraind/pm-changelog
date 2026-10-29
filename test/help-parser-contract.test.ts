@@ -92,6 +92,7 @@ const rootSource = sourceFile("../src/cli.ts");
 const rootFlags = rootParserFlags(rootSource);
 const commands = new Map<string, ParserFlag[]>([
   ["", rootFlags], ["audit", rootFlags],
+  ["drift", subcommandParserFlags("../src/agent-contract-command.ts")],
   ["contracts", subcommandParserFlags("../src/audience-command.ts")],
   ["upgrades", subcommandParserFlags("../src/consumer-upgrade-command.ts")],
   ["corrections", subcommandParserFlags("../src/release-correction-command.ts")],
@@ -104,7 +105,7 @@ test("help contract covers every standalone command dispatched by main", () => {
   assert.deepEqual([...commands.keys()].filter(Boolean).sort(), dispatched.sort());
 });
 
-for (const command of ["contracts", "upgrades"]) {
+for (const command of [...commands.keys()].filter((name) => name && name !== "audit")) {
   test(`root ${command} synopsis documents exactly that command's flags`, (t) => {
     const writes: string[] = [];
     t.mock.method(process.stdout, "write", (chunk: string | Uint8Array) => {
@@ -114,10 +115,9 @@ for (const command of ["contracts", "upgrades"]) {
     cliTestSurface.printHelp();
     // A continuation belongs to the preceding command; keep it in the match
     // so moving grouping flags under upgrades fails independently of Options.
-    const summaries = [...writes.join("").matchAll(/^  (contracts|upgrades) .*(?:\n {4,}.*)*/gm)];
-    const summary = summaries.find((match) => match[1] === command);
-    assert.ok(summary, `${command} must have a root synopsis`);
-    assert.deepEqual(advertisedFlags(summary[0]), commands.get(command)?.map((flag) => flag.name).sort());
+    const summaries = [...writes.join("").matchAll(/^  ([a-z-]+) .*(?:\n {4,}.*)*/gm)].filter((match) => match[1] === command);
+    assert.ok(summaries.length, `${command} must have a root synopsis`);
+    assert.deepEqual(advertisedFlags(summaries.map((match) => match[0]).join("\n")), commands.get(command)?.map((flag) => flag.name).sort());
   });
 }
 

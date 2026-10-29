@@ -940,9 +940,11 @@ function printHelp() {
     process.stdout.write(`pm-changelog
 
   corrections append --input file.json [--pm-root path] [--format toon|json] [--json]
-  corrections view --release name --item id [--pm-root path] [--format toon|json] [--json]
+  corrections view --release name --item id [--pm-root path] [--format toon|json] [--json] [-h|--help]
 
   drift --from version --to version [--format toon|json]
+        [--pm-root path] [--json] [-h|--help]
+    Index explicitly declared agent obligations across a release interval.
   contracts [--audience api-user|operator|agent-behavior] [--format toon|json]
             [--pm-root path] [--json] [--group-by version|release|milestone]
             [--section-by category|type|status|label] [--release-version version]
