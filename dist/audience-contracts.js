@@ -2,6 +2,7 @@ import { createHash } from "node:crypto";
 import { encode } from "@toon-format/toon";
 import { EXIT_CODE, PmCliError, listAllComplete, readSettings, resolveRuntimeStatusRegistry } from "@unbrained/pm-cli/sdk";
 import { buildChangelogDocument, resolveChangelogResolution } from "./generator.js";
+import { isContractReleaseAfter, parseContractRelease } from "./contract-versions.js";
 import { parseUpgradeActions } from "./upgrade-actions.js";
 /** Explicit publishing targets, in canonical output order. */
 export const CHANGE_AUDIENCES = ["api-user", "operator", "agent-behavior"];
@@ -52,6 +53,8 @@ function compareCanonicalKeys(left, right) {
  * to an item's title. Source items are neither mutated nor treated as proof of actual deployment.
  */
 export function buildAudienceContracts(options) {
+    if (options.untilVersion !== undefined && (!parseContractRelease(options.untilVersion) || options.groupBy !== "release"))
+        throw new AudienceContractError("invalid_contract_options", "Use groupBy: release with a stable numeric untilVersion such as 2.0.0 or 2026.10.28-1.");
     const audiences = options.audience === undefined ? CHANGE_AUDIENCES : [parseChangeAudience(options.audience)];
     const items = new Map();
     for (const item of options.items) {
@@ -67,6 +70,8 @@ export function buildAudienceContracts(options) {
     const ledger = [];
     const contracts = audiences.map((audience) => ({ audience, notes: [], omissions: [] }));
     for (const release of document.releases) {
+        if (options.untilVersion !== undefined && isContractReleaseAfter(release.heading, options.untilVersion))
+            continue;
         for (const section of [...release.sections].sort((left, right) => compareCanonicalKeys(left.heading, right.heading))) {
             // Section headings and unique item IDs form the canonical contract key;
             // optional dates and prose never change the identity order within a release.

@@ -4,6 +4,7 @@ import { encode } from "@toon-format/toon";
 import { EXIT_CODE, PmCliError, listAllComplete, readSettings, resolveRuntimeStatusRegistry } from "@unbrained/pm-cli/sdk";
 import { buildChangelogDocument, resolveChangelogResolution } from "./generator.ts";
 import type { GenerateChangelogOptions, PmItem } from "./types.ts";
+import { isContractReleaseAfter, parseContractRelease } from "./contract-versions.ts";
 import { parseUpgradeActions } from "./upgrade-actions.ts";
 import type { UpgradeAction } from "./upgrade-actions.ts";
 
@@ -18,6 +19,8 @@ export interface AudienceContractOptions extends Pick<GenerateChangelogOptions,
   "items" | "version" | "groupBy" | "sectionBy" | "since" | "until" | "excludeTags" |
   "releaseWindows" | "releaseMembership" | "suppressedPendingRelease" | "limit" | "sinceVersion" | "respectItemRelease" | "statusRegistry" | "statusSelection" | "omittedNonChangeIds"> {
   audience?: ChangeAudience;
+  /** Inclusive numeric release bound applied before facet validation; requires groupBy: release. */
+  untilVersion?: string;
 }
 /** Shared, prose-free identity of one selected change in one release section. */
 export interface ChangeAttribution { item: string; release: string; section: string }
@@ -83,6 +86,7 @@ function compareCanonicalKeys(left: string, right: string): number {
  * to an item's title. Source items are neither mutated nor treated as proof of actual deployment.
  */
 export function buildAudienceContracts(options: AudienceContractOptions): AudienceContractReport {
+  if (options.untilVersion !== undefined && (!parseContractRelease(options.untilVersion) || options.groupBy !== "release")) throw new AudienceContractError("invalid_contract_options", "Use groupBy: release with a stable numeric untilVersion such as 2.0.0 or 2026.10.28-1.");
   const audiences = options.audience === undefined ? CHANGE_AUDIENCES : [parseChangeAudience(options.audience)];
   const items = new Map<string, PmItem>();
   for (const item of options.items) {
@@ -98,6 +102,7 @@ export function buildAudienceContracts(options: AudienceContractOptions): Audien
   const ledger: ChangeAttribution[] = [];
   const contracts: AudienceChangeContract[] = audiences.map((audience) => ({ audience, notes: [], omissions: [] }));
   for (const release of document.releases) {
+    if (options.untilVersion !== undefined && isContractReleaseAfter(release.heading, options.untilVersion)) continue;
     for (const section of [...release.sections].sort((left, right) => compareCanonicalKeys(left.heading, right.heading))) {
       // Section headings and unique item IDs form the canonical contract key;
       // optional dates and prose never change the identity order within a release.

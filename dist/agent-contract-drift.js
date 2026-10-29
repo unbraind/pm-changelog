@@ -1,6 +1,7 @@
 import { encode } from "@toon-format/toon";
 import { EXIT_CODE, PmCliError, listAllComplete, readSettings, resolveRuntimeStatusRegistry } from "@unbrained/pm-cli/sdk";
 import { buildChangelogDocument, compareVersionStrings } from "./generator.js";
+import { isContractReleaseAfter, parseContractRelease as releaseVersion } from "./contract-versions.js";
 /** Expected refusals carry a stable discriminator and public-safe recovery instructions. */
 export class AgentContractDriftError extends PmCliError {
     /** Actionable recovery without source prose or operator paths. */
@@ -13,6 +14,12 @@ export class AgentContractDriftError extends PmCliError {
 }
 /** Bound work and output independently of the caller's static TypeScript types. */
 const MAX_ROWS = 100_000;
+/** One declaration contributes at most this many evidence IDs or command names. */
+const MAX_DECLARATION_REFERENCES = 64;
+/** A release-wide evidence union may contain every ID from every accepted declaration. */
+const MAX_AGGREGATE_EVIDENCE = MAX_ROWS * MAX_DECLARATION_REFERENCES;
+/** Invalid item-level facets and scanned records each contribute at most one omission. */
+const MAX_OMISSIONS = MAX_ROWS * 2;
 /** Reject non-objects and unexpected keys before interpreting a strict schema variant. */
 function object(value, keys) {
     if (!value || typeof value !== "object" || Array.isArray(value) || Object.keys(value).some((key) => !keys.includes(key))) {
@@ -46,14 +53,14 @@ export function parseAgentObligation(value) {
     const id = text(row.id, 160);
     if (!/^[A-Za-z0-9][A-Za-z0-9._:-]*$/.test(id))
         throw new AgentContractDriftError("invalid_obligation", "Use stable case-sensitive obligation IDs matching [A-Za-z0-9][A-Za-z0-9._:-]* (at most 160 bytes).");
-    const evidence = strings(row.evidence, 64, 256);
+    const evidence = strings(row.evidence, MAX_DECLARATION_REFERENCES, 256);
     if (!evidence.length)
         throw new AgentContractDriftError("invalid_obligation", "Declare at least one evidence ID, including for removals.");
     if (row.removed === true && row.assumption === undefined && row.commands === undefined)
         return { id, removed: true, evidence };
     if (row.removed !== undefined)
         throw new AgentContractDriftError("invalid_obligation", "A removal is exactly {id, removed: true, evidence}; active obligations omit removed.");
-    const assumption = text(row.assumption, 8192), commands = strings(row.commands, 64, 256);
+    const assumption = text(row.assumption, 8192), commands = strings(row.commands, MAX_DECLARATION_REFERENCES, 256);
     if (!commands.length)
         throw new AgentContractDriftError("invalid_obligation", "Declare at least one affected command for an active obligation.");
     return { id, assumption, commands, evidence };
@@ -65,12 +72,9 @@ export function parseAgentContractRange(from, to) {
         throw new AgentContractDriftError("invalid_drift_options", "Provide --from below --to as stable numeric versions (for example 1.0.0 or 2026.10.28-1); no ranges, prereleases or build metadata.");
     return { from: low, to: high };
 }
-/** Return canonical numeric release identity, leaving old nonnumeric releases readable as omissions. */
-function releaseVersion(value) {
-    if (typeof value !== "string" || value.length > 80 || !/^v?(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)(?:-(0|[1-9]\d*))?$/.test(value)
-        || value.replace(/^v/, "").split(/[.-]/).some((part) => !Number.isSafeInteger(Number(part))))
-        return undefined;
-    return value.replace(/^v/, "");
+/** Serialize set-valued merged provenance once, preserving every accepted contributor. */
+function provenance(entry) {
+    return { items: [...entry.items].sort(), evidence: [...entry.evidence].sort() };
 }
 /** Compare declared behavior, excluding provenance changes and never reading ordinary prose. */
 function behavior(declaration) {
@@ -96,7 +100,10 @@ export function buildAgentContractDrift(options) {
         statusRegistry: options.statusRegistry, statusSelection: options.statusSelection, omittedNonChangeIds: options.omittedNonChangeIds });
     const omissions = [], observations = new Map();
     let recordCount = 0;
-    for (const release of document.releases)
+    for (const release of document.releases) {
+        if (isContractReleaseAfter(release.heading, range.to))
+            continue;
+        const version = releaseVersion(release.heading);
         for (const section of release.sections)
             for (const selected of section.items) {
                 const item = byId.get(selected.id);
@@ -122,13 +129,10 @@ export function buildAgentContractDrift(options) {
                     const row = raw;
                     if (row.audience !== "agent-behavior")
                         continue;
-                    const version = releaseVersion(release.heading);
                     if (!version) {
                         omissions.push({ item: item.id, facet, obligation: null, reason: "unversioned" });
                         continue;
                     }
-                    if (compareVersionStrings(version, range.to) > 0)
-                        continue;
                     if (row.obligations === undefined) {
                         omissions.push({ item: item.id, facet, obligation: null, reason: "missing_obligations" });
                         continue;
@@ -158,14 +162,17 @@ export function buildAgentContractDrift(options) {
                         if (previous && behavior(previous.declaration) !== behavior(declaration))
                             throw new AgentContractDriftError("ambiguous_contract", "Give each obligation one behavior per release; separate conflicting declarations into different releases or distinct stable IDs.");
                         if (previous) {
-                            previous.items = [...new Set([...previous.items, item.id])].sort();
-                            previous.declaration.evidence = [...new Set([...previous.declaration.evidence, ...declaration.evidence])].sort();
+                            previous.items.add(item.id);
+                            for (const evidence of declaration.evidence)
+                                previous.evidence.add(evidence);
+                            previous.sources.push({ item: item.id, facet, obligation });
                         }
                         else
-                            catalog.set(declaration.id, { declaration, release: version, items: [item.id], facet, obligation });
+                            catalog.set(declaration.id, { declaration, release: version, items: new Set([item.id]), evidence: new Set(declaration.evidence), sources: [{ item: item.id, facet, obligation }] });
                     }
                 }
             }
+    }
     const report = { schema_version: 1, ...range, complete: true, definitions: [], baseline: [], changes: [], unchanged: [], omissions };
     const active = new Map(), definitions = new Map();
     /** Intern exact normalized definitions once, including reintroduced older definitions. */
@@ -178,7 +185,7 @@ export function buildAgentContractDrift(options) {
             definitions.set(key, ref);
             report.definitions.push({ id: declaration.id, assumption: declaration.assumption, commands: declaration.commands });
         }
-        return { release: entry.release, ref, items: entry.items, evidence: declaration.evidence };
+        return { release: entry.release, ref, ...provenance(entry) };
     };
     const releases = [...observations.keys()].sort(compareVersionStrings);
     for (const release of releases) {
@@ -200,7 +207,8 @@ export function buildAgentContractDrift(options) {
         for (const id of [...catalog.keys()].sort()) {
             const entry = catalog.get(id), previous = active.get(id);
             if (entry.declaration.removed && !previous) {
-                omissions.push({ item: entry.items[0], facet: entry.facet, obligation: entry.obligation, reason: "orphan_removal" });
+                for (const source of entry.sources)
+                    omissions.push({ ...source, reason: "orphan_removal" });
                 continue;
             }
             if (previous && behavior(previous.declaration) === behavior(entry.declaration)) {
@@ -210,7 +218,7 @@ export function buildAgentContractDrift(options) {
             }
             const before = previous ? reference(previous).ref : null;
             const after = entry.declaration.removed ? null : reference(entry).ref;
-            report.changes.push({ release, id, kind: entry.declaration.removed ? "removed" : previous ? "changed" : "added", before, after, items: entry.items, evidence: entry.declaration.evidence });
+            report.changes.push({ release, id, kind: entry.declaration.removed ? "removed" : previous ? "changed" : "added", before, after, ...provenance(entry) });
             if (entry.declaration.removed)
                 active.delete(id);
             else
@@ -234,7 +242,7 @@ export function formatAgentContractDrift(report, format) {
         parseAgentContractRange(report.from, report.to);
         if (report.schema_version !== 1 || typeof report.complete !== "boolean" || (format !== "json" && format !== "toon"))
             throw new Error();
-        if (report.complete !== (array(report.omissions).length === 0))
+        if (report.complete !== (array(report.omissions, MAX_OMISSIONS).length === 0))
             throw new Error();
         const definitions = array(report.definitions);
         for (const value of definitions) {
@@ -246,8 +254,8 @@ export function formatAgentContractDrift(report, format) {
             const row = object(value, ["release", "ref", "items", "evidence"]);
             if (!validRef(row.ref) || !releaseVersion(row.release))
                 throw new Error();
-            strings(row.items, MAX_ROWS, 1024);
-            strings(row.evidence, MAX_ROWS, 256);
+            strings(row.items, MAX_ROWS, Number.MAX_SAFE_INTEGER);
+            strings(row.evidence, MAX_AGGREGATE_EVIDENCE, 256);
         }
         for (const value of array(report.changes)) {
             const row = object(value, ["release", "id", "kind", "before", "after", "items", "evidence"]);
@@ -259,12 +267,12 @@ export function formatAgentContractDrift(report, format) {
             for (const ref of [row.before, row.after])
                 if (ref !== null && definitions[Number(ref)].id !== row.id)
                     throw new Error();
-            strings(row.items, MAX_ROWS, 1024);
-            strings(row.evidence, MAX_ROWS, 256);
+            strings(row.items, MAX_ROWS, Number.MAX_SAFE_INTEGER);
+            strings(row.evidence, MAX_AGGREGATE_EVIDENCE, 256);
         }
-        for (const value of array(report.omissions)) {
+        for (const value of array(report.omissions, MAX_OMISSIONS)) {
             const row = object(value, ["item", "facet", "obligation", "reason"]);
-            text(row.item, 1024);
+            text(row.item, Number.MAX_SAFE_INTEGER);
             for (const position of [row.facet, row.obligation])
                 if (position !== null && (!Number.isSafeInteger(position) || Number(position) < 0 || Number(position) >= 256))
                     throw new Error();

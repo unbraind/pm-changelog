@@ -100,6 +100,20 @@ There are at most 100000 input items and 100000 facets plus declarations combine
 and 256 obligations per facet. Arrays must be dense. Stable numeric releases have
 safe-integer components; ranges, prereleases and build metadata are refused.
 A request above these bounds refuses instead of truncating silently.
+Merged evidence is bounded by the input domain: at most 6400000 IDs (100000
+scanned records times 64 IDs per declaration), rather than the single-record or
+record-count bound. Item-level and record-level omissions together permit up to
+200000 rows. Native item IDs retain the SDK's domain instead of acquiring a new
+publication-only byte limit. Every orphan-removal contributor keeps its own item
+and facet/obligation coordinates.
+
+Known numeric releases after `to` are excluded before reading or validating their
+facets and before charging facet/declaration budgets. They cannot introduce
+omissions, ambiguities or schema refusals into an earlier report. Unknown legacy
+release headings still produce their documented omissions. Consumer upgrades use
+the same early temporal selection through the audience SDK's optional inclusive
+`untilVersion` bound (requires `groupBy: "release"`); unbounded audience
+publication retains its existing rules.
 
 `AgentContractDriftError` extends core `PmCliError`. Codes
 `invalid_drift_options`, `invalid_obligation`, `ambiguous_contract` and
@@ -131,3 +145,11 @@ Every projection/serialization is followed
 by an SDK state read to detect accidental mutation. Legacy facets remain readable.
 `test/agent-contract-drift.test.ts` also fuzzes dense arrays, extreme values and
 output references, and checks host/standalone/SDK parity without git.
+
+The regression suite covers 100032 merged evidence IDs across every transition,
+150000 combined omissions, long native IDs, exact orphan coordinates and 500
+unrelated future-metadata variants. It also rejects arrays above the derived
+output bounds. The function-only revert helper reads the reviewed commit from
+the source checkout and mutates only disposable copies; SDK and CLI execution
+remain independent of git. Packed acceptance exercises the same cases through
+npm/Bun global and local installs, npx and bunx.

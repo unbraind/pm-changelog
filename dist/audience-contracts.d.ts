@@ -22,6 +22,8 @@ export type ChangeFacet = {
 /** Selection delegates to the existing generator; only closed change items are published. */
 export interface AudienceContractOptions extends Pick<GenerateChangelogOptions, "items" | "version" | "groupBy" | "sectionBy" | "since" | "until" | "excludeTags" | "releaseWindows" | "releaseMembership" | "suppressedPendingRelease" | "limit" | "sinceVersion" | "respectItemRelease" | "statusRegistry" | "statusSelection" | "omittedNonChangeIds"> {
     audience?: ChangeAudience;
+    /** Inclusive numeric release bound applied before facet validation; requires groupBy: release. */
+    untilVersion?: string;
 }
 /** Shared, prose-free identity of one selected change in one release section. */
 export interface ChangeAttribution {

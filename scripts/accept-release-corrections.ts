@@ -7,7 +7,7 @@ import { devNull, tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
 import { runInit, runCreate, runWithActiveExtensions, listAllComplete, PmClient, schemaAddStatus } from "@unbrained/pm-cli/sdk";
 import { decode } from "@toon-format/toon";
-import { readAgentContractDrift, appendReleaseCorrection, createReleaseMilestone, DirectoryReleaseMilestoneStore, readReleaseCorrectionView, readTrackerReleaseSnapshot } from "../src/index.ts";
+import { readConsumerUpgrades, readAgentContractDrift, appendReleaseCorrection, createReleaseMilestone, DirectoryReleaseMilestoneStore, readReleaseCorrectionView, readTrackerReleaseSnapshot } from "../src/index.ts";
 import type { ChangelogDocument, ChangelogSummaryEntry, ChangelogSelectionReport, SemverSuggestion, ReleaseMilestone } from "../src/index.ts";
 
 const scratch = mkdtempSync(join(tmpdir(), "pm-correction-pack-"));
@@ -83,12 +83,23 @@ try {
     for (let version = 1; version <= 5; version++) {
       const obligations = version === 4 ? [{ id: "retry", removed: true, evidence: ["retired"] }]
         : [{ id: "retry", assumption: version === 1 ? "Read before writing" : "Read target revision before retry", commands: ["pm example apply"], evidence: [`release-${version}`] }];
+      const facets = version === 3 ? Array.from({ length: 7 }, (_, facet) => ({ audience: "agent-behavior", text: "Declared behavior",
+        obligations: Array.from({ length: Math.min(256, 1563 - facet * 256) }, (_, offset) => ({ ...obligations[0],
+          evidence: Array.from({ length: 64 }, (_, evidence) => `e${((facet * 256 + offset) * 64 + evidence).toString(36)}`) })) }))
+        : [{ audience: "agent-behavior", text: "Declared behavior", obligations }];
       await runCreate({ title: "Packed drift fixture", type: "Feature", status: "closed", closeReason: "Delivered", release: `${version}.0.0`, createMode: "progressive",
-        field: [`change_facets=${JSON.stringify([{ audience: "agent-behavior", text: "Declared behavior", obligations }])}`],
+        field: [`change_facets=${JSON.stringify(facets)}`],
         unset: ["parent", "goal", "objective", "sprint", "assignee", "reviewer"] }, { path: driftRoot, author: "acceptance" });
     }
   });
+  await runWithActiveExtensions({ path: driftRoot }, async () => {
+    await runCreate({ title: "Foreign future metadata", type: "Feature", status: "closed", closeReason: "Delivered", release: "6.0.0", createMode: "progressive",
+      field: ["change_facets=[null]"], unset: ["parent", "goal", "objective", "sprint", "assignee", "reviewer"] }, { path: driftRoot, author: "acceptance" });
+  });
   const driftExpected = await readAgentContractDrift(driftRoot, { from: "1.0.0", to: "5.0.0" });
+  assert.equal(driftExpected.complete, true);
+  assert.equal(driftExpected.unchanged[0].evidence.length, 100032);
+  const upgradeExpected = await readConsumerUpgrades(driftRoot, { audience: "agent-behavior", from: "1.0.0", to: "5.0.0" });
   assert.deepEqual(driftExpected.changes.map((row) => row.kind), ["changed", "removed", "added"]);
   assert.equal(driftExpected.unchanged.length, 1);
   const paths: string[] = [];
@@ -190,6 +201,11 @@ try {
     assert.throws(() => drift(["--from", "1.0.0", "--to", "5.0.0", "--format", "xml"]), (error: unknown) => {
       assert.ok(error && typeof error === "object" && "stderr" in error); assert.match(String(error.stderr), /invalid_drift_options/); return true;
     }); checks++;
+    for (const format of ["json", "toon"]) {
+      const output = raw(host ? ["--path", driftRoot, "changelog", "upgrades", "--audience", "agent-behavior", "--from", "1.0.0", "--to", "5.0.0", "--format", format]
+        : ["upgrades", "--pm-root", driftRoot, "--audience", "agent-behavior", "--from", "1.0.0", "--to", "5.0.0", "--format", format]);
+      assert.deepEqual(format === "json" ? JSON.parse(output) : decode(output), upgradeExpected); checks++;
+    }
     assert.deepEqual((await listAllComplete({ includeBody: true }, { pmRoot: driftRoot })).items, driftBefore); checks++;
     paths.push(name);
   }
@@ -205,9 +221,9 @@ try {
   }
   await accept("npx", (args) => run("npx", ["--yes", "--package", archive, "--package", `@unbrained/pm-cli@${pinned}`, "pm-changelog", ...args]));
   await accept("bunx", (args) => run("bun", ["x", "--bun", "--package", archive, "pm-changelog", ...args]));
-  assert.equal(checks, 318); assert.equal(paths.length, 8);
+  assert.equal(checks, 334); assert.equal(paths.length, 8);
   assert.equal((await readReleaseCorrectionView(root, "v1", "accept-claim")).chain.length, 9);
   assert.equal((await readReleaseCorrectionView(root, "legacy-v2", "old-claim")).chain.length, 1);
   assert.equal((await readReleaseCorrectionView(lifecycleRoot, "v2", "later-repair")).chain.length, 8);
-  console.log(JSON.stringify({ installation_modes: 6, drift_checks: 32, launcher_paths: paths, checks, archive_sha512: archiveSha512, lifecycle_checks: 88, later_corrections: (await readReleaseCorrectionView(lifecycleRoot, "v2", "later-repair")).chain.length, wrong_release_checks: 96, corrections: (await readReleaseCorrectionView(root, "v1", "accept-claim")).chain.length, legacy_corrections: (await readReleaseCorrectionView(root, "legacy-v2", "old-claim")).chain.length, registry_drift: true, closure_role_checks: 56, non_git: true }));
+  console.log(JSON.stringify({ installation_modes: 6, drift_checks: 32, release_scope_checks: 16, aggregate_evidence_ids: 100032, launcher_paths: paths, checks, archive_sha512: archiveSha512, lifecycle_checks: 88, later_corrections: (await readReleaseCorrectionView(lifecycleRoot, "v2", "later-repair")).chain.length, wrong_release_checks: 96, corrections: (await readReleaseCorrectionView(root, "v1", "accept-claim")).chain.length, legacy_corrections: (await readReleaseCorrectionView(root, "legacy-v2", "old-claim")).chain.length, registry_drift: true, closure_role_checks: 56, non_git: true }));
 } finally { rmSync(scratch, { recursive: true, force: true }); }
