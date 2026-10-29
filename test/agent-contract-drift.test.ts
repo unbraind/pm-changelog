@@ -4,7 +4,7 @@ import { cpSync, mkdirSync, mkdtempSync, readFileSync, rmSync, symlinkSync, writ
 import { tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
 import test from "node:test";
-import { canonicalDocument, listAllComplete, readSettings, resolveRuntimeStatusRegistry, runCreate, runFocus, runInit, runUpdate, runWithActiveExtensions, schemaAddStatus } from "@unbrained/pm-cli/sdk";
+import { SETTINGS_DEFAULTS, canonicalDocument, listAllComplete, readSettings, resolveRuntimeStatusRegistry, runCreate, runFocus, runInit, runUpdate, runWithActiveExtensions, schemaAddStatus } from "@unbrained/pm-cli/sdk";
 import { activateExtensionForTest, decodeToon, runRegisteredCommandForTest } from "@unbrained/pm-cli/sdk/testing";
 import { AgentContractDriftError, buildAgentContractDrift, buildAudienceContracts, createChangelog, formatAgentContractDrift, parseAgentContractRange, parseAgentObligation, readAgentContractDrift } from "../src/index.ts";
 import type { AgentContractDriftReport, AgentObligation, ChangeFacet, PmItem } from "../src/index.ts";
@@ -16,8 +16,8 @@ const range = { from: "1.0.0", to: "10.0.0" };
 /** Author a closed, versioned agent facet while keeping ordinary prose out of the index. */
 function change(id: string, release: string, obligations: unknown): PmItem {
   return { id, title: "Do not infer this title", status: "closed", type: "Feature", release,
-    close_reason: "Ordinary release prose is not an obligation. ".repeat(30),
-    change_facets: [{ audience: "agent-behavior", text: "Ordinary release prose is not an obligation. ".repeat(30), obligations }] as ChangeFacet[] };
+    close_reason: "Declared agent behavior for this release.",
+    change_facets: [{ audience: "agent-behavior", text: "Declared agent behavior for this release.", obligations }] as ChangeFacet[] };
 }
 /** Strict producer canonicalizes only sets; authored assumptions remain byte exact. */
 function obligation(id = "context", assumption = "Read current context before mutation"): AgentObligation {
@@ -25,13 +25,22 @@ function obligation(id = "context", assumption = "Read current context before mu
 }
 /** Ten releases exercise repeats, removals, reintroduction and changes that later revert. */
 function tenReleases(): PmItem[] {
-  return Array.from({ length: 10 }, (_, index) => change(`fixture-${index + 1}`, `${index + 1}.0.0`, [
-    obligation("context", index >= 4 && index < 6 ? "Read history and context before mutation" : undefined),
-    ...(index < 2 ? [obligation("claim", "Claim before writing")] : index === 2 ? [{ id: "claim", removed: true, evidence: ["evidence-retire"] }] : []),
-    ...(index === 7 ? [obligation("claim", "Claim before writing")] : []),
-    ...(index >= 1 ? [obligation("retry", "Re-read the target revision before retry")] : []),
-  ]));
+  return Array.from({ length: 10 }, (_, index) => {
+    const declarations: AgentObligation[] = [
+      obligation("context", index >= 4 && index < 6 ? "Read history and context before mutation" : undefined),
+      ...(index < 2 ? [obligation("claim", "Claim before writing")] : index === 2 ? [{ id: "claim", removed: true as const, evidence: ["evidence-retire"] }] : []),
+      ...(index === 7 ? [obligation("claim", "Claim before writing")] : []),
+      ...(index >= 1 ? [obligation("retry", "Re-read the target revision before retry")] : []),
+    ];
+    const item = change(`fixture-${index + 1}`, `${index + 1}.0.0`, declarations);
+    item.close_reason = `Published agent behavior contract for release ${index + 1}.0.0. ` + declarations.map((row) => row.removed
+      ? `Retired obligation ${row.id}. Evidence: ${row.evidence.join(", ")}.`
+      : `Obligation ${row.id}: ${row.assumption}. Affected commands: ${row.commands.join(", ")}. Evidence: ${row.evidence.join(", ")}.`).join(" ");
+    item.change_facets![0].text = item.close_reason;
+    return item;
+  });
 }
+
 /** Machine refusal assertions check actual expected-error identity and remedy. */
 function refusal(code: AgentContractDriftError["code"]): (error: unknown) => boolean {
   return (error) => error instanceof AgentContractDriftError && error.code === code && error.exitCode !== 0 && !!error.remedy;
@@ -213,6 +222,24 @@ function random(seed: number): () => number {
   let state = seed;
   return () => { state = (Math.imul(state, 1664525) + 1013904223) >>> 0; return state >>> 8; };
 }
+
+test("500 random custom status registries publish only SDK done roles irrespective of names or aliases", () => {
+  const next = random(0x9a71c);
+  const roles = [["active"], ["blocked"], ["terminal", "terminal_canceled"], ["terminal", "terminal_done"]] as const;
+  for (let sequence = 0; sequence < 500; sequence++) {
+    const statuses = Array.from({ length: 4 }, (_, index) => {
+      const kind = next() % roles.length;
+      return { id: `state_${next().toString(36)}_${index}`, aliases: [`alias_${next().toString(36)}`], roles: [...roles[kind]], kind };
+    });
+    const registry = resolveRuntimeStatusRegistry({ ...SETTINGS_DEFAULTS.schema,
+      statuses: [...SETTINGS_DEFAULTS.schema.statuses!, ...statuses.map(({ id, aliases, roles }) => ({ id, aliases, roles }))] });
+    const items = statuses.map((status, index) => ({ ...change(`random-${index}`, "2.0.0", [obligation(`contract-${index}`)]),
+      status: next() % 2 ? status.id : `  ${status.aliases[0].toUpperCase()}\r\n` }));
+    const report = buildAgentContractDrift({ ...range, items, statusRegistry: registry });
+    assert.deepEqual(report.changes.map((row) => row.id), statuses.flatMap((status, index) => status.kind === 3 ? [`contract-${index}`] : []));
+    for (const format of ["json", "toon"] as const) assert.deepEqual(format === "json" ? JSON.parse(formatAgentContractDrift(report, format)) : decodeToon(formatAgentContractDrift(report, format)), report);
+  }
+});
 
 test("500 seeded SDK-read model sequences cover old replays, whitespace, relationships and custom role registries", async (t) => {
   const cwd = mkdtempSync(join(tmpdir(), "pm-drift-model-")); t.after(() => rmSync(cwd, { recursive: true, force: true }));

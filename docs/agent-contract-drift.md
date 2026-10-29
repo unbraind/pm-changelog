@@ -125,7 +125,9 @@ removal and reintroduction), restored assumptions and unchanged references, with
 both output encodings smaller than the concatenated notes. Seed `0x6dc1f7`
 runs 500 model sequences through real non-git SDK state, each with current input,
 an older replay, then current input, including CRLF, native fields, relationships,
-ambient focus and custom status roles. Every projection/serialization is followed
+ambient focus and custom status roles. A separate seed `0x9a71c` checks 500
+randomly generated custom status registries against an independent role model.
+Every projection/serialization is followed
 by an SDK state read to detect accidental mutation. Legacy facets remain readable.
 `test/agent-contract-drift.test.ts` also fuzzes dense arrays, extreme values and
 output references, and checks host/standalone/SDK parity without git.
