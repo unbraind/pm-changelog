@@ -7,7 +7,7 @@ import { dirname, join } from "node:path";
 import test from "node:test";
 import { fileURLToPath, pathToFileURL } from "node:url";
 
-import { checkExtensionManifestCompatibility } from "@unbrained/pm-cli/sdk";
+import { checkExtensionManifestCompatibility, runInit, runCreate } from "@unbrained/pm-cli/sdk";
 import { activateExtensionForTest, runRegisteredCommandForTest } from "@unbrained/pm-cli/sdk/testing";
 import type { ExtensionActivationResult, ExtensionCapability, FlagDefinition } from "@unbrained/pm-cli/sdk/authoring";
 
@@ -756,4 +756,33 @@ test("audit command publishes an evidence-specific intent independently of gener
   assert.ok(generate);
   assert.match(audit.intent ?? "", /audit.*claims.*evidence.*publication/);
   assert.notEqual(audit.intent, generate.intent);
+});
+
+test("requested release diagnostics retain unexpected failures", () => {
+  const original = new Error("unexpected selection failure");
+  assert.throws(() => extensionTestSurface.withRequestedReleaseDiagnostics(() => { throw original; }), (error: unknown) => error === original);
+});
+
+test("generate and export fail closed for missing requested releases in real trackers", async () => {
+  const scratch = mkdtempSync(join(tmpdir(), "pm-extension-release-"));
+  try {
+    const root = join(scratch, ".agents/pm");
+    await runInit("release-test", { path: root }, { defaults: true, agentGuidance: "skip" });
+    await runCreate({ id: "release-open", title: "Undelivered change", type: "Task", createMode: "progressive", unset: ["parent", "release", "goal", "sprint", "objective"] }, { path: root, author: "release-test" });
+    const { commands } = await activateChangelog();
+    for (const command of ["changelog generate", "changelog export"]) {
+      await assert.rejects(runRegisteredCommandForTest(commands, {
+        command, options: { "release-version": "2026.10.29", stdout: true }, pmRoot: root,
+      }), (error: unknown) => {
+        assert.ok(error instanceof Error);
+        const typed = error as Error & { exitCode?: number; context?: { code?: string; remedy?: string } };
+        assert.equal(typed.exitCode, 1);
+        assert.equal(typed.context?.code, "MISSING_REQUESTED_RELEASE");
+        assert.match(typed.message, /pm update/);
+        return true;
+      });
+    }
+  } finally {
+    removeGitFixture(scratch);
+  }
 });

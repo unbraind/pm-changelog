@@ -38,6 +38,21 @@ export declare function generateChangelog(options: GenerateChangelogOptions): st
  * count it was built from so a caller can report on the selection without
  * re-parsing its own output. */
 export declare function createChangelog(options: GenerateChangelogOptions, onClaim?: (source: ChangelogClaimSource) => void): GeneratedChangelog;
+/** A requested release must survive the same selection used by every renderer. */
+export declare class MissingRequestedReleaseError extends Error {
+    /** Stable discriminator for release automation. */
+    readonly code = "MISSING_REQUESTED_RELEASE";
+    /** Operator actions that preserve release attribution rather than reuse older notes. */
+    readonly remedy = "Close delivered items and set their release with pm update; inspect --explain filters. Use --include-empty only for an intentionally empty release, or --no-pending-release for historical-only generation.";
+    /** The requested CLI version before normalized comparison. */
+    readonly version: string;
+    /** Canonical selection exclusions and hints for the refused generation. */
+    readonly report: ChangelogSelectionReport;
+    /** Retain selection diagnostics without guessing why unassigned work was omitted. */
+    constructor(version: string, report: ChangelogSelectionReport, missingRelease: number);
+}
+/** Validate before output or side effects, using the renderers' canonical selector. */
+export declare function assertRequestedRelease(options: GenerateChangelogOptions): void;
 /**
  * OPT-IN (`--changelog-json`): build a structured representation of the
  * changelog (releases -> sections -> items) for downstream tooling. This is

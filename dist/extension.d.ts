@@ -46,6 +46,8 @@ declare function enrichItemBodies(pmRoot: string, items: PmItem[], dependencies?
  * stale (the CLI path surfaces the same message via its main() error handler).
  */
 declare function withTagHistoryDiagnostics<T>(resolve: () => T): T;
+/** Preserve the typed release refusal and remedy across the host CLI boundary. */
+declare function withRequestedReleaseDiagnostics<T>(generate: () => T): T;
 /** Render release-context option failures as real CLI usage errors.
  * The SDK host converts ordinary thrown errors into warnings, which would let
  * an invalid fallback invocation appear successful to automation. */
@@ -87,5 +89,6 @@ export declare const extensionTestSurface: {
     stringOption: typeof stringOption;
     withReleaseContextDiagnostics: typeof withReleaseContextDiagnostics;
     withTagHistoryDiagnostics: typeof withTagHistoryDiagnostics;
+    withRequestedReleaseDiagnostics: typeof withRequestedReleaseDiagnostics;
 };
 //# sourceMappingURL=extension.d.ts.map

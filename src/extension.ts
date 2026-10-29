@@ -26,7 +26,7 @@ import { auditChangelogClaims, assertChangelogClaims, formatClaimAudit, parseCla
 
 import { countNonChangeClosures } from "./closure-policy.ts";
 
-import { buildChangelogDocument, createChangelog, createChangelogSummary, explainChangelogSelection, formatSummaryLine, lintChangelogEntries, parseChangelogEntryFrom, mergeChangelog, suggestSemver, writeChangelog } from "./generator.ts";
+import { assertRequestedRelease, MissingRequestedReleaseError, buildChangelogDocument, createChangelog, createChangelogSummary, explainChangelogSelection, formatSummaryLine, lintChangelogEntries, parseChangelogEntryFrom, mergeChangelog, suggestSemver, writeChangelog } from "./generator.ts";
 import {
   MissingTagHistoryError,
   resolveGenerationReleaseWindows,
@@ -340,6 +340,7 @@ export default defineExtension({
             throw new PmCliError(`Cannot verify release membership: ${String(error)}`, EXIT_CODE.GENERIC_FAILURE);
           }
         }
+        if (!booleanOption(ctx.options, "no-pending-release", "noPendingRelease")) withRequestedReleaseDiagnostics(() => assertRequestedRelease(generationOptions));
         if (Boolean(ctx.options["check"])) {
           for (const warning of lintChangelogEntries(generationOptions)) console.error(`Warning: ${warning}`);
         }
@@ -537,7 +538,7 @@ export default defineExtension({
       }));
 
       const items = await listWorkspaceItemMetadata(ctx.pm_root);
-      const generated = createChangelog({
+      const generationOptions: GenerateChangelogOptions = {
         items,
         statusRegistry: resolveRuntimeStatusRegistry((await readSettings(ctx.pm_root)).schema),
         title: stringOption(ctx.options, "title", "title") ?? (releaseNotes ? "Release Notes" : undefined),
@@ -560,7 +561,9 @@ export default defineExtension({
         dependencySinceRef: releaseContext.previousTag,
         dependencyUntilRef: releaseContext.releaseTag,
         dependencyCutoff: untilOption,
-      });
+      };
+      withRequestedReleaseDiagnostics(() => assertRequestedRelease(generationOptions));
+      const generated = createChangelog(generationOptions);
 
       const outputPath = stringOption(ctx.options, "output", "output");
       if (format === "json") {
@@ -681,6 +684,16 @@ function withTagHistoryDiagnostics<T>(resolve: () => T): T {
   }
 }
 
+/** Preserve the typed release refusal and remedy across the host CLI boundary. */
+function withRequestedReleaseDiagnostics<T>(generate: () => T): T {
+  try {
+    return generate();
+  } catch (error) {
+    if (!(error instanceof MissingRequestedReleaseError)) throw error;
+    throw new PmCliError(`${error.message} ${error.remedy}`, EXIT_CODE.GENERIC_FAILURE, { code: error.code });
+  }
+}
+
 /** Refuse `--dependency-updates` with release or milestone grouping: those
  * sections come from item metadata, not git release windows, so no commit
  * range belongs to any of them. Shared by `changelog generate` and `export`. */
@@ -797,4 +810,5 @@ export const extensionTestSurface = {
   stringOption,
   withReleaseContextDiagnostics,
   withTagHistoryDiagnostics,
+  withRequestedReleaseDiagnostics,
 };

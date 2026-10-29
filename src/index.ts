@@ -1,4 +1,6 @@
 export {
+  assertRequestedRelease,
+  MissingRequestedReleaseError,
   buildChangelogDocument,
   buildPmListArgs,
   createChangelog,
