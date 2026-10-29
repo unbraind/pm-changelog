@@ -514,12 +514,15 @@ test("generate all-tag and body-preview paths use the real tracker", async () =>
       stdout: true,
       "all-release-tags": true,
       "release-version": "2026.8.8",
+      // This historical window has no currently qualifying items; consent is explicit.
+      "include-empty": true,
       "body-preview": 8,
       "release-tag-pattern": "v*",
     },
     pmRoot: TRACKER_ROOT,
   });
   assert.equal(typeof (commandResult(result) as { changelog?: unknown }).changelog, "string");
+  assert.match((commandResult(result) as { changelog: string }).changelog, /^## 2026\.8\.8(?: - |$)/m);
 
   // Exercise the --dependency-updates path so the extension's gitCwd wiring
   // is covered. The tracker root is a git repo, so git log will succeed;

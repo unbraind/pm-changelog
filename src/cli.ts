@@ -1257,7 +1257,10 @@ export async function runCliEntry(argv: readonly string[] = process.argv): Promi
 
 /** Convert an unknown CLI failure into a stable human-readable message. */
 function errorMessage(error: unknown): string {
-  if (error instanceof MissingRequestedReleaseError) return stringifyUnicodeOutput({ error: { code: error.code, message: error.message, remedy: error.remedy, version: error.version, selection_report: error.report } })!;
+  if (error instanceof MissingRequestedReleaseError) return stringifyUnicodeOutput({ error: {
+    code: error.code, message: error.message, remedy: error.remedy, version: error.version,
+    selection_report: { filters: error.report.filters, stage_counts: error.report.stage_counts, excluded_counts: error.report.excluded_counts },
+  } })!;
   if (error instanceof UnicodeOutputError || error instanceof AgentContractDriftError || error instanceof ReleaseCorrectionError || error instanceof ReleaseMilestoneError || error instanceof AudienceContractError || error instanceof ConsumerUpgradeError) return stringifyUnicodeOutput({ error: { code: error.code, message: error.message, remedy: error.remedy } })!;
   return error instanceof Error ? error.message : String(error);
 }

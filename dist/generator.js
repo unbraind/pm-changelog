@@ -364,7 +364,7 @@ export function assertRequestedRelease(options) {
         return;
     const version = normalizeReleaseKey(options.version);
     const { visibleSections } = selectChangelogSections(options);
-    if (visibleSections.some((section) => sectionVersionKey(section.heading) === version))
+    if (visibleSections.some((section) => normalizeReleaseHeadingKey(section.heading) === version))
         return;
     const report = explainChangelogSelection(options);
     const missingRelease = filterItemsByStatus(options).filter((item) => !getStringField(item, "release")).length;

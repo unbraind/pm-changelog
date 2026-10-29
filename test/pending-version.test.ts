@@ -40,6 +40,7 @@ test("seeded release histories emit the requested heading or fail before renderi
     }
   }
   assert.doesNotThrow(() => assertRequestedRelease({ items: [] }));
+  assert.doesNotThrow(() => assertRequestedRelease({ version: "Unreleased", items: [{ title: "Delivered", status: "closed" }] }));
   assert.ok(passed > 0 && refused > 0);
 });
 
@@ -60,7 +61,9 @@ test("all CLI output modes refuse an absent requested release before side effect
       assert.equal(error.report.excluded_counts.status, 1);
       assert.match(error.message, /2026\.10\.29/);
       assert.match(error.remedy, /pm update/);
-      const formatted = JSON.parse(cliTestSurface.errorMessage(error));
+      const diagnostic = cliTestSurface.errorMessage(error);
+      assert.doesNotMatch(diagnostic, /Not delivered|Already shipped/);
+      const formatted = JSON.parse(diagnostic);
       assert.equal(formatted.error.code, error.code);
       return true;
     });
