@@ -54,7 +54,12 @@ Omitting an ID from a later release leaves its prior declaration in effect.
 Changing only evidence produces an unchanged reference with fresh provenance.
 Changing the assumption or command set produces a `changed` transition. A
 retired ID declared again is `added`. A removal without an active baseline is
-an `orphan_removal` omission. Identical declarations in one release combine
+an `orphan_removal` omission, including during baseline seeding at or before
+`from`. A second removal after a valid retirement is also orphaned. Every
+contributing source coordinate is retained, and a later valid declaration does
+not erase an earlier omission: `complete` remains false. Valid retirement after
+a known declaration is not an omission. Releases after `to` remain excluded.
+Identical declarations in one release combine
 provenance; conflicting declarations refuse because their order is ambiguous.
 
 ## SDK and compact output
@@ -158,6 +163,11 @@ output bounds. The self-contained function-only revert helper
 mutates only disposable copies and does not require retained git history; SDK and CLI execution
 remain independent of git. Packed acceptance exercises the same cases through
 npm/Bun global and local installs, npx and bunx.
+
+Seed `0x298ba5e` checks 500 histories against an independent state model across
+1500 interval cuts, comparing baseline definitions, all transitions, unchanged
+provenance and every orphan coordinate through JSON and TOON. Native non-git SDK
+reads and both CLIs retain pre-baseline omissions without changing tracker state.
 
 Unicode text uses explicit U+FFFD replacement for each lone UTF-16 surrogate.
 Valid pairs (including emoji), combining sequences, whitespace and CRLF remain

@@ -94,6 +94,133 @@ function random(seed: number): () => number {
   return () => { state = (Math.imul(state, 1664525) + 1013904223) >>> 0; return state >>> 8; };
 }
 
+test("baseline replay: orphan removals preserve missing history at and before from", () => {
+  const removed = { id: "shared", removed: true, evidence: ["retired"] };
+  for (const release of ["0.1.0", "1.0.0", "v01.00.00", "[1.0.0] - 2026-10-29", "2.0.0"]) {
+    const items = [change("missing", release, [{ audience: "operator", text: "Foreign" },
+      { audience: "agent-behavior", text: "Retired", obligations: [removed, removed] }]),
+    change("sibling", "1.0.0", [{ audience: "agent-behavior", text: "Valid", obligations: [{ ...declaration(), id: "sibling" }] }]),
+    change("reintroduced", "2.0.0", [{ audience: "agent-behavior", text: "Valid", obligations: [declaration()] }])];
+    // Avoid deliberately contradictory same-release declarations in the interval case.
+    const selected = release === "2.0.0" ? items.slice(0, 2) : items;
+    const report = buildAgentContractDrift({ ...interval, items: selected });
+    assert.equal(report.complete, false);
+    assert.deepEqual(report.omissions, [0, 1].map((obligation) => ({ item: "missing", facet: 1, obligation, reason: "orphan_removal" })));
+    assert.equal(report.baseline.length, 1);
+    assert.deepEqual(report.changes.map((row) => row.kind), release === "2.0.0" ? [] : ["added"]);
+    roundTrip(report);
+    assert.deepEqual(buildAgentContractDrift({ ...interval, items: [...selected].reverse() }), report);
+  }
+  const valid = [change("born", "0.1.0", [{ audience: "agent-behavior", text: "Born", obligations: [declaration()] }]),
+    change("retired", "0.2.0", [{ audience: "agent-behavior", text: "Retired", obligations: [removed] }])];
+  assert.equal(buildAgentContractDrift({ ...interval, items: valid }).complete, true);
+  const repeated = buildAgentContractDrift({ ...interval, items: [...valid,
+    change("repeated", "1.0.0", [{ audience: "agent-behavior", text: "Retired again", obligations: [removed] }])] });
+  assert.equal(repeated.complete, false); assert.equal(repeated.omissions[0].item, "repeated"); roundTrip(repeated);
+});
+
+test("baseline replay: 500 seeded histories match one reference model across interval cuts and encodings", () => {
+  const next = random(0x298ba5e);
+  type Event = { day: number; id: string; definition: { id: string; assumption: string; commands: string[] } | null;
+    items: string[]; evidence: string[]; sources: { item: string; facet: number; obligation: number; reason: "orphan_removal" }[] };
+  for (let sequence = 0; sequence < 500; sequence++) {
+    const events: Event[] = [], items: PmItem[] = [];
+    for (let day = 1; day <= 13; day++) for (const id of ["alpha", "beta", "constructor"]) {
+      if (next() % 4 === 0) continue;
+      const variant = next() % 3, definition = next() % 3 === 0 ? null : { id, assumption: `Mode ${variant}`, commands: [`pm example ${variant % 2}`] };
+      const event: Event = { day, id, definition, items: [], evidence: [], sources: [] };
+      for (let copy = 0, count = 1 + next() % 3; copy < count; copy++) {
+        const item = `history-${day}-${id}-${copy}`, evidence = `e-${day}-${id}-${copy}`, facet = copy % 2;
+        const row = definition ? { ...definition, evidence: [evidence] } : { id, removed: true, evidence: [evidence] };
+        items.push(change(item, `${day}.0.0`, [...(facet ? [{ audience: "operator", text: "Foreign" }] : []),
+          { audience: "agent-behavior", text: "Explicit", obligations: [row, row] }]));
+        event.items.push(item); event.evidence.push(evidence);
+        for (const obligation of [0, 1]) event.sources.push({ item, facet, obligation, reason: "orphan_removal" });
+      }
+      events.push(event);
+    }
+    const high = 4 + next() % 9;
+    for (const low of [0, high - 1, next() % high]) {
+      const active = new Map<string, Event>(), omissions: Event["sources"] = [];
+      const baseline: { release: string; definition: Event["definition"]; items: string[]; evidence: string[] }[] = [];
+      const changes: { release: string; id: string; kind: string; before: Event["definition"]; after: Event["definition"]; items: string[]; evidence: string[] }[] = [];
+      const unchanged: typeof baseline = [];
+      for (let day = 1; day <= high; day++) {
+        for (const event of events.filter((entry) => entry.day === day)) {
+          const previous = active.get(event.id);
+          if (!event.definition && !previous) { omissions.push(...event.sources); continue; }
+          if (day > low) {
+            if (previous && JSON.stringify(previous.definition) === JSON.stringify(event.definition)) {
+              unchanged.push({ release: `${day}.0.0`, definition: event.definition, items: event.items, evidence: event.evidence });
+            } else changes.push({ release: `${day}.0.0`, id: event.id, kind: !event.definition ? "removed" : previous ? "changed" : "added",
+              before: previous?.definition ?? null, after: event.definition, items: event.items, evidence: event.evidence });
+          }
+          if (event.definition) active.set(event.id, event); else active.delete(event.id);
+        }
+        if (day === low) for (const id of [...active.keys()].sort()) {
+          const event = active.get(id)!;
+          baseline.push({ release: `${event.day}.0.0`, definition: event.definition, items: event.items, evidence: event.evidence });
+        }
+      }
+      const report = buildAgentContractDrift({ from: `${low}.0.0`, to: `${high}.0.0`, items: sequence % 2 ? [...items].reverse() : items });
+      assert.equal(report.complete, omissions.length === 0);
+      assert.deepEqual(report.omissions.map((row) => JSON.stringify(row)).sort(), omissions.map((row) => JSON.stringify(row)).sort());
+      for (const [actual, expected] of [[report.baseline, baseline], [report.unchanged, unchanged]] as const) {
+        assert.deepEqual(actual.map(({ ref, ...row }) => ({ ...row, definition: report.definitions[ref] })), expected);
+      }
+      assert.deepEqual(report.changes.map(({ before, after, ...row }) => ({ ...row,
+        before: before === null ? null : report.definitions[before], after: after === null ? null : report.definitions[after] })), changes);
+      roundTrip(report);
+    }
+  }
+});
+
+test("baseline replay native: SDK read-back and both non-git CLIs retain baseline omissions", async (t) => {
+  const cwd = mkdtempSync(join(tmpdir(), "pm-baseline-replay-")); t.after(() => rmSync(cwd, { recursive: true, force: true }));
+  const root = join(cwd, ".agents/pm");
+  await runInit("replay", { path: root }, { defaults: true, agentGuidance: "skip" });
+  const target = join(root, "extensions/pm-changelog"); mkdirSync(target, { recursive: true });
+  cpSync(resolve("dist"), join(target, "dist"), { recursive: true }); cpSync(resolve("manifest.json"), join(target, "manifest.json"));
+  writeFileSync(join(target, "package.json"), JSON.stringify({ type: "module" })); symlinkSync(resolve("node_modules"), join(target, "node_modules"), "junction");
+  const tombstone = { id: "shared", removed: true, evidence: ["retired"] };
+  const nativeIds = new Map<string, string>();
+  await runWithActiveExtensions({ path: root }, async () => {
+    for (const item of [change("orphan", "0.1.0", [{ audience: "operator", text: "Foreign" },
+      { audience: "agent-behavior", text: "Retired", obligations: [tombstone, tombstone] }]),
+    change("born", "0.2.0", [{ audience: "agent-behavior", text: "Born", obligations: [declaration()] }]),
+    change("retired", "0.3.0", [{ audience: "agent-behavior", text: "Retired", obligations: [tombstone] }]),
+    change("repeated", "1.0.0", [{ audience: "agent-behavior", text: "Retired again", obligations: [tombstone] }]),
+    change("sibling", "1.0.0", [{ audience: "agent-behavior", text: "Valid", obligations: [{ ...declaration(), id: "sibling" }] }]),
+    change("reintroduced", "2.0.0", [{ audience: "agent-behavior", text: "Valid", obligations: [declaration()] }]),
+    change("future", "3.0.0", [{ audience: "agent-behavior", text: "Future", obligations: [{ ...tombstone, id: "future" }] }])]) {
+      const created = await runCreate({ id: item.id, title: item.title, type: "Feature", status: "closed", closeReason: "Delivered", release: item.release,
+        createMode: "progressive", field: [`change_facets=${JSON.stringify(item.change_facets)}`],
+        unset: ["parent", "goal", "objective", "sprint", "assignee", "reviewer"] }, { path: root, author: "fixture" });
+      nativeIds.set(item.id!, created.item.id);
+    }
+  });
+  const before = (await listAllComplete({ includeBody: true }, { pmRoot: root })).items;
+  const noGit = join(cwd, "bin"); mkdirSync(noGit);
+  const childEnv = { PATH: noGit, DO_NOT_TRACK: "1", PM_GLOBAL_PATH: join(cwd, "global"), GIT_CEILING_DIRECTORIES: dirname(cwd) };
+  for (const from of ["0.0.0", "1.0.0"]) {
+    const report = await readAgentContractDrift(root, { from, to: "2.0.0" });
+    assert.equal(report.complete, false);
+    assert.deepEqual(report.omissions, [0, 1].map((obligation) => ({ item: nativeIds.get("orphan"), facet: 1, obligation, reason: "orphan_removal" }))
+      .concat([{ item: nativeIds.get("repeated"), facet: 0, obligation: 0, reason: "orphan_removal" }]));
+    assert.ok(report.changes.some((row) => row.kind === "added" && row.items.includes(nativeIds.get("reintroduced")!)));
+    if (from === "1.0.0") assert.deepEqual(report.baseline[0].items, [nativeIds.get("sibling")]);
+    roundTrip(report);
+    for (const format of ["json", "toon"] as const) for (const prefix of [
+      [resolve("dist/cli.js"), "drift", "--pm-root", root], [resolve("node_modules/@unbrained/pm-cli/dist/cli.js"), "--path", root, "changelog", "drift"],
+    ]) {
+      const result = spawnSync(process.execPath, [...prefix, "--from", from, "--to", "2.0.0", "--format", format], { cwd, env: childEnv, encoding: "utf8" });
+      assert.equal(result.status, 0, result.stderr);
+      assert.deepEqual(format === "json" ? JSON.parse(result.stdout) : decodeToon(result.stdout), report);
+      assert.deepEqual((await listAllComplete({ includeBody: true }, { pmRoot: root })).items, before);
+    }
+  }
+});
+
 test("release scope: 500 future-metadata variants cannot change reports, errors, budgets or either encoding", () => {
   const current = change("current", "2.0.0", [
     { audience: "agent-behavior", text: "Explicit", obligations: [declaration()] },

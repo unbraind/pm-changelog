@@ -184,11 +184,20 @@ export function buildAgentContractDrift(options: AgentContractDriftOptions): Age
     }
     return { release: entry.release, ref, ...provenance(entry) };
   };
+  /** Replay the same validity and provenance rules on either side of the interval boundary. */
+  const apply = (id: string, entry: Observation): boolean => {
+    if (entry.declaration.removed && !active.has(id)) {
+      for (const source of entry.sources) omissions.push({ ...source, reason: "orphan_removal" });
+      return false;
+    }
+    if (entry.declaration.removed) active.delete(id); else active.set(id, entry);
+    return true;
+  };
   const releases = [...observations.keys()].sort(compareVersionStrings);
   for (const release of releases) {
     if (compareVersionStrings(release, range.from) > 0) continue;
     for (const [id, entry] of observations.get(release)!) {
-      if (entry.declaration.removed) active.delete(id); else active.set(id, entry);
+      apply(id, entry);
     }
   }
   for (const id of [...active.keys()].sort()) report.baseline.push(reference(active.get(id)!));
@@ -197,17 +206,13 @@ export function buildAgentContractDrift(options: AgentContractDriftOptions): Age
     const catalog = observations.get(release)!;
     for (const id of [...catalog.keys()].sort()) {
       const entry = catalog.get(id)!, previous = active.get(id);
-      if (entry.declaration.removed && !previous) {
-        for (const source of entry.sources) omissions.push({ ...source, reason: "orphan_removal" });
-        continue;
-      }
+      if (!apply(id, entry)) continue;
       if (previous && behavior(previous.declaration) === behavior(entry.declaration)) {
-        report.unchanged.push(reference(entry)); active.set(id, entry); continue;
+        report.unchanged.push(reference(entry)); continue;
       }
       const before = previous ? reference(previous).ref : null;
       const after = entry.declaration.removed ? null : reference(entry).ref;
       report.changes.push({ release, id, kind: entry.declaration.removed ? "removed" : previous ? "changed" : "added", before, after, ...provenance(entry) });
-      if (entry.declaration.removed) active.delete(id); else active.set(id, entry);
     }
   }
   omissions.sort((a, b) => Number(JSON.stringify(a) > JSON.stringify(b)) - Number(JSON.stringify(a) < JSON.stringify(b)));

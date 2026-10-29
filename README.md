@@ -483,6 +483,8 @@ assumptions, affected commands and evidence IDs. Unchanged declarations referenc
 a shared definition table; ordinary prose is never interpreted. Legacy or malformed
 declarations produce individual omissions. The typed SDK and both commands work
 without git. See the [declaration example, output and limits](docs/agent-contract-drift.md).
+Orphan removals remain omissions even at or before `from`; baseline seeding and
+interval replay apply the same validity rules, preserving missing-history evidence.
 
 Agent contract JSON and TOON share a Unicode policy: lone UTF-16 surrogates are
 replaced with U+FFFD, while valid Unicode and authored whitespace stay intact.

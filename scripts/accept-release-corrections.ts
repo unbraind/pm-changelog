@@ -137,6 +137,25 @@ try {
   const unicodeAudience = await readAudienceContracts(unicodeRoot, { groupBy: "release" });
   const unicodeUpgrades = await readConsumerUpgrades(unicodeRoot, { ...unicodeRange, audience: "agent-behavior" });
   assert.equal(unicodeDrift.complete, true); assert.equal(unicodeDrift.changes.length, 2);
+  const orphanRoot = join(scratch, "orphan/.agents/pm");
+  await runInit("orphan", { path: orphanRoot }, { defaults: true, agentGuidance: "skip" });
+  cpSync(extension, join(orphanRoot, "extensions/pm-changelog"), { recursive: true });
+  await runWithActiveExtensions({ path: orphanRoot }, async () => {
+    for (const [id, release, removed] of [["missing", "0.1.0", true], ["born", "0.2.0", false], ["retired", "0.3.0", true],
+      ["repeated", "1.0.0", true], ["reintroduced", "2.0.0", false], ["future", "3.0.0", true]] as const) {
+      const row = removed ? { id: "shared", removed: true, evidence: [id] }
+        : { id: "shared", assumption: "Read revision", commands: ["pm example apply"], evidence: [id] };
+      await runCreate({ title: `Packed replay ${id}`, type: "Feature", status: "closed", closeReason: "Delivered", release, createMode: "progressive",
+        field: [`change_facets=${JSON.stringify([{ audience: "agent-behavior", text: "Explicit", obligations: id === "missing" ? [row, row] : [row] }])}`],
+        unset: ["parent", "goal", "objective", "sprint", "assignee", "reviewer"] }, { path: orphanRoot, author: "acceptance" });
+    }
+  });
+  const orphanReports = await Promise.all(["0.0.0", "1.0.0"].map(async (from) => ({ from, report: await readAgentContractDrift(orphanRoot, { from, to: "2.0.0" }) })));
+  for (const { from, report } of orphanReports) {
+    assert.equal(report.complete, false); assert.equal(report.omissions.length, 3);
+    assert.ok(report.omissions.every((row) => row.reason === "orphan_removal"));
+    if (from === "1.0.0") { assert.equal(report.baseline.length, 0); assert.equal(report.changes.length, 1); assert.equal(report.changes[0].kind, "added"); }
+  }
   const paths: string[] = [];
   let checks = 0;
   // Import the captured archive's SDK, rather than source or an unrelated installed version.
@@ -183,9 +202,18 @@ try {
       assert.equal(formatAudienceContracts(buildAudienceContracts({ items: [bad] }), format), formatAudienceContracts(buildAudienceContracts({ items: [repaired] }), format));
       assert.equal(formatConsumerUpgrades(buildConsumerUpgrades({ from: "1.0.0", to: "2.0.0", audience: "agent-behavior", items: [bad] }), format), formatConsumerUpgrades(buildConsumerUpgrades({ from: "1.0.0", to: "2.0.0", audience: "agent-behavior", items: [repaired] }), format));
     }
-    console.log("14");
+    const orphan = { ...calendar, id: "orphan", release: "1.0.0", change_facets: [{ audience: "agent-behavior", text: "Retired",
+      obligations: [{ id: "missing", removed: true, evidence: ["retired"] }] }] };
+    for (const from of ["0.0.0", "1.0.0"]) {
+      const report = buildAgentContractDrift({ from, to: "2.0.0", items: [orphan] });
+      const expected = { schema_version: 1, from, to: "2.0.0", complete: false, definitions: [], baseline: [], changes: [], unchanged: [],
+        omissions: [{ item: "orphan", facet: 0, obligation: 0, reason: "orphan_removal" }] };
+      assert.deepEqual(report, expected);
+      for (const format of ["json", "toon"]) assert.equal(formatAgentContractDrift(report, format), formatAgentContractDrift(expected, format));
+    }
+    console.log("18");
   `]);
-  assert.equal(headingChecks.trim(), "14"); checks += 14;
+  assert.equal(headingChecks.trim(), "18"); checks += 18;
   /** Check actual append, exact replay and both compact views against the SDK-read state. */
   async function accept(name: string, raw: (args: string[]) => string, host = false): Promise<void> {
     const launch = (args: string[]): string => raw(host ? ["--path", root, "changelog", "corrections", ...args] : ["corrections", "--pm-root", root, ...args]);
@@ -303,6 +331,13 @@ try {
       assert.deepEqual(format === "json" ? JSON.parse(output) : decode(output), command === "drift" ? unicodeDrift : command === "contracts" ? unicodeAudience : unicodeUpgrades); checks++;
     }
     assert.deepEqual((await listAllComplete({ includeBody: true }, { pmRoot: unicodeRoot })).items, unicodeBefore); checks++;
+    const orphanBefore = (await listAllComplete({ includeBody: true }, { pmRoot: orphanRoot })).items;
+    for (const { from, report } of orphanReports) for (const format of ["json", "toon"]) {
+      const args = ["--from", from, "--to", "2.0.0", "--format", format];
+      const output = raw(host ? ["--path", orphanRoot, "changelog", "drift", ...args] : ["drift", "--pm-root", orphanRoot, ...args]);
+      assert.deepEqual(format === "json" ? JSON.parse(output) : decode(output), report); checks++;
+    }
+    assert.deepEqual((await listAllComplete({ includeBody: true }, { pmRoot: orphanRoot })).items, orphanBefore); checks++;
     paths.push(name);
   }
   await accept("npm-global", (args) => run(join(prefix, "bin/pm-changelog"), args));
@@ -317,9 +352,9 @@ try {
   }
   await accept("npx", (args) => run("npx", ["--yes", "--package", archive, "--package", `@unbrained/pm-cli@${pinned}`, "pm-changelog", ...args]));
   await accept("bunx", (args) => run("bun", ["x", "--bun", "--package", archive, "pm-changelog", ...args]));
-  assert.equal(checks, 444); assert.equal(paths.length, 8);
+  assert.equal(checks, 488); assert.equal(paths.length, 8);
   assert.equal((await readReleaseCorrectionView(root, "v1", "accept-claim")).chain.length, 9);
   assert.equal((await readReleaseCorrectionView(root, "legacy-v2", "old-claim")).chain.length, 1);
   assert.equal((await readReleaseCorrectionView(lifecycleRoot, "v2", "later-repair")).chain.length, 8);
-  console.log(JSON.stringify({ installation_modes: 6, drift_checks: 32, release_scope_checks: 16, heading_forms: 3, heading_sdk_checks: 8, unicode_sdk_checks: 6, unicode_launcher_checks: 56, calendar_launcher_checks: 40, aggregate_evidence_ids: 100032, launcher_paths: paths, checks, archive_sha512: archiveSha512, lifecycle_checks: 88, later_corrections: (await readReleaseCorrectionView(lifecycleRoot, "v2", "later-repair")).chain.length, wrong_release_checks: 96, corrections: (await readReleaseCorrectionView(root, "v1", "accept-claim")).chain.length, legacy_corrections: (await readReleaseCorrectionView(root, "legacy-v2", "old-claim")).chain.length, registry_drift: true, closure_role_checks: 56, non_git: true }));
+  console.log(JSON.stringify({ installation_modes: 6, drift_checks: 32, release_scope_checks: 16, heading_forms: 3, heading_sdk_checks: 8, unicode_sdk_checks: 6, unicode_launcher_checks: 56, orphan_sdk_checks: 4, orphan_launcher_checks: 40, calendar_launcher_checks: 40, aggregate_evidence_ids: 100032, launcher_paths: paths, checks, archive_sha512: archiveSha512, lifecycle_checks: 88, later_corrections: (await readReleaseCorrectionView(lifecycleRoot, "v2", "later-repair")).chain.length, wrong_release_checks: 96, corrections: (await readReleaseCorrectionView(root, "v1", "accept-claim")).chain.length, legacy_corrections: (await readReleaseCorrectionView(root, "legacy-v2", "old-claim")).chain.length, registry_drift: true, closure_role_checks: 56, non_git: true }));
 } finally { rmSync(scratch, { recursive: true, force: true }); }
