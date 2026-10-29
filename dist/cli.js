@@ -4,6 +4,8 @@ import { basename, resolve } from "node:path";
 import { stdin } from "node:process";
 import { fileURLToPath } from "node:url";
 import { resolvePmRoot, readSettings, resolveRuntimeStatusRegistry, parseBootstrapGlobalOptions } from "@unbrained/pm-cli/sdk";
+import { AgentContractDriftError } from "./agent-contract-drift.js";
+import { runAgentContractDriftCli } from "./agent-contract-command.js";
 import { AudienceContractError } from "./audience-contracts.js";
 import { runAudienceContractsCli } from "./audience-command.js";
 import { ReleaseCorrectionError } from "./release-corrections.js";
@@ -127,6 +129,8 @@ const KNOWN_OPTIONS = [
 async function main(args = process.argv.slice(2)) {
     if (args[0] === "corrections")
         return runReleaseCorrectionsCli(args.slice(1));
+    if (args[0] === "drift")
+        return runAgentContractDriftCli(args.slice(1));
     if (args[0] === "contracts")
         return runAudienceContractsCli(args.slice(1));
     if (args[0] === "upgrades")
@@ -938,6 +942,7 @@ function printHelp() {
   corrections append --input file.json [--pm-root path] [--format toon|json] [--json]
   corrections view --release name --item id [--pm-root path] [--format toon|json] [--json]
 
+  drift --from version --to version [--format toon|json]
   contracts [--audience api-user|operator|agent-behavior] [--format toon|json]
             [--pm-root path] [--json] [--group-by version|release|milestone]
             [--section-by category|type|status|label] [--release-version version]
@@ -1101,7 +1106,7 @@ export async function runCliEntry(argv = process.argv) {
 }
 /** Convert an unknown CLI failure into a stable human-readable message. */
 function errorMessage(error) {
-    if (error instanceof ReleaseCorrectionError || error instanceof ReleaseMilestoneError || error instanceof AudienceContractError || error instanceof ConsumerUpgradeError)
+    if (error instanceof AgentContractDriftError || error instanceof ReleaseCorrectionError || error instanceof ReleaseMilestoneError || error instanceof AudienceContractError || error instanceof ConsumerUpgradeError)
         return JSON.stringify({ error: { code: error.code, message: error.message, remedy: error.remedy } });
     return error instanceof Error ? error.message : String(error);
 }

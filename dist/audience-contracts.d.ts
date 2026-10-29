@@ -1,3 +1,4 @@
+import type { AgentObligation } from "./agent-contract-drift.ts";
 import { PmCliError } from "@unbrained/pm-cli/sdk";
 import type { GenerateChangelogOptions } from "./types.ts";
 import type { UpgradeAction } from "./upgrade-actions.ts";
@@ -10,6 +11,7 @@ export type ChangeFacet = {
     audience: ChangeAudience;
     breaking?: true;
     upgrade_actions?: UpgradeAction[];
+    obligations?: AgentObligation[];
 } & ({
     text: string;
     source?: never;

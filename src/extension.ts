@@ -15,6 +15,7 @@ import {
 } from "@unbrained/pm-cli/sdk";
 
 import type { ImportExportRegistrationOptions } from "@unbrained/pm-cli/sdk/authoring";
+import { AGENT_CONTRACT_DRIFT_FLAGS, runAgentContractDriftCommand } from "./agent-contract-command.ts";
 import { AUDIENCE_CONTRACT_FLAGS, runAudienceContractsCommand } from "./audience-command.ts";
 import { RELEASE_CORRECTION_FLAGS, runReleaseCorrectionsCommand } from "./release-correction-command.ts";
 import { CONSUMER_UPGRADE_FLAGS, runConsumerUpgradesCommand } from "./consumer-upgrade-command.ts";
@@ -96,6 +97,14 @@ export default defineExtension({
 
   activate(api) {
     api.registerItemFields([{ name: "change_facets", type: "array", optional: true }]);
+    api.registerCommand({
+      name: "changelog drift",
+      description: "Index declared agent-behavior obligation changes across releases; read-only, no git required.",
+      flags: AGENT_CONTRACT_DRIFT_FLAGS,
+      async run(ctx) {
+        return { pmChangelogRendered: true, output: await runAgentContractDriftCommand(ctx.pm_root, ctx.options, ctx.global.json) };
+      },
+    });
     api.registerCommand({
       name: "changelog corrections",
       description: "Append or view linked factual corrections without rewriting published milestones; no git required.",
@@ -585,7 +594,7 @@ export default defineExtension({
       // call site is still fully checked). The host enforces `commands` +
       // `resultDiscriminator` before invoking either callback.
       const rendererOwnership = {
-        commands: ["changelog generate", "changelog export", "changelog audit", "changelog contracts", "changelog upgrades", "changelog corrections"],
+        commands: ["changelog generate", "changelog export", "changelog audit", "changelog contracts", "changelog upgrades", "changelog corrections", "changelog drift"],
         resultDiscriminator: isRenderedCommandResult,
       };
       api.registerRenderer("toon", renderCommandResult, rendererOwnership);

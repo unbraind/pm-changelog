@@ -1,3 +1,4 @@
+import type { AgentObligation } from "./agent-contract-drift.ts";
 import { createHash } from "node:crypto";
 import { encode } from "@toon-format/toon";
 import { EXIT_CODE, PmCliError, listAllComplete, readSettings, resolveRuntimeStatusRegistry } from "@unbrained/pm-cli/sdk";
@@ -11,7 +12,7 @@ export const CHANGE_AUDIENCES = ["api-user", "operator", "agent-behavior"] as co
 /** One supported consumer of a versioned change contract. */
 export type ChangeAudience = typeof CHANGE_AUDIENCES[number];
 /** Exact author-declared prose, or an explicit opt-in to existing resolution prose. */
-export type ChangeFacet = { audience: ChangeAudience; breaking?: true; upgrade_actions?: UpgradeAction[] } & ({ text: string; source?: never } | { source: "close_reason"; text?: never });
+export type ChangeFacet = { audience: ChangeAudience; breaking?: true; upgrade_actions?: UpgradeAction[]; obligations?: AgentObligation[] } & ({ text: string; source?: never } | { source: "close_reason"; text?: never });
 /** Selection delegates to the existing generator; only closed change items are published. */
 export interface AudienceContractOptions extends Pick<GenerateChangelogOptions,
   "items" | "version" | "groupBy" | "sectionBy" | "since" | "until" | "excludeTags" |
@@ -64,7 +65,7 @@ function readFacets(value: unknown): ChangeFacet[] {
     if (!entry || typeof entry !== "object" || Array.isArray(entry)) return refuse();
     const row = entry as Record<string, unknown>;
     const audience = parseChangeAudience(row.audience);
-    if (Object.keys(row).some((key) => !["audience", "text", "source", "breaking", "upgrade_actions"].includes(key)) || (row.breaking !== undefined && row.breaking !== true)) return refuse();
+    if (Object.keys(row).some((key) => !["audience", "text", "source", "breaking", "upgrade_actions", "obligations"].includes(key)) || (row.breaking !== undefined && row.breaking !== true)) return refuse();
     parseUpgradeActions(row.upgrade_actions, row.breaking);
     if (typeof row.text === "string" && row.text.trim() && row.source === undefined) return { audience, text: row.text };
     if (row.source === "close_reason" && row.text === undefined) return { audience, source: "close_reason" };

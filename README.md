@@ -467,3 +467,19 @@ The generator reuses release selection, section rules and resolution rendering.
 `buildAudienceContracts`, `readAudienceContracts` and `formatAudienceContracts`
 provide the typed SDK, compact JSON/TOON and typed refusals with remedies.
 These commands work without git. See the [worked example and contract](docs/audience-contracts.md).
+
+## Agent contract drift index
+
+Compare explicitly declared agent obligations over `(from,to]` without reading
+every release note:
+
+```sh
+pm changelog drift --from 1.0.0 --to 10.0.0 --format toon
+pm-changelog drift --pm-root .agents/pm --from 1.0.0 --to 10.0.0 --json
+```
+
+Stable `obligations` on `agent-behavior` facets retain additions, removals, changed
+assumptions, affected commands and evidence IDs. Unchanged declarations reference
+a shared definition table; ordinary prose is never interpreted. Legacy or malformed
+declarations produce individual omissions. The typed SDK and both commands work
+without git. See the [declaration example, output and limits](docs/agent-contract-drift.md).

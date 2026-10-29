@@ -7,4 +7,5 @@ export { ConsumerUpgradeError, parseUpgradeActions, buildConsumerUpgrades, readC
 export { DirectoryReleaseMilestoneStore, ReleaseMilestoneError, assertTrackerMilestoneOptions, createReleaseMilestone, parseReleaseMilestone, readReleaseMilestones, readTrackerReleaseSnapshot, resolveTrackerReleaseHistory, resolveTrackerReleaseLedger, } from "./milestones.js";
 export { auditChangelogClaims, assertChangelogClaims, formatClaimAudit, parseClaimTestReceipts, ClaimAuditError, CLAIM_AUDIT_REMEDIES } from "./claim-audit.js";
 export { ReleaseCorrectionError, parseReleaseCorrection, formatReleaseCorrection, readReleaseCorrectionView, appendReleaseCorrection, formatReleaseCorrectionView } from "./release-corrections.js";
+export { AgentContractDriftError, parseAgentObligation, parseAgentContractRange, buildAgentContractDrift, readAgentContractDrift, formatAgentContractDrift } from "./agent-contract-drift.js";
 //# sourceMappingURL=index.js.map

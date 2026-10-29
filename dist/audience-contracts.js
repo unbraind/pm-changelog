@@ -33,7 +33,7 @@ function readFacets(value) {
             return refuse();
         const row = entry;
         const audience = parseChangeAudience(row.audience);
-        if (Object.keys(row).some((key) => !["audience", "text", "source", "breaking", "upgrade_actions"].includes(key)) || (row.breaking !== undefined && row.breaking !== true))
+        if (Object.keys(row).some((key) => !["audience", "text", "source", "breaking", "upgrade_actions", "obligations"].includes(key)) || (row.breaking !== undefined && row.breaking !== true))
             return refuse();
         parseUpgradeActions(row.upgrade_actions, row.breaking);
         if (typeof row.text === "string" && row.text.trim() && row.source === undefined)

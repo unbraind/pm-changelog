@@ -1,6 +1,7 @@
 import { readFileSync, writeFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { defineExtension, getActiveExtensionRegistrations, listAllItemMetadata, locateItem, readLocatedItem, readSettings, resolveItemTypeRegistry, resolveRuntimeStatusRegistry, EXIT_CODE, PmCliError, } from "@unbrained/pm-cli/sdk";
+import { AGENT_CONTRACT_DRIFT_FLAGS, runAgentContractDriftCommand } from "./agent-contract-command.js";
 import { AUDIENCE_CONTRACT_FLAGS, runAudienceContractsCommand } from "./audience-command.js";
 import { RELEASE_CORRECTION_FLAGS, runReleaseCorrectionsCommand } from "./release-correction-command.js";
 import { CONSUMER_UPGRADE_FLAGS, runConsumerUpgradesCommand } from "./consumer-upgrade-command.js";
@@ -46,6 +47,14 @@ export default defineExtension({
     version: "2026.10.28",
     activate(api) {
         api.registerItemFields([{ name: "change_facets", type: "array", optional: true }]);
+        api.registerCommand({
+            name: "changelog drift",
+            description: "Index declared agent-behavior obligation changes across releases; read-only, no git required.",
+            flags: AGENT_CONTRACT_DRIFT_FLAGS,
+            async run(ctx) {
+                return { pmChangelogRendered: true, output: await runAgentContractDriftCommand(ctx.pm_root, ctx.options, ctx.global.json) };
+            },
+        });
         api.registerCommand({
             name: "changelog corrections",
             description: "Append or view linked factual corrections without rewriting published milestones; no git required.",
@@ -520,7 +529,7 @@ export default defineExtension({
             // call site is still fully checked). The host enforces `commands` +
             // `resultDiscriminator` before invoking either callback.
             const rendererOwnership = {
-                commands: ["changelog generate", "changelog export", "changelog audit", "changelog contracts", "changelog upgrades", "changelog corrections"],
+                commands: ["changelog generate", "changelog export", "changelog audit", "changelog contracts", "changelog upgrades", "changelog corrections", "changelog drift"],
                 resultDiscriminator: isRenderedCommandResult,
             };
             api.registerRenderer("toon", renderCommandResult, rendererOwnership);

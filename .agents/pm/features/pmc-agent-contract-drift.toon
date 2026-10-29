@@ -1,0 +1,30 @@
+id: pmc-agent-contract-drift
+title: Index declared agent contract changes across releases
+description: "Read-only version interval index over explicit stable agent-behavior obligations; preserve additions, removals, changes, evidence and unchanged references without prose inference."
+type: Feature
+status: in_progress
+priority: 2
+tags: []
+created_at: "2026-10-29T03:29:59.126Z"
+updated_at: "2026-10-29T03:46:18.244Z"
+author: codex-agent
+acceptance_criteria: "Unchanged contracts collapse to references; Added, removed and changed obligations remain distinct; A ten-release fixture returns all relevant changes in fewer bytes than concatenated notes"
+comments[5]{created_at,author,text}:
+  "2026-10-29T03:30:10.766Z",codex-agent,"Overlap recheck: core sdk/cli-contracts describes the installed CLI; audience-contracts publishes release-local prose and consumer-upgrades compiles explicit breaking actions. Sibling pm-ts-starter sdk-contracts compiles consumers across SDK versions; pm-evidence audits claims. None indexes persistent package-declared agent obligations over releases. Add stable obligations on agent-behavior facets; legacy prose produces explicit omissions. Reuse listAllComplete, status registry roles and generator release/closure selection. This feature adds no import, sync, journal, lock or tracker write path. commitWorkspaceTransaction does not isolate ordinary SDK writers (pm-cli#1620); no isolation claim is made."
+  "2026-10-29T03:34:18.014Z",codex-agent,"Implemented the read-only SDK and drift command: baseline at from; transitions through to; explicit tombstones; provenance-only repeats collapse to definition references; conflicts in one release refuse. Strict declaration producer/parser is shared with output definition validation. Legacy prose and individual invalid declarations become omissions without suppressing valid siblings. Targeted verification covers SDK/host/standalone in a non-git tracker, extreme numeric and sparse-array inputs, and 500 seeded native-state replay sequences. Documentation records the non-atomic read/settings window and makes no transaction isolation claim."
+  "2026-10-29T03:38:09.138Z",codex-agent,"Behavioral revert proof: in a disposable non-git copy only, replacing buildAgentContractDrift with an empty report makes the ten-release regression fail with ERR_ASSERTION; fixed=1 pass, reverted=1 fail, restored=1 pass. The source worktree was never reverted. Ten-release evidence: 5 transitions, 16 unchanged references, 4 definitions; JSON 2661 bytes and TOON 2814 bytes versus 13982 bytes concatenated notes. Real public origin/main tracker validation: 206 items, 0 declared agent facets, 0 transitions/omissions, JSON 144 bytes, TOON 129 bytes, all notes 35931 bytes; SDK/CLI equal with git absent; all 422 source files unchanged (manifest SHA256 59b9f1053be14fe1d941b2abb1e6231b3e7dc8e306e1b5e16c58f8f603d57689). This is explicitly zero-declaration real-data evidence; nonempty behavior is proved by the ten-release fixture, not inferred from old prose."
+  "2026-10-29T03:44:06.350Z",codex-agent,"Seed 0x6dc1f7 completed all 500 model sequences (1500 SDK updates including older-input replays), comparing native state read back through the SDK, canonicalDocument body normalization, relationship preservation, explicit unset scope under random ambient focus, custom status roles/aliases and JSON/TOON round trips. The focused run passed 6/6 before the separate aggregate-budget regression was added (3/3 budget, fixture and output regressions then passed). Typecheck, test typecheck, docstring lint (246 declarations), package allowlist/content scan (99 files, zero failures) pass. Linked behavioral-revert test ran through pinned pm test with progress and passed; test result tracking is disabled by project policy, so the command receipt is recorded here. Full release gates are delegated to CI under npm and Bun at unchanged thresholds."
+  "2026-10-29T03:46:13.484Z",codex-agent,"Final targeted boundary coverage: agent-contract-drift.ts and agent-contract-command.ts each measure 100% lines, branches and functions at unchanged thresholds (6 focused cases); the 500-sequence model passed separately, and the command-set/status-filter regression passed 1/1. Aggregate budgets include facets plus declarations to bound omission output. No import/apply/sync path or journal state is introduced. Existing native changelog exporter and packed launcher checks remain exercised in CI; packed acceptance now includes 32 drift checks across 8 launchers and 6 install modes. Changelog generation and link checks pass. Remaining limits: public tracker has no structured agent declarations; read plus settings is not an atomic snapshot; statement coverage is not independently measured by the existing repository gate."
+files[6]{path,scope}:
+  scripts/accept-release-corrections.ts,project
+  scripts/prove-agent-contract-drift-revert.ts,project
+  scripts/validate-agent-contract-drift.ts,project
+  src/agent-contract-command.ts,project
+  src/agent-contract-drift.ts,project
+  test/agent-contract-drift.test.ts,project
+tests[2]{command,scope,provenance{author,created_at,source_kind,source_ref}}:
+  node --test --test-concurrency=2 test/agent-contract-drift.test.ts,project,codex-agent,"2026-10-29T03:38:02.309Z",local_mutation,feat/agent-contract-drift-index
+  node scripts/prove-agent-contract-drift-revert.ts,project,codex-agent,"2026-10-29T03:38:02.309Z",local_mutation,feat/agent-contract-drift-index
+docs[1]{path,scope}:
+  docs/agent-contract-drift.md,project
+body: ""
