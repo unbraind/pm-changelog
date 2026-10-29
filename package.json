@@ -45,6 +45,7 @@
     "docs/consumer-upgrades.md",
     "docs/audience-contracts.md",
     "docs/release-corrections.md",
+    "docs/agent-contract-drift.md",
     "manifest.json",
     "README.md",
     "CHANGELOG.md"

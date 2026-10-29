@@ -1,8 +1,9 @@
-import { encode } from "@toon-format/toon";
+import { encodeUnicodeOutput as encode, stringifyUnicodeOutput, normalizeUnicodeText } from "./output-unicode.ts";
 import { RelationshipGraph, analyzeRelationshipExecution, listAllComplete, readSettings, resolveRuntimeStatusRegistry } from "@unbrained/pm-cli/sdk";
 import type { PlanResultPlan, RelationshipEdge } from "@unbrained/pm-cli/sdk";
 import { buildAudienceContracts, parseChangeAudience } from "./audience-contracts.ts";
 import type { ChangeAudience } from "./audience-contracts.ts";
+import { parseContractRelease, parseContractReleaseHeading } from "./contract-versions.ts";
 import { compareVersionStrings } from "./generator.ts";
 import type { ChangelogStatusContext, PmItem } from "./types.ts";
 import { ConsumerUpgradeError, parseUpgradeActions } from "./upgrade-actions.ts";
@@ -36,11 +37,11 @@ export interface ConsumerUpgradeReport {
 }
 /** Accept stable numeric semver/calendar triplets and numeric daily disambiguators only. */
 function version(value: unknown): string {
-  if (typeof value !== "string" || !/^v?(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)(?:-(0|[1-9]\d*))?$/.test(value)
-    || value.replace(/^v/, "").split(/[.-]/).some((part) => !Number.isSafeInteger(Number(part)))) {
+  const parsed = parseContractRelease(value);
+  if (parsed === undefined) {
     throw new ConsumerUpgradeError("invalid_upgrade_options", "Use explicit stable numeric releases such as 1.2.0 or 2026.10.24-1; no ranges, prereleases or build metadata. Set from below to.");
   }
-  return value.replace(/^v/, "");
+  return parsed;
 }
 
 /** Compile release obligations using core's ordering ontology and existing facet selection.
@@ -52,8 +53,8 @@ export function buildConsumerUpgrades(options: ConsumerUpgradeOptions): Consumer
   const audience = parseChangeAudience(options.audience);
   const from = version(options.from), to = version(options.to);
   if (compareVersionStrings(from, to) >= 0) throw new ConsumerUpgradeError("invalid_upgrade_options", "Choose an installed --from version strictly below the target --to version.");
-  const contracts = buildAudienceContracts({ items: options.items, audience, groupBy: "release", statusRegistry: options.statusRegistry, statusSelection: options.statusSelection, omittedNonChangeIds: options.omittedNonChangeIds });
-  const items = new Map(options.items.map((item) => [item.id!, item]));
+  const contracts = buildAudienceContracts({ items: options.items, audience, groupBy: "release", untilVersion: to, statusRegistry: options.statusRegistry, statusSelection: options.statusSelection, omittedNonChangeIds: options.omittedNonChangeIds });
+  const items = new Map(options.items.map((item) => [normalizeUnicodeText(item.id!), item]));
   const catalog = new Map<string, { action: UpgradeAction; introduced: string; attribution: ConsumerUpgradeStep["attribution"] }>();
   const omissions: ConsumerUpgradeReport["omissions"] = [];
   for (const row of contracts.ledger) {
@@ -61,7 +62,7 @@ export function buildConsumerUpgrades(options: ConsumerUpgradeOptions): Consumer
     for (const facet of item.change_facets ?? []) {
       if (facet.audience !== audience || !facet.breaking) continue;
       // Facets without published numeric release attribution cannot become upgrade obligations.
-      const release = version(row.release);
+      const release = version(parseContractReleaseHeading(row.release));
       const actions = parseUpgradeActions(facet.upgrade_actions, facet.breaking);
       if (!actions.length && compareVersionStrings(release, from) > 0 && compareVersionStrings(release, to) <= 0) {
         omissions.push({ item: row.item, release, reason: "missing_actions" });
@@ -109,5 +110,5 @@ export async function readConsumerUpgrades(pmRoot: string, options: Omit<Consume
 
 /** Emit compact agent output without duplicating source prose or tracker state. */
 export function formatConsumerUpgrades(report: ConsumerUpgradeReport, format: "json" | "toon"): string {
-  return `${format === "json" ? JSON.stringify(report) : encode(report)}\n`;
+  return `${format === "json" ? stringifyUnicodeOutput(report) : encode(report)}\n`;
 }

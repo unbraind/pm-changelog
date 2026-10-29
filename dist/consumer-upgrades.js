@@ -1,16 +1,17 @@
-import { encode } from "@toon-format/toon";
+import { encodeUnicodeOutput as encode, stringifyUnicodeOutput, normalizeUnicodeText } from "./output-unicode.js";
 import { RelationshipGraph, analyzeRelationshipExecution, listAllComplete, readSettings, resolveRuntimeStatusRegistry } from "@unbrained/pm-cli/sdk";
 import { buildAudienceContracts, parseChangeAudience } from "./audience-contracts.js";
+import { parseContractRelease, parseContractReleaseHeading } from "./contract-versions.js";
 import { compareVersionStrings } from "./generator.js";
 import { ConsumerUpgradeError, parseUpgradeActions } from "./upgrade-actions.js";
 export { ConsumerUpgradeError, parseUpgradeActions } from "./upgrade-actions.js";
 /** Accept stable numeric semver/calendar triplets and numeric daily disambiguators only. */
 function version(value) {
-    if (typeof value !== "string" || !/^v?(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)(?:-(0|[1-9]\d*))?$/.test(value)
-        || value.replace(/^v/, "").split(/[.-]/).some((part) => !Number.isSafeInteger(Number(part)))) {
+    const parsed = parseContractRelease(value);
+    if (parsed === undefined) {
         throw new ConsumerUpgradeError("invalid_upgrade_options", "Use explicit stable numeric releases such as 1.2.0 or 2026.10.24-1; no ranges, prereleases or build metadata. Set from below to.");
     }
-    return value.replace(/^v/, "");
+    return parsed;
 }
 /** Compile release obligations using core's ordering ontology and existing facet selection.
  * Repeated IDs must have identical definitions; earliest publication determines applicability.
@@ -22,8 +23,8 @@ export function buildConsumerUpgrades(options) {
     const from = version(options.from), to = version(options.to);
     if (compareVersionStrings(from, to) >= 0)
         throw new ConsumerUpgradeError("invalid_upgrade_options", "Choose an installed --from version strictly below the target --to version.");
-    const contracts = buildAudienceContracts({ items: options.items, audience, groupBy: "release", statusRegistry: options.statusRegistry, statusSelection: options.statusSelection, omittedNonChangeIds: options.omittedNonChangeIds });
-    const items = new Map(options.items.map((item) => [item.id, item]));
+    const contracts = buildAudienceContracts({ items: options.items, audience, groupBy: "release", untilVersion: to, statusRegistry: options.statusRegistry, statusSelection: options.statusSelection, omittedNonChangeIds: options.omittedNonChangeIds });
+    const items = new Map(options.items.map((item) => [normalizeUnicodeText(item.id), item]));
     const catalog = new Map();
     const omissions = [];
     for (const row of contracts.ledger) {
@@ -32,7 +33,7 @@ export function buildConsumerUpgrades(options) {
             if (facet.audience !== audience || !facet.breaking)
                 continue;
             // Facets without published numeric release attribution cannot become upgrade obligations.
-            const release = version(row.release);
+            const release = version(parseContractReleaseHeading(row.release));
             const actions = parseUpgradeActions(facet.upgrade_actions, facet.breaking);
             if (!actions.length && compareVersionStrings(release, from) > 0 && compareVersionStrings(release, to) <= 0) {
                 omissions.push({ item: row.item, release, reason: "missing_actions" });
@@ -84,6 +85,6 @@ export async function readConsumerUpgrades(pmRoot, options) {
 }
 /** Emit compact agent output without duplicating source prose or tracker state. */
 export function formatConsumerUpgrades(report, format) {
-    return `${format === "json" ? JSON.stringify(report) : encode(report)}\n`;
+    return `${format === "json" ? stringifyUnicodeOutput(report) : encode(report)}\n`;
 }
 //# sourceMappingURL=consumer-upgrades.js.map

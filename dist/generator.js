@@ -1,3 +1,4 @@
+import { normalizeUnicodeText } from "./output-unicode.js";
 import { spawnSync } from "node:child_process";
 import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import { createRequire } from "node:module";
@@ -334,8 +335,7 @@ function limitSections(sections, options) {
 /** Return the normalized version portion of a release heading, or undefined
  * for the special `Unreleased` heading. */
 function sectionVersionKey(heading) {
-    const separatorStart = findReleaseSeparatorStart(heading);
-    const version = heading.slice(0, separatorStart ?? heading.length).trim();
+    const version = normalizeReleaseHeadingKey(heading);
     if (!version || version.toLowerCase() === "unreleased")
         return undefined;
     return normalizeReleaseKey(version);
@@ -1349,13 +1349,13 @@ function parseBracketedReleaseVersion(heading) {
 function isLineTerminator(character) {
     return "\n\r\u2028\u2029".includes(character);
 }
-/** Reduce a heading to the same version key used by the historical heading
- * regex, while keeping malformed caller input on a bounded linear path. */
-function normalizeReleaseHeadingKey(heading) {
+/** Extract heading identity and reuse release placement's zero-padding normalization,
+ * while keeping malformed caller input on a bounded linear path. */
+export function normalizeReleaseHeadingKey(heading) {
     const trimmed = heading.trim();
     const version = parseBracketedReleaseVersion(trimmed);
     const fallback = version ?? trimmed.slice(0, findReleaseSeparatorStart(trimmed) ?? trimmed.length);
-    return fallback.trim().replace(/^v/i, "").toLowerCase();
+    return normalizeReleaseKey(fallback);
 }
 function ensureTitle(markdown, title) {
     if (findMarkdownHeadings(markdown, "#").length > 0)
@@ -1891,10 +1891,11 @@ function formatBodyPreview(item, options) {
         : typeof item.description === "string"
             ? item.description
             : "";
-    const body = toSingleLine(rawSource);
+    const body = toSingleLine(normalizeUnicodeText(rawSource));
     if (!body)
         return "";
-    const truncated = body.length > limit ? `${body.slice(0, limit)}…` : body;
+    const characters = Array.from(body);
+    const truncated = characters.length > limit ? `${characters.slice(0, limit).join("")}…` : body;
     return ` — ${escapeMarkdown(truncated)}`;
 }
 /**
@@ -2229,7 +2230,7 @@ function toonItemRef(item, id, itemUrlBase, options) {
 }
 /** Encode a URL path segment, including parentheses that delimit Markdown links. */
 function encodeItemPathSegment(segment) {
-    return encodeURIComponent(segment).replace(/[()]/g, (parenthesis) => parenthesis === "(" ? "%28" : "%29");
+    return encodeURIComponent(normalizeUnicodeText(segment)).replace(/[()]/g, (parenthesis) => parenthesis === "(" ? "%28" : "%29");
 }
 /** Public GitHub issue/PR link from the item's provenance tag, or `undefined`.
  * `/issues/N` resolves to the PR view too, so one form covers issues and PRs. */

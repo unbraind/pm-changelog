@@ -5,9 +5,9 @@ import { execFileSync } from "node:child_process";
 import { cpSync, existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
 import { devNull, tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
-import { runInit, runCreate, PmClient, schemaAddStatus } from "@unbrained/pm-cli/sdk";
+import { runInit, runCreate, runWithActiveExtensions, listAllComplete, PmClient, schemaAddStatus } from "@unbrained/pm-cli/sdk";
 import { decode } from "@toon-format/toon";
-import { appendReleaseCorrection, createReleaseMilestone, DirectoryReleaseMilestoneStore, readReleaseCorrectionView, readTrackerReleaseSnapshot } from "../src/index.ts";
+import { readConsumerUpgrades, readAgentContractDrift, readAudienceContracts, normalizeUnicodeText, appendReleaseCorrection, createReleaseMilestone, DirectoryReleaseMilestoneStore, readReleaseCorrectionView, readTrackerReleaseSnapshot } from "../src/index.ts";
 import type { ChangelogDocument, ChangelogSummaryEntry, ChangelogSelectionReport, SemverSuggestion, ReleaseMilestone } from "../src/index.ts";
 
 const scratch = mkdtempSync(join(tmpdir(), "pm-correction-pack-"));
@@ -76,8 +76,144 @@ try {
   mkdirSync(join(extension, "node_modules"), { recursive: true });
   if (!existsSync(join(extension, "node_modules/@unbrained"))) symlinkSync(join(prefix, "lib/node_modules/@unbrained"), join(extension, "node_modules/@unbrained"), "junction");
   cpSync(extension, join(lifecycleRoot, "extensions/pm-changelog"), { recursive: true });
+  const driftRoot = join(scratch, "drift/.agents/pm");
+  await runInit("drift", { path: driftRoot }, { defaults: true, agentGuidance: "skip" });
+  cpSync(extension, join(driftRoot, "extensions/pm-changelog"), { recursive: true });
+  await runWithActiveExtensions({ path: driftRoot }, async () => {
+    for (let version = 1; version <= 5; version++) {
+      const obligations = version === 4 ? [{ id: "retry", removed: true, evidence: ["retired"] }]
+        : [{ id: "retry", assumption: version === 1 ? "Read before writing" : "Read target revision before retry", commands: ["pm example apply"], evidence: [`release-${version}`] }];
+      const facets = version === 3 ? Array.from({ length: 7 }, (_, facet) => ({ audience: "agent-behavior", text: "Declared behavior",
+        obligations: Array.from({ length: Math.min(256, 1563 - facet * 256) }, (_, offset) => ({ ...obligations[0],
+          evidence: Array.from({ length: 64 }, (_, evidence) => `e${((facet * 256 + offset) * 64 + evidence).toString(36)}`) })) }))
+        : [{ audience: "agent-behavior", text: "Declared behavior", obligations }];
+      await runCreate({ title: "Packed drift fixture", type: "Feature", status: "closed", closeReason: "Delivered", release: `${version}.0.0`, createMode: "progressive",
+        field: [`change_facets=${JSON.stringify(facets)}`],
+        unset: ["parent", "goal", "objective", "sprint", "assignee", "reviewer"] }, { path: driftRoot, author: "acceptance" });
+    }
+  });
+  await runWithActiveExtensions({ path: driftRoot }, async () => {
+    for (const release of ["6.0.0", "6.0.0 - 2026-10-29", "[v6.0.0] - 2026-10-29"]) {
+      await runCreate({ title: "Foreign future metadata", type: "Feature", status: "closed", closeReason: "Delivered", release, createMode: "progressive",
+        field: ["change_facets=[null]"], unset: ["parent", "goal", "objective", "sprint", "assignee", "reviewer"] }, { path: driftRoot, author: "acceptance" });
+    }
+  });
+  const driftExpected = await readAgentContractDrift(driftRoot, { from: "1.0.0", to: "5.0.0" });
+  assert.equal(driftExpected.complete, true);
+  assert.equal(driftExpected.unchanged[0].evidence.length, 100032);
+  const upgradeExpected = await readConsumerUpgrades(driftRoot, { audience: "agent-behavior", from: "1.0.0", to: "5.0.0" });
+  assert.deepEqual(driftExpected.changes.map((row) => row.kind), ["changed", "removed", "added"]);
+  assert.equal(driftExpected.unchanged.length, 1);
+  const calendarRoot = join(scratch, "calendar/.agents/pm");
+  await runInit("calendar", { path: calendarRoot }, { defaults: true, agentGuidance: "skip" });
+  cpSync(extension, join(calendarRoot, "extensions/pm-changelog"), { recursive: true });
+  await runWithActiveExtensions({ path: calendarRoot }, async () => {
+    for (const release of ["v2026.06.07", "[v2026.06.09] - 2026-06-09"]) {
+      const facets = release === "v2026.06.07" ? [{ audience: "agent-behavior", text: "Calendar contract", obligations: [{ id: "calendar", assumption: "Read revision", commands: ["pm example apply"], evidence: ["calendar"] }],
+        breaking: true, upgrade_actions: [{ id: "calendar", title: "Read revision", requires: [] }] }] : [null];
+      await runCreate({ title: "Calendar contract", type: "Feature", status: "closed", closeReason: "Delivered", release, createMode: "progressive",
+        field: [`change_facets=${JSON.stringify(facets)}`], unset: ["parent", "goal", "objective", "sprint", "assignee", "reviewer"] }, { path: calendarRoot, author: "acceptance" });
+    }
+  });
+  const calendarRange = { from: "2026.6.1", to: "2026.6.8" };
+  const calendarDrift = await readAgentContractDrift(calendarRoot, calendarRange);
+  const calendarUpgrades = await readConsumerUpgrades(calendarRoot, { ...calendarRange, audience: "agent-behavior" });
+  assert.equal(calendarDrift.complete, true); assert.equal(calendarDrift.changes.length, 1); assert.equal(calendarDrift.changes[0].release, "2026.6.7");
+  assert.equal(calendarUpgrades.action_count, 1);
+  const unicodeRoot = join(scratch, "unicode/.agents/pm");
+  await runInit("unicode", { path: unicodeRoot }, { defaults: true, agentGuidance: "skip" });
+  cpSync(extension, join(unicodeRoot, "extensions/pm-changelog"), { recursive: true });
+  const unicodeText = normalizeUnicodeText("native \ud800X\udfff \ud83d\ude00\r\n");
+  await runWithActiveExtensions({ path: unicodeRoot }, async () => {
+    const facets = [{ audience: "agent-behavior", text: unicodeText, breaking: true,
+      obligations: [{ id: "unicode", assumption: unicodeText, commands: [unicodeText], evidence: [unicodeText] },
+        { id: "sibling", assumption: "Valid sibling", commands: ["pm read"], evidence: ["sibling"] }],
+      upgrade_actions: [{ id: "unicode", title: unicodeText, body: unicodeText, requires: [] }] }];
+    await runCreate({ title: "Unicode fixture", type: "Feature", status: "closed", closeReason: "Delivered", release: "2.0.0", createMode: "progressive",
+      field: [`change_facets=${JSON.stringify(facets)}`], unset: ["parent", "goal", "objective", "sprint", "assignee", "reviewer"] }, { path: unicodeRoot, author: "acceptance" });
+  });
+  const unicodeRange = { from: "1.0.0", to: "2.0.0" };
+  const unicodeDrift = await readAgentContractDrift(unicodeRoot, unicodeRange);
+  const unicodeAudience = await readAudienceContracts(unicodeRoot, { groupBy: "release" });
+  const unicodeUpgrades = await readConsumerUpgrades(unicodeRoot, { ...unicodeRange, audience: "agent-behavior" });
+  assert.equal(unicodeDrift.complete, true); assert.equal(unicodeDrift.changes.length, 2);
+  const orphanRoot = join(scratch, "orphan/.agents/pm");
+  await runInit("orphan", { path: orphanRoot }, { defaults: true, agentGuidance: "skip" });
+  cpSync(extension, join(orphanRoot, "extensions/pm-changelog"), { recursive: true });
+  await runWithActiveExtensions({ path: orphanRoot }, async () => {
+    for (const [id, release, removed] of [["missing", "0.1.0", true], ["born", "0.2.0", false], ["retired", "0.3.0", true],
+      ["repeated", "1.0.0", true], ["reintroduced", "2.0.0", false], ["future", "3.0.0", true]] as const) {
+      const row = removed ? { id: "shared", removed: true, evidence: [id] }
+        : { id: "shared", assumption: "Read revision", commands: ["pm example apply"], evidence: [id] };
+      await runCreate({ title: `Packed replay ${id}`, type: "Feature", status: "closed", closeReason: "Delivered", release, createMode: "progressive",
+        field: [`change_facets=${JSON.stringify([{ audience: "agent-behavior", text: "Explicit", obligations: id === "missing" ? [row, row] : [row] }])}`],
+        unset: ["parent", "goal", "objective", "sprint", "assignee", "reviewer"] }, { path: orphanRoot, author: "acceptance" });
+    }
+  });
+  const orphanReports = await Promise.all(["0.0.0", "1.0.0"].map(async (from) => ({ from, report: await readAgentContractDrift(orphanRoot, { from, to: "2.0.0" }) })));
+  for (const { from, report } of orphanReports) {
+    assert.equal(report.complete, false); assert.equal(report.omissions.length, 3);
+    assert.ok(report.omissions.every((row) => row.reason === "orphan_removal"));
+    if (from === "1.0.0") { assert.equal(report.baseline.length, 0); assert.equal(report.changes.length, 1); assert.equal(report.changes[0].kind, "added"); }
+  }
   const paths: string[] = [];
   let checks = 0;
+  // Import the captured archive's SDK, rather than source or an unrelated installed version.
+  const headingChecks = run(process.execPath, ["--input-type=module", "-e", `
+    import assert from "node:assert/strict";
+    import { buildAudienceContracts, formatAudienceContracts, buildAgentContractDrift, formatAgentContractDrift, buildConsumerUpgrades, formatConsumerUpgrades } from ${JSON.stringify(join(extension, "dist/index.js"))};
+    const current = { id: "current", title: "Current", status: "closed", release: "2.0.0", change_facets: [{ audience: "operator", text: "Current" }] };
+    const future = { id: "future", title: "Future", status: "closed", release: "3.0.0", change_facets: null };
+    const options = { groupBy: "release", untilVersion: "2.0.0", releaseWindows: [
+      { heading: "3.0.0 - 2026-10-29", releaseTag: "v3.0.0" }, { heading: "2.0.0 - 2026-10-28", releaseTag: "v2.0.0" }] };
+    const expected = buildAudienceContracts({ ...options, items: [current] });
+    const actual = buildAudienceContracts({ ...options, items: [future, current] });
+    assert.equal(actual.item_count, 1);
+    for (const format of ["json", "toon"]) assert.equal(formatAudienceContracts(actual, format), formatAudienceContracts(expected, format));
+    const facets = [{ audience: "agent-behavior", text: "Calendar", obligations: [{ id: "calendar", assumption: "Read revision", commands: ["pm example apply"], evidence: ["calendar"] }],
+      breaking: true, upgrade_actions: [{ id: "calendar", title: "Read revision", requires: [] }] }];
+    const calendar = { id: "calendar", title: "Calendar", status: "closed", release: "v2026.06.07", change_facets: facets };
+    const later = { ...future, release: "v2026.06.09" };
+    const range = { from: "2026.6.1", to: "2026.6.8" };
+    const calendarOptions = { groupBy: "release", untilVersion: range.to, releaseWindows: [
+      { heading: "v2026.06.09 - 2026-06-09", releaseTag: "v2026.6.9" }, { heading: "v2026.06.07 - 2026-06-07", releaseTag: "v2026.6.7" }] };
+    const calendarAudience = buildAudienceContracts({ ...calendarOptions, items: [calendar, later] });
+    assert.equal(calendarAudience.item_count, 1);
+    const drift = buildAgentContractDrift({ ...range, items: [calendar, later] });
+    assert.equal(drift.complete, true); assert.equal(drift.changes.length, 1); assert.equal(drift.changes[0].release, "2026.6.7");
+    const upgrades = buildConsumerUpgrades({ ...range, audience: "agent-behavior", items: [calendar, later] });
+    assert.equal(upgrades.action_count, 1);
+    const model = { ...calendar, release: "2026.6.7" };
+    for (const format of ["json", "toon"]) {
+      assert.equal(formatAudienceContracts(calendarAudience, format), formatAudienceContracts(buildAudienceContracts({ ...calendarOptions, items: [calendar] }), format));
+      assert.equal(formatAgentContractDrift(drift, format), formatAgentContractDrift(buildAgentContractDrift({ ...range, items: [model] }), format));
+      assert.equal(formatConsumerUpgrades(upgrades, format), formatConsumerUpgrades(buildConsumerUpgrades({ ...range, audience: "agent-behavior", items: [model] }), format));
+    }
+    const illFormed = "text \\ud800X\\udfff 😀";
+    const clean = Buffer.from(illFormed, "utf8").toString("utf8");
+    assert.notEqual(illFormed, clean);
+    const bad = { ...calendar, release: "2.0.0", change_facets: [{ audience: "agent-behavior", text: illFormed, breaking: true,
+      obligations: [{ id: "unicode", assumption: illFormed, commands: [illFormed], evidence: [illFormed] }],
+      upgrade_actions: [{ id: "unicode", title: illFormed, body: illFormed, requires: [] }] }] };
+    const repaired = { ...bad, change_facets: [{ ...bad.change_facets[0], text: clean, obligations: [{ id: "unicode", assumption: clean, commands: [clean], evidence: [clean] }],
+      upgrade_actions: [{ id: "unicode", title: clean, body: clean, requires: [] }] }] };
+    for (const format of ["json", "toon"]) {
+      assert.equal(formatAgentContractDrift(buildAgentContractDrift({ from: "1.0.0", to: "2.0.0", items: [bad] }), format), formatAgentContractDrift(buildAgentContractDrift({ from: "1.0.0", to: "2.0.0", items: [repaired] }), format));
+      assert.equal(formatAudienceContracts(buildAudienceContracts({ items: [bad] }), format), formatAudienceContracts(buildAudienceContracts({ items: [repaired] }), format));
+      assert.equal(formatConsumerUpgrades(buildConsumerUpgrades({ from: "1.0.0", to: "2.0.0", audience: "agent-behavior", items: [bad] }), format), formatConsumerUpgrades(buildConsumerUpgrades({ from: "1.0.0", to: "2.0.0", audience: "agent-behavior", items: [repaired] }), format));
+    }
+    const orphan = { ...calendar, id: "orphan", release: "1.0.0", change_facets: [{ audience: "agent-behavior", text: "Retired",
+      obligations: [{ id: "missing", removed: true, evidence: ["retired"] }] }] };
+    for (const from of ["0.0.0", "1.0.0"]) {
+      const report = buildAgentContractDrift({ from, to: "2.0.0", items: [orphan] });
+      const expected = { schema_version: 1, from, to: "2.0.0", complete: false, definitions: [], baseline: [], changes: [], unchanged: [],
+        omissions: [{ item: "orphan", facet: 0, obligation: 0, reason: "orphan_removal" }] };
+      assert.deepEqual(report, expected);
+      for (const format of ["json", "toon"]) assert.equal(formatAgentContractDrift(report, format), formatAgentContractDrift(expected, format));
+    }
+    console.log("18");
+  `]);
+  assert.equal(headingChecks.trim(), "18"); checks += 18;
   /** Check actual append, exact replay and both compact views against the SDK-read state. */
   async function accept(name: string, raw: (args: string[]) => string, host = false): Promise<void> {
     const launch = (args: string[]): string => raw(host ? ["--path", root, "changelog", "corrections", ...args] : ["corrections", "--pm-root", root, ...args]);
@@ -166,6 +302,42 @@ try {
         assert.equal(audit.claim_count, 1); checks++;
       }
     }
+    const driftBefore = (await listAllComplete({ includeBody: true }, { pmRoot: driftRoot })).items;
+    const drift = (args: string[]): string => raw(host ? ["--path", driftRoot, "changelog", "drift", ...args] : ["drift", "--pm-root", driftRoot, ...args]);
+    for (const format of ["json", "toon"]) {
+      const output = drift(["--from", "1.0.0", "--to", "5.0.0", "--format", format]);
+      assert.deepEqual(format === "json" ? JSON.parse(output) : decode(output), driftExpected); checks++;
+    }
+    assert.throws(() => drift(["--from", "1.0.0", "--to", "5.0.0", "--format", "xml"]), (error: unknown) => {
+      assert.ok(error && typeof error === "object" && "stderr" in error); assert.match(String(error.stderr), /invalid_drift_options/); return true;
+    }); checks++;
+    for (const format of ["json", "toon"]) {
+      const output = raw(host ? ["--path", driftRoot, "changelog", "upgrades", "--audience", "agent-behavior", "--from", "1.0.0", "--to", "5.0.0", "--format", format]
+        : ["upgrades", "--pm-root", driftRoot, "--audience", "agent-behavior", "--from", "1.0.0", "--to", "5.0.0", "--format", format]);
+      assert.deepEqual(format === "json" ? JSON.parse(output) : decode(output), upgradeExpected); checks++;
+    }
+    assert.deepEqual((await listAllComplete({ includeBody: true }, { pmRoot: driftRoot })).items, driftBefore); checks++;
+    const calendarBefore = (await listAllComplete({ includeBody: true }, { pmRoot: calendarRoot })).items;
+    for (const format of ["json", "toon"]) for (const command of ["drift", "upgrades"]) {
+      const args = ["--from", calendarRange.from, "--to", calendarRange.to, "--format", format, ...(command === "upgrades" ? ["--audience", "agent-behavior"] : [])];
+      const output = raw(host ? ["--path", calendarRoot, "changelog", command, ...args] : [command, "--pm-root", calendarRoot, ...args]);
+      assert.deepEqual(format === "json" ? JSON.parse(output) : decode(output), command === "drift" ? calendarDrift : calendarUpgrades); checks++;
+    }
+    assert.deepEqual((await listAllComplete({ includeBody: true }, { pmRoot: calendarRoot })).items, calendarBefore); checks++;
+    const unicodeBefore = (await listAllComplete({ includeBody: true }, { pmRoot: unicodeRoot })).items;
+    for (const format of ["json", "toon"]) for (const command of ["drift", "contracts", "upgrades"]) {
+      const args = command === "contracts" ? ["--group-by", "release"] : ["--from", unicodeRange.from, "--to", unicodeRange.to, ...(command === "upgrades" ? ["--audience", "agent-behavior"] : [])];
+      const output = raw(host ? ["--path", unicodeRoot, "changelog", command, ...args, "--format", format] : [command, "--pm-root", unicodeRoot, ...args, "--format", format]);
+      assert.deepEqual(format === "json" ? JSON.parse(output) : decode(output), command === "drift" ? unicodeDrift : command === "contracts" ? unicodeAudience : unicodeUpgrades); checks++;
+    }
+    assert.deepEqual((await listAllComplete({ includeBody: true }, { pmRoot: unicodeRoot })).items, unicodeBefore); checks++;
+    const orphanBefore = (await listAllComplete({ includeBody: true }, { pmRoot: orphanRoot })).items;
+    for (const { from, report } of orphanReports) for (const format of ["json", "toon"]) {
+      const args = ["--from", from, "--to", "2.0.0", "--format", format];
+      const output = raw(host ? ["--path", orphanRoot, "changelog", "drift", ...args] : ["drift", "--pm-root", orphanRoot, ...args]);
+      assert.deepEqual(format === "json" ? JSON.parse(output) : decode(output), report); checks++;
+    }
+    assert.deepEqual((await listAllComplete({ includeBody: true }, { pmRoot: orphanRoot })).items, orphanBefore); checks++;
     paths.push(name);
   }
   await accept("npm-global", (args) => run(join(prefix, "bin/pm-changelog"), args));
@@ -180,9 +352,9 @@ try {
   }
   await accept("npx", (args) => run("npx", ["--yes", "--package", archive, "--package", `@unbrained/pm-cli@${pinned}`, "pm-changelog", ...args]));
   await accept("bunx", (args) => run("bun", ["x", "--bun", "--package", archive, "pm-changelog", ...args]));
-  assert.equal(checks, 286); assert.equal(paths.length, 8);
+  assert.equal(checks, 488); assert.equal(paths.length, 8);
   assert.equal((await readReleaseCorrectionView(root, "v1", "accept-claim")).chain.length, 9);
   assert.equal((await readReleaseCorrectionView(root, "legacy-v2", "old-claim")).chain.length, 1);
   assert.equal((await readReleaseCorrectionView(lifecycleRoot, "v2", "later-repair")).chain.length, 8);
-  console.log(JSON.stringify({ installation_modes: 6, launcher_paths: paths, checks, archive_sha512: archiveSha512, lifecycle_checks: 88, later_corrections: (await readReleaseCorrectionView(lifecycleRoot, "v2", "later-repair")).chain.length, wrong_release_checks: 96, corrections: (await readReleaseCorrectionView(root, "v1", "accept-claim")).chain.length, legacy_corrections: (await readReleaseCorrectionView(root, "legacy-v2", "old-claim")).chain.length, registry_drift: true, closure_role_checks: 56, non_git: true }));
+  console.log(JSON.stringify({ installation_modes: 6, drift_checks: 32, release_scope_checks: 16, heading_forms: 3, heading_sdk_checks: 8, unicode_sdk_checks: 6, unicode_launcher_checks: 56, orphan_sdk_checks: 4, orphan_launcher_checks: 40, calendar_launcher_checks: 40, aggregate_evidence_ids: 100032, launcher_paths: paths, checks, archive_sha512: archiveSha512, lifecycle_checks: 88, later_corrections: (await readReleaseCorrectionView(lifecycleRoot, "v2", "later-repair")).chain.length, wrong_release_checks: 96, corrections: (await readReleaseCorrectionView(root, "v1", "accept-claim")).chain.length, legacy_corrections: (await readReleaseCorrectionView(root, "legacy-v2", "old-claim")).chain.length, registry_drift: true, closure_role_checks: 56, non_git: true }));
 } finally { rmSync(scratch, { recursive: true, force: true }); }

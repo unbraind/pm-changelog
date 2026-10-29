@@ -1,3 +1,4 @@
+import type { AgentObligation } from "./agent-contract-drift.ts";
 import { PmCliError } from "@unbrained/pm-cli/sdk";
 import type { GenerateChangelogOptions } from "./types.ts";
 import type { UpgradeAction } from "./upgrade-actions.ts";
@@ -10,6 +11,7 @@ export type ChangeFacet = {
     audience: ChangeAudience;
     breaking?: true;
     upgrade_actions?: UpgradeAction[];
+    obligations?: AgentObligation[];
 } & ({
     text: string;
     source?: never;
@@ -20,6 +22,8 @@ export type ChangeFacet = {
 /** Selection delegates to the existing generator; only closed change items are published. */
 export interface AudienceContractOptions extends Pick<GenerateChangelogOptions, "items" | "version" | "groupBy" | "sectionBy" | "since" | "until" | "excludeTags" | "releaseWindows" | "releaseMembership" | "suppressedPendingRelease" | "limit" | "sinceVersion" | "respectItemRelease" | "statusRegistry" | "statusSelection" | "omittedNonChangeIds"> {
     audience?: ChangeAudience;
+    /** Inclusive numeric release bound applied before facet validation; requires groupBy: release. */
+    untilVersion?: string;
 }
 /** Shared, prose-free identity of one selected change in one release section. */
 export interface ChangeAttribution {

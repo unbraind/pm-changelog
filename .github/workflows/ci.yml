@@ -47,6 +47,7 @@ jobs:
           run(process.execPath, ["node_modules/@unbrained/pm-cli/dist/cli.js", "test", "pmc-milestone-status-roles", "--run", "--only-last", "--progress", "--allow-untrusted-linked-tests", "--timeout", "240"]);
           run(process.execPath, ["--test", "--test-concurrency=2", "test/cli-tracker-target.test.ts", "test/closure-status-roles.test.ts", "test/release-publication.test.ts", "test/release-ownership.test.ts"]);
           run(process.execPath, ["scripts/verify-release-lifecycles.ts"]);
+          run(process.execPath, ["scripts/prove-agent-contract-drift-revert.ts"]);
           run(process.execPath, ["scripts/accept-release-corrections.ts"]);
           run("npm", ["run", "changelog:full"]);
           run("npm", ["run", "changelog:check"]);
@@ -66,6 +67,7 @@ jobs:
           try {
             mode(source, true);
             run(process.execPath, ["scripts/validate-release-corrections.ts", source]);
+            run(process.execPath, ["scripts/validate-agent-contract-drift.ts", source]);
           } finally { mode(source, false); rmSync(publicCopy, { recursive: true, force: true }); }
           NODE
 

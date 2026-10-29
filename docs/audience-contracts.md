@@ -97,3 +97,29 @@ Expected refusals exit nonzero; standalone stderr includes `error.code`,
 completeness receipts. This publishes author-declared delivery notes; it does not
 independently verify deployment, test success or the truth of declared prose. Use
 `pm changelog audit` for recorded claim-evidence support.
+
+SDK callers may set `untilVersion: "2.0.0"` with `groupBy: "release"` to
+exclude later numeric releases before validating their facets. The comparison
+uses the generator's release-heading identity, including dated `releaseWindows`
+headings such as `3.0.0 - 2026-10-29` and bracketed headings. Published attribution
+retains the original heading. Unknown legacy headings keep their existing
+behavior; range inputs must be bare stable numeric versions.
+
+Stored zero-padded releases use the generator's identity normalization before
+comparison: `v2026.06.07` and `2026.6.7` share the same numeric boundary. Dated
+and bracketed window headings follow that rule too. Ledger entries keep the
+authored presentation heading; strict new range arguments use canonical numeric
+versions such as `2026.6.7`.
+
+Unicode text uses explicit U+FFFD replacement for each lone UTF-16 surrogate.
+Valid pairs (including emoji), combining sequences, whitespace and CRLF remain
+unchanged. Obligation assumptions, command/evidence strings, audience notes and
+upgrade title/body fields use this policy at their shared producer boundary.
+Native item IDs and release/section attribution use the same policy in reports;
+IDs that collide after replacement refuse rather than merge unrelated items.
+JSON and TOON output apply the same replacement to every remaining string leaf
+and dynamic key, including legacy native metadata. Ambiguous keys refuse with
+`UnicodeOutputError` (`invalid_unicode_output`, field `object key`) and a remedy.
+The policy affects projections only: tracker data, historical snapshots, digest
+inputs and signed correction records are not rewritten. Signed corrections keep
+their existing strict validation and typed refusals for malformed new values.

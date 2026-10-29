@@ -11,7 +11,7 @@ export const PUBLIC_FILES = [
   "dist", "docs/README.md", "docs/usage.md", "docs/release.md",
   "docs/development.md", "docs/tracker-milestones.md",
   "docs/claim-audit-example.md", "docs/consumer-upgrades.md",
-  "docs/audience-contracts.md", "docs/release-corrections.md", "manifest.json", "README.md", "CHANGELOG.md",
+  "docs/audience-contracts.md", "docs/release-corrections.md", "docs/agent-contract-drift.md", "manifest.json", "README.md", "CHANGELOG.md",
 ] as const;
 
 /** Rules report categories only: matched credentials must never enter logs. */

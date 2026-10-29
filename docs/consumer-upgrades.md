@@ -92,3 +92,16 @@ No network or subprocess is needed for compilation. The public-tracker check
 is read-only and includes a before/after file-hash manifest. The seeded model
 test reads persisted fields and relationships back through the SDK after each
 operation and checks JSON/TOON round trips without handwritten normalization.
+
+Unicode text uses explicit U+FFFD replacement for each lone UTF-16 surrogate.
+Valid pairs (including emoji), combining sequences, whitespace and CRLF remain
+unchanged. Obligation assumptions, command/evidence strings, audience notes and
+upgrade title/body fields use this policy at their shared producer boundary.
+Native item IDs and release/section attribution use the same policy in reports;
+IDs that collide after replacement refuse rather than merge unrelated items.
+JSON and TOON output apply the same replacement to every remaining string leaf
+and dynamic key, including legacy native metadata. Ambiguous keys refuse with
+`UnicodeOutputError` (`invalid_unicode_output`, field `object key`) and a remedy.
+The policy affects projections only: tracker data, historical snapshots, digest
+inputs and signed correction records are not rewritten. Signed corrections keep
+their existing strict validation and typed refusals for malformed new values.

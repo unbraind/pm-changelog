@@ -1,5 +1,5 @@
 import { createHash } from "node:crypto";
-import { encode } from "@toon-format/toon";
+import { encodeUnicodeOutput as encode, stringifyUnicodeOutput } from "./output-unicode.js";
 import { EXIT_CODE, PmCliError, PmClient, commitWorkspaceTransaction, deriveMutationTransactionId } from "@unbrained/pm-cli/sdk";
 import { DirectoryReleaseMilestoneStore, parseReleaseMilestone, readReleaseMilestones, resolveTrackerReleaseLedger } from "./milestones.js";
 /** Expected failures retain stable codes and safe recovery instructions. */
@@ -43,7 +43,7 @@ export function parseReleaseCorrection(value) {
 /** Serialize only schema-verified records; the exact output can be submitted again. */
 export function formatReleaseCorrection(value, format = "toon") {
     const record = parseReleaseCorrection(value);
-    return (format === "json" ? JSON.stringify(record) : encode(record)) + "\n";
+    return (format === "json" ? stringifyUnicodeOutput(record) : encode(record)) + "\n";
 }
 /** Read the frozen claim and complete native annotations through the supported SDK. */
 export async function readReleaseCorrectionView(pmRoot, release, item, options = {}) {
@@ -166,7 +166,7 @@ export function formatReleaseCorrectionView(view, format = "toon") {
     const output = { schema: selector.schema, release: selector.release, item: selector.item, milestone: selector.milestone,
         original: view.original, current: view.current, revision: selector.expectedRevision, chain: view.chain.map(parseReleaseCorrection),
         skipped: { foreign: view.skipped.foreign, invalid: view.skipped.invalid, unrelated: view.skipped.unrelated } };
-    return (format === "json" ? JSON.stringify(output) : encode(output)) + "\n";
+    return (format === "json" ? stringifyUnicodeOutput(output) : encode(output)) + "\n";
 }
 /** Package-local pure boundary probes; SDK integration tests always use real trackers. */
 export const releaseCorrectionTestSurface = { requireCompleteNotes, projectCorrectionNotes, checkTarget };

@@ -1,3 +1,4 @@
+import { normalizeUnicodeText } from "./output-unicode.js";
 import { execFileSync, spawnSync } from "node:child_process";
 import { existsSync, readFileSync } from "node:fs";
 import { dirname, join, parse, resolve } from "node:path";
@@ -538,7 +539,7 @@ function formatTagVersion(tag) {
 export function formatDate(timestamp) {
     const date = new Date(timestamp);
     if (Number.isNaN(date.getTime()))
-        return timestamp.slice(0, 10);
+        return Array.from(normalizeUnicodeText(timestamp)).slice(0, 10).join("");
     return date.toISOString().slice(0, 10);
 }
 /** Render a release-tag timestamp as the heading date, preferring the literal

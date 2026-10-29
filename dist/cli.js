@@ -1,9 +1,12 @@
 #!/usr/bin/env node
+import { stringifyUnicodeOutput, UnicodeOutputError } from "./output-unicode.js";
 import { appendFileSync, existsSync, readFileSync, realpathSync } from "node:fs";
 import { basename, resolve } from "node:path";
 import { stdin } from "node:process";
 import { fileURLToPath } from "node:url";
 import { resolvePmRoot, readSettings, resolveRuntimeStatusRegistry, parseBootstrapGlobalOptions } from "@unbrained/pm-cli/sdk";
+import { AgentContractDriftError } from "./agent-contract-drift.js";
+import { runAgentContractDriftCli } from "./agent-contract-command.js";
 import { AudienceContractError } from "./audience-contracts.js";
 import { runAudienceContractsCli } from "./audience-command.js";
 import { ReleaseCorrectionError } from "./release-corrections.js";
@@ -127,6 +130,8 @@ const KNOWN_OPTIONS = [
 async function main(args = process.argv.slice(2)) {
     if (args[0] === "corrections")
         return runReleaseCorrectionsCli(args.slice(1));
+    if (args[0] === "drift")
+        return runAgentContractDriftCli(args.slice(1));
     if (args[0] === "contracts")
         return runAudienceContractsCli(args.slice(1));
     if (args[0] === "upgrades")
@@ -202,7 +207,7 @@ async function main(args = process.argv.slice(2)) {
                 item_count: entries.length,
                 ...(selectionReport ? { selection_report: selectionReport } : {}),
             };
-            process.stdout.write(JSON.stringify(payload, null, 2) + "\n");
+            process.stdout.write(stringifyUnicodeOutput(payload, 2) + "\n");
         }
         else {
             for (const entry of entries) {
@@ -220,7 +225,7 @@ async function main(args = process.argv.slice(2)) {
         const payload = selectionReport
             ? { ...document, selection_report: selectionReport }
             : document;
-        process.stdout.write(JSON.stringify(payload, null, 2) + "\n");
+        process.stdout.write(stringifyUnicodeOutput(payload, 2) + "\n");
         return;
     }
     // OPT-IN (`--suggest-semver`) without `--changelog-json`: emit only the
@@ -231,7 +236,7 @@ async function main(args = process.argv.slice(2)) {
         const payload = selectionReport
             ? { ...suggestion, excluded_non_change_count: countNonChangeClosures(generationOptions.items, generationOptions), selection_report: selectionReport }
             : { ...suggestion, excluded_non_change_count: countNonChangeClosures(generationOptions.items, generationOptions) };
-        process.stdout.write(JSON.stringify(payload, null, 2) + "\n");
+        process.stdout.write(stringifyUnicodeOutput(payload, 2) + "\n");
         return;
     }
     if (!options.stdout) {
@@ -247,7 +252,7 @@ async function main(args = process.argv.slice(2)) {
         if (options.githubStepSummary)
             writeGitHubStepSummary(result.markdown);
         if (options.json) {
-            process.stdout.write(JSON.stringify(summary) + "\n");
+            process.stdout.write(stringifyUnicodeOutput(summary) + "\n");
         }
         else if (options.check) {
             console.error(result.changed ? `Changelog is out of date: ${outputPath}` : `Changelog is up to date: ${outputPath}`);
@@ -292,7 +297,7 @@ async function main(args = process.argv.slice(2)) {
                 writeGitHubOutput(summary);
             if (options.githubStepSummary)
                 writeGitHubStepSummary(merged.markdown);
-            process.stdout.write(JSON.stringify(summary) + "\n");
+            process.stdout.write(stringifyUnicodeOutput(summary) + "\n");
             return;
         }
         if (selectionReport) {
@@ -936,8 +941,11 @@ function printHelp() {
     process.stdout.write(`pm-changelog
 
   corrections append --input file.json [--pm-root path] [--format toon|json] [--json]
-  corrections view --release name --item id [--pm-root path] [--format toon|json] [--json]
+  corrections view --release name --item id [--pm-root path] [--format toon|json] [--json] [-h|--help]
 
+  drift --from version --to version [--format toon|json]
+        [--pm-root path] [--json] [-h|--help]
+    Index explicitly declared agent obligations across a release interval.
   contracts [--audience api-user|operator|agent-behavior] [--format toon|json]
             [--pm-root path] [--json] [--group-by version|release|milestone]
             [--section-by category|type|status|label] [--release-version version]
@@ -1101,8 +1109,8 @@ export async function runCliEntry(argv = process.argv) {
 }
 /** Convert an unknown CLI failure into a stable human-readable message. */
 function errorMessage(error) {
-    if (error instanceof ReleaseCorrectionError || error instanceof ReleaseMilestoneError || error instanceof AudienceContractError || error instanceof ConsumerUpgradeError)
-        return JSON.stringify({ error: { code: error.code, message: error.message, remedy: error.remedy } });
+    if (error instanceof UnicodeOutputError || error instanceof AgentContractDriftError || error instanceof ReleaseCorrectionError || error instanceof ReleaseMilestoneError || error instanceof AudienceContractError || error instanceof ConsumerUpgradeError)
+        return stringifyUnicodeOutput({ error: { code: error.code, message: error.message, remedy: error.remedy } });
     return error instanceof Error ? error.message : String(error);
 }
 void runCliEntry();

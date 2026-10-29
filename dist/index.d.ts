@@ -15,4 +15,7 @@ export { auditChangelogClaims, assertChangelogClaims, formatClaimAudit, parseCla
 export type { ClaimAuditReport, ClaimAuditRow, ClaimAuditEvidence, ClaimAuditGap, ClaimTestReceipt } from "./claim-audit.ts";
 export { ReleaseCorrectionError, parseReleaseCorrection, formatReleaseCorrection, readReleaseCorrectionView, appendReleaseCorrection, formatReleaseCorrectionView } from "./release-corrections.ts";
 export type { ReleaseCorrection, ReleaseCorrectionInput, ReleaseCorrectionView, ReleaseCorrectionOptions, ReleaseCorrectionErrorCode } from "./release-corrections.ts";
+export { AgentContractDriftError, parseAgentObligation, parseAgentContractRange, buildAgentContractDrift, readAgentContractDrift, formatAgentContractDrift } from "./agent-contract-drift.ts";
+export type { AgentObligation, AgentContractDefinition, AgentContractReference, AgentContractChange, AgentContractOmission, AgentContractDriftOptions, AgentContractDriftReport } from "./agent-contract-drift.ts";
+export { UnicodeOutputError, normalizeUnicodeText } from "./output-unicode.ts";
 //# sourceMappingURL=index.d.ts.map

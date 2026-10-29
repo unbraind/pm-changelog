@@ -1,3 +1,4 @@
+import { normalizeUnicodeText } from "./output-unicode.js";
 import { EXIT_CODE, PmCliError } from "@unbrained/pm-cli/sdk";
 /** Expected usage failure with an actionable, public-safe remedy. */
 export class ConsumerUpgradeError extends PmCliError {
@@ -26,7 +27,7 @@ export function parseUpgradeActions(value, breaking) {
             || (row.body !== undefined && (typeof row.body !== "string" || !row.body.trim()))
             || !Array.isArray(row.requires) || !row.requires.every(validId))
             return refuse();
-        return { id: row.id, title: row.title, ...(row.body === undefined ? {} : { body: row.body }), requires: [...new Set(row.requires)].sort() };
+        return { id: row.id, title: normalizeUnicodeText(row.title), ...(row.body === undefined ? {} : { body: normalizeUnicodeText(row.body) }), requires: [...new Set(row.requires)].sort() };
     });
 }
 //# sourceMappingURL=upgrade-actions.js.map
