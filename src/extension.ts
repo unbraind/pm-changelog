@@ -340,7 +340,8 @@ export default defineExtension({
             throw new PmCliError(`Cannot verify release membership: ${String(error)}`, EXIT_CODE.GENERIC_FAILURE);
           }
         }
-        if (!booleanOption(ctx.options, "no-pending-release", "noPendingRelease")) withRequestedReleaseDiagnostics(() => assertRequestedRelease(generationOptions));
+        // Same rule as the CLI: the opt-out applies only to historical generation with --all-release-tags.
+        if (!allReleaseTags || !booleanOption(ctx.options, "no-pending-release", "noPendingRelease")) withRequestedReleaseDiagnostics(() => assertRequestedRelease(generationOptions));
         if (Boolean(ctx.options["check"])) {
           for (const warning of lintChangelogEntries(generationOptions)) console.error(`Warning: ${warning}`);
         }
@@ -690,7 +691,11 @@ function withRequestedReleaseDiagnostics<T>(generate: () => T): T {
     return generate();
   } catch (error) {
     if (!(error instanceof MissingRequestedReleaseError)) throw error;
-    throw new PmCliError(`${error.message} ${error.remedy}`, EXIT_CODE.GENERIC_FAILURE, { code: error.code });
+    // The extension command names its diagnostics flag --explain-selection; the standalone CLI calls it --explain.
+    const remedy = error.remedy.replace("inspect --explain filters", "inspect --explain-selection filters");
+    // PmCliErrorContext is a closed type: carry the version, remedy and exclusion counts in its typed fields.
+    const exclusions = Object.entries(error.report.excluded_counts).map(([reason, count]) => `excluded_${reason}=${count}`);
+    throw new PmCliError(`${error.message} ${remedy}`, EXIT_CODE.GENERIC_FAILURE, { code: error.code, value: error.version, required: remedy, verification_errors: exclusions });
   }
 }
 

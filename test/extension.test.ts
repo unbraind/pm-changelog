@@ -782,9 +782,19 @@ test("generate and export fail closed for missing requested releases in real tra
         assert.equal(typed.exitCode, 1);
         assert.equal(typed.context?.code, "MISSING_REQUESTED_RELEASE");
         assert.match(typed.message, /pm update/);
+        // The extension names its own diagnostics flag and keeps the selection facts in typed context fields.
+        assert.match(typed.message, /--explain-selection/);
+        const context = typed.context as { value?: string; required?: string; verification_errors?: string[] };
+        assert.equal(context.value, "2026.10.29");
+        assert.match(context.required ?? "", /--explain-selection/);
+        assert.ok(context.verification_errors?.includes("excluded_status=1"), JSON.stringify(context.verification_errors));
         return true;
       });
     }
+    // --no-pending-release opts out only for historical --all-release-tags generation.
+    await assert.rejects(runRegisteredCommandForTest(commands, {
+      command: "changelog generate", options: { "release-version": "2026.10.29", "no-pending-release": true, stdout: true }, pmRoot: root,
+    }), (error: unknown) => (error as { context?: { code?: string } }).context?.code === "MISSING_REQUESTED_RELEASE");
   } finally {
     removeGitFixture(scratch);
   }

@@ -74,6 +74,18 @@ test("all CLI output modes refuse an absent requested release before side effect
   assert.match(writes.join(""), /## 2026\.10\.29 - 2026-10-29\n\nNo changes\./);
 });
 
+test("--no-pending-release without --all-release-tags still refuses a missing requested release", async (t) => {
+  const scratch = mkdtempSync(join(tmpdir(), "pm-requested-release-optout-"));
+  t.after(() => rmSync(scratch, { recursive: true, force: true }));
+  const input = join(scratch, "input.json"), output = join(scratch, "CHANGELOG.md");
+  writeFileSync(input, JSON.stringify({ items: [{ id: "old", title: "Already shipped", status: "closed", type: "Task", release: "1" }] }));
+  writeFileSync(output, "# Changelog\n\n## 1 - 2026-10-01\n\nsentinel\n");
+  // Single-version mode has no pending window to suppress, so replace mode must not rewrite the file to its title.
+  await assert.rejects(cliTestSurface.main(["--input", input, "--version", "2", "--respect-item-release", "--no-pending-release", "--output", output]),
+    (error: unknown) => error instanceof MissingRequestedReleaseError && error.version === "2");
+  assert.equal(readFileSync(output, "utf8"), "# Changelog\n\n## 1 - 2026-10-01\n\nsentinel\n");
+});
+
 test("real non-git tracker permits delivered unassigned work and diagnoses still-open work", async (t) => {
   const scratch = mkdtempSync(join(tmpdir(), "pm-release-nogit-"));
   t.after(() => rmSync(scratch, { recursive: true, force: true }));

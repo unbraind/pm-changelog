@@ -162,7 +162,9 @@ async function main(args = process.argv.slice(2)) {
     if (options.allReleaseTags && !options.input && !options.stdin) {
         Object.assign(generationOptions, await resolveGitReleaseHistory(generationOptions, trackerRoot));
     }
-    if (options.pendingRelease)
+    // --no-pending-release only suppresses the pending window --all-release-tags derives; without that historical mode a
+    // requested version still needs its section, or replace mode would rewrite CHANGELOG.md with only its title.
+    if (options.pendingRelease || !options.allReleaseTags)
         assertRequestedRelease(generationOptions);
     if (options.auditEvidence) {
         const receipts = options.auditReceipts === undefined ? [] : parseClaimTestReceipts(readFileSync(options.auditReceipts, "utf-8"));
