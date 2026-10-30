@@ -2,13 +2,18 @@ id: pmc-agent-contract-drift
 title: Index declared agent contract changes across releases
 description: "Read-only version interval index over explicit stable agent-behavior obligations; preserve additions, removals, changes, evidence and unchanged references without prose inference."
 type: Feature
-status: in_progress
+status: closed
 priority: 2
 tags: []
 created_at: "2026-10-29T03:29:59.126Z"
-updated_at: "2026-10-29T11:56:17.398Z"
+updated_at: "2026-10-30T13:54:28.709Z"
+closed_at: "2026-10-30T13:54:27.236Z"
+completed_at: "2026-10-29T17:44:38.000Z"
 author: codex-agent
 acceptance_criteria: "Unchanged contracts collapse to references; Added, removed and changed obligations remain distinct; A ten-release fixture returns all relevant changes in fewer bytes than concatenated notes"
+resolution: "Delivered by PR #298 (671c142): Show agent obligation changes across release ranges"
+expected_result: "Unchanged contracts collapse to references; Added, removed and changed obligations remain distinct; A ten-release fixture returns all relevant changes in fewer bytes than concatenated notes"
+actual_result: "PR #298 merged at 2026-10-29T17:44:38Z as 671c142; required CI test (22) and test (26) passed on the merged head."
 comments[44]{created_at,author,text}:
   "2026-10-29T03:30:10.766Z",codex-agent,"Overlap recheck: core sdk/cli-contracts describes the installed CLI; audience-contracts publishes release-local prose and consumer-upgrades compiles explicit breaking actions. Sibling pm-ts-starter sdk-contracts compiles consumers across SDK versions; pm-evidence audits claims. None indexes persistent package-declared agent obligations over releases. Add stable obligations on agent-behavior facets; legacy prose produces explicit omissions. Reuse listAllComplete, status registry roles and generator release/closure selection. This feature adds no import, sync, journal, lock or tracker write path. commitWorkspaceTransaction does not isolate ordinary SDK writers (pm-cli#1620); no isolation claim is made."
   "2026-10-29T03:34:18.014Z",codex-agent,"Implemented the read-only SDK and drift command: baseline at from; transitions through to; explicit tombstones; provenance-only repeats collapse to definition references; conflicts in one release refuse. Strict declaration producer/parser is shared with output definition validation. Legacy prose and individual invalid declarations become omissions without suppressing valid siblings. Targeted verification covers SDK/host/standalone in a non-git tracker, extreme numeric and sparse-array inputs, and 500 seeded native-state replay sequences. Documentation records the non-atomic read/settings window and makes no transaction isolation claim."
@@ -92,4 +97,5 @@ docs[3]{path,scope}:
   docs/agent-contract-drift.md,project
   docs/audience-contracts.md,project
   docs/consumer-upgrades.md,project
+close_reason: "Delivered by PR #298 (671c142): Show agent obligation changes across release ranges"
 body: ""

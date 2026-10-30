@@ -2,12 +2,18 @@ id: pmc-scan-redaction
 title: Redact every package-scan diagnostic and reject sensitive member names
 description: "Follow-up to pmc-package-files for owner issue #287: credential-shaped archive names currently reach diagnostics. Centralize output redaction, reject sensitive member names, and prove human, JSON, and thrown-error safety with generated real-archive fixtures."
 type: Issue
-status: in_progress
+status: closed
 priority: 2
 tags[4]: "gh:unbraind/pm-changelog#287",packaging,privacy,release-gate
 created_at: "2026-10-26T12:01:02.840Z"
-updated_at: "2026-10-26T12:33:09.858Z"
+updated_at: "2026-10-30T13:55:14.104Z"
+closed_at: "2026-10-30T13:55:04.230Z"
+completed_at: "2026-10-26T13:17:04.000Z"
 author: codex-agent
+release: 2026.10.26
+resolution: "Delivered by PR #289 (0b43eb3): Redact package-scan diagnostics and refuse credential-shaped member names"
+expected_result: Redact every package-scan diagnostic and reject sensitive member names
+actual_result: "PR #289 merged at 2026-10-26T13:17:04Z as 0b43eb3; required CI test (22) and test (26) passed on the merged head."
 comments[7]{created_at,author,text}:
   "2026-10-26T12:01:07.677Z",codex-agent,"Read owner issue #287 and queue rules. Plan: one shared rule-based redactor for returned diagnostics, stdout/stderr, and sanitized thrown errors; suppress implicit child stderr; treat member names as scan input in normal and dry-run modes; generated real npm archives in plain non-git fixtures cover path positions, clean names, package metadata, and command failures. Record behavioral revert proof, regenerate changelog, and run npm plus Bun release gates without changing thresholds."
   "2026-10-26T12:07:01.649Z",codex-agent,"Implemented redactDiagnostic for all rule matches, overlapping spans, whole sensitive path segments, returned results, logs, and safe error stacks. Member names are findings independent of contents. Testing exposed npm JSON masking npm-shaped filenames in dry-run metadata, so both modes now inspect the isolated real archive; allowlist mode still skips contents. Child failures emit fixed command categories instead of potentially truncated raw output. Initial targeted suite passed 41/41; added a successful metadata fixture before final gates."
@@ -45,4 +51,5 @@ tests[3]:
       source_ref: fix/scan-diagnostic-redaction
 docs[1]{path,scope}:
   docs/release.md,project
+close_reason: "Delivered by PR #289 (0b43eb3): Redact package-scan diagnostics and refuse credential-shaped member names"
 body: ""

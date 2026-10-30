@@ -2,12 +2,18 @@ id: pmc-package-files
 title: Keep internal certification records and local paths out of the npm package
 description: "Certification records were republished through the broad docs directory entry. Sanitize tracked documentation, publish only user guides and examples, and scan packed bytes for local paths and credential patterns before release. This recurrence adds preventive packaging gates beyond the older documentation fix."
 type: Issue
-status: in_progress
+status: closed
 priority: 1
 tags[3]: packaging,privacy,release-gate
 created_at: "2026-10-26T07:40:38.651Z"
-updated_at: "2026-10-26T07:59:32.063Z"
+updated_at: "2026-10-30T13:54:55.235Z"
+closed_at: "2026-10-30T13:54:51.520Z"
+completed_at: "2026-10-26T08:08:52.000Z"
 author: codex-agent
+release: 2026.10.26
+resolution: "Delivered by PR #285 (954b2a1): Keep internal certification records and local paths out of the npm package"
+expected_result: Keep internal certification records and local paths out of the npm package
+actual_result: "PR #285 merged at 2026-10-26T08:08:52Z as 954b2a1; required CI test (22) and test (26) passed on the merged head."
 comments[6]{created_at,author,text}:
   "2026-10-26T07:40:41.668Z",codex-agent,"Plan: replace broad docs publication with explicit user guides and examples; link repository-only validation records through GitHub; sanitize certification paths; enforce packed-file allowlist and content scanning under both release runners. Prove rejection by temporarily restoring the old certification document and broad docs publication, then restore the fix. No release or merge."
   "2026-10-26T07:43:51.076Z",codex-agent,"Revert proof: temporarily restored origin/main package.json and certification document, then ran node scripts/verify-package.ts. Exit 1: 88 packed files, eight findings (seven internal-record allowlist failures and the certification local scratch path). Restored both fixed files. Behavioral control: replacing contentFailures with an empty result made node --test test/verify-package.test.ts fail 15 of 33 tests (18 passed, zero skipped); restored the scanner. Targeted fixed state passed 38/38. Type checks and docstring gate passed (27 files, 206 declarations)."
@@ -30,4 +36,5 @@ docs[5]{path,scope}:
   docs/README.md,project
   docs/release.md,project
   README.md,project
+close_reason: "Delivered by PR #285 (954b2a1): Keep internal certification records and local paths out of the npm package"
 body: ""
