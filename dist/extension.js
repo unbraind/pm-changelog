@@ -502,7 +502,7 @@ export default defineExtension({
                 dependencyUntilRef: releaseContext.releaseTag,
                 dependencyCutoff: untilOption,
             };
-            withRequestedReleaseDiagnostics(() => assertRequestedRelease(generationOptions));
+            withRequestedReleaseDiagnostics(() => assertRequestedRelease(generationOptions), "export");
             const generated = createChangelog(generationOptions);
             const outputPath = stringOption(ctx.options, "output", "output");
             if (format === "json") {
@@ -618,15 +618,19 @@ function withTagHistoryDiagnostics(resolve) {
     }
 }
 /** Preserve the typed release refusal and remedy across the host CLI boundary. */
-function withRequestedReleaseDiagnostics(generate) {
+function withRequestedReleaseDiagnostics(generate, command = "generate") {
     try {
         return generate();
     }
     catch (error) {
         if (!(error instanceof MissingRequestedReleaseError))
             throw error;
-        // The extension command names its diagnostics flag --explain-selection; the standalone CLI calls it --explain.
-        const remedy = error.remedy.replace("inspect --explain filters", "inspect --explain-selection filters");
+        // `generate` names its diagnostics flag --explain-selection (the standalone CLI calls it --explain). `export`
+        // declares neither that flag nor --no-pending-release, so its remedy points at generate and drops the opt-out.
+        const remedy = command === "generate"
+            ? error.remedy.replace("inspect --explain filters", "inspect --explain-selection filters")
+            : error.remedy.replace("inspect --explain filters", "inspect filters with pm changelog generate --explain-selection and the same selection options")
+                .replace(", or --no-pending-release for historical-only generation", "");
         // PmCliErrorContext is a closed type: carry the version, remedy and exclusion counts in its typed fields.
         const exclusions = Object.entries(error.report.excluded_counts).map(([reason, count]) => `excluded_${reason}=${count}`);
         throw new PmCliError(`${error.message} ${remedy}`, EXIT_CODE.GENERIC_FAILURE, { code: error.code, value: error.version, required: remedy, verification_errors: exclusions });

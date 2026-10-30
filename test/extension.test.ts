@@ -783,10 +783,14 @@ test("generate and export fail closed for missing requested releases in real tra
         assert.equal(typed.context?.code, "MISSING_REQUESTED_RELEASE");
         assert.match(typed.message, /pm update/);
         // The extension names its own diagnostics flag and keeps the selection facts in typed context fields.
-        assert.match(typed.message, /--explain-selection/);
+        // Export declares neither --explain-selection nor --no-pending-release, so its remedy routes through generate.
         const context = typed.context as { value?: string; required?: string; verification_errors?: string[] };
+        const diagnostics = command === "changelog export" ? /pm changelog generate --explain-selection and the same selection options/ : /inspect --explain-selection filters/;
+        assert.match(typed.message, diagnostics);
+        assert.match(context.required ?? "", diagnostics);
+        if (command === "changelog export") assert.doesNotMatch(context.required ?? "", /--no-pending-release/);
+        else assert.match(context.required ?? "", /--no-pending-release for historical-only generation/);
         assert.equal(context.value, "2026.10.29");
-        assert.match(context.required ?? "", /--explain-selection/);
         assert.ok(context.verification_errors?.includes("excluded_status=1"), JSON.stringify(context.verification_errors));
         return true;
       });
