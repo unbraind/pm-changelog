@@ -151,3 +151,16 @@ test("500 random item histories satisfy the requested-heading-or-command-failure
   }
   assert.ok(passed > 0 && refused > 0);
 });
+
+test("the refusal counts status-selected items, which need not be delivered", () => {
+  // An explicit open-status selection whose only item the later time window drops: the counted item is open, not delivered.
+  assert.throws(() => assertRequestedRelease({
+    items: [{ id: "draft", title: "Still open", status: "open", type: "Task", created_at: "2026-01-01T00:00:00.000Z", updated_at: "2026-01-01T00:00:00.000Z" }],
+    version: "2026.10.30", includeStatuses: ["open"], since: "2026-06-01T00:00:00.000Z",
+  } as Parameters<typeof assertRequestedRelease>[0]), (error: unknown) => {
+    assert.ok(error instanceof MissingRequestedReleaseError);
+    assert.match(error.message, /1 status-selected items have no release field/);
+    assert.doesNotMatch(error.message, /delivered items/);
+    return true;
+  });
+});

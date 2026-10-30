@@ -446,7 +446,7 @@ export class MissingRequestedReleaseError extends Error {
 
   /** Retain selection diagnostics without guessing why unassigned work was omitted. */
   constructor(version: string, report: ChangelogSelectionReport, missingRelease: number) {
-    super(`No visible changelog section for requested version ${version}; ${missingRelease} delivered items have no release field; ${report.excluded_counts.status} items excluded by status (still open or outside selected statuses). Exclusions: ${JSON.stringify(report.excluded_counts)}. ${report.hints.join(" ")}`);
+    super(`No visible changelog section for requested version ${version}; ${missingRelease} status-selected items have no release field; ${report.excluded_counts.status} items excluded by status (still open or outside selected statuses). Exclusions: ${JSON.stringify(report.excluded_counts)}. ${report.hints.join(" ")}`);
     this.name = "MissingRequestedReleaseError";
     this.version = version;
     this.report = report;

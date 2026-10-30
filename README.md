@@ -152,7 +152,9 @@ carries the selection report itself: the standalone CLI's JSON error has
 For an intentionally empty release, opt in with `--include-empty`; it emits
 the requested heading and `No changes.`. Visibility filters must still retain
 that section. For historical-only regeneration, `--no-pending-release`
-explicitly disables the requested pending-release requirement. Neither option
+together with `--all-release-tags` disables the requested pending-release
+requirement; without `--all-release-tags` a missing requested section is still
+refused. Neither option
 is appropriate as a workaround for omitted delivered work.
 
 ### Without git
