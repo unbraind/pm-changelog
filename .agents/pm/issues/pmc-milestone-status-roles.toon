@@ -2,13 +2,18 @@ id: pmc-milestone-status-roles
 title: Use configured done status roles for immutable milestone generation
 description: Milestone generation previously selected literal closed rows while correction reads honored configured terminal_done roles. PR #291 now shares one SDK-registry-based first-publication ledger across generation and corrections. This item retains the original follow-up and its regression evidence.
 type: Issue
-status: in_progress
+status: closed
 priority: 2
 tags[3]: follow-up,milestones,status-roles
 created_at: "2026-10-27T04:42:06.623Z"
-updated_at: "2026-10-27T15:54:31.281Z"
+updated_at: "2026-10-30T13:54:18.537Z"
+closed_at: "2026-10-30T13:54:17.657Z"
+completed_at: "2026-10-28T18:06:51.000Z"
 author: codex-agent
 acceptance_criteria: "Resolve lifecycle meaning through the SDK status registry, preserve immutable release attribution, and add non-git custom-registry regression evidence."
+resolution: "Delivered by PR #291 (cda9e95): Preserve published release claims with linked corrections"
+expected_result: "Resolve lifecycle meaning through the SDK status registry, preserve immutable release attribution, and add non-git custom-registry regression evidence."
+actual_result: "PR #291 merged at 2026-10-28T18:06:51Z as cda9e95; required CI test (22) and test (26) passed on the merged head."
 comments[10]{created_at,author,text}:
   "2026-10-27T07:44:30.725Z",codex-agent,"Addressed with the shared chronological release ledger for PR #291: SDK status normalization and terminal_done registry roles determine publication ownership. CLI and host generation forward the tracker registry and preserve explicit status filters. Adversarial non-git fixtures include a custom done-role status named active_named_done, early active captures, edits and reopening; the owning frozen row remains stable across 500 catalog permutations."
   "2026-10-27T07:54:18.264Z",codex-agent,"Final regression evidence: test/release-ownership.test.ts passes 4 tests with zero failures/skips/cancels, including 500 catalog permutations, SDK status-role classification, actual host/standalone generation and explicit status filters without git. The linked test command passes. Shared generation/correction behavior is documented in docs/tracker-milestones.md and docs/release-corrections.md."
@@ -72,4 +77,5 @@ tests[4]:
 docs[2]{path,scope}:
   docs/release-corrections.md,project
   docs/tracker-milestones.md,project
+close_reason: "Delivered by PR #291 (cda9e95): Preserve published release claims with linked corrections"
 body: ""

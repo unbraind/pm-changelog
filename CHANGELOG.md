@@ -2,6 +2,19 @@
 
 > Compatibility: explicit tag options (--all-release-tags, --since-previous-tag, --until-release-tag) now require an accessible Git repository and fail with MissingTagHistoryError in source archives and container contexts without Git history. Use tracker-only generation or --milestones there.
 
+## Unreleased
+
+### Added
+
+- Index declared agent contract changes across releases ([pmc-agent-contract-drift](https://github.com/unbraind/pm-changelog/blob/main/.agents/pm/features/pmc-agent-contract-drift.toon))
+- Preserve published claims with append-only release corrections ([pmc-release-corrections](https://github.com/unbraind/pm-changelog/blob/main/.agents/pm/features/pmc-release-corrections.toon))
+
+### Fixed
+
+- Fail closed when requested release notes have no matching section ([pmc-pending-version-notes](https://github.com/unbraind/pm-changelog/blob/main/.agents/pm/issues/pmc-pending-version-notes.toon))
+- Use configured done status roles for immutable milestone generation ([pmc-milestone-status-roles](https://github.com/unbraind/pm-changelog/blob/main/.agents/pm/issues/pmc-milestone-status-roles.toon))
+- Use supported lifecycle transitions in the empty-title fixture ([pmc-lifecycle-repeat-closure](https://github.com/unbraind/pm-changelog/blob/main/.agents/pm/issues/pmc-lifecycle-repeat-closure.toon))
+
 ## 2026.10.28 - 2026-10-28
 
 ### Other
@@ -19,6 +32,16 @@
 ### Added
 
 - Compile ordered consumer upgrade obligations across releases ([pmc-consumer-upgrades](https://github.com/unbraind/pm-changelog/blob/main/.agents/pm/features/pmc-consumer-upgrades.toon))
+
+### Fixed
+
+- Redact every package-scan diagnostic and reject sensitive member names ([pmc-scan-redaction](https://github.com/unbraind/pm-changelog/blob/main/.agents/pm/issues/pmc-scan-redaction.toon))
+- Keep internal certification records and local paths out of the npm package ([pmc-package-files](https://github.com/unbraind/pm-changelog/blob/main/.agents/pm/issues/pmc-package-files.toon))
+- Document exactly the flags accepted by every standalone command ([pmc-help-parser](https://github.com/unbraind/pm-changelog/blob/main/.agents/pm/issues/pmc-help-parser.toon))
+
+### Other
+
+- Point the npm homepage at the package catalog and link the author ([pmc-mb4e](https://github.com/unbraind/pm-changelog/blob/main/.agents/pm/chores/pmc-mb4e.toon))
 
 ## 2026.10.25 - 2026-10-25
 
