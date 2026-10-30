@@ -51,6 +51,12 @@ export declare class MissingRequestedReleaseError extends Error {
     /** Retain selection diagnostics without guessing why unassigned work was omitted. */
     constructor(version: string, report: ChangelogSelectionReport, missingRelease: number);
 }
+/**
+ * True only when `--no-pending-release` removed the requested version's own pending window. A requested version that
+ * already has a release tag has no pending window to suppress, so its section stays required even in historical mode;
+ * otherwise `--limit 1` could print an older section as the requested one.
+ */
+export declare function requestedReleaseSuppressed(options: GenerateChangelogOptions): boolean;
 /** Validate before output or side effects, using the renderers' canonical selector. */
 export declare function assertRequestedRelease(options: GenerateChangelogOptions): void;
 /**

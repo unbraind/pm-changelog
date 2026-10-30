@@ -130,6 +130,23 @@ test("pending --stdout --limit 1 never substitutes the latest existing Git relea
   assert.match(historical.stdout, /^## 2026\.10\.28/m);
 });
 
+test("--no-pending-release never excuses a tagged requested version without notes", (t) => {
+  const scratch = mkdtempSync(join(tmpdir(), "pm-release-tagged-"));
+  t.after(() => rmSync(scratch, { recursive: true, force: true }));
+  const gitEnv = { ...process.env, GIT_CONFIG_GLOBAL: "/dev/null", GIT_CONFIG_NOSYSTEM: "1", GIT_AUTHOR_NAME: "Fixture", GIT_AUTHOR_EMAIL: "fixture@example.invalid", GIT_COMMITTER_NAME: "Fixture", GIT_COMMITTER_EMAIL: "fixture@example.invalid" };
+  // Both versions are tagged, so there is no pending window to suppress; only 2026.10.28 has notes.
+  for (const args of [["init"], ["-c", "commit.gpgsign=false", "commit", "--allow-empty", "-m", "first"], ["tag", "v2026.10.28"], ["-c", "commit.gpgsign=false", "commit", "--allow-empty", "-m", "second"], ["tag", "v2026.10.29"]]) {
+    const result = spawnSync("git", args, { cwd: scratch, env: gitEnv, encoding: "utf8" });
+    assert.equal(result.status, 0, result.stderr);
+  }
+  const input = join(scratch, "items.json");
+  writeFileSync(input, JSON.stringify({ items: [{ id: "old", title: "Old delivery", status: "closed", type: "Task", release: "2026.10.28", closed_at: "2026-10-28T10:00:00Z" }] }));
+  const refused = spawnSync(process.execPath, [resolve("src/cli.ts"), "--input", input, "--all-release-tags", "--no-pending-release", "--version", "2026.10.29", "--date-from-version", "--stdout", "--limit", "1"], { cwd: scratch, env: gitEnv, encoding: "utf8" });
+  assert.equal(refused.status, 1, refused.stdout);
+  assert.equal(refused.stdout, "", "the 2026.10.28 section must not stand in for the tagged 2026.10.29");
+  assert.equal(JSON.parse(refused.stderr).error.code, "MISSING_REQUESTED_RELEASE");
+});
+
 test("500 random item histories satisfy the requested-heading-or-command-failure property", async (t) => {
   const scratch = mkdtempSync(join(tmpdir(), "pm-release-property-"));
   t.after(() => rmSync(scratch, { recursive: true, force: true }));

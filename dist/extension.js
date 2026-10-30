@@ -9,7 +9,7 @@ import { CONSUMER_UPGRADE_FLAGS, runConsumerUpgradesCommand } from "./consumer-u
 import { DirectoryReleaseMilestoneStore, assertTrackerMilestoneOptions, createReleaseMilestone, readReleaseMilestones, readTrackerReleaseSnapshot, resolveTrackerReleaseHistory } from "./milestones.js";
 import { auditChangelogClaims, assertChangelogClaims, formatClaimAudit, parseClaimTestReceipts } from "./claim-audit.js";
 import { countNonChangeClosures } from "./closure-policy.js";
-import { assertRequestedRelease, MissingRequestedReleaseError, buildChangelogDocument, createChangelog, createChangelogSummary, explainChangelogSelection, formatSummaryLine, lintChangelogEntries, parseChangelogEntryFrom, mergeChangelog, suggestSemver, writeChangelog } from "./generator.js";
+import { assertRequestedRelease, requestedReleaseSuppressed, MissingRequestedReleaseError, buildChangelogDocument, createChangelog, createChangelogSummary, explainChangelogSelection, formatSummaryLine, lintChangelogEntries, parseChangelogEntryFrom, mergeChangelog, suggestSemver, writeChangelog } from "./generator.js";
 import { MissingTagHistoryError, resolveGenerationReleaseWindows, resolveReleaseContext, resolveReleaseTagWindowResolution, } from "./release-context.js";
 import { resolveGitReleaseHistory } from "./release-membership.js";
 const BODY_ENRICHMENT_DEPENDENCIES = {
@@ -287,8 +287,9 @@ export default defineExtension({
                         throw new PmCliError(`Cannot verify release membership: ${String(error)}`, EXIT_CODE.GENERIC_FAILURE);
                     }
                 }
-                // Same rule as the CLI: the opt-out applies only to historical generation with --all-release-tags.
-                if (!allReleaseTags || !booleanOption(ctx.options, "no-pending-release", "noPendingRelease"))
+                // Same rule as the CLI: the opt-out covers only the pending window that --all-release-tags --no-pending-release
+                // actually suppressed for the requested version; a tagged requested version still needs its section.
+                if (!requestedReleaseSuppressed(generationOptions))
                     withRequestedReleaseDiagnostics(() => assertRequestedRelease(generationOptions));
                 if (Boolean(ctx.options["check"])) {
                     for (const warning of lintChangelogEntries(generationOptions))

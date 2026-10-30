@@ -26,6 +26,7 @@ import { checkItemLinks } from "./item-links.ts";
 import { createUnifiedDiff, DEFAULT_MAX_DIFF_LINES } from "./diff.ts";
 import {
   assertRequestedRelease,
+  requestedReleaseSuppressed,
   MissingRequestedReleaseError,
   buildChangelogDocument,
   buildPmListArgs,
@@ -265,9 +266,10 @@ async function main(args: string[] = process.argv.slice(2)): Promise<void> {
       generationOptions, trackerRoot,
     ));
   }
-  // --no-pending-release only suppresses the pending window --all-release-tags derives; without that historical mode a
-  // requested version still needs its section, or replace mode would rewrite CHANGELOG.md with only its title.
-  if (options.pendingRelease || !options.allReleaseTags) assertRequestedRelease(generationOptions);
+  // --no-pending-release only suppresses the pending window --all-release-tags derives. Every other requested version,
+  // including a tagged one in historical mode, still needs its section, or replace mode would rewrite CHANGELOG.md with
+  // only its title and --limit 1 could print an older release.
+  if (!requestedReleaseSuppressed(generationOptions)) assertRequestedRelease(generationOptions);
   if (options.auditEvidence) {
     const receipts = options.auditReceipts === undefined ? [] : parseClaimTestReceipts(readFileSync(options.auditReceipts, "utf-8"));
     const report = auditChangelogClaims(generationOptions, receipts);

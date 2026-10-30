@@ -18,7 +18,7 @@ import { auditChangelogClaims, assertChangelogClaims, formatClaimAudit, parseCla
 import { countNonChangeClosures } from "./closure-policy.js";
 import { checkItemLinks } from "./item-links.js";
 import { createUnifiedDiff, DEFAULT_MAX_DIFF_LINES } from "./diff.js";
-import { assertRequestedRelease, MissingRequestedReleaseError, buildChangelogDocument, buildPmListArgs, createChangelog, createChangelogSummary, explainChangelogSelection, formatInferredSources, formatSummaryLine, lintChangelogEntries, parseChangelogEntryFrom, mergeChangelog, parsePmItemsJson, readPmItems, suggestSemver, writeChangelog, } from "./generator.js";
+import { assertRequestedRelease, requestedReleaseSuppressed, MissingRequestedReleaseError, buildChangelogDocument, buildPmListArgs, createChangelog, createChangelogSummary, explainChangelogSelection, formatInferredSources, formatSummaryLine, lintChangelogEntries, parseChangelogEntryFrom, mergeChangelog, parsePmItemsJson, readPmItems, suggestSemver, writeChangelog, } from "./generator.js";
 import { resolveGenerationReleaseWindows, resolveReleaseContext, resolveReleaseTagWindowResolution, } from "./release-context.js";
 import { resolveGitReleaseHistory } from "./release-membership.js";
 // Compatibility aliases for value-taking options. Kept intentionally small and
@@ -162,9 +162,10 @@ async function main(args = process.argv.slice(2)) {
     if (options.allReleaseTags && !options.input && !options.stdin) {
         Object.assign(generationOptions, await resolveGitReleaseHistory(generationOptions, trackerRoot));
     }
-    // --no-pending-release only suppresses the pending window --all-release-tags derives; without that historical mode a
-    // requested version still needs its section, or replace mode would rewrite CHANGELOG.md with only its title.
-    if (options.pendingRelease || !options.allReleaseTags)
+    // --no-pending-release only suppresses the pending window --all-release-tags derives. Every other requested version,
+    // including a tagged one in historical mode, still needs its section, or replace mode would rewrite CHANGELOG.md with
+    // only its title and --limit 1 could print an older release.
+    if (!requestedReleaseSuppressed(generationOptions))
         assertRequestedRelease(generationOptions);
     if (options.auditEvidence) {
         const receipts = options.auditReceipts === undefined ? [] : parseClaimTestReceipts(readFileSync(options.auditReceipts, "utf-8"));

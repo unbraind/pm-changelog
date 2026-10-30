@@ -26,7 +26,7 @@ import { auditChangelogClaims, assertChangelogClaims, formatClaimAudit, parseCla
 
 import { countNonChangeClosures } from "./closure-policy.ts";
 
-import { assertRequestedRelease, MissingRequestedReleaseError, buildChangelogDocument, createChangelog, createChangelogSummary, explainChangelogSelection, formatSummaryLine, lintChangelogEntries, parseChangelogEntryFrom, mergeChangelog, suggestSemver, writeChangelog } from "./generator.ts";
+import { assertRequestedRelease, requestedReleaseSuppressed, MissingRequestedReleaseError, buildChangelogDocument, createChangelog, createChangelogSummary, explainChangelogSelection, formatSummaryLine, lintChangelogEntries, parseChangelogEntryFrom, mergeChangelog, suggestSemver, writeChangelog } from "./generator.ts";
 import {
   MissingTagHistoryError,
   resolveGenerationReleaseWindows,
@@ -340,8 +340,9 @@ export default defineExtension({
             throw new PmCliError(`Cannot verify release membership: ${String(error)}`, EXIT_CODE.GENERIC_FAILURE);
           }
         }
-        // Same rule as the CLI: the opt-out applies only to historical generation with --all-release-tags.
-        if (!allReleaseTags || !booleanOption(ctx.options, "no-pending-release", "noPendingRelease")) withRequestedReleaseDiagnostics(() => assertRequestedRelease(generationOptions));
+        // Same rule as the CLI: the opt-out covers only the pending window that --all-release-tags --no-pending-release
+        // actually suppressed for the requested version; a tagged requested version still needs its section.
+        if (!requestedReleaseSuppressed(generationOptions)) withRequestedReleaseDiagnostics(() => assertRequestedRelease(generationOptions));
         if (Boolean(ctx.options["check"])) {
           for (const warning of lintChangelogEntries(generationOptions)) console.error(`Warning: ${warning}`);
         }

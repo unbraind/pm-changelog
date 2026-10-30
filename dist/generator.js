@@ -358,6 +358,15 @@ export class MissingRequestedReleaseError extends Error {
         this.report = report;
     }
 }
+/**
+ * True only when `--no-pending-release` removed the requested version's own pending window. A requested version that
+ * already has a release tag has no pending window to suppress, so its section stays required even in historical mode;
+ * otherwise `--limit 1` could print an older section as the requested one.
+ */
+export function requestedReleaseSuppressed(options) {
+    const suppressed = getSuppressedPendingRelease(options);
+    return Boolean(options.version && suppressed && normalizeReleaseKey(suppressed) === normalizeReleaseKey(options.version));
+}
 /** Validate before output or side effects, using the renderers' canonical selector. */
 export function assertRequestedRelease(options) {
     if (!options.version)
