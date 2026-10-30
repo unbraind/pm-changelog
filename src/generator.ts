@@ -433,6 +433,47 @@ interface SelectedChangelogSections {
   sectionBy: ChangelogSectionBy;
 }
 
+/** A requested release must survive the same selection used by every renderer. */
+export class MissingRequestedReleaseError extends Error {
+  /** Stable discriminator for release automation. */
+  readonly code = "MISSING_REQUESTED_RELEASE";
+  /** Operator actions that preserve release attribution rather than reuse older notes. */
+  readonly remedy = "Close delivered items and set their release with pm update; inspect --explain filters. Use --include-empty only for an intentionally empty release, or --no-pending-release for historical-only generation.";
+  /** The requested CLI version before normalized comparison. */
+  readonly version: string;
+  /** Canonical selection exclusions and hints for the refused generation. */
+  readonly report: ChangelogSelectionReport;
+
+  /** Retain selection diagnostics without guessing why unassigned work was omitted. */
+  constructor(version: string, report: ChangelogSelectionReport, missingRelease: number) {
+    super(`No visible changelog section for requested version ${version}; ${missingRelease} status-selected items have no release field; ${report.excluded_counts.status} items excluded by status (still open or outside selected statuses). Exclusions: ${JSON.stringify(report.excluded_counts)}. ${report.hints.join(" ")}`);
+    this.name = "MissingRequestedReleaseError";
+    this.version = version;
+    this.report = report;
+  }
+}
+
+/**
+ * True only when `--no-pending-release` removed the requested version's own pending window. A requested version that
+ * already has a release tag has no pending window to suppress, so its section stays required even in historical mode;
+ * otherwise `--limit 1` could print an older section as the requested one.
+ */
+export function requestedReleaseSuppressed(options: GenerateChangelogOptions): boolean {
+  const suppressed = getSuppressedPendingRelease(options);
+  return Boolean(options.version && suppressed && normalizeReleaseKey(suppressed) === normalizeReleaseKey(options.version));
+}
+
+/** Validate before output or side effects, using the renderers' canonical selector. */
+export function assertRequestedRelease(options: GenerateChangelogOptions): void {
+  if (!options.version) return;
+  const version = normalizeReleaseKey(options.version);
+  const { visibleSections } = selectChangelogSections(options);
+  if (visibleSections.some((section) => normalizeReleaseHeadingKey(section.heading) === version)) return;
+  const report = explainChangelogSelection(options);
+  const missingRelease = filterItemsByStatus(options).filter((item) => !getStringField(item, "release")).length;
+  throw new MissingRequestedReleaseError(options.version, report, missingRelease);
+}
+
 interface ChangelogItemGroup {
   heading: string;
   items: PmItem[];

@@ -1,0 +1,11 @@
+id: pmc-published-missing-sections
+title: Audit already published versions whose changelog section is missing
+description: "The read-only fleet snapshot also found already published and tagged versions without an exact CHANGELOG section: pm-beads 2026.10.29, pm-brief 2026.10.29, pm-gantt-chart 2026.10.29, pm-jira 2026.10.29, pm-presets 2026.10.29, pm-starter 2026.10.29. These are outside the requested ahead-of-npm/no-tag recovery table. Verify published release notes and owning delivered items, then use append-only correction policy where appropriate; do not silently rewrite published claims or dispatch releases."
+type: Issue
+status: open
+priority: 2
+tags: []
+created_at: "2026-10-29T19:00:52.162Z"
+updated_at: "2026-10-29T19:00:52.162Z"
+author: codex-agent
+body: ""

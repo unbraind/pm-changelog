@@ -1,0 +1,11 @@
+id: pmc-intact-notes-publication-gaps
+title: Investigate prepared publication gaps whose changelog sections already exist
+description: "Read-only audit found pm-lint 2026.10.29, pm-rl 2026.10.28, pm-ts-starter 2026.10.29 and pm-vcs 2026.10.29 ahead of public npm without a matching v tag, but their exact version sections already exist. Investigate publication state and authorization separately; no missing-section repair or workflow dispatch is justified by this generator task."
+type: Issue
+status: open
+priority: 2
+tags: []
+created_at: "2026-10-29T18:23:47.325Z"
+updated_at: "2026-10-29T18:23:47.325Z"
+author: codex-agent
+body: ""

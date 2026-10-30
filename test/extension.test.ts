@@ -7,7 +7,7 @@ import { dirname, join } from "node:path";
 import test from "node:test";
 import { fileURLToPath, pathToFileURL } from "node:url";
 
-import { checkExtensionManifestCompatibility } from "@unbrained/pm-cli/sdk";
+import { checkExtensionManifestCompatibility, runInit, runCreate } from "@unbrained/pm-cli/sdk";
 import { activateExtensionForTest, runRegisteredCommandForTest } from "@unbrained/pm-cli/sdk/testing";
 import type { ExtensionActivationResult, ExtensionCapability, FlagDefinition } from "@unbrained/pm-cli/sdk/authoring";
 
@@ -514,12 +514,15 @@ test("generate all-tag and body-preview paths use the real tracker", async () =>
       stdout: true,
       "all-release-tags": true,
       "release-version": "2026.8.8",
+      // This historical window has no currently qualifying items; consent is explicit.
+      "include-empty": true,
       "body-preview": 8,
       "release-tag-pattern": "v*",
     },
     pmRoot: TRACKER_ROOT,
   });
   assert.equal(typeof (commandResult(result) as { changelog?: unknown }).changelog, "string");
+  assert.match((commandResult(result) as { changelog: string }).changelog, /^## 2026\.8\.8(?: - |$)/m);
 
   // Exercise the --dependency-updates path so the extension's gitCwd wiring
   // is covered. The tracker root is a git repo, so git log will succeed;
@@ -756,4 +759,51 @@ test("audit command publishes an evidence-specific intent independently of gener
   assert.ok(generate);
   assert.match(audit.intent ?? "", /audit.*claims.*evidence.*publication/);
   assert.notEqual(audit.intent, generate.intent);
+});
+
+test("requested release diagnostics retain unexpected failures", () => {
+  const original = new Error("unexpected selection failure");
+  assert.throws(() => extensionTestSurface.withRequestedReleaseDiagnostics(() => { throw original; }), (error: unknown) => error === original);
+});
+
+test("generate and export fail closed for missing requested releases in real trackers", async () => {
+  const scratch = mkdtempSync(join(tmpdir(), "pm-extension-release-"));
+  try {
+    const root = join(scratch, ".agents/pm");
+    await runInit("release-test", { path: root }, { defaults: true, agentGuidance: "skip" });
+    await runCreate({ id: "release-open", title: "Undelivered change", type: "Task", createMode: "progressive", unset: ["parent", "release", "goal", "sprint", "objective"] }, { path: root, author: "release-test" });
+    const { commands } = await activateChangelog();
+    for (const command of ["changelog generate", "changelog export"]) {
+      await assert.rejects(runRegisteredCommandForTest(commands, {
+        command, options: { "release-version": "2026.10.29", stdout: true }, pmRoot: root,
+      }), (error: unknown) => {
+        assert.ok(error instanceof Error);
+        const typed = error as Error & { exitCode?: number; context?: { code?: string; remedy?: string } };
+        assert.equal(typed.exitCode, 1);
+        assert.equal(typed.context?.code, "MISSING_REQUESTED_RELEASE");
+        assert.match(typed.message, /pm update/);
+        // The refusal carries the selection report itself (a refused run never reaches --explain-selection), and the
+        // remedy names only what each command accepts: export declares no --no-pending-release.
+        const context = typed.context as { value?: string; required?: string; verification_errors?: string[] };
+        const diagnostics = /inspect the filter_, stage_ and excluded_ facts in this refusal/;
+        assert.match(typed.message, diagnostics);
+        assert.match(context.required ?? "", diagnostics);
+        assert.doesNotMatch(context.required ?? "", /--explain/);
+        if (command === "changelog export") assert.doesNotMatch(context.required ?? "", /--no-pending-release/);
+        else assert.match(context.required ?? "", /--no-pending-release for historical-only generation/);
+        assert.equal(context.value, "2026.10.29");
+        const facts = context.verification_errors ?? [];
+        assert.ok(facts.some((fact) => /^filter_statuses=.+/.test(fact)), JSON.stringify(facts));
+        assert.ok(facts.includes("stage_input=1"), JSON.stringify(facts));
+        assert.ok(context.verification_errors?.includes("excluded_status=1"), JSON.stringify(context.verification_errors));
+        return true;
+      });
+    }
+    // --no-pending-release opts out only for historical --all-release-tags generation.
+    await assert.rejects(runRegisteredCommandForTest(commands, {
+      command: "changelog generate", options: { "release-version": "2026.10.29", "no-pending-release": true, stdout: true }, pmRoot: root,
+    }), (error: unknown) => (error as { context?: { code?: string } }).context?.code === "MISSING_REQUESTED_RELEASE");
+  } finally {
+    removeGitFixture(scratch);
+  }
 });

@@ -25,6 +25,9 @@ import { countNonChangeClosures } from "./closure-policy.ts";
 import { checkItemLinks } from "./item-links.ts";
 import { createUnifiedDiff, DEFAULT_MAX_DIFF_LINES } from "./diff.ts";
 import {
+  assertRequestedRelease,
+  requestedReleaseSuppressed,
+  MissingRequestedReleaseError,
   buildChangelogDocument,
   buildPmListArgs,
   createChangelog,
@@ -263,6 +266,10 @@ async function main(args: string[] = process.argv.slice(2)): Promise<void> {
       generationOptions, trackerRoot,
     ));
   }
+  // --no-pending-release only suppresses the pending window --all-release-tags derives. Every other requested version,
+  // including a tagged one in historical mode, still needs its section, or replace mode would rewrite CHANGELOG.md with
+  // only its title and --limit 1 could print an older release.
+  if (!requestedReleaseSuppressed(generationOptions)) assertRequestedRelease(generationOptions);
   if (options.auditEvidence) {
     const receipts = options.auditReceipts === undefined ? [] : parseClaimTestReceipts(readFileSync(options.auditReceipts, "utf-8"));
     const report = auditChangelogClaims(generationOptions, receipts);
@@ -1132,7 +1139,7 @@ Options:
       --pm-arg <arg>        Extra global argument passed before the canonical list command (repeatable)
       --pm-cwd <dir>        Working directory for running pm
       --title <text>        Changelog title (default: Changelog)
-      --version <version>   Version heading (default: Unreleased)
+      --version <version>   Require this exact release section or fail (default: Unreleased)
       --release-version <version>
                             Alias for --version (matches pm extension syntax)
       --release-version-from-package
@@ -1186,7 +1193,7 @@ Options:
       --changelog-json      Print the full structured changelog document (releases->sections->items) to stdout
       --explain             Print item-selection diagnostics (counts, exclusions, actionable hints)
       --mode <mode>         replace or prepend existing changelog (default: replace)
-      --include-empty       Emit an empty release section when no items match
+      --include-empty       Explicitly allow an empty requested release section
       --include-links       Include item URLs in generated entries (default: false)
       --no-links            Disable item URLs in generated entries
       --item-url-base <url> Make item IDs clickable links: [pmc-abc]({url}/pmc-abc.toon)
@@ -1254,6 +1261,10 @@ export async function runCliEntry(argv: readonly string[] = process.argv): Promi
 
 /** Convert an unknown CLI failure into a stable human-readable message. */
 function errorMessage(error: unknown): string {
+  if (error instanceof MissingRequestedReleaseError) return stringifyUnicodeOutput({ error: {
+    code: error.code, message: error.message, remedy: error.remedy, version: error.version,
+    selection_report: { filters: error.report.filters, stage_counts: error.report.stage_counts, excluded_counts: error.report.excluded_counts },
+  } })!;
   if (error instanceof UnicodeOutputError || error instanceof AgentContractDriftError || error instanceof ReleaseCorrectionError || error instanceof ReleaseMilestoneError || error instanceof AudienceContractError || error instanceof ConsumerUpgradeError) return stringifyUnicodeOutput({ error: { code: error.code, message: error.message, remedy: error.remedy } })!;
   return error instanceof Error ? error.message : String(error);
 }

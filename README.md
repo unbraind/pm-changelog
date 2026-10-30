@@ -133,6 +133,31 @@ Classification is deterministic and reads tracker data only. Existing tags and
 release files are unchanged; regenerating history applies these rules to that output.
 Prepending a new release preserves older sections unless explicitly regenerated.
 
+### Requested release notes
+
+`--version X` (also `--release-version` and `--release-version-from-package`)
+requires a visible section for X before any output or file write. This applies
+to markdown, JSON, summaries, checks and CI outputs. In particular,
+`--stdout --limit 1` fails instead of substituting an older release when X has
+no qualifying entries. The typed `MISSING_REQUESTED_RELEASE` error includes
+selection counts and a remedy. Missing `release:` fields retain timestamp and
+Git membership inference; they are reported as unassigned, not assumed skipped.
+Close delivered items and assign the intended release using the pm CLI when
+that is the cause. A refused run never reaches `--explain`, so the error
+carries the selection report itself: the standalone CLI's JSON error has
+`selection_report` (filters, stage counts, exclusion counts), and the
+`pm changelog generate`/`export` refusal carries the same facts as
+`filter_*`, `stage_*` and `excluded_*` entries in its typed context.
+
+For an intentionally empty release, opt in with `--include-empty`; it emits
+the requested heading and `No changes.`. Visibility filters must still retain
+that section. For historical-only regeneration, `--no-pending-release`
+together with `--all-release-tags` suppresses the untagged requested version's
+pending window, and only that window may then be absent. A requested version
+that already has a tag still needs its own section, and without
+`--all-release-tags` a missing requested section is always refused. Neither option
+is appropriate as a workaround for omitted delivered work.
+
 ### Without git
 
 Generate from `--stdin`, `--input` or a tracker directory, export release notes,

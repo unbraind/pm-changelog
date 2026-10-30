@@ -9,7 +9,7 @@ import { CONSUMER_UPGRADE_FLAGS, runConsumerUpgradesCommand } from "./consumer-u
 import { DirectoryReleaseMilestoneStore, assertTrackerMilestoneOptions, createReleaseMilestone, readReleaseMilestones, readTrackerReleaseSnapshot, resolveTrackerReleaseHistory } from "./milestones.js";
 import { auditChangelogClaims, assertChangelogClaims, formatClaimAudit, parseClaimTestReceipts } from "./claim-audit.js";
 import { countNonChangeClosures } from "./closure-policy.js";
-import { buildChangelogDocument, createChangelog, createChangelogSummary, explainChangelogSelection, formatSummaryLine, lintChangelogEntries, parseChangelogEntryFrom, mergeChangelog, suggestSemver, writeChangelog } from "./generator.js";
+import { assertRequestedRelease, requestedReleaseSuppressed, MissingRequestedReleaseError, buildChangelogDocument, createChangelog, createChangelogSummary, explainChangelogSelection, formatSummaryLine, lintChangelogEntries, parseChangelogEntryFrom, mergeChangelog, suggestSemver, writeChangelog } from "./generator.js";
 import { MissingTagHistoryError, resolveGenerationReleaseWindows, resolveReleaseContext, resolveReleaseTagWindowResolution, } from "./release-context.js";
 import { resolveGitReleaseHistory } from "./release-membership.js";
 const BODY_ENRICHMENT_DEPENDENCIES = {
@@ -287,6 +287,10 @@ export default defineExtension({
                         throw new PmCliError(`Cannot verify release membership: ${String(error)}`, EXIT_CODE.GENERIC_FAILURE);
                     }
                 }
+                // Same rule as the CLI: the opt-out covers only the pending window that --all-release-tags --no-pending-release
+                // actually suppressed for the requested version; a tagged requested version still needs its section.
+                if (!requestedReleaseSuppressed(generationOptions))
+                    withRequestedReleaseDiagnostics(() => assertRequestedRelease(generationOptions));
                 if (Boolean(ctx.options["check"])) {
                     for (const warning of lintChangelogEntries(generationOptions))
                         console.error(`Warning: ${warning}`);
@@ -475,7 +479,7 @@ export default defineExtension({
                 untilReleaseTag: booleanOption(ctx.options, "until-release-tag", "untilReleaseTag"),
             }));
             const items = await listWorkspaceItemMetadata(ctx.pm_root);
-            const generated = createChangelog({
+            const generationOptions = {
                 items,
                 statusRegistry: resolveRuntimeStatusRegistry((await readSettings(ctx.pm_root)).schema),
                 title: stringOption(ctx.options, "title", "title") ?? (releaseNotes ? "Release Notes" : undefined),
@@ -498,7 +502,9 @@ export default defineExtension({
                 dependencySinceRef: releaseContext.previousTag,
                 dependencyUntilRef: releaseContext.releaseTag,
                 dependencyCutoff: untilOption,
-            });
+            };
+            withRequestedReleaseDiagnostics(() => assertRequestedRelease(generationOptions), "export");
+            const generated = createChangelog(generationOptions);
             const outputPath = stringOption(ctx.options, "output", "output");
             if (format === "json") {
                 const payload = {
@@ -610,6 +616,29 @@ function withTagHistoryDiagnostics(resolve) {
             throw new PmCliError(error.message, EXIT_CODE.GENERIC_FAILURE);
         }
         throw error;
+    }
+}
+/** Preserve the typed release refusal and remedy across the host CLI boundary. */
+function withRequestedReleaseDiagnostics(generate, command = "generate") {
+    try {
+        return generate();
+    }
+    catch (error) {
+        if (!(error instanceof MissingRequestedReleaseError))
+            throw error;
+        // The refusal is its own diagnostics path: --explain-selection is never reached once generation refuses, so the
+        // error carries the selection report the standalone CLI prints (filters, stage and exclusion counts). `export`
+        // declares no --no-pending-release, so its remedy drops that opt-out.
+        const located = error.remedy.replace("inspect --explain filters", "inspect the filter_, stage_ and excluded_ facts in this refusal");
+        const remedy = command === "generate" ? located : located.replace(", or --no-pending-release for historical-only generation", "");
+        // PmCliErrorContext is a closed type (pm-cli#1631): the facts travel as key=value entries in its typed fields.
+        const { filters, stage_counts: stages, excluded_counts: exclusions } = error.report;
+        const facts = [
+            ...Object.entries(filters).filter(([, value]) => value !== undefined).map(([name, value]) => `filter_${name}=${Array.isArray(value) ? value.join(",") : String(value)}`),
+            ...Object.entries(stages).map(([stage, count]) => `stage_${stage}=${count}`),
+            ...Object.entries(exclusions).map(([reason, count]) => `excluded_${reason}=${count}`),
+        ];
+        throw new PmCliError(`${error.message} ${remedy}`, EXIT_CODE.GENERIC_FAILURE, { code: error.code, value: error.version, required: remedy, verification_errors: facts });
     }
 }
 /** Refuse `--dependency-updates` with release or milestone grouping: those
@@ -728,5 +757,6 @@ export const extensionTestSurface = {
     stringOption,
     withReleaseContextDiagnostics,
     withTagHistoryDiagnostics,
+    withRequestedReleaseDiagnostics,
 };
 //# sourceMappingURL=extension.js.map
