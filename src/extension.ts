@@ -691,15 +691,19 @@ function withRequestedReleaseDiagnostics<T>(generate: () => T, command: "generat
     return generate();
   } catch (error) {
     if (!(error instanceof MissingRequestedReleaseError)) throw error;
-    // `generate` names its diagnostics flag --explain-selection (the standalone CLI calls it --explain). `export`
-    // declares neither that flag nor --no-pending-release, so its remedy points at generate and drops the opt-out.
-    const remedy = command === "generate"
-      ? error.remedy.replace("inspect --explain filters", "inspect --explain-selection filters")
-      : error.remedy.replace("inspect --explain filters", "inspect filters with pm changelog generate --explain-selection and the same selection options")
-        .replace(", or --no-pending-release for historical-only generation", "");
-    // PmCliErrorContext is a closed type: carry the version, remedy and exclusion counts in its typed fields.
-    const exclusions = Object.entries(error.report.excluded_counts).map(([reason, count]) => `excluded_${reason}=${count}`);
-    throw new PmCliError(`${error.message} ${remedy}`, EXIT_CODE.GENERIC_FAILURE, { code: error.code, value: error.version, required: remedy, verification_errors: exclusions });
+    // The refusal is its own diagnostics path: --explain-selection is never reached once generation refuses, so the
+    // error carries the selection report the standalone CLI prints (filters, stage and exclusion counts). `export`
+    // declares no --no-pending-release, so its remedy drops that opt-out.
+    const located = error.remedy.replace("inspect --explain filters", "inspect the filter_, stage_ and excluded_ facts in this refusal");
+    const remedy = command === "generate" ? located : located.replace(", or --no-pending-release for historical-only generation", "");
+    // PmCliErrorContext is a closed type (pm-cli#1631): the facts travel as key=value entries in its typed fields.
+    const { filters, stage_counts: stages, excluded_counts: exclusions } = error.report;
+    const facts = [
+      ...Object.entries(filters).filter(([, value]) => value !== undefined).map(([name, value]) => `filter_${name}=${Array.isArray(value) ? value.join(",") : String(value)}`),
+      ...Object.entries(stages).map(([stage, count]) => `stage_${stage}=${count}`),
+      ...Object.entries(exclusions).map(([reason, count]) => `excluded_${reason}=${count}`),
+    ];
+    throw new PmCliError(`${error.message} ${remedy}`, EXIT_CODE.GENERIC_FAILURE, { code: error.code, value: error.version, required: remedy, verification_errors: facts });
   }
 }
 

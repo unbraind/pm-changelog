@@ -782,15 +782,19 @@ test("generate and export fail closed for missing requested releases in real tra
         assert.equal(typed.exitCode, 1);
         assert.equal(typed.context?.code, "MISSING_REQUESTED_RELEASE");
         assert.match(typed.message, /pm update/);
-        // The extension names its own diagnostics flag and keeps the selection facts in typed context fields.
-        // Export declares neither --explain-selection nor --no-pending-release, so its remedy routes through generate.
+        // The refusal carries the selection report itself (a refused run never reaches --explain-selection), and the
+        // remedy names only what each command accepts: export declares no --no-pending-release.
         const context = typed.context as { value?: string; required?: string; verification_errors?: string[] };
-        const diagnostics = command === "changelog export" ? /pm changelog generate --explain-selection and the same selection options/ : /inspect --explain-selection filters/;
+        const diagnostics = /inspect the filter_, stage_ and excluded_ facts in this refusal/;
         assert.match(typed.message, diagnostics);
         assert.match(context.required ?? "", diagnostics);
+        assert.doesNotMatch(context.required ?? "", /--explain/);
         if (command === "changelog export") assert.doesNotMatch(context.required ?? "", /--no-pending-release/);
         else assert.match(context.required ?? "", /--no-pending-release for historical-only generation/);
         assert.equal(context.value, "2026.10.29");
+        const facts = context.verification_errors ?? [];
+        assert.ok(facts.some((fact) => /^filter_statuses=.+/.test(fact)), JSON.stringify(facts));
+        assert.ok(facts.includes("stage_input=1"), JSON.stringify(facts));
         assert.ok(context.verification_errors?.includes("excluded_status=1"), JSON.stringify(context.verification_errors));
         return true;
       });

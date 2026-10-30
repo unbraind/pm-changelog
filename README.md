@@ -143,7 +143,11 @@ no qualifying entries. The typed `MISSING_REQUESTED_RELEASE` error includes
 selection counts and a remedy. Missing `release:` fields retain timestamp and
 Git membership inference; they are reported as unassigned, not assumed skipped.
 Close delivered items and assign the intended release using the pm CLI when
-that is the cause. `--explain` exposes the selection filters.
+that is the cause. A refused run never reaches `--explain`, so the error
+carries the selection report itself: the standalone CLI's JSON error has
+`selection_report` (filters, stage counts, exclusion counts), and the
+`pm changelog generate`/`export` refusal carries the same facts as
+`filter_*`, `stage_*` and `excluded_*` entries in its typed context.
 
 For an intentionally empty release, opt in with `--include-empty`; it emits
 the requested heading and `No changes.`. Visibility filters must still retain
