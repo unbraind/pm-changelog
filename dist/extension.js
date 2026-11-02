@@ -149,7 +149,8 @@ export default defineExtension({
                 { long: "--item-ref-style", value_name: "style", description: "How item IDs render: auto (default), label (neutral/public-safe), toon (force blob link), github (public issue/PR link from gh:owner/repo#N provenance tag)" },
                 { long: "--exclude-tag", value_name: "list", description: "Omit items carrying any of these comma-separated tags (ignore convention, e.g. changelog:ignore)" },
                 { long: "--respect-item-release", description: "Treat an item release field as the authority for its single version window: keep it when it matches the release version regardless of timestamps, drop it otherwise (--all-release-tags always honors the field)" },
-                { long: "--dependency-updates", description: "Read Dependabot-shaped git commits for each release window and render them in a ### Dependencies section; a window with no closed items but >=1 dependency commit still produces its version section" },
+                { long: "--dependency-updates", description: "Add Dependabot notes to every git window; default non-merge Dependabot notes for itemless pending windows, retained after tagging only when the output changelog at that tag contains the version heading" },
+                { long: "--no-dependency-updates", description: "Disable git notes including the itemless default" },
                 { long: "--no-pending-release", description: "Nothing is being released right now: suppress the pending release window for an untagged package version" },
                 { long: "--check", description: "Do not write; report whether the changelog would change" },
             ],
@@ -270,7 +271,9 @@ export default defineExtension({
                     respectItemRelease: booleanOption(ctx.options, "respect-item-release", "respectItemRelease"),
                     excludeTags: excludeTagsOption(ctx.options),
                     dependencyUpdates,
-                    gitCwd: dependencyUpdates ? ctx.pm_root : undefined,
+                    changelogPath: resolve(stringOption(ctx.options, "output", "output") ?? "CHANGELOG.md"),
+                    gitCwd: ctx.pm_root,
+                    pendingRelease: Boolean(releaseContext.version && !releaseContext.releaseTag && (booleanOption(ctx.options, "since-previous-tag", "sincePreviousTag") || booleanOption(ctx.options, "until-release-tag", "untilReleaseTag"))),
                     dependencySinceRef: releaseContext.previousTag,
                     dependencyUntilRef: releaseContext.releaseTag,
                     dependencyCutoff: untilOption,
@@ -287,9 +290,10 @@ export default defineExtension({
                         throw new PmCliError(`Cannot verify release membership: ${String(error)}`, EXIT_CODE.GENERIC_FAILURE);
                     }
                 }
-                // Same rule as the CLI: the opt-out covers only the pending window that --all-release-tags --no-pending-release
-                // actually suppressed for the requested version; a tagged requested version still needs its section.
-                if (!requestedReleaseSuppressed(generationOptions))
+                // Full-file history preserves sectionless releases; extraction and
+                // limited history still require the requested version, as in the CLI.
+                if (!requestedReleaseSuppressed(generationOptions) &&
+                    (!allReleaseTags || stdout || limitValue !== undefined || generationOptions.sinceVersion !== undefined))
                     withRequestedReleaseDiagnostics(() => assertRequestedRelease(generationOptions));
                 if (Boolean(ctx.options["check"])) {
                     for (const warning of lintChangelogEntries(generationOptions))
@@ -448,7 +452,8 @@ export default defineExtension({
                 { long: "--item-ref-style", value_name: "style", description: "How item IDs render: auto (default), label (neutral/public-safe), toon (force blob link), github (public issue/PR link from gh:owner/repo#N provenance tag)" },
                 { long: "--exclude-tag", value_name: "list", description: "Omit items carrying any of these comma-separated tags (ignore convention, e.g. changelog:ignore)" },
                 { long: "--respect-item-release", description: "Treat an item release field as the authority for its single version window: keep it when it matches the release version regardless of timestamps, drop it otherwise (--all-release-tags always honors the field)" },
-                { long: "--dependency-updates", description: "Add a Dependencies section listing the Dependabot commits in the release's git window (not combinable with --group-by release or milestone)" },
+                { long: "--dependency-updates", description: "Add Dependabot notes to every git window; default non-merge Dependabot notes for itemless pending windows, retained after tagging only when the output changelog at that tag contains the version heading (not combinable with release or milestone grouping)" },
+                { long: "--no-dependency-updates", description: "Disable git notes including the itemless default" },
             ],
         };
         api.registerExporter("changelog", async (ctx) => {
@@ -498,7 +503,9 @@ export default defineExtension({
                 respectItemRelease: booleanOption(ctx.options, "respect-item-release", "respectItemRelease"),
                 excludeTags: excludeTagsOption(ctx.options),
                 dependencyUpdates,
-                gitCwd: dependencyUpdates ? ctx.pm_root : undefined,
+                changelogPath: resolve(stringOption(ctx.options, "output", "output") ?? "CHANGELOG.md"),
+                gitCwd: ctx.pm_root,
+                pendingRelease: Boolean(releaseContext.version && !releaseContext.releaseTag && (booleanOption(ctx.options, "since-previous-tag", "sincePreviousTag") || booleanOption(ctx.options, "until-release-tag", "untilReleaseTag"))),
                 dependencySinceRef: releaseContext.previousTag,
                 dependencyUntilRef: releaseContext.releaseTag,
                 dependencyCutoff: untilOption,
@@ -645,11 +652,13 @@ function withRequestedReleaseDiagnostics(generate, command = "generate") {
  * sections come from item metadata, not git release windows, so no commit
  * range belongs to any of them. Shared by `changelog generate` and `export`. */
 function refuseDependencyGrouping(options, groupBy) {
+    if (booleanOption(options, "no-dependency-updates", "noDependencyUpdates"))
+        return false;
     const dependencyUpdates = booleanOption(options, "dependency-updates", "dependencyUpdates");
     if (dependencyUpdates && groupBy !== "version") {
         throw new PmCliError("--dependency-updates reads git release windows and cannot be combined with --group-by release or milestone", EXIT_CODE.USAGE);
     }
-    return dependencyUpdates;
+    return dependencyUpdates || undefined;
 }
 /** Render release-context option failures as real CLI usage errors.
  * The SDK host converts ordinary thrown errors into warnings, which would let

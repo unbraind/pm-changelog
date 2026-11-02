@@ -220,8 +220,8 @@ test("workflow writers reject absent environment targets and helper projections 
   }
   const options = cliTestSurface.parseArgs([]);
   assert.equal(cliTestSurface.buildGenerationOptions(options, []).excludeTags, undefined);
-  assert.equal(cliTestSurface.buildGenerationOptions(options, []).dependencyUpdates, false);
-  assert.equal(cliTestSurface.buildGenerationOptions(options, []).gitCwd, undefined);
+  assert.equal(cliTestSurface.buildGenerationOptions(options, []).dependencyUpdates, undefined);
+  assert.equal(cliTestSurface.buildGenerationOptions(options, []).gitCwd, process.cwd());
 
   // With --dependency-updates and --pm-cwd, gitCwd resolves to the pm-cwd path.
   const depOpts = cliTestSurface.parseArgs(["--dependency-updates", "--pm-cwd", "/tmp"]);

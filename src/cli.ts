@@ -110,7 +110,8 @@ interface CliOptions {
   itemRefStyle?: ChangelogItemRefStyle;
   respectItemRelease: boolean;
   excludeTags: string[];
-  dependencyUpdates: boolean;
+  dependencyUpdates?: boolean;
+  pendingReleaseWindow?: boolean;
   /** Previous release tag from the release context, bounding the single-window dependency range. */
   dependencySinceRef?: string;
   /** Current release tag from the release context, ending the single-window dependency range. */
@@ -181,6 +182,7 @@ const KNOWN_OPTIONS = [
   "--conventional",
   "--contributors",
   "--dependency-updates",
+  "--no-dependency-updates",
   "--date",
   "--date-fallback",
   "--date-from-version",
@@ -266,10 +268,11 @@ async function main(args: string[] = process.argv.slice(2)): Promise<void> {
       generationOptions, trackerRoot,
     ));
   }
-  // --no-pending-release only suppresses the pending window --all-release-tags derives. Every other requested version,
-  // including a tagged one in historical mode, still needs its section, or replace mode would rewrite CHANGELOG.md with
-  // only its title and --limit 1 could print an older release.
-  if (!requestedReleaseSuppressed(generationOptions)) assertRequestedRelease(generationOptions);
+  // Full-file history preserves sectionless releases. Extraction and limited
+  // history still require the requested version so an older release cannot
+  // stand in for it. The pending opt-out retains its existing narrow meaning.
+  if (!requestedReleaseSuppressed(generationOptions) &&
+      (!options.allReleaseTags || options.stdout || options.limit !== undefined || options.sinceVersion !== undefined)) assertRequestedRelease(generationOptions);
   if (options.auditEvidence) {
     const receipts = options.auditReceipts === undefined ? [] : parseClaimTestReceipts(readFileSync(options.auditReceipts, "utf-8"));
     const report = auditChangelogClaims(generationOptions, receipts);
@@ -456,7 +459,6 @@ function parseArgs(args: string[]): CliOptions {
     pendingRelease: true,
     respectItemRelease: false,
     excludeTags: [],
-    dependencyUpdates: false,
   };
 
   for (let i = 0; i < normalizedArgs.length; i++) {
@@ -639,6 +641,9 @@ function parseArgs(args: string[]): CliOptions {
       case "--dependency-updates":
         options.dependencyUpdates = true;
         break;
+      case "--no-dependency-updates":
+        options.dependencyUpdates = false;
+        break;
       // Repeatable and comma-separated forms both accumulate, mirroring
       // --status/--statuses, so agents can pass either shape.
       case "--exclude-tag":
@@ -810,6 +815,7 @@ function applyReleaseContext(options: CliOptions): void {
   options.until = context.until;
   options.dependencySinceRef = context.previousTag;
   options.dependencyUntilRef = context.releaseTag;
+  options.pendingReleaseWindow = Boolean(context.version && !context.releaseTag && (options.sincePreviousTag || options.untilReleaseTag));
 }
 
 /** Load pm items from stdin, a JSON file, or the real pm CLI, in that order of
@@ -937,9 +943,10 @@ function buildGenerationOptions(options: CliOptions, items: PmItem[]) {
     respectItemRelease: options.respectItemRelease,
     excludeTags: options.excludeTags.length > 0 ? options.excludeTags : undefined,
     dependencyUpdates: options.dependencyUpdates,
-    gitCwd: options.dependencyUpdates
-      ? (options.pmCwd ? resolve(options.pmCwd) : process.cwd())
-      : undefined,
+    // Absolute, because the generator resolves relative paths against gitCwd (--pm-cwd), not this process cwd.
+    changelogPath: options.stdout ? "CHANGELOG.md" : resolve(options.output),
+    pendingRelease: options.pendingReleaseWindow,
+    gitCwd: options.pmCwd ? resolve(options.pmCwd) : process.cwd(),
     dependencySinceRef: options.dependencySinceRef,
     dependencyUntilRef: options.dependencyUntilRef,
     dependencyCutoff: options.dependencyCutoff,
@@ -1171,13 +1178,17 @@ Options:
                             version window it belongs to: keep it when it matches --version
                             regardless of timestamps, drop it otherwise (already shipped
                             elsewhere). --all-release-tags always honors the field.
-      --dependency-updates  List Dependabot commits (build(deps): bump ...) between the
-                            previous and current release tags in a ### Dependencies section
-                            per release; a release with no closed items but such commits
-                            still gets its heading. A pending release reads to HEAD. PR links
-                            come from --item-url-base when it is a GitHub URL. Not combinable
-                            with --group-by release or milestone. Without this flag, output
-                            is byte-identical.
+      --dependency-updates  Add Dependabot git notes to all release windows, including history.
+                            Default: itemless pending windows get only non-merge Dependabot
+                            subjects (<type>(deps|deps-dev): bump ...) as ### Dependencies.
+                            Tagged itemless windows retain notes only if the changelog at that
+                            tag contains ## <version> followed by end of line or " - ".
+                            Reads --output relative to git cwd; --stdout reads CHANGELOG.md.
+                            Git failures mean no committed section. Windows with items stay
+                            unchanged. No Dependabot commits means no default section.
+                            PR links for Dependabot subjects come from --item-url-base.
+                            Not combinable with --group-by release or milestone.
+      --no-dependency-updates  Disable all git dependency notes, including the itemless default.
       --group-by <mode>     version, release, or milestone (default: version)
       --entry-from <field>  Prefer title (default) or close_reason; blank resolution falls back to title
       --section-by <mode>   Within-release grouping: category, type, status, or label (default: category)

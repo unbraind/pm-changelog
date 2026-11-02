@@ -212,17 +212,24 @@ export interface GenerateChangelogOptions extends ChangelogStatusContext {
      * Matching is case-insensitive and trims surrounding whitespace.
      * Absent/empty → no items are excluded by tag. */
     excludeTags?: string[];
-    /** OPT-IN: when true, read Dependabot-shaped git commits for each release
-     * window and render them in a `### Dependencies` section after the existing
-     * item-based sections. Requires `gitCwd` to locate the repository.
-     * Absent → no dependency sections, output is byte-identical to historical
-     * behaviour. */
+    /** True adds Dependabot-shaped git notes to every window. False disables git notes.
+     * Absent adds only non-merge Dependabot subjects to itemless pending windows,
+     * and tagged itemless windows whose changelog at the tag already contains the
+     * version heading. Windows with items are unchanged. Requires gitCwd. */
     dependencyUpdates?: boolean;
+    /** Single-window context has verified that the requested release tag is pending.
+     * History mode derives pending windows from a releaseTag with no until bound. */
+    pendingRelease?: boolean;
     /** Working directory for git commands used by `--dependency-updates`.
      * Git resolves the repository root from any subdirectory, so the pm project
      * root or `process.cwd()` suffices. Absent → dependency commits cannot be
      * read even when `dependencyUpdates` is set. */
     gitCwd?: string;
+    /** Changelog path read at a release tag to retain an existing itemless section.
+     * Defaults to CHANGELOG.md relative to gitCwd. Absolute paths are supported.
+     * Only `## <version>` followed by end of line or ` - ` qualifies; missing
+     * files, missing headings and Git failures do not opt historical windows in. */
+    changelogPath?: string;
     /** Git ref (the previous release tag) the single-window `--dependency-updates`
      * range starts after, from `--since-previous-tag`. Absent → the range falls
      * back to the `since` timestamp. */
@@ -342,9 +349,8 @@ export interface DependencyCommit {
 export interface ChangelogSection {
     heading: string;
     items: PmItem[];
-    /** OPT-IN (`--dependency-updates`): parsed Dependabot commits for this
-     * release window. Present only when `--dependency-updates` is set and
-     * `gitCwd` is provided. */
+    /** Parsed non-merge Dependabot commits selected by the itemless default or
+     * explicit dependencyUpdates, when gitCwd is provided. */
     dependencyCommits?: DependencyCommit[];
 }
 /** A single item as it appears in the structured `--changelog-json` document. */
@@ -375,7 +381,7 @@ export interface ChangelogDocumentRelease {
     contributors?: string[];
     /** Present only when `--breaking-changes` is set: items detected as breaking. */
     breaking_changes?: ChangelogDocumentItem[];
-    /** Present only when `--dependency-updates` found Dependabot commits in this release. */
+    /** Present when the itemless default or explicit dependencyUpdates found Dependabot commits. */
     dependencies?: ChangelogDocumentDependency[];
 }
 /** One Dependabot commit as it appears in the structured `--changelog-json` document. */
