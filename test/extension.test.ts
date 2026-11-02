@@ -807,3 +807,31 @@ test("generate and export fail closed for missing requested releases in real tra
     removeGitFixture(scratch);
   }
 });
+
+test("generate and export default itemless pending git notes and honor the opt-out", async (t) => {
+  const scratch = mkdtempSync(join(tmpdir(), "pm-extension-itemless-"));
+  t.after(() => removeGitFixture(scratch));
+  const root = join(scratch, ".agents/pm");
+  await runInit("pending-fixture", { path: root }, { defaults: true, agentGuidance: "skip" });
+  initGitFixture(scratch);
+  const env = { ...process.env, GIT_CONFIG_GLOBAL: "/dev/null", GIT_CONFIG_NOSYSTEM: "1", GIT_AUTHOR_NAME: "Fixture", GIT_COMMITTER_NAME: "Fixture", GIT_AUTHOR_EMAIL: "fixture@example.invalid", GIT_COMMITTER_EMAIL: "fixture@example.invalid", GIT_AUTHOR_DATE: "2026-10-31T10:00:00Z", GIT_COMMITTER_DATE: "2026-10-31T10:00:00Z" };
+  const git = (...args: string[]) => execFileSync("git", args, { cwd: scratch, env, stdio: "pipe" });
+  git("add", ".agents");
+  git("-c", "commit.gpgsign=false", "commit", "-m", "Tracker baseline");
+  git("tag", "v2026.10.31");
+  git("-c", "commit.gpgsign=false", "commit", "--allow-empty", "-m", "ci: pin workflow action (#205)");
+  const { commands } = await activateChangelog();
+  for (const command of ["changelog generate", "changelog export"]) {
+    assert.ok((await registeredFlagLongs(command)).includes("--no-dependency-updates"));
+    for (const range of [{ "since-previous-tag": true }, { "until-release-tag": true }, ...(command === "changelog generate" ? [{ "all-release-tags": true }] : [])]) {
+      const options = { stdout: true, "release-version": "2026.11.1", "date-from-version": true, ...range };
+      const result = await runRegisteredCommandForTest(commands, { command, options, pmRoot: root });
+      const markdown = (commandResult(result) as { changelog: string }).changelog;
+      assert.match(markdown, /## 2026\.11\.1 - 2026-11-01/);
+      assert.match(markdown, /### Dependencies/);
+      assert.match(markdown, /ci: pin workflow action/);
+      await assert.rejects(runRegisteredCommandForTest(commands, { command, options: { ...options, "no-dependency-updates": true }, pmRoot: root }),
+        (error: unknown) => (error as { context?: { code?: string } }).context?.code === "MISSING_REQUESTED_RELEASE");
+    }
+  }
+});

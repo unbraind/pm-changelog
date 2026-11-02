@@ -48,6 +48,7 @@ jobs:
           run(process.execPath, ["--test", "--test-concurrency=2", "test/cli-tracker-target.test.ts", "test/closure-status-roles.test.ts", "test/release-publication.test.ts", "test/release-ownership.test.ts"]);
           run(process.execPath, ["scripts/verify-release-lifecycles.ts"]);
           run(process.execPath, ["scripts/prove-agent-contract-drift-revert.ts"]);
+          run(process.execPath, ["scripts/prove-itemless-pending-revert.ts"]);
           run(process.execPath, ["scripts/accept-release-corrections.ts"]);
           run("npm", ["run", "changelog:full"]);
           run("npm", ["run", "changelog:check"]);

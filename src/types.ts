@@ -229,12 +229,13 @@ export interface GenerateChangelogOptions extends ChangelogStatusContext {
    * Matching is case-insensitive and trims surrounding whitespace.
    * Absent/empty → no items are excluded by tag. */
   excludeTags?: string[];
-  /** OPT-IN: when true, read Dependabot-shaped git commits for each release
-   * window and render them in a `### Dependencies` section after the existing
-   * item-based sections. Requires `gitCwd` to locate the repository.
-   * Absent → no dependency sections, output is byte-identical to historical
-   * behaviour. */
+  /** True adds Dependabot-shaped git notes to every window. False disables git notes.
+   * Absent adds all git subjects only to itemless pending windows; history and
+   * pending windows with items retain their previous output. Requires gitCwd. */
   dependencyUpdates?: boolean;
+  /** Single-window context has verified that the requested release tag is pending.
+   * History mode derives pending windows from a releaseTag with no until bound. */
+  pendingRelease?: boolean;
   /** Working directory for git commands used by `--dependency-updates`.
    * Git resolves the repository root from any subdirectory, so the pm project
    * root or `process.cwd()` suffices. Absent → dependency commits cannot be

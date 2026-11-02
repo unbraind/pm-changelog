@@ -1,0 +1,29 @@
+id: pmc-itemless-pending
+title: Render git notes for itemless pending releases and refuse stale extraction
+description: "Default pending-window git Dependencies notes without changing historical projection. Related companion class pm-cli-website-tbni and release failures pm-cli-website-mcrq. After green CI document pm-context 2026.11.1 recovery without dispatch, merge or release."
+type: Issue
+status: in_progress
+priority: 1
+tags: []
+created_at: "2026-11-02T04:43:41.380Z"
+updated_at: "2026-11-02T04:56:14.648Z"
+assignee: codex-sol
+claim_principal: codex-sol
+author: codex-sol
+comments[4]{created_at,author,text}:
+  "2026-11-02T04:43:44.199Z",codex-sol,"Scope and links: https://github.com/unbraind/pm-cli-companion/blob/main/.agents/pm/issues/pm-cli-website-tbni.toon and https://github.com/unbraind/pm-cli-companion/blob/main/.agents/pm/issues/pm-cli-website-mcrq.toon. Preserve historical output and existing release thresholds; add real-git regression and revert checks; open PR and wait for CI, then record recovery plan only."
+  "2026-11-02T04:46:32.306Z",codex-sol,"Current origin/main already rejects missing requested sections with MissingRequestedReleaseError/MISSING_REQUESTED_RELEASE before output. Reuse that canonical selector and guard. Automatic git notes apply only to itemless pending tag windows; explicit true preserves Dependabot enrichment for history, explicit false disables notes. Plain version-only tracker generation does not infer a git range. Generic git subjects remain escaped literal text."
+  "2026-11-02T04:50:36.691Z",codex-sol,"Focused source and extension verification: node --test test/itemless-pending.test.ts test/extension.test.ts passed 28 tests, zero skipped. Real-git cases cover Dependabot-only, generic workflow-pin-only, no commits, pending items plus commits, byte-identical historical windows, single-window cutoffs, pending --stdout --limit 1, and opt-out. Revert proof is wired into the existing lifecycle CI job."
+  "2026-11-02T04:56:14.648Z",codex-sol,"Final focused verification passed 8/8 tests after adding recorded-hash fallback for an empty git subject. pm test --run --only-last --progress passed the source-only disposable revert proof: fixed 8 pass, fallback revert 4 fail, restored 8 pass; requested-release guard fixed 1 pass, guard removal 1 fail, restored 1 pass. Full release gate is still running at unchanged thresholds. No consumer repository edits are needed for the new default."
+files[5]{path,scope}:
+  scripts/prove-itemless-pending-revert.ts,project
+  src/cli.ts,project
+  src/extension.ts,project
+  src/generator.ts,project
+  test/itemless-pending.test.ts,project
+tests[2]{command,scope,timeout_seconds,provenance{author,created_at,source_kind,source_ref}}:
+  "npm run release:check",project,2400,codex-sol,"2026-11-02T04:46:31.222Z",local_mutation,feat/itemless-pending-release-notes
+  node scripts/prove-itemless-pending-revert.ts,project,600,codex-sol,"2026-11-02T04:50:32.962Z",local_mutation,feat/itemless-pending-release-notes
+docs[1]{path,scope}:
+  README.md,project
+body: ""

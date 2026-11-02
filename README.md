@@ -203,24 +203,34 @@ Grouping by type, status, or label has no Fixed heading and produces no warning.
 leaves markdown, JSON stdout, and the drift exit code unchanged. Follow its `pm update <id>
 --close-reason "Describe the fix"` recovery and use `--entry-from close_reason` consistently.
 
-### Dependency updates: releases that ship only Dependabot bumps
+### Dependency updates and itemless pending releases
 
-A daily release fires whenever a commit landed since the last tag, and Dependabot merges are commits,
-but sections are built from closed pm items. Without help, a dependency-only release gets an empty
-notes file and no `CHANGELOG.md` section at all. `--dependency-updates` reads each release window's
-commits from git (`git log --no-merges`) and adds a `### Dependencies` section, listed last, with one
-bullet per Dependabot subject (`<type>(deps|deps-dev): bump …`). A window with no closed items but at
-least one such commit still gets its version heading. Other commit subjects, including hand-written
-`fix(deps): …` commits, are ignored: items remain the source of truth for everything else.
+By default, a **pending release with no selected closed items and at least one git commit** gets
+its own version heading and a `### Dependencies` section built from that window's git subjects.
+This includes Dependabot bumps, workflow-pin commits and other subjects; an empty subject uses the
+commit hash. No tracker items are invented.
+Pending windows with items keep their existing item output. Historical windows remain byte for byte
+unchanged unless `--dependency-updates` is passed. `--no-dependency-updates` disables all git notes,
+including this default. A pending window with neither items nor commits still has no section.
 
-The range is exact: the commits between the previous release tag and this one (`--all-release-tags`
-windows, or the tags `--since-previous-tag --until-release-tag` resolve), so a bump tagged into the
-previous release never repeats. A release that is still pending reads up to `HEAD`. If the previous tag
-is not an ancestor of this one (orphaned by a history rewrite), the window's time bounds select commits
-within this release's own history instead. The bumps also appear in `--changelog-json` (as
-`dependencies` on each release) and `--summary` (as `Dependencies` entries), and
-`pm changelog export` accepts the flag too. It cannot be combined with `--group-by release` or
-`milestone`, whose sections come from item metadata rather than git windows.
+A pending window is resolved by `--all-release-tags` with the requested untagged version, or by
+`--since-previous-tag` / `--until-release-tag` with that version. SDK callers provide `gitCwd` and
+release windows (a pending window has a `releaseTag` and no `until`), or `pendingRelease: true` for
+single-window generation. Plain tracker-only generation does not infer a pending git window.
+
+`--dependency-updates` additionally reads each historical or item-bearing window's non-merge commits
+and lists Dependabot subjects (`<type>(deps|deps-dev): bump …`). Other historical subjects stay ignored.
+Notes appear last, in markdown, structured JSON (`dependencies`) and `--summary`.
+`pm changelog generate` and `export` accept both switches. Explicit opt-in cannot be combined with
+`--group-by release` or `milestone`, which have no git window.
+
+Ranges run from the previous tag (exclusive) to the release tag, or `HEAD` for a pending release.
+An explicit `--until` also bounds the single-window range. Orphaned tags fall back to window timestamps.
+Dependabot PR links derive from a GitHub `--item-url-base`; other subjects are escaped literal text.
+
+`--stdout --limit 1` with a requested pending version returns that version's own section. If no section
+survives selection, the CLI exits non-zero with typed `MISSING_REQUESTED_RELEASE` before writing output;
+it never substitutes the previous release. `--include-empty` explicitly permits intentionally empty notes.
 
 ```bash
 npx pm-changelog --stdout --since-previous-tag --until-release-tag --release-version-from-package \

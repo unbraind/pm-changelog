@@ -83,7 +83,7 @@ export function resolveGithubOwnerRepo(itemUrlBase) {
 function gitSucceeds(gitCwd, args) {
     return spawnSync("git", args, { cwd: gitCwd, stdio: "ignore" }).status === 0;
 }
-/** Read the Dependabot-shaped commits in one release window.
+/** Read Dependabot-shaped commits, or all subjects for an itemless pending window.
  *
  * The range is exact whenever the tags allow it: `sinceRef..untilRef` when the
  * older tag is an ancestor of the newer one, still bounded by an explicit
@@ -97,11 +97,13 @@ function gitSucceeds(gitCwd, args) {
  * start at all (the oldest release, or a changelog with no since bound) reads
  * all history up to its end, as the item changelog does for items. Git
  * failures read as no commits, so generation never breaks on a missing window. */
-function readDependencyCommits(gitCwd, range) {
+function readDependencyCommits(gitCwd, range, includeAllSubjects = false) {
     const untilRef = range.untilRef !== undefined && gitSucceeds(gitCwd, ["rev-parse", "--verify", "--quiet", `${range.untilRef}^{commit}`])
         ? range.untilRef
         : "HEAD";
-    const args = ["log", "--no-merges", "--format=%s"];
+    const args = ["log", includeAllSubjects ? "--format=%h%x00%s" : "--format=%s"];
+    if (!includeAllSubjects)
+        args.push("--no-merges");
     if (range.sinceRef !== undefined && gitSucceeds(gitCwd, ["merge-base", "--is-ancestor", range.sinceRef, untilRef])) {
         args.push(`${range.sinceRef}..${untilRef}`);
         if (range.cutoff !== undefined)
@@ -124,9 +126,16 @@ function readDependencyCommits(gitCwd, range) {
         return [];
     const commits = [];
     for (const line of result.stdout.split("\n")) {
-        const parsed = parseDependencyCommit(line.trim());
+        if (!line.trim())
+            continue;
+        const subject = includeAllSubjects
+            ? line.slice(line.indexOf("\0") + 1).trim() || `Commit ${line.slice(0, line.indexOf("\0"))}`
+            : line.trim();
+        const parsed = parseDependencyCommit(subject);
         if (parsed)
             commits.push(parsed);
+        else if (includeAllSubjects)
+            commits.push({ subject, description: subject, prNumber: undefined });
     }
     return commits;
 }
@@ -149,7 +158,7 @@ function formatDependencyBullets(commits, itemUrlBase) {
         return `- ${description}`;
     });
 }
-/** OPT-IN (`--dependency-updates`): attach each section's Dependabot commits.
+/** Attach Dependabot commits on opt-in, or all git subjects for an itemless pending release.
  *
  * With release windows (`--all-release-tags`, newest first, one section per
  * window), section `i` reads the commits between window `i + 1`'s tag and
@@ -168,18 +177,24 @@ function enrichSectionsWithDependencyCommits(sections, options, gitCwd) {
     if (windows && windows.length > 0) {
         return sections.map((section, index) => {
             const window = windows[index];
+            const pendingFallback = Boolean(window.releaseTag && window.until === undefined && section.items.length === 0);
+            if (!options.dependencyUpdates && !pendingFallback)
+                return section;
             const commits = readDependencyCommits(gitCwd, {
                 sinceRef: windows[index + 1]?.releaseTag,
                 untilRef: window.releaseTag,
                 sinceTimestamp: window.since,
                 untilTimestamp: window.until,
-            });
+            }, pendingFallback);
             return commits.length > 0 ? { ...section, dependencyCommits: commits } : section;
         });
     }
     // Release or milestone grouping builds sections from item metadata, not from
     // a git window, so no range belongs to any of them (the CLI refuses the pair).
     if ((options.groupBy === "release" || options.groupBy === "milestone") && !options.version)
+        return sections;
+    const pendingFallback = Boolean(options.pendingRelease && sections[0]?.items.length === 0);
+    if (!options.dependencyUpdates && !pendingFallback)
         return sections;
     // Single window: the previous and current release tags when the release
     // context found them, the since/until timestamps otherwise.
@@ -189,7 +204,7 @@ function enrichSectionsWithDependencyCommits(sections, options, gitCwd) {
         sinceTimestamp: options.since,
         untilTimestamp: options.until,
         cutoff: options.dependencyCutoff,
-    });
+    }, pendingFallback);
     return commits.length > 0 ? sections.map((section) => ({ ...section, dependencyCommits: commits })) : sections;
 }
 /** Render a changelog and return only its markdown. Convenience wrapper over
@@ -279,7 +294,7 @@ export function createChangelog(options, onClaim) {
                 }
             }
         }
-        // OPT-IN (`--dependency-updates`): ### Dependencies section, rendered last
+        // Git-derived ### Dependencies section, rendered last
         // after every item-based section. A window with no closed items but ≥1
         // dependency commit still produces its heading and this section.
         if (hasDeps) {
@@ -388,10 +403,8 @@ export function assertRequestedRelease(options) {
 function selectChangelogSections(options) {
     const items = filterItems(options);
     let sections = buildSections(items, options);
-    // OPT-IN (`--dependency-updates`): read Dependabot commits for each window
-    // so that item-less windows with dependency bumps stay visible and render a
-    // ### Dependencies section.
-    if (options.dependencyUpdates && options.gitCwd) {
+    // Explicit opt-in enriches history; the default only fills itemless pending windows.
+    if (options.dependencyUpdates !== false && options.gitCwd) {
         sections = enrichSectionsWithDependencyCommits(sections, options, options.gitCwd);
     }
     const candidateSections = options.includeEmpty

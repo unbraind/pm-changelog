@@ -74,6 +74,7 @@ const KNOWN_OPTIONS = [
     "--conventional",
     "--contributors",
     "--dependency-updates",
+    "--no-dependency-updates",
     "--date",
     "--date-fallback",
     "--date-from-version",
@@ -355,7 +356,6 @@ function parseArgs(args) {
         pendingRelease: true,
         respectItemRelease: false,
         excludeTags: [],
-        dependencyUpdates: false,
     };
     for (let i = 0; i < normalizedArgs.length; i++) {
         const rawArg = normalizedArgs[i];
@@ -537,6 +537,9 @@ function parseArgs(args) {
             case "--dependency-updates":
                 options.dependencyUpdates = true;
                 break;
+            case "--no-dependency-updates":
+                options.dependencyUpdates = false;
+                break;
             // Repeatable and comma-separated forms both accumulate, mirroring
             // --status/--statuses, so agents can pass either shape.
             case "--exclude-tag":
@@ -697,6 +700,7 @@ function applyReleaseContext(options) {
     options.until = context.until;
     options.dependencySinceRef = context.previousTag;
     options.dependencyUntilRef = context.releaseTag;
+    options.pendingReleaseWindow = Boolean(context.version && !context.releaseTag && (options.sincePreviousTag || options.untilReleaseTag));
 }
 /** Load pm items from stdin, a JSON file, or the real pm CLI, in that order of
  * precedence. Bodies are requested only when a preview will render them, since
@@ -817,9 +821,8 @@ function buildGenerationOptions(options, items) {
         respectItemRelease: options.respectItemRelease,
         excludeTags: options.excludeTags.length > 0 ? options.excludeTags : undefined,
         dependencyUpdates: options.dependencyUpdates,
-        gitCwd: options.dependencyUpdates
-            ? (options.pmCwd ? resolve(options.pmCwd) : process.cwd())
-            : undefined,
+        pendingRelease: options.pendingReleaseWindow,
+        gitCwd: options.pmCwd ? resolve(options.pmCwd) : process.cwd(),
         dependencySinceRef: options.dependencySinceRef,
         dependencyUntilRef: options.dependencyUntilRef,
         dependencyCutoff: options.dependencyCutoff,
@@ -1023,13 +1026,14 @@ Options:
                             version window it belongs to: keep it when it matches --version
                             regardless of timestamps, drop it otherwise (already shipped
                             elsewhere). --all-release-tags always honors the field.
-      --dependency-updates  List Dependabot commits (build(deps): bump ...) between the
-                            previous and current release tags in a ### Dependencies section
-                            per release; a release with no closed items but such commits
-                            still gets its heading. A pending release reads to HEAD. PR links
-                            come from --item-url-base when it is a GitHub URL. Not combinable
-                            with --group-by release or milestone. Without this flag, output
-                            is byte-identical.
+      --dependency-updates  Add Dependabot git notes to all release windows, including history.
+                            By default, an itemless pending release gets a ### Dependencies
+                            section from all git commit subjects.
+                            Pending windows with items and historical windows stay unchanged.
+                            Pending ranges read to HEAD; no commits means no default section.
+                            PR links for Dependabot subjects come from --item-url-base.
+                            Not combinable with --group-by release or milestone.
+      --no-dependency-updates  Disable all git dependency notes, including the pending default.
       --group-by <mode>     version, release, or milestone (default: version)
       --entry-from <field>  Prefer title (default) or close_reason; blank resolution falls back to title
       --section-by <mode>   Within-release grouping: category, type, status, or label (default: category)
