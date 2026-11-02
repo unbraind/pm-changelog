@@ -3,7 +3,7 @@ import type { ChangelogClaimSource } from "./types.ts";
 import { spawnSync } from "node:child_process";
 import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import { createRequire } from "node:module";
-import { dirname, resolve } from "node:path";
+import { dirname, relative, resolve, sep } from "node:path";
 import { isDeepStrictEqual } from "node:util";
 
 import { inspectCompleteListResult, resolveCompletionTimestamp } from "@unbrained/pm-cli/sdk";
@@ -151,7 +151,7 @@ interface DependencyRange {
   readonly cutoff?: string;
 }
 
-/** Read Dependabot-shaped commits, or all subjects for an itemless pending window.
+/** Read only non-merge Dependabot-shaped commit subjects.
  *
  * The range is exact whenever the tags allow it: `sinceRef..untilRef` when the
  * older tag is an ancestor of the newer one, still bounded by an explicit
@@ -165,12 +165,11 @@ interface DependencyRange {
  * start at all (the oldest release, or a changelog with no since bound) reads
  * all history up to its end, as the item changelog does for items. Git
  * failures read as no commits, so generation never breaks on a missing window. */
-function readDependencyCommits(gitCwd: string, range: DependencyRange, includeAllSubjects = false): DependencyCommit[] {
+function readDependencyCommits(gitCwd: string, range: DependencyRange): DependencyCommit[] {
   const untilRef = range.untilRef !== undefined && gitSucceeds(gitCwd, ["rev-parse", "--verify", "--quiet", `${range.untilRef}^{commit}`])
     ? range.untilRef
     : "HEAD";
-  const args = ["log", includeAllSubjects ? "--format=%h%x00%s" : "--format=%s"];
-  if (!includeAllSubjects) args.push("--no-merges");
+  const args = ["log", "--format=%s", "--no-merges"];
   if (range.sinceRef !== undefined && gitSucceeds(gitCwd, ["merge-base", "--is-ancestor", range.sinceRef, untilRef])) {
     args.push(`${range.sinceRef}..${untilRef}`);
     if (range.cutoff !== undefined) args.push(`--until=${range.cutoff}`);
@@ -188,12 +187,8 @@ function readDependencyCommits(gitCwd: string, range: DependencyRange, includeAl
   const commits: DependencyCommit[] = [];
   for (const line of result.stdout.split("\n")) {
     if (!line.trim()) continue;
-    const subject = includeAllSubjects
-      ? line.slice(line.indexOf("\0") + 1).trim() || `Commit ${line.slice(0, line.indexOf("\0"))}`
-      : line.trim();
-    const parsed = parseDependencyCommit(subject);
+    const parsed = parseDependencyCommit(line.trim());
     if (parsed) commits.push(parsed);
-    else if (includeAllSubjects) commits.push({ subject, description: subject, prNumber: undefined });
   }
   return commits;
 }
@@ -221,7 +216,21 @@ function formatDependencyBullets(
   });
 }
 
-/** Attach Dependabot commits on opt-in, or all git subjects for an itemless pending release.
+/** Whether the changelog committed at a release tag already has this version's
+ * heading. Read the immutable blob, never the current working file. The path
+ * defaults to CHANGELOG.md relative to gitCwd; Git failures mean no section.
+ * Match the resume extractor's exact `## <version>` end or ` - ` separator. */
+function hasCommittedReleaseSection(gitCwd: string, tag: string | undefined, heading: string, changelogPath = "CHANGELOG.md"): boolean {
+  if (!tag) return false;
+  const path = relative(gitCwd, resolve(gitCwd, changelogPath)).split(sep).join("/");
+  const result = spawnSync("git", ["show", `${tag}:./${path}`], { cwd: gitCwd, encoding: "utf8", stdio: ["ignore", "pipe", "ignore"] });
+  if (result.status !== 0) return false;
+  const prefix = `## ${heading.split(" - ", 1)[0]!.trim()}`;
+  return result.stdout.split(/\r?\n/).some((line) => line === prefix || line.startsWith(`${prefix} - `));
+}
+
+/** Attach Dependabot commits on opt-in, or to itemless pending releases and
+ * tagged releases whose committed changelog already contains their heading.
  *
  * With release windows (`--all-release-tags`, newest first, one section per
  * window), section `i` reads the commits between window `i + 1`'s tag and
@@ -244,14 +253,15 @@ function enrichSectionsWithDependencyCommits(
   if (windows && windows.length > 0) {
     return sections.map((section, index) => {
       const window = windows[index]!;
-      const pendingFallback = Boolean(window.releaseTag && window.until === undefined && section.items.length === 0);
-      if (!options.dependencyUpdates && !pendingFallback) return section;
+      const itemlessDefault = section.items.length === 0 && Boolean(window.releaseTag) &&
+        (window.until === undefined || hasCommittedReleaseSection(gitCwd, window.releaseTag, section.heading, options.changelogPath));
+      if (!options.dependencyUpdates && !itemlessDefault) return section;
       const commits = readDependencyCommits(gitCwd, {
         sinceRef: windows[index + 1]?.releaseTag,
         untilRef: window.releaseTag,
         sinceTimestamp: window.since,
         untilTimestamp: window.until,
-      }, pendingFallback);
+      });
       return commits.length > 0 ? { ...section, dependencyCommits: commits } : section;
     });
   }
@@ -259,8 +269,9 @@ function enrichSectionsWithDependencyCommits(
   // a git window, so no range belongs to any of them (the CLI refuses the pair).
   if ((options.groupBy === "release" || options.groupBy === "milestone") && !options.version) return sections;
 
-  const pendingFallback = Boolean(options.pendingRelease && sections[0]?.items.length === 0);
-  if (!options.dependencyUpdates && !pendingFallback) return sections;
+  const itemlessDefault = sections[0]?.items.length === 0 &&
+    (options.pendingRelease || hasCommittedReleaseSection(gitCwd, options.dependencyUntilRef, sections[0].heading, options.changelogPath));
+  if (!options.dependencyUpdates && !itemlessDefault) return sections;
 
   // Single window: the previous and current release tags when the release
   // context found them, the since/until timestamps otherwise.
@@ -270,7 +281,7 @@ function enrichSectionsWithDependencyCommits(
     sinceTimestamp: options.since,
     untilTimestamp: options.until,
     cutoff: options.dependencyCutoff,
-  }, pendingFallback);
+  });
   return commits.length > 0 ? sections.map((section) => ({ ...section, dependencyCommits: commits })) : sections;
 }
 
@@ -500,7 +511,7 @@ function selectChangelogSections(options: GenerateChangelogOptions): SelectedCha
   const items = filterItems(options);
   let sections = buildSections(items, options);
 
-  // Explicit opt-in enriches history; the default only fills itemless pending windows.
+  // The itemless default preserves sections already committed at release tags.
   if (options.dependencyUpdates !== false && options.gitCwd) {
     sections = enrichSectionsWithDependencyCommits(sections, options, options.gitCwd);
   }

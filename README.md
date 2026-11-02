@@ -203,34 +203,46 @@ Grouping by type, status, or label has no Fixed heading and produces no warning.
 leaves markdown, JSON stdout, and the drift exit code unchanged. Follow its `pm update <id>
 --close-reason "Describe the fix"` recovery and use `--entry-from close_reason` consistently.
 
-### Dependency updates and itemless pending releases
+### Dependency updates and itemless releases
 
-By default, a **pending release with no selected closed items and at least one git commit** gets
-its own version heading and a `### Dependencies` section built from that window's git subjects.
-This includes Dependabot bumps, workflow-pin commits and other subjects; an empty subject uses the
-commit hash. No tracker items are invented.
-Pending windows with items keep their existing item output. Historical windows remain byte for byte
-unchanged unless `--dependency-updates` is passed. `--no-dependency-updates` disables all git notes,
-including this default. A pending window with neither items nor commits still has no section.
+By default, an **itemless pending release with non-merge Dependabot-shaped commits** gets
+its own version heading and `### Dependencies` section. Only subjects accepted by
+`parseDependencyCommit` (`<type>(deps|deps-dev): bump …`) qualify, including Dependabot workflow-pin
+bumps. Docs, release subjects, merge commits and empty subjects do not create notes or a section.
+No tracker items are invented.
+
+After tagging, an itemless window retains these notes only if the changelog committed **at that tag**
+contains `## <version>` followed by end of line or ` - `, matching the release resume extractor.
+This applies to both all-tag and single-window generation. Tagged itemless windows without that
+heading keep their previous output byte for byte. Git failures mean no committed section.
+Windows with items keep their existing output unless `--dependency-updates` is passed.
+`--no-dependency-updates` disables all git dependency notes, including this default.
+
+The CLI reads `--output` relative to the git working directory for that tag lookup; `--stdout` uses
+`CHANGELOG.md`. The extension uses its output option (default `CHANGELOG.md`). SDK callers set
+`changelogPath`, which defaults to `CHANGELOG.md` relative to `gitCwd` and also accepts absolute paths.
+The lookup reads the immutable tag blob, never the current working file.
 
 A pending window is resolved by `--all-release-tags` with the requested untagged version, or by
 `--since-previous-tag` / `--until-release-tag` with that version. SDK callers provide `gitCwd` and
 release windows (a pending window has a `releaseTag` and no `until`), or `pendingRelease: true` for
-single-window generation. Plain tracker-only generation does not infer a pending git window.
+single-window generation. For a tagged single window, set `dependencyUntilRef` to the release tag.
+Plain tracker-only generation does not infer a pending git window.
 
-`--dependency-updates` additionally reads each historical or item-bearing window's non-merge commits
-and lists Dependabot subjects (`<type>(deps|deps-dev): bump …`). Other historical subjects stay ignored.
-Notes appear last, in markdown, structured JSON (`dependencies`) and `--summary`.
+`--dependency-updates` additionally reads every historical or item-bearing window's non-merge
+Dependabot subjects. Notes appear last in markdown, structured JSON (`dependencies`) and `--summary`.
 `pm changelog generate` and `export` accept both switches. Explicit opt-in cannot be combined with
 `--group-by release` or `milestone`, which have no git window.
 
 Ranges run from the previous tag (exclusive) to the release tag, or `HEAD` for a pending release.
 An explicit `--until` also bounds the single-window range. Orphaned tags fall back to window timestamps.
-Dependabot PR links derive from a GitHub `--item-url-base`; other subjects are escaped literal text.
+Dependabot PR links derive from a GitHub `--item-url-base`; descriptions are escaped literal text.
 
 `--stdout --limit 1` with a requested pending version returns that version's own section. If no section
 survives selection, the CLI exits non-zero with typed `MISSING_REQUESTED_RELEASE` before writing output;
-it never substitutes the previous release. `--include-empty` explicitly permits intentionally empty notes.
+it never substitutes the previous release. Unbounded full-file `--all-release-tags` generation and
+checks preserve sectionless historical releases without requiring a heading for the package version.
+`--include-empty` explicitly permits intentionally empty notes.
 
 ```bash
 npx pm-changelog --stdout --since-previous-tag --until-release-tag --release-version-from-package \

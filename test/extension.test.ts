@@ -808,7 +808,7 @@ test("generate and export fail closed for missing requested releases in real tra
   }
 });
 
-test("generate and export default itemless pending git notes and honor the opt-out", async (t) => {
+test("generate and export retain itemless Dependabot notes at the output path after tagging", async (t) => {
   const scratch = mkdtempSync(join(tmpdir(), "pm-extension-itemless-"));
   t.after(() => removeGitFixture(scratch));
   const root = join(scratch, ".agents/pm");
@@ -819,7 +819,8 @@ test("generate and export default itemless pending git notes and honor the opt-o
   git("add", ".agents");
   git("-c", "commit.gpgsign=false", "commit", "-m", "Tracker baseline");
   git("tag", "v2026.10.31");
-  git("-c", "commit.gpgsign=false", "commit", "--allow-empty", "-m", "ci: pin workflow action (#205)");
+  git("-c", "commit.gpgsign=false", "commit", "--allow-empty", "-m", "chore(deps): bump unbraind/pm-github/.github/workflows/pm-github-sync.yml from 2026.10.19 to 2026.10.28 (#205)");
+  git("-c", "commit.gpgsign=false", "commit", "--allow-empty", "-m", "docs: release documentation");
   const { commands } = await activateChangelog();
   for (const command of ["changelog generate", "changelog export"]) {
     assert.ok((await registeredFlagLongs(command)).includes("--no-dependency-updates"));
@@ -829,9 +830,37 @@ test("generate and export default itemless pending git notes and honor the opt-o
       const markdown = (commandResult(result) as { changelog: string }).changelog;
       assert.match(markdown, /## 2026\.11\.1 - 2026-11-01/);
       assert.match(markdown, /### Dependencies/);
-      assert.match(markdown, /ci: pin workflow action/);
+      assert.doesNotMatch(markdown, /docs:|Release pm-fixture/);
+      assert.match(markdown, /Bump unbraind\/pm-github\/.* from 2026\.10\.19 to 2026\.10\.28/);
       await assert.rejects(runRegisteredCommandForTest(commands, { command, options: { ...options, "no-dependency-updates": true }, pmRoot: root }),
         (error: unknown) => (error as { context?: { code?: string } }).context?.code === "MISSING_REQUESTED_RELEASE");
     }
   }
+  const output = join(scratch, "RELEASES.md");
+  writeFileSync(output, "# Changelog\n\n## 2026.11.1 - 2026-11-01\n");
+  git("add", "RELEASES.md");
+  git("-c", "commit.gpgsign=false", "commit", "-m", "Release pm-fixture v2026.11.01");
+  git("tag", "v2026.11.01");
+  for (const command of ["changelog generate", "changelog export"]) {
+    for (const range of [{ "since-previous-tag": true, "until-release-tag": true }, ...(command === "changelog generate" ? [{ "all-release-tags": true }] : [])]) {
+      const options = { output, "release-version": "2026.11.1", "date-from-version": true, mode: "replace", ...range };
+      const result = commandResult(await runRegisteredCommandForTest(commands, { command, options, pmRoot: root })) as { file: string };
+      assert.equal(result.file, output);
+      const markdown = readFileSync(output, "utf8");
+      assert.match(markdown, /Bump unbraind\/pm-github\/.* from 2026\.10\.19 to 2026\.10\.28/);
+      assert.doesNotMatch(markdown, /docs:|Release pm-fixture/);
+    }
+  }
+  git("-c", "commit.gpgsign=false", "commit", "--allow-empty", "-m", "docs: another sectionless release");
+  git("tag", "v2026.11.02");
+  const history = { output, "release-version": "2026.11.2", "all-release-tags": true, "date-from-version": true, mode: "replace" };
+  await runRegisteredCommandForTest(commands, { command: "changelog generate", options: history, pmRoot: root });
+  assert.doesNotMatch(readFileSync(output, "utf8"), /## 2026\.11\.2/);
+  const checked = commandResult(await runRegisteredCommandForTest(commands, { command: "changelog generate", options: { ...history, check: true }, pmRoot: root })) as { changed: boolean };
+  assert.equal(checked.changed, false);
+  for (const subset of [{ stdout: true }, { limit: "1" }, { "since-version": "2026.11.1" }]) {
+    await assert.rejects(runRegisteredCommandForTest(commands, { command: "changelog generate", options: { ...history, ...subset }, pmRoot: root }),
+      (error: unknown) => (error as { context?: { code?: string } }).context?.code === "MISSING_REQUESTED_RELEASE");
+  }
+
 });

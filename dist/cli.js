@@ -163,10 +163,11 @@ async function main(args = process.argv.slice(2)) {
     if (options.allReleaseTags && !options.input && !options.stdin) {
         Object.assign(generationOptions, await resolveGitReleaseHistory(generationOptions, trackerRoot));
     }
-    // --no-pending-release only suppresses the pending window --all-release-tags derives. Every other requested version,
-    // including a tagged one in historical mode, still needs its section, or replace mode would rewrite CHANGELOG.md with
-    // only its title and --limit 1 could print an older release.
-    if (!requestedReleaseSuppressed(generationOptions))
+    // Full-file history preserves sectionless releases. Extraction and limited
+    // history still require the requested version so an older release cannot
+    // stand in for it. The pending opt-out retains its existing narrow meaning.
+    if (!requestedReleaseSuppressed(generationOptions) &&
+        (!options.allReleaseTags || options.stdout || options.limit !== undefined || options.sinceVersion !== undefined))
         assertRequestedRelease(generationOptions);
     if (options.auditEvidence) {
         const receipts = options.auditReceipts === undefined ? [] : parseClaimTestReceipts(readFileSync(options.auditReceipts, "utf-8"));
@@ -821,6 +822,7 @@ function buildGenerationOptions(options, items) {
         respectItemRelease: options.respectItemRelease,
         excludeTags: options.excludeTags.length > 0 ? options.excludeTags : undefined,
         dependencyUpdates: options.dependencyUpdates,
+        changelogPath: options.stdout ? "CHANGELOG.md" : options.output,
         pendingRelease: options.pendingReleaseWindow,
         gitCwd: options.pmCwd ? resolve(options.pmCwd) : process.cwd(),
         dependencySinceRef: options.dependencySinceRef,
@@ -1027,13 +1029,16 @@ Options:
                             regardless of timestamps, drop it otherwise (already shipped
                             elsewhere). --all-release-tags always honors the field.
       --dependency-updates  Add Dependabot git notes to all release windows, including history.
-                            By default, an itemless pending release gets a ### Dependencies
-                            section from all git commit subjects.
-                            Pending windows with items and historical windows stay unchanged.
-                            Pending ranges read to HEAD; no commits means no default section.
+                            Default: itemless pending windows get only non-merge Dependabot
+                            subjects (<type>(deps|deps-dev): bump ...) as ### Dependencies.
+                            Tagged itemless windows retain notes only if the changelog at that
+                            tag contains ## <version> followed by end of line or " - ".
+                            Reads --output relative to git cwd; --stdout reads CHANGELOG.md.
+                            Git failures mean no committed section. Windows with items stay
+                            unchanged. No Dependabot commits means no default section.
                             PR links for Dependabot subjects come from --item-url-base.
                             Not combinable with --group-by release or milestone.
-      --no-dependency-updates  Disable all git dependency notes, including the pending default.
+      --no-dependency-updates  Disable all git dependency notes, including the itemless default.
       --group-by <mode>     version, release, or milestone (default: version)
       --entry-from <field>  Prefer title (default) or close_reason; blank resolution falls back to title
       --section-by <mode>   Within-release grouping: category, type, status, or label (default: category)

@@ -151,6 +151,7 @@ declare function buildGenerationOptions(options: CliOptions, items: PmItem[]): {
     respectItemRelease: boolean;
     excludeTags: string[] | undefined;
     dependencyUpdates: boolean | undefined;
+    changelogPath: string;
     pendingRelease: boolean | undefined;
     gitCwd: string;
     dependencySinceRef: string | undefined;
