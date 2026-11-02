@@ -256,6 +256,16 @@ test("CLI uses custom output from a nested git cwd; stdout always reads CHANGELO
   assert.equal(JSON.parse(stdout.stderr).error.code, "MISSING_REQUESTED_RELEASE");
 });
 
+test("CLI resolves --output from the process cwd even when --pm-cwd names another directory", (t) => {
+  const context = fixture(t);
+  mkdirSync(join(context.dir, "notes"));
+  tagWindow(context, "notes/RELEASES.md", "## 2026.11.1\n");
+  const args = [resolve("src/cli.ts"), "--input", context.input, "--pm-cwd", context.dir, "--all-release-tags", "--version", "2026.11.1", "--date-from-version", "--output", "RELEASES.md", "--limit", "1", "--mode", "replace"];
+  const rendered = spawnSync(process.execPath, args, { cwd: join(context.dir, "notes"), env: context.env, encoding: "utf8" });
+  assert.equal(rendered.status, 0, rendered.stderr);
+  assert.match(readFileSync(join(context.dir, "notes/RELEASES.md"), "utf8"), /Bump preserved/);
+});
+
 for (const state of ["pending", "tagged"]) {
   test(`full-file history check preserves a sectionless ${state} requested version`, (t) => {
     const context = fixture(t);

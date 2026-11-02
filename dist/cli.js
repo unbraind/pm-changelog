@@ -822,7 +822,8 @@ function buildGenerationOptions(options, items) {
         respectItemRelease: options.respectItemRelease,
         excludeTags: options.excludeTags.length > 0 ? options.excludeTags : undefined,
         dependencyUpdates: options.dependencyUpdates,
-        changelogPath: options.stdout ? "CHANGELOG.md" : options.output,
+        // Absolute, because the generator resolves relative paths against gitCwd (--pm-cwd), not this process cwd.
+        changelogPath: options.stdout ? "CHANGELOG.md" : resolve(options.output),
         pendingRelease: options.pendingReleaseWindow,
         gitCwd: options.pmCwd ? resolve(options.pmCwd) : process.cwd(),
         dependencySinceRef: options.dependencySinceRef,
