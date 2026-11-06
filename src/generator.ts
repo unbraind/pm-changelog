@@ -1788,7 +1788,7 @@ function pickContributor(value: unknown): string | undefined {
 function groupByCategory(items: PmItem[], context: ChangelogStatusContext): Map<Category, PmItem[]> {
   const grouped = new Map<Category, PmItem[]>();
   for (const item of items) {
-    const category = classifyItem(item, context);
+    const category = readContractChange(item) ? "Changed (SDK contract)" : classifyItem(item, context);
     const categoryItems = grouped.get(category) ?? [];
     categoryItems.push(item);
     grouped.set(category, categoryItems);
@@ -1810,7 +1810,6 @@ const REMOVED_NEEDLES = ["removed", "remove", "deleted", "delete"];
  * names and would misfile a defect in `pm update` as a "Changed" entry.
  */
 function classifyItem(item: PmItem, context: ChangelogStatusContext): Category {
-  if (readContractChange(item)) return "Changed (SDK contract)";
   if (needsNeutralClosure(item, context)) return "Closed";
   // Strip CLI-flag-like tokens from titles before scanning. Without this, an
   // item titled "pm <cmd> --add fails..." gets classified as "Added" because

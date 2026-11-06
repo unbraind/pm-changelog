@@ -107,6 +107,10 @@ test("complete contract evidence passes audit while ordinary release and status 
     assert.equal(createChangelog({ ...options, items: [excluded] }).itemCount, 0);
   }
   assert.equal(buildChangelogDocument({ ...options, items: [{ ...item, breaking: true }], suggestSemver: true }).suggested_semver!.bump, "major");
+  const unsupported: PmItem = { ...item, type: "Task", close_reason: "Delivered behavior", tests: [] };
+  assert.ok(auditChangelogClaims({ items: [unsupported] }).claims[0].gaps.includes("repair"));
+  const feature = { ...item, type: "Feature", title: "New API" };
+  assert.equal(buildChangelogDocument({ items: [feature], suggestSemver: true }).suggested_semver!.bump, "minor");
 });
 
 test("actual extension authors declarations and host audit finds SDK-created missing migrations", async (t) => {

@@ -486,7 +486,8 @@ otherwise classified as Fixed or Security:
 
 This dedicated group also applies with `--section-by`, `--conventional` and
 `--breaking-changes`; declared items are not repeated in the Breaking Changes
-list. Breaking detection still contributes to `--suggest-semver`. The declaration
+list. Existing evidence checks and semver classification still apply independently
+of this presentation heading. The declaration
 uses the item title even with `--entry-from close_reason`. Existing status,
 non-change and release filters still apply. Undeclared items retain their existing
 rendering. Tracker milestones freeze declarations with the rendered item.

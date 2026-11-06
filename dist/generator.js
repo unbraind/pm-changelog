@@ -1582,7 +1582,7 @@ function pickContributor(value) {
 function groupByCategory(items, context) {
     const grouped = new Map();
     for (const item of items) {
-        const category = classifyItem(item, context);
+        const category = readContractChange(item) ? "Changed (SDK contract)" : classifyItem(item, context);
         const categoryItems = grouped.get(category) ?? [];
         categoryItems.push(item);
         grouped.set(category, categoryItems);
@@ -1602,8 +1602,6 @@ const REMOVED_NEEDLES = ["removed", "remove", "deleted", "delete"];
  * names and would misfile a defect in `pm update` as a "Changed" entry.
  */
 function classifyItem(item, context) {
-    if (readContractChange(item))
-        return "Changed (SDK contract)";
     if (needsNeutralClosure(item, context))
         return "Closed";
     // Strip CLI-flag-like tokens from titles before scanning. Without this, an
