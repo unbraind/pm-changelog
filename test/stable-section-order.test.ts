@@ -178,3 +178,30 @@ test("contributor handles have lexical order and deterministic case aliases", ()
     }
   }
 });
+
+test("release-window buckets sort pinned and timestamp-placed SDK items together", async (t) => {
+  const { client, options } = await tracker(t);
+  t.mock.timers.tick(3 * 24 * 60 * 60 * 1000);
+  await client.update("stable-old", { release: "1.0.0" });
+  await client.comments("stable-new", { add: "Metadata recorded after the release window" });
+  /** Declared, verified and timestamp placement all own the same historical window. */
+  const windowOptions = (): GenerateChangelogOptions => ({ ...options(),
+    releaseWindows: [
+      { heading: "Unreleased", since: "2026-11-02", sinceExclusive: true },
+      { heading: "1.0.0", releaseTag: "v1.0.0", since: "2026-10-31", until: "2026-11-02" },
+    ],
+    releaseMembership: new Map([["stable-new", "1.0.0"]]),
+    breakingChanges: true,
+  });
+  const document = buildChangelogDocument(windowOptions());
+  assert.equal(document.releases.length, 1, "placement remains in the historical window");
+  assert.equal(document.releases[0].heading, "1.0.0");
+  assert.deepEqual(document.releases[0].sections[0].items.map((item) => item.id), ["stable-done", "stable-new", "stable-old"]);
+  assert.deepEqual(createChangelogSummary(windowOptions()).map((item) => item.id), ["stable-done", "stable-new", "stable-old"]);
+  const markdown = createChangelog(windowOptions()).markdown;
+  assert.match(markdown, /Maintain gamma \(stable-done\)\n- Maintain beta \(stable-new\)\n- Maintain alpha \(stable-old\)/);
+  t.mock.timers.tick(1000);
+  await client.comments("stable-old", { add: "Further metadata on the declared release item" });
+  assert.deepEqual(buildChangelogDocument(windowOptions()), document);
+  assert.equal(createChangelog(windowOptions()).markdown, markdown);
+});

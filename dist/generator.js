@@ -1078,6 +1078,9 @@ function buildSections(items, options) {
  * the release its timestamps place it in, on every ordinary `--all-release-tags`
  * run, while the attribution provenance still classified the item as placed by
  * timestamp (Greptile, PR #174).
+ *
+ * Placement priority does not imply presentation priority: sort each completed
+ * bucket so declared, verified and timestamp-placed items share one entry order.
  */
 function assignItemsToReleaseWindows(items, windows, suppressedPendingRelease, releaseMembership) {
     const buckets = new Map();
@@ -1128,7 +1131,7 @@ function assignItemsToReleaseWindows(items, windows, suppressedPendingRelease, r
     }
     return windows.map((window) => ({
         heading: window.heading,
-        items: buckets.get(window.heading),
+        items: buckets.get(window.heading).sort(compareItems),
     }));
 }
 /** Normalized release identity of a suppressed pending release, or `""` when

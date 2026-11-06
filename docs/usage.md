@@ -191,7 +191,9 @@ timestamp follow, ordered by `created_at` newest first, then ID ascending;
 missing or invalid creation dates sort last. This includes legacy closed items
 without completion fields. Comments, linked files, tests and claims do not
 change this order. Markdown, release notes, `--check`, JSON and summaries share
-the same ordering. Release-window placement still uses the timestamp rules
+the same ordering, including entries placed by declared release, verified
+membership or timestamps within the same release window. Release-window
+placement still uses the timestamp rules
 above, so a metadata write can still change placement when a window relies on
 the legacy `updated_at` fallback.
 

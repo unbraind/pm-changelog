@@ -2,6 +2,13 @@
 
 > Compatibility: explicit tag options (--all-release-tags, --since-previous-tag, --until-release-tag) now require an accessible Git repository and fail with MissingTagHistoryError in source archives and container contexts without Git history. Use tracker-only generation or --milestones there.
 
+## 2026.11.6 - 2026-11-06
+
+### Dependencies
+
+- Bump the pm-toolchain group across 1 directory with 2 updates ([#325](https://github.com/unbraind/pm-changelog/pull/325))
+- Bump marked ([#326](https://github.com/unbraind/pm-changelog/pull/326))
+
 ## 2026.11.5 - 2026-11-05
 
 ### Dependencies
@@ -199,11 +206,11 @@
 
 ### Fixed
 
-- The installed pm resolver's memo makes three untested failures appear and disappear from exact coverage ([pmc-kd73](https://github.com/unbraind/pm-changelog/blob/main/.agents/pm/issues/pmc-kd73.toon))
-- The empty-windows fallback re-fabricates a dated placeholder heading on the library path ([pmc-zgnm](https://github.com/unbraind/pm-changelog/blob/main/.agents/pm/issues/pmc-zgnm.toon))
 - Suppressed pending release can relocate or drop an item (Greptile issue 2, PR \#174) ([pmc-hox8](https://github.com/unbraind/pm-changelog/blob/main/.agents/pm/issues/pmc-hox8.toon))
 - Pending release windows must not claim a never-released package version ([pmc-1vma](https://github.com/unbraind/pm-changelog/blob/main/.agents/pm/issues/pmc-1vma.toon))
 - Extension surface has no --no-pending-release equivalent (Greptile issue 1, PR \#174) ([pmc-zj2w](https://github.com/unbraind/pm-changelog/blob/main/.agents/pm/issues/pmc-zj2w.toon))
+- The installed pm resolver's memo makes three untested failures appear and disappear from exact coverage ([pmc-kd73](https://github.com/unbraind/pm-changelog/blob/main/.agents/pm/issues/pmc-kd73.toon))
+- The empty-windows fallback re-fabricates a dated placeholder heading on the library path ([pmc-zgnm](https://github.com/unbraind/pm-changelog/blob/main/.agents/pm/issues/pmc-zgnm.toon))
 
 ## 2026.9.1 - 2026-09-01
 
@@ -277,14 +284,14 @@
 
 ### Fixed
 
-- Node 22 exact branch coverage is nondeterministic across identical CI reruns ([pmc-v18w](https://github.com/unbraind/pm-changelog/blob/main/.agents/pm/issues/pmc-v18w.toon))
-- Repository-local pm 2026.8.6 prepare removes the 2026.8.7 extension merge fence ([pmc-rdc3](https://github.com/unbraind/pm-changelog/blob/main/.agents/pm/issues/pmc-rdc3.toon))
 - Propagate the docstring gate entry guard fix ([pmc-g5f7](https://github.com/unbraind/pm-changelog/blob/main/.agents/pm/issues/pmc-g5f7.toon))
 - changelog:check verified in prepend mode against a replace-mode CHANGELOG, making the gate unsatisfiable ([pmc-s2bk](https://github.com/unbraind/pm-changelog/blob/main/.agents/pm/issues/pmc-s2bk.toon))
 - The release merge-wait read branch protection which the workflow token can never read ([pmc-o58h](https://github.com/unbraind/pm-changelog/blob/main/.agents/pm/issues/pmc-o58h.toon))
 - Retire the vendored docstring gate for the canonical pm-ops analyzer ([pmc-j0dx](https://github.com/unbraind/pm-changelog/blob/main/.agents/pm/issues/pmc-j0dx.toon))
 - Self-referential release-context test freezes the package version the release bump mutates ([pmc-iygx](https://github.com/unbraind/pm-changelog/blob/main/.agents/pm/issues/pmc-iygx.toon))
+- Node 22 exact branch coverage is nondeterministic across identical CI reruns ([pmc-v18w](https://github.com/unbraind/pm-changelog/blob/main/.agents/pm/issues/pmc-v18w.toon))
 - Node-CLI acceptance test assumes pmc-or-pm item prefixes and leaks the invoking PM tracker ([pmc-femy](https://github.com/unbraind/pm-changelog/blob/main/.agents/pm/issues/pmc-femy.toon))
+- Repository-local pm 2026.8.6 prepare removes the 2026.8.7 extension merge fence ([pmc-rdc3](https://github.com/unbraind/pm-changelog/blob/main/.agents/pm/issues/pmc-rdc3.toon))
 
 ### Other
 
@@ -322,8 +329,8 @@
 
 ### Added
 
-- Enforce a real coverage gate by running tests against TypeScript sources ([pmc-6jr4](https://github.com/unbraind/pm-changelog/blob/main/.agents/pm/features/pmc-6jr4.toon))
 - Adopt authoritative completion-timestamp contract from pm-cli SDK ([pmc-366b](https://github.com/unbraind/pm-changelog/blob/main/.agents/pm/features/pmc-366b.toon))
+- Enforce a real coverage gate by running tests against TypeScript sources ([pmc-6jr4](https://github.com/unbraind/pm-changelog/blob/main/.agents/pm/features/pmc-6jr4.toon))
 
 ## 2026.7.29 - 2026-07-28
 
