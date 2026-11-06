@@ -2592,7 +2592,7 @@ function getStringField(item: PmItem, field: "release" | "milestone"): string | 
   return undefined;
 }
 
-/** Compare presentation keys by UTF-16 code units, independent of host locale. */
+/** Compare keys for entries without completion fields by locale-independent code units. */
 function compareItemText(left: string, right: string): number {
   return left < right ? -1 : left > right ? 1 : 0;
 }
@@ -2601,8 +2601,9 @@ function compareItemText(left: string, right: string): number {
  * title/id tie breakers. Entries without completion timestamps follow by
  * creation time (newest first), then id. Missing or invalid creation dates
  * sort last. Invalid resolved completions follow valid completions and precede
- * entries without completion fields, retaining title/id ties. Text ties use
- * code units. Metadata writes must never affect this presentation order;
+ * entries without completion fields, retaining title/id ties. Only entries
+ * without completion fields use code-unit text ties; completed entries retain
+ * their existing locale comparisons. Metadata writes must never affect this order;
  * release-window placement continues to use {@link itemTimestamp}. */
 function compareItems(a: PmItem, b: PmItem): number {
   const aCompletion = resolveCompletionTimestamp({ completed_at: a.completed_at, closed_at: a.closed_at });
@@ -2616,7 +2617,7 @@ function compareItems(a: PmItem, b: PmItem): number {
     return bTime - aTime;
   }
   if (!aCompletion.resolved) return compareItemText(a.id ?? "", b.id ?? "") || compareItemText(a.title, b.title);
-  return compareItemText(a.title, b.title) || compareItemText(a.id ?? "", b.id ?? "");
+  return a.title.localeCompare(b.title) || (a.id ?? "").localeCompare(b.id ?? "");
 }
 
 /** Provenance of the timestamp used to place an item in a release window.

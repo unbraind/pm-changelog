@@ -190,8 +190,9 @@ newest completion first (ties use title, then ID). Entries without a completion
 timestamp follow, ordered by `created_at` newest first, then ID ascending;
 missing or invalid creation dates sort last. This includes legacy closed items
 without completion fields. Comments, linked files, tests and claims do not
-change this order. All ID/title ties compare UTF-16 code units, independent of
-the machine's locale. A nonempty but invalid completion timestamp retains the
+change this order. Entries without completion fields compare ID/title ties by
+UTF-16 code units, independent of the machine's locale. Completed entries retain
+their existing title/ID tie comparisons. A nonempty but invalid completion timestamp retains the
 SDK's completion precedence (`completed_at` before `closed_at`): it sorts after
 valid completions and before entries without completion fields, by title then ID,
 when declared or verified release membership includes it. Timestamp placement

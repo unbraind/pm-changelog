@@ -135,33 +135,70 @@ test("completion fields and stable creation/id keys define a total order across 
   }
 });
 
-test("ID and title ties use code-unit order across host locales", () => {
-  const items: PmItem[] = [
-    { id: "done-underscore", title: "Maintain _", completed_at: "2026-11-02" },
-    { id: "done-dash", title: "Maintain -", completed_at: "2026-11-02" },
-    { id: "done-lower", title: "Maintain a", completed_at: "2026-11-02" },
-    { id: "done-upper", title: "Maintain A", completed_at: "2026-11-02" },
-    { id: "open_", title: "Maintain same", created_at: "2026-11-01" },
-    { id: "open-", title: "Maintain same", created_at: "2026-11-01" },
-    { title: "Maintain ä" },
-    { title: "Maintain z" },
-  ];
-  const expected = ["done-dash", "done-upper", "done-underscore", "done-lower", "open-", "open_", undefined, undefined];
+/** Read all presentation projections under a controlled host locale. */
+function localeProjection(items: PmItem[], locale: string): string {
   const script = `import { createChangelog, buildChangelogDocument, createChangelogSummary } from "./src/index.ts";
     const options = { items: JSON.parse(process.argv[1]), includeStatuses: [], version: "1.0.0", date: "2026-11-01" };
     console.log(JSON.stringify({ markdown: createChangelog(options).markdown,
       document: buildChangelogDocument(options), summary: createChangelogSummary(options) }));`;
+  const result = spawnSync(process.execPath, ["--input-type=module", "-e", script, JSON.stringify(items)],
+    { cwd: resolve("."), encoding: "utf8", env: { ...process.env, LANG: locale, LC_ALL: locale } });
+  assert.equal(result.status, 0, result.stderr);
+  return result.stdout;
+}
+
+test("open entries' ID and title ties use code-unit order across host locales", () => {
+  const items: PmItem[] = [
+    { id: "open_a", title: "Maintain same" },
+    { id: "open_A", title: "Maintain same" },
+    { id: "open-a", title: "Maintain same" },
+    { id: "open-A", title: "Maintain same" },
+    { title: "Maintain _" },
+    { title: "Maintain -" },
+    { title: "Maintain a" },
+    { title: "Maintain A" },
+    { title: "Maintain ä" },
+    { title: "Maintain z" },
+  ].map((item) => ({ ...item, created_at: "2026-11-01" }));
+  const expected = [undefined, undefined, undefined, undefined, undefined, undefined, "open-A", "open-a", "open_A", "open_a"];
   let reference: string | undefined;
   for (const locale of ["en_US.UTF-8", "sv_SE.UTF-8"]) {
     for (const ordering of [items, items.slice().reverse()]) {
-      const result = spawnSync(process.execPath, ["--input-type=module", "-e", script, JSON.stringify(ordering)],
-        { cwd: resolve("."), encoding: "utf8", env: { ...process.env, LANG: locale, LC_ALL: locale } });
-      assert.equal(result.status, 0, result.stderr);
-      const output = JSON.parse(result.stdout);
+      const bytes = localeProjection(ordering, locale);
+      const output = JSON.parse(bytes);
       assert.deepEqual(output.summary.map((item: PmItem) => item.id), expected);
-      assert.deepEqual(output.summary.slice(-2).map((item: PmItem) => item.title), ["Maintain z", "Maintain ä"]);
-      reference ??= result.stdout;
-      assert.equal(result.stdout, reference, "Markdown, JSON and summary bytes across locales and permutations");
+      assert.deepEqual(output.summary.slice(0, 6).map((item: PmItem) => item.title),
+        ["Maintain -", "Maintain A", "Maintain _", "Maintain a", "Maintain z", "Maintain ä"]);
+      reference ??= bytes;
+      assert.equal(bytes, reference, "Markdown, JSON and summary bytes across locales and permutations");
+    }
+  }
+});
+
+test("completed entries retain their existing title/id ties in each locale", () => {
+  const items: PmItem[] = [
+    { id: "closed-underscore", title: "Maintain _" },
+    { id: "closed-dash", title: "Maintain -" },
+    { id: "closed-lower", title: "Maintain a" },
+    { id: "closed-upper", title: "Maintain A" },
+    { id: "closed-umlaut", title: "Maintain ä" },
+    { id: "closed-zed", title: "Maintain z" },
+    { id: "closed_sameA", title: "Maintain same" },
+    { id: "closed_samea", title: "Maintain same" },
+  ].map((item) => ({ ...item, completed_at: "2026-11-02" }));
+  const goldens = [
+    ["en_US.UTF-8", ["closed-underscore", "closed-dash", "closed-lower", "closed-upper", "closed-umlaut", "closed_samea", "closed_sameA", "closed-zed"]],
+    ["sv_SE.UTF-8", ["closed-underscore", "closed-dash", "closed-lower", "closed-upper", "closed_samea", "closed_sameA", "closed-zed", "closed-umlaut"]],
+  ] as const;
+  for (const [locale, expected] of goldens) {
+    let reference: string | undefined;
+    for (const ordering of [items, items.slice().reverse()]) {
+      const bytes = localeProjection(ordering, locale);
+      const output = JSON.parse(bytes);
+      assert.deepEqual(output.summary.map((item: PmItem) => item.id), [...expected]);
+      assert.deepEqual(output.document.releases[0].sections[0].items.map((item: PmItem) => item.id), [...expected]);
+      reference ??= bytes;
+      assert.equal(bytes, reference, "completed-entry projections preserve the baseline locale golden");
     }
   }
 });
