@@ -2,6 +2,13 @@
 
 > Compatibility: explicit tag options (--all-release-tags, --since-previous-tag, --until-release-tag) now require an accessible Git repository and fail with MissingTagHistoryError in source archives and container contexts without Git history. Use tracker-only generation or --milestones there.
 
+## 2026.11.6 - 2026-11-06
+
+### Dependencies
+
+- Bump the pm-toolchain group across 1 directory with 2 updates ([#325](https://github.com/unbraind/pm-changelog/pull/325))
+- Bump marked ([#326](https://github.com/unbraind/pm-changelog/pull/326))
+
 ## 2026.11.5 - 2026-11-05
 
 ### Dependencies
