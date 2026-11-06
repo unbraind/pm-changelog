@@ -7,10 +7,10 @@ status: in_progress
 priority: 2
 tags[1]: "gh:unbraind/pm-changelog#323"
 created_at: "2026-10-23T17:47:59.517Z"
-updated_at: "2026-11-06T14:50:43.046Z"
+updated_at: "2026-11-06T19:46:37.596Z"
 author: codex-agent
 acceptance_criteria: Use a total item order with an explicit undated policy and deterministic tie breakers; ordinary changelog projections are invariant across all six permutations of the three-item repro; preserve existing release selection and cover JSON and markdown behavior.
-comments[23]{created_at,author,text}:
+comments[30]{created_at,author,text}:
   "2026-10-23T17:51:15.695Z",codex-agent,"Confirmed with the exact three-item synthetic case in all six permutations: ordinary buildChangelogDocument yields both Task,Feature and Feature,Task section orders. This remains outside the audience-contract canonicalization fix; item stays open for separate ordinary-generator policy and regression work."
   "2026-11-06T05:50:55.180Z",codex-sol,"Implementing #323 in the existing ordering item: retain completion-timestamp order and release-window placement; place entries without completion timestamps after completed entries, ordered by created_at newest first then id ascending. Check shared Markdown, release-note, check-diff and JSON ordering using real non-git SDK trackers, behavioral reverts and a read-only fleet comparison."
   "2026-11-06T05:56:32.590Z",codex-sol,"Focused SDK/CLI regressions pass 5/5. Behavioral revert in a disposable package copy changes only compareItems, rebuilds dist, and fails all 5 tests: comment/file/claim each changes CHANGELOG.md bytes; lifecycle promotion and stable-key ordering assertions also fail. The fixed implementation remains intact. Documented completion-first ordering and unchanged updated_at fallback for release-window placement in docs/usage.md. Shared projections use the same sorted items; diagnostic attribution timestamps intentionally retain placement semantics."
@@ -34,22 +34,19 @@ comments[23]{created_at,author,text}:
   "2026-11-06T13:14:39.754Z",codex-sol,"The full Bun gate has reported eight five-second worker-guard failures in the unchanged generator-redos tests; the complete npm gate passed all eleven of those cases. Current failures cover release extraction/replacement/insertion, whitespace title insertion, Dependabot subject parsing/rejection and GitHub URL extraction/rejection. No operation CPU budget, wall watchdog, assertion or expected output will be relaxed. Waiting for full diagnostics, then replaying the unchanged failing group separately before deciding whether a full retry or a separate infrastructure follow-up is needed."
   "2026-11-06T13:56:50.089Z",codex-sol,"Review fix validation is complete: focused suites 318/318, linked ordering tests 8/8, full npm release:check 1010/1010 with all quality checks and 100% measured lines/branches/functions across 28 source files. Full Bun tests passed 1002/1010; eight unchanged ReDoS workers failed the 5000ms readiness deadline before parser execution. Their unchanged isolated group passes 11/11; evidence was added to existing open follow-up pmc-redos-startup-231. No startup, parser CPU, operation watchdog, coverage threshold or expected output was relaxed. Published merge head e25341f has green Node 22/26 CI; the unpublished bucket-order fix still requires its own CodeRabbit round and CI after publication. Publishing awaits approval for the identity-only replacement of the inherited merge, required by the task-specific author check. Releasing the own claim for handoff; the item remains in_progress for orchestrator verification."
   "2026-11-06T14:50:41.053Z",codex-sol,"Rechecked the current task authorization: it explicitly requires publishing this dedicated PR branch with SteveBot-only identity throughout origin/main..HEAD. The extra confirmation question was unnecessary. Applied the prepared identity-only correction locally under that authorization; it preserves every file and the inherited merge parents, message and dates. Publishing will use an explicit force-with-lease on e25341f, then the queued CodeRabbit loop and fresh final-head CI. No repository data or PM history was removed or rewritten."
+  "2026-11-06T19:11:22.658Z",codex-sol,"Resumed on the refreshed PR branch. Round 2 reported three threads: add invalid-completion permutation coverage and document its existing resolved-but-invalid placement; make ID/title tie breakers independent of host locale; build source before the tracked CLI regression command. Preserve release placement and completion precedence, add a locale regression and behavioral revert proof, then push the code and tracker receipts together before replying in one batch."
+  "2026-11-06T19:16:12.062Z",codex-sol,"Behavioral proofs in a disposable package: reverting only code-unit comparison fails the locale regression (0/1 pass); reverting compareItems to main fails the expanded invalid-completion permutation regression (0/1 pass). Invalid completions require explicit release membership to be selected; timestamp placement remains unchanged and is asserted separately. The tracked CLI test identity was replaced atomically with a build-first command, retaining the 300-second timeout and append-only history."
+  "2026-11-06T19:19:55.933Z",codex-sol,"The newly inherited main merge fails the task-required bot-only author check again. Before publishing, apply the same tree-identical merge identity correction under the existing task authorization: preserve its files, parents, message and timestamps; publish the combined fix with an exact lease on the fetched PR head. Existing tracker history remains append-only and unchanged except new pinned-CLI receipts."
+  "2026-11-06T19:20:56.250Z",codex-sol,"The rebuild-first control is slower on the current shared runner: the comment case passed in 76 seconds and file case in 150 seconds, before the remaining SDK cases. Increased only the linked command outer timeout to 900 seconds to cover two builds plus nine real-tracker tests. No assertion, parser CPU budget, ReDoS startup deadline, operation watchdog or coverage threshold changes."
+  "2026-11-06T19:32:35.421Z",codex-sol,"Round-3 passing controls: the build-first command replaces a deliberately broken dist CLI and passes 9/9 in a disposable package; the exact linked command also passes 9/9 through pm test (only-index 3, timeout 900). Docstring and typecheck gates pass. Stopped an additional local full-gate rerun with no reported assertion failures; the previous complete local gate results remain recorded, and fresh final-head CI will execute both complete release gates as required by the task. No test result is claimed for the stopped run."
+  "2026-11-06T19:40:32.454Z",codex-sol,"The tracked-command behavioral revert is now explicit: seed a broken dist CLI in the disposable package, run the SDK comment regression directly without building and observe 0/1 pass; then rebuild source and test types, rerun the identical selected regression and observe 1/1 pass. The complete rebuild-first control and exact linked PM command both pass 9/9. No artifact mutation occurred in the package worktree."
+  "2026-11-06T19:46:35.286Z",codex-sol,"Round-3 fleet refresh complete with the new build and immutable tracker/Git snapshots: 25 successful own-flag consumers preserve entry multisets in every release/category; the same 11 committed changelogs reorder. The 12 existing MISSING_REQUESTED_RELEASE refusals and all supplemental --include-empty section counts match prior receipts (11 historical committed reorders). Added committed snapshots of pm-case, pm-reduce and pm-screen, all unchanged. Targeted evidence is 9 total tests: six SDK tracker tests plus three projection/permutation tests. Code-unit and completion comparator reverts each fail 0/1; stale-artifact command revert fails 0/1 then restored build-first flow passes 1/1. The full build-first controls and linked command each pass 9/9. Publishing these fixes and receipts together, then batch replies, queue round 3 and final-head CI; item remains in_progress."
 files[4]{path,scope}:
   src/generator.ts,project
   src/types.ts,project
   test/enhancements.test.ts,project
   test/stable-section-order.test.ts,project
 tests[3]:
-  - command: node --test --test-concurrency=2 test/stable-section-order.test.ts
-    scope: project
-    timeout_seconds: 300
-    provenance:
-      author: codex-sol
-      created_at: "2026-11-06T05:55:47.666Z"
-      source_kind: local_mutation
-      source_ref: stable-section-order-for-open-items
-    updated_by: codex-sol
-    updated_at: "2026-11-06T11:09:24.282Z"
   - command: "npm run release:check"
     scope: project
     timeout_seconds: 2400
@@ -66,6 +63,16 @@ tests[3]:
       created_at: "2026-11-06T08:05:11.716Z"
       source_kind: local_mutation
       source_ref: stable-section-order-for-open-items
+  - command: "npm run build && npm run build:test && node --test --test-concurrency=2 test/stable-section-order.test.ts"
+    scope: project
+    timeout_seconds: 900
+    provenance:
+      author: codex-sol
+      created_at: "2026-11-06T19:13:47.297Z"
+      source_kind: local_mutation
+      source_ref: stable-section-order-for-open-items
+    updated_by: codex-sol
+    updated_at: "2026-11-06T19:20:37.491Z"
 docs[1]{path,scope}:
   docs/usage.md,project
 body: ""

@@ -82,20 +82,31 @@ test("completion fields and stable creation/id keys define a total order across 
   const items: PmItem[] = [
     { id: "done-new", title: "Maintain A", completed_at: "2026-11-02", closed_at: "2026-10-01" },
     { id: "done-old", title: "Maintain B", closed_at: "2026-11-01", updated_at: "2027-01-01" },
+    { id: "invalid-b", title: "Maintain invalid same", completed_at: "invalid", closed_at: "2029-01-01", release: "1.0.0" },
+    { id: "invalid-a", title: "Maintain invalid same", completed_at: "also invalid", release: "1.0.0" },
+    { id: "invalid-z", title: "Maintain invalid earlier", closed_at: "invalid", release: "1.0.0" },
     { id: "open-a", title: "Maintain Z", created_at: "2026-11-04", updated_at: "2027-01-01" },
     { id: "open-b", title: "Maintain A", created_at: "2026-11-04" },
     { id: "legacy", title: "Maintain legacy", status: "closed", created_at: "2026-11-03" },
     { id: "undated", title: "Maintain undated", created_at: "invalid", updated_at: "2026-11-05" },
     { title: "Maintain no id" },
   ];
-  const expected = ["done-new", "done-old", "open-a", "open-b", "legacy", undefined, "undated"];
+  const expected = ["done-new", "done-old", "invalid-z", "invalid-a", "invalid-b", "open-a", "open-b", "legacy", undefined, "undated"];
+  const referenceOptions = { items, includeStatuses: [], sectionBy: "type" as const,
+    releaseWindows: [{ heading: "1.0.0", releaseTag: "v1.0.0" }] };
+  const referenceMarkdown = createChangelog(referenceOptions).markdown;
+  const referenceDocument = buildChangelogDocument(referenceOptions);
   for (let offset = 0; offset < items.length; offset++) {
     for (const permutation of [items.slice(offset).concat(items.slice(0, offset)), items.slice(offset).concat(items.slice(0, offset)).reverse()]) {
-      const options = { items: permutation, includeStatuses: [], sectionBy: "type" as const };
+      const options = { ...referenceOptions, items: permutation };
       assert.deepEqual(createChangelogSummary(options).map((item) => item.id), expected);
       assert.deepEqual(buildChangelogDocument(options).releases[0].sections[0].items.map((item) => item.id), expected);
+      assert.equal(createChangelog(options).markdown, referenceMarkdown);
+      assert.deepEqual(buildChangelogDocument(options), referenceDocument);
     }
   }
+  assert.deepEqual(createChangelogSummary({ items, includeStatuses: [] }).map((item) => item.id),
+    expected.filter((id) => !id?.startsWith("invalid-")), "invalid completion dates remain excluded from timestamp placement");
   const mixed: PmItem[] = [
     { id: "a", title: "A", type: "Task", status: "closed", updated_at: "2026-10-19" },
     { id: "b", title: "B", type: "Feature", status: "closed" },
@@ -121,6 +132,37 @@ test("completion fields and stable creation/id keys define a total order across 
     assert.deepEqual(entries.map((item) => item.title),
       ["Maintain earlier title", "Maintain same", "Maintain same", "Maintain same", "Maintain no id A", "Maintain no id B"]);
     assert.deepEqual(entries.map((item) => item.id), ["done-z", undefined, "done-a", "done-b", undefined, undefined]);
+  }
+});
+
+test("ID and title ties use code-unit order across host locales", () => {
+  const items: PmItem[] = [
+    { id: "done-underscore", title: "Maintain _", completed_at: "2026-11-02" },
+    { id: "done-dash", title: "Maintain -", completed_at: "2026-11-02" },
+    { id: "done-lower", title: "Maintain a", completed_at: "2026-11-02" },
+    { id: "done-upper", title: "Maintain A", completed_at: "2026-11-02" },
+    { id: "open_", title: "Maintain same", created_at: "2026-11-01" },
+    { id: "open-", title: "Maintain same", created_at: "2026-11-01" },
+    { title: "Maintain ä" },
+    { title: "Maintain z" },
+  ];
+  const expected = ["done-dash", "done-upper", "done-underscore", "done-lower", "open-", "open_", undefined, undefined];
+  const script = `import { createChangelog, buildChangelogDocument, createChangelogSummary } from "./src/index.ts";
+    const options = { items: JSON.parse(process.argv[1]), includeStatuses: [], version: "1.0.0", date: "2026-11-01" };
+    console.log(JSON.stringify({ markdown: createChangelog(options).markdown,
+      document: buildChangelogDocument(options), summary: createChangelogSummary(options) }));`;
+  let reference: string | undefined;
+  for (const locale of ["en_US.UTF-8", "sv_SE.UTF-8"]) {
+    for (const ordering of [items, items.slice().reverse()]) {
+      const result = spawnSync(process.execPath, ["--input-type=module", "-e", script, JSON.stringify(ordering)],
+        { cwd: resolve("."), encoding: "utf8", env: { ...process.env, LANG: locale, LC_ALL: locale } });
+      assert.equal(result.status, 0, result.stderr);
+      const output = JSON.parse(result.stdout);
+      assert.deepEqual(output.summary.map((item: PmItem) => item.id), expected);
+      assert.deepEqual(output.summary.slice(-2).map((item: PmItem) => item.title), ["Maintain z", "Maintain ä"]);
+      reference ??= result.stdout;
+      assert.equal(result.stdout, reference, "Markdown, JSON and summary bytes across locales and permutations");
+    }
   }
 });
 
