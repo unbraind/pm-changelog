@@ -351,7 +351,7 @@ export function createChangelog(
       // up front. Items still appear in their normal category/field group below,
       // so this is purely additive and absent by default.
       if (options.breakingChanges) {
-        const breaking = section.items.filter((item) => isBreakingItem(item, options));
+        const breaking = collectBreakingItems(section.items, options);
         if (breaking.length > 0) {
           lines.push(`### ${maybeEmoji("Breaking Changes", options)}`, "");
           for (const item of breaking) {
@@ -571,7 +571,7 @@ export function buildChangelogDocument(options: GenerateChangelogOptions): Chang
       sections: sectionGroups,
       contributors: options.contributors ? collectContributors(section.items) : undefined,
       breaking_changes: options.breakingChanges
-        ? section.items.filter((item) => isBreakingItem(item, options)).map((item) => toDocumentItem(item, options))
+        ? collectBreakingItems(section.items, options).map((item) => toDocumentItem(item, options))
         : undefined,
       dependencies: section.dependencyCommits?.map((commit) => ({
         subject: commit.subject,
@@ -1744,22 +1744,28 @@ function titleCase(value: string): string {
 }
 
 /**
- * OPT-IN (`--contributors`): unique contributor handles for a release, ordered
- * by first appearance. Prefers `assignee`, falls back to `author`; ignores the
- * `unknown` placeholder pm writes when no author is recorded.
+ * OPT-IN (`--contributors`): unique contributor handles in lowercase-key
+ * lexical order, independent of item order. Case-only aliases retain the
+ * lexically smallest original spelling. Prefers `assignee`, falls back to
+ * `author`; ignores the `unknown` placeholder pm writes without an author.
  */
 function collectContributors(items: PmItem[]): string[] {
-  const seen = new Set<string>();
-  const ordered: string[] = [];
+  const names = new Map<string, string>();
   for (const item of items) {
     const candidate = pickContributor(item.assignee) ?? pickContributor(item.author);
     if (!candidate) continue;
     const key = candidate.toLowerCase();
-    if (seen.has(key)) continue;
-    seen.add(key);
-    ordered.push(candidate);
+    const previous = names.get(key);
+    if (previous === undefined || candidate < previous) names.set(key, candidate);
   }
-  return ordered;
+  return [...names.keys()].sort().map((key) => names.get(key)!);
+}
+
+/** Select breaking entries with their own explicit completion-first,
+ * creation/id order. Markdown and JSON share this projection instead of
+ * relying on the caller's item encounter order. */
+function collectBreakingItems(items: PmItem[], context: ChangelogStatusContext): PmItem[] {
+  return items.filter((item) => isBreakingItem(item, context)).sort(compareItems);
 }
 
 /** Accept an item's author field as a creditable contributor, or reject it.

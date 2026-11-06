@@ -195,6 +195,14 @@ the same ordering. Release-window placement still uses the timestamp rules
 above, so a metadata write can still change placement when a window relies on
 the legacy `updated_at` fallback.
 
+Contributor lists use case-insensitive lexical handle order. Case-only aliases
+are deduplicated using the lexically smallest original spelling; `assignee`
+still takes precedence over `author`. Breaking Changes lists explicitly use the
+completion-first, then creation/ID order above in both Markdown and JSON.
+Type, status and label groups retain first appearance in that canonical entry
+order, and summaries retain their section's entry order. Release-placement
+diagnostic samples keep their placement-time chronology.
+
 For live tracker reads, the CLI and extension also verify undeclared items against
 the item state stored in each tag. Work completed on a branch before an unrelated
 release stays `Unreleased` until the first tag contains its selected status. A

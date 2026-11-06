@@ -123,3 +123,58 @@ test("completion fields and stable creation/id keys define a total order across 
     assert.deepEqual(entries.map((item) => item.id), ["done-z", undefined, "done-a", "done-b", undefined, undefined]);
   }
 });
+
+test("derived lists keep explicit order through SDK writes and completion transitions", async (t) => {
+  const { cwd, root, options } = await tracker(t);
+  const alpha = new PmClient({ cwd, pmRoot: root, author: "alpha" });
+  const zeta = new PmClient({ cwd, pmRoot: root, author: "zeta" });
+  const seed = { type: "Task", status: "in_progress", tags: "breaking", createMode: "progressive", unset: ["parent", "goal", "objective", "sprint", "release"] };
+  t.mock.timers.tick(1000);
+  await alpha.create({ ...seed, id: "stable-derived-open", title: "Maintain active contract" });
+  t.mock.timers.tick(1000);
+  await zeta.create({ ...seed, id: "stable-derived-closed", title: "Maintain completed contract" });
+  t.mock.timers.tick(1000);
+  await zeta.close("stable-derived-closed", "Implemented the contract change");
+  /** Read current native rows while exercising both optional derived lists. */
+  const derivedOptions = (): GenerateChangelogOptions => ({ ...options(), contributors: true, breakingChanges: true });
+  const document = buildChangelogDocument(derivedOptions());
+  assert.deepEqual(document.releases[0].contributors, ["alpha", "ordering-test", "zeta"]);
+  assert.deepEqual(document.releases[0].breaking_changes?.map((item) => item.id), ["stable-derived-closed", "stable-derived-open"]);
+  const markdown = createChangelog(derivedOptions()).markdown;
+  assert.match(markdown, /### Contributors\n\n@alpha, @ordering-test, @zeta\n/);
+  const notes = cli(root, cwd, ["--stdout", "--contributors", "--breaking-changes"]);
+  t.mock.timers.tick(1000);
+  await alpha.comments("stable-derived-open", { add: "Additional contract evidence" });
+  assert.deepEqual(buildChangelogDocument(derivedOptions()), document);
+  assert.equal(createChangelog(derivedOptions()).markdown, markdown);
+  assert.equal(cli(root, cwd, ["--stdout", "--contributors", "--breaking-changes"]), notes);
+  t.mock.timers.tick(1000);
+  await alpha.close("stable-derived-open", "Implemented the active contract");
+  const completed = buildChangelogDocument(derivedOptions()).releases[0];
+  assert.deepEqual(completed.contributors, ["alpha", "ordering-test", "zeta"]);
+  assert.deepEqual(completed.breaking_changes?.map((item) => item.id), ["stable-derived-open", "stable-derived-closed"]);
+});
+
+test("contributor handles have lexical order and deterministic case aliases", () => {
+  const inputs: PmItem[] = [
+    { id: "pm-a", title: "Maintain first credit", assignee: "Zed" },
+    { id: "pm-b", title: "Maintain second credit", assignee: "alpha" },
+    { id: "pm-c", title: "Maintain third credit", author: " beta " },
+    { id: "pm-d", title: "Maintain fourth credit", assignee: "ALPHA" },
+    { id: "pm-e", title: "Maintain fifth credit", author: "Alpha" },
+    { id: "pm-f", title: "Maintain fallback credit", assignee: " unknown ", author: "gamma" },
+    { id: "pm-g", title: "Maintain uncredited item", author: "unknown" },
+  ];
+  for (let offset = 0; offset < inputs.length; offset++) {
+    const rotated = inputs.slice(offset).concat(inputs.slice(0, offset));
+    for (const ordering of [rotated, rotated.slice().reverse()]) {
+      const items = ordering.map((item, index) => ({ ...item,
+        created_at: new Date(Date.parse("2026-11-01") + index * 1000).toISOString(),
+        updated_at: new Date(Date.parse("2026-11-02") + (offset - index) * 1000).toISOString(),
+      }));
+      const options = { items, includeStatuses: [], contributors: true };
+      assert.deepEqual(buildChangelogDocument(options).releases[0].contributors, ["ALPHA", "beta", "gamma", "Zed"]);
+      assert.match(createChangelog(options).markdown, /### Contributors\n\n@ALPHA, @beta, @gamma, @Zed\n/);
+    }
+  }
+});
