@@ -2,15 +2,25 @@ id: pmc-total-item-order
 title: Make ordinary changelog ordering total for undated items
 description: "Audience-contract review exposed a broader existing generator ordering gap outside the audience projection fix. compareItems compares two dated items by time, but falls back to title when either item is undated; this is not a transitive ordering. Across all six permutations of closed Task A dated 2026-10-19, undated Feature B and Task C dated 2026-10-20, buildChangelogDocument yields both Task,Feature and Feature,Task section orders. The audience contract path now canonicalizes input, sections and item IDs without changing ordinary changelog presentation. Track the ordinary generator independently; related item pmc-audience-contracts and PR 271."
 type: Issue
-status: open
+status: in_progress
 priority: 2
-tags: []
+tags[1]: "gh:unbraind/pm-changelog#323"
 created_at: "2026-10-23T17:47:59.517Z"
-updated_at: "2026-10-23T17:54:54.910Z"
+updated_at: "2026-11-06T06:09:01.500Z"
 author: codex-agent
 acceptance_criteria: Use a total item order with an explicit undated policy and deterministic tie breakers; ordinary changelog projections are invariant across all six permutations of the three-item repro; preserve existing release selection and cover JSON and markdown behavior.
-comments[1]{created_at,author,text}:
+comments[6]{created_at,author,text}:
   "2026-10-23T17:51:15.695Z",codex-agent,"Confirmed with the exact three-item synthetic case in all six permutations: ordinary buildChangelogDocument yields both Task,Feature and Feature,Task section orders. This remains outside the audience-contract canonicalization fix; item stays open for separate ordinary-generator policy and regression work."
-files[1]{path,scope}:
+  "2026-11-06T05:50:55.180Z",codex-sol,"Implementing #323 in the existing ordering item: retain completion-timestamp order and release-window placement; place entries without completion timestamps after completed entries, ordered by created_at newest first then id ascending. Check shared Markdown, release-note, check-diff and JSON ordering using real non-git SDK trackers, behavioral reverts and a read-only fleet comparison."
+  "2026-11-06T05:56:32.590Z",codex-sol,"Focused SDK/CLI regressions pass 5/5. Behavioral revert in a disposable package copy changes only compareItems, rebuilds dist, and fails all 5 tests: comment/file/claim each changes CHANGELOG.md bytes; lifecycle promotion and stable-key ordering assertions also fail. The fixed implementation remains intact. Documented completion-first ordering and unchanged updated_at fallback for release-window placement in docs/usage.md. Shared projections use the same sorted items; diagnostic attribution timestamps intentionally retain placement semantics."
+  "2026-11-06T06:02:51.306Z",codex-sol,"Existing generator suites pass 213/213. The configured source lint gate (npm run docstring: 40 files, 265 declarations), npm run typecheck and npm run build:test pass. pm test pmc-total-item-order --run --progress --timeout 300 passes 5/5 (the default 120-second run previously timed out under load). CI will run the full npm and Bun release gates; an extra local coverage run was stopped to avoid overlapping load. Self-generated CHANGELOG.md changes only ordering, preserving its line multiset."
+  "2026-11-06T06:08:59.345Z",codex-sol,"Read-only fleet snapshots complete: normal own-flag generation reorders committed entries in pm-brand, pm-changelog, pm-context, pm-graph, pm-linear, pm-ops and pm-web. Existing MISSING_REQUESTED_RELEASE refusals occur with both implementations in 12 consumers. Supplemental --include-empty probes show historical reorders in pm-brief, pm-csv, pm-gantt-chart, pm-github, pm-jira, pm-slack, pm-slack-standup and pm-todos; no historical reorder in pm-evidence, pm-lint, pm-starter or pm-swarm. pm-unit candidate output order changes but its committed shared entries already match. Remaining consumers are unchanged; pm-observer uses an independent filename-sorted generator. Snapshots, source heads, flags and limits will be listed in the PR; no consumer checkout was edited."
+  "2026-11-06T06:09:00.493Z",codex-sol,"Final verification: fixed focused SDK/CLI tests pass 5/5 after the behavioral revert proof; existing generator suites pass 213/213. The final tie/permutation assertion also passes fixed and fails reverted. Completion-first ordering preserves completion title/id tie breakers; missing completion entries use creation date then id with an explicit missing-date policy. Tracker remains in_progress for orchestrator verification; releasing the claim before final changelog regeneration and CI."
+files[2]{path,scope}:
   src/generator.ts,project
+  test/stable-section-order.test.ts,project
+tests[1]{command,scope,provenance{author,created_at,source_kind,source_ref}}:
+  node --test --test-concurrency=2 test/stable-section-order.test.ts,project,codex-sol,"2026-11-06T05:55:47.666Z",local_mutation,stable-section-order-for-open-items
+docs[1]{path,scope}:
+  docs/usage.md,project
 body: ""

@@ -2583,15 +2583,23 @@ function getStringField(item: PmItem, field: "release" | "milestone"): string | 
   return undefined;
 }
 
-/** Order items newest-first, breaking ties on title so items sharing a
- * timestamp - or lacking one entirely - still render in a stable order across
- * regenerations. */
+/** Order completed entries first, newest completion first, retaining their
+ * title/id tie breakers. Entries without completion timestamps follow by
+ * creation time (newest first), then id. Missing or invalid creation dates
+ * sort last. Metadata writes must never affect this presentation order;
+ * release-window placement continues to use {@link itemTimestamp}. */
 function compareItems(a: PmItem, b: PmItem): number {
-  const aTime = Date.parse(itemTimestamp(a) ?? "");
-  const bTime = Date.parse(itemTimestamp(b) ?? "");
-  if (!Number.isNaN(aTime) && !Number.isNaN(bTime) && aTime !== bTime) {
+  const aCompletion = resolveCompletionTimestamp({ completed_at: a.completed_at, closed_at: a.closed_at });
+  const bCompletion = resolveCompletionTimestamp({ completed_at: b.completed_at, closed_at: b.closed_at });
+  if (aCompletion.resolved !== bCompletion.resolved) return aCompletion.resolved ? -1 : 1;
+  const aDate = Date.parse((aCompletion.resolved ? aCompletion.timestamp : a.created_at) ?? "");
+  const bDate = Date.parse((bCompletion.resolved ? bCompletion.timestamp : b.created_at) ?? "");
+  const aTime = Number.isNaN(aDate) ? -Infinity : aDate;
+  const bTime = Number.isNaN(bDate) ? -Infinity : bDate;
+  if (aTime !== bTime) {
     return bTime - aTime;
   }
+  if (!aCompletion.resolved) return (a.id ?? "").localeCompare(b.id ?? "") || a.title.localeCompare(b.title);
   return a.title.localeCompare(b.title) || (a.id ?? "").localeCompare(b.id ?? "");
 }
 
