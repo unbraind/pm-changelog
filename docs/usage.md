@@ -454,6 +454,51 @@ Item links are omitted by default so public CI jobs do not accidentally publish 
 
 Pass `--item-url-base` or `itemUrlBase` to make item IDs themselves clickable links pointing directly to the `.toon` files in the repository. The tool derives the correct type subdirectory (`issues/`, `tasks/`, `chores/`, `features/`, `epics/`) from each item's type automatically — no configuration per type is needed.
 
+## Declared SDK and CLI contract changes
+
+An item can explicitly declare an observable caller contract change in its
+`contract_change` metadata field:
+
+```json
+{
+  "api": "listAllComplete",
+  "before": "Rows were unordered",
+  "after": "Rows use ID order",
+  "migrate": "Sort explicitly for other orders"
+}
+```
+
+With this extension active, author it using
+`pm update <id> --field 'contract_change={"before":"Allowed","after":"Refused","migrate":"Handle the refusal"}'`.
+Projects that independently register the same object field through `pm schema
+add-field` use their declared `--contract-change` flag instead (SDK option
+`contractChange`). Caller-supplied `PmItem` objects may also put the declaration
+under `metadata.contract_change`; the direct field takes precedence. `api` is
+optional. Text is trimmed; JSON retains embedded newlines, while Markdown escapes
+and flattens them like item titles.
+
+Declared items appear once under `### Changed (SDK contract)`, including items
+otherwise classified as Fixed or Security:
+
+```markdown
+- Repair default order: Rows were unordered → Rows use ID order. Migrate: Sort explicitly for other orders (example-id)
+```
+
+This dedicated group also applies with `--section-by`, `--conventional` and
+`--breaking-changes`; declared items are not repeated in the Breaking Changes
+list. Breaking detection still contributes to `--suggest-semver`. The declaration
+uses the item title even with `--entry-from close_reason`. Existing status,
+non-change and release filters still apply. Undeclared items retain their existing
+rendering. Tracker milestones freeze declarations with the rendered item.
+
+`--changelog-json` includes the same normalized `contract_change` record on the
+item, alongside its `id` and `title`. `pm changelog audit` maps the exact rendered
+line to the source item and reports a `migration` gap when `migrate` is absent,
+blank or not text. Missing or malformed `before`/`after` values produce a
+`contract_change` gap. Historical incomplete declarations remain readable;
+Markdown shows explicit missing-field placeholders and JSON uses empty strings.
+No contract change is inferred from a title, type, audience facet or breaking flag.
+
 ## Resolution summaries
 
 Use `--entry-from close_reason` to publish fix prose while preserving a defect-shaped

@@ -18,4 +18,5 @@ export type { ReleaseCorrection, ReleaseCorrectionInput, ReleaseCorrectionView, 
 export { AgentContractDriftError, parseAgentObligation, parseAgentContractRange, buildAgentContractDrift, readAgentContractDrift, formatAgentContractDrift } from "./agent-contract-drift.ts";
 export type { AgentObligation, AgentContractDefinition, AgentContractReference, AgentContractChange, AgentContractOmission, AgentContractDriftOptions, AgentContractDriftReport } from "./agent-contract-drift.ts";
 export { UnicodeOutputError, normalizeUnicodeText } from "./output-unicode.ts";
+export type { ContractChange } from "./contract-changes.ts";
 //# sourceMappingURL=index.d.ts.map

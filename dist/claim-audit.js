@@ -3,9 +3,12 @@ import { normalizeUnicodeOutput, encodeUnicodeOutput } from "./output-unicode.js
 import { spawnSync } from "node:child_process";
 import { createHash } from "node:crypto";
 import { createChangelog } from "./generator.js";
+import { readContractChange } from "./contract-changes.js";
 import { hasRepairEvidence, recordsDelivery } from "./closure-policy.js";
 /** Stable diagnostics and recovery guidance for each absent evidence dimension. */
 export const CLAIM_AUDIT_REMEDIES = {
+    migration: "Record nonblank migrate text in contract_change describing the caller migration.",
+    contract_change: "Record nonblank before and after text in contract_change describing the observable behavior.",
     resolution: "Record the delivered outcome in close_reason or resolution.",
     tests: "Link a test command or test path to the item.",
     test_result: "Supply a passing receipt matching a linked command or path; retain its evidence reference.",
@@ -127,6 +130,13 @@ export function auditChangelogClaims(options, testReceipts = []) {
             }
             if (source.kind === "contributors")
                 continue;
+            const contract = readContractChange(item);
+            if (contract) {
+                if (!contract.migrate)
+                    gaps.add("migration");
+                if (!contract.before || !contract.after)
+                    gaps.add("contract_change");
+            }
             if (!record.resolution.length)
                 gaps.add("resolution");
             if (!record.tests.length)

@@ -1,4 +1,5 @@
 import { normalizeUnicodeText } from "./output-unicode.ts";
+import { readContractChange } from "./contract-changes.ts";
 import type { ChangelogClaimSource } from "./types.ts";
 import { spawnSync } from "node:child_process";
 import { existsSync, readFileSync, writeFileSync } from "node:fs";
@@ -66,6 +67,7 @@ let resolvedPmCommand: PmCommand | undefined;
 const CATEGORY_ORDER = [
   "Added",
   "Changed",
+  "Changed (SDK contract)",
   "Fixed",
   "Removed",
   "Security",
@@ -348,10 +350,10 @@ export function createChangelog(
 
     if (hasItems) {
       // OPT-IN (`--breaking-changes`): a dedicated heading listing breaking items
-      // up front. Items still appear in their normal category/field group below,
-      // so this is purely additive and absent by default.
+      // up front. Undeclared items also appear in their ordinary group below;
+      // contract declarations retain a single migration-bearing entry.
       if (options.breakingChanges) {
-        const breaking = section.items.filter((item) => isBreakingItem(item, options));
+        const breaking = section.items.filter((item) => isBreakingItem(item, options) && !readContractChange(item));
         if (breaking.length > 0) {
           lines.push(`### ${maybeEmoji("Breaking Changes", options)}`, "");
           for (const item of breaking) {
@@ -571,7 +573,7 @@ export function buildChangelogDocument(options: GenerateChangelogOptions): Chang
       sections: sectionGroups,
       contributors: options.contributors ? collectContributors(section.items) : undefined,
       breaking_changes: options.breakingChanges
-        ? section.items.filter((item) => isBreakingItem(item, options)).map((item) => toDocumentItem(item, options))
+        ? section.items.filter((item) => isBreakingItem(item, options) && !readContractChange(item)).map((item) => toDocumentItem(item, options))
         : undefined,
       dependencies: section.dependencyCommits?.map((commit) => ({
         subject: commit.subject,
@@ -663,7 +665,7 @@ function toSummaryEntry(
     version,
     category,
     id: item.id,
-    title: resolveEntryTitle(item, options),
+    title: readContractChange(item) ? item.title : resolveEntryTitle(item, options),
     type: typeof item.type === "string" ? item.type : undefined,
     status: typeof item.status === "string" ? item.status : undefined,
   };
@@ -672,9 +674,11 @@ function toSummaryEntry(
 /** Project an item onto its `--changelog-json` form, narrowing the tracker row
  * to the fields the structured document publishes. */
 function toDocumentItem(item: PmItem, options: GenerateChangelogOptions): ChangelogDocumentItem {
+  const contract = readContractChange(item);
   return {
+    ...(contract ? { contract_change: contract } : {}),
     id: item.id,
-    title: resolveEntryTitle(item, options),
+    title: contract ? item.title : resolveEntryTitle(item, options),
     type: item.type,
     status: item.status,
     priority: item.priority,
@@ -1679,6 +1683,7 @@ function insertAfterTitle(markdown: string, releaseSection: string): string {
 const CONVENTIONAL_HEADINGS: Record<Category, string> = {
   Added: "Features",
   Changed: "Changes",
+  "Changed (SDK contract)": "Changed (SDK contract)",
   Fixed: "Bug Fixes",
   Removed: "Reverts",
   Security: "Security",
@@ -1708,7 +1713,9 @@ function groupByField(
   };
 
   for (const item of items) {
-    if (needsNeutralClosure(item, context)) {
+    if (readContractChange(item)) {
+      push("Changed (SDK contract)", item);
+    } else if (needsNeutralClosure(item, context)) {
       push("Closed", item);
     } else if (sectionBy === "type") {
       push(titleCase(typeof item.type === "string" && item.type.trim() ? item.type.trim() : "Other"), item);
@@ -1803,6 +1810,7 @@ const REMOVED_NEEDLES = ["removed", "remove", "deleted", "delete"];
  * names and would misfile a defect in `pm update` as a "Changed" entry.
  */
 function classifyItem(item: PmItem, context: ChangelogStatusContext): Category {
+  if (readContractChange(item)) return "Changed (SDK contract)";
   if (needsNeutralClosure(item, context)) return "Closed";
   // Strip CLI-flag-like tokens from titles before scanning. Without this, an
   // item titled "pm <cmd> --add fails..." gets classified as "Added" because
@@ -2125,7 +2133,11 @@ export function lintChangelogEntries(options: GenerateChangelogOptions): string[
 /** Render one item as its changelog bullet text, appending only the parts the
  * enabled options asked for. */
 function formatItem(item: PmItem, options: GenerateChangelogOptions): string {
-  const title = escapeItemTitleMarkdown(resolveEntryTitle(item, options));
+  const contract = readContractChange(item);
+  const prose = contract
+    ? `${item.title}: ${contract.before || "[missing before]"} → ${contract.after || "[missing after]"}. Migrate: ${contract.migrate || "[missing migration]"}`
+    : resolveEntryTitle(item, options);
+  const title = escapeItemTitleMarkdown(contract ? toSingleLine(prose) : prose);
   const id = formatItemId(item, options);
   const metadata = formatItemMetadata(item, options);
   const link = options.includeLinks ? formatLink(item.url) : "";
