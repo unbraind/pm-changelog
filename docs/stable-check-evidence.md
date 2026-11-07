@@ -21,15 +21,21 @@ slot under `--limit 1` even when it has no items. Rendering, item lists and
 explanation now load those same notes before limits. A real-Git regression covers
 both include-empty settings.
 
-- Final `node --test --test-concurrency=2 test/stable-itemless-check.test.ts test/generator.test.ts test/generator-coverage.test.ts test/itemless-pending.test.ts test/release-context.test.ts`: 281 passed, zero failed/skipped.
+- Final `node --test --test-concurrency=2 test/stable-itemless-check.test.ts test/generator.test.ts test/generator-coverage.test.ts test/itemless-pending.test.ts test/release-context.test.ts`: 282 passed, zero failed/skipped.
 
 - `node --test --test-concurrency=2 test/stable-itemless-check.test.ts test/generator.test.ts test/itemless-pending.test.ts test/release-context.test.ts`: 212 passed, zero failed/skipped.
 - `node --test --test-concurrency=2 test/stable-itemless-check.test.ts test/cli-regression.test.ts test/help-parser-contract.test.ts`: 41 passed, zero failed/skipped.
 - `node --test --test-concurrency=2 test/stable-itemless-check.test.ts test/generator-coverage.test.ts`: 72 passed, zero failed/skipped.
 - `npm run typecheck`, `npm run build:test`, `npm run docstring`, `git diff --check`: passed. No separate lint script is configured; docstring lint checked 266 declarations.
-- `node scripts/prove-stable-itemless-check-revert.ts`: five isolated behavioral reverts produced 2, 1, 1, 1 and 1 failures respectively; each fixed/restored run passed all selected tests (2 for each tag/empty test group, 1 for each dependency-visibility group). The pinned pm linked-test runner executed this proof successfully.
-- Property seed `0x11072026`: 48 random tag histories, each comparing full and limited Markdown, structured JSON, summary and item visibility before/after publication, with include-empty enabled and disabled. Cases include empty/nonempty windows, older-commit tags, same-day suffixes, unprefixed/padded tags and older/newest aliases. The property also asserts that the tag was actually recognized.
+- `node scripts/prove-stable-itemless-check-revert.ts`: six isolated behavioral reverts produced 2, 1, 1, 1, 1 and 1 failures respectively; each fixed/restored run passed all selected tests (2 for each tag/empty test group, 1 for each dependency-visibility group). The pinned pm linked-test runner executed this proof successfully.
+- Property seed `0x11072026`: 48 random tag histories, each comparing full and limited Markdown, structured JSON, summary and item visibility before/after publication, with include-empty enabled and disabled. Cases include empty/nonempty windows, older-commit tags, same-day suffixes including equal commit timestamps, independently selected unprefixed/padded tags and older/newest aliases. The property also asserts that the tag was actually recognized.
 - A real SDK-initialized tracker generates and checks an empty release with no Git executable on PATH; tag-derived generation refuses with actionable guidance.
+
+The equal-timestamp extension failed before its counter-order guard (42/44
+passed, two failed) and passed after it (44/44). The final combined targeted run
+passes 282/282. Same-day counters sort numerically descending before the ordinary
+name fallback when commit timestamps tie. A metadata audit found zero affected
+equal-time/same-day tag pairs in the three public snapshots below.
 
 ## Public release snapshots
 

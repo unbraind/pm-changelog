@@ -614,3 +614,16 @@ describe("release-context: canonicalizeUtcOffset and extractOffset", () => {
     equal(canonicalizeUtcOffset("garbage+00:00"), "garbage+00:00");
   });
 });
+
+describe("release-context: same-instant release counters", () => {
+  it("orders same-day counters newest first before falling back to tag spelling", () => {
+    const timestamp = "2026-11-07T10:00:00Z";
+    ok(compareReleaseTags(TAG("v2026.11.07-2", timestamp), TAG("v2026.11.7", timestamp)) < 0);
+    ok(compareReleaseTags(TAG("2026.11.7", timestamp), TAG("v2026.11.07-2", timestamp)) > 0);
+    ok(compareReleaseTags(TAG("v2026.11.7-10", timestamp), TAG("2026.11.07-2", timestamp)) < 0);
+    equal(compareReleaseTags(TAG("v2026.11.7-2", timestamp), TAG("v2026.11.7-2", timestamp)), 0);
+    ok(compareReleaseTags(TAG("v2026.11.7", timestamp), TAG("zebra", timestamp)) < 0);
+    ok(compareReleaseTags(TAG("alpha", timestamp), TAG("v2026.11.7", timestamp)) < 0);
+    ok(compareReleaseTags(TAG("v2026.11.7", timestamp), TAG("v2026.11.8", timestamp)) < 0);
+  });
+});

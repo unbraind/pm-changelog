@@ -617,8 +617,8 @@ export function compareReleaseTags(a: ReleaseTag, b: ReleaseTag): number {
     // Both parse → newest first (descending)
     const diff = bTime - aTime;
     if (diff !== 0) return diff;
-    // Same instant → name tie-break
-    return compareTagNames(a.name, b.name);
+    // Same instant: a same-day successor must precede its base release.
+    return compareSameInstantTagNames(a.name, b.name);
   }
 
   if (aValid !== bValid) {
@@ -628,6 +628,18 @@ export function compareReleaseTags(a: ReleaseTag, b: ReleaseTag): number {
 
   // Neither parses → name tie-break (stable total order)
   return compareTagNames(a.name, b.name);
+}
+
+/** Keep same-day release counters newest first when commit times tie; otherwise retain name ordering. */
+function compareSameInstantTagNames(a: string, b: string): number {
+  const left = formatTagVersion(a).match(/^(\d{4}\.\d{1,2}\.\d{1,2})(?:-(\d+))?$/);
+  const right = formatTagVersion(b).match(/^(\d{4}\.\d{1,2}\.\d{1,2})(?:-(\d+))?$/);
+  if (left && right && left[1] === right[1]) {
+    const leftCounter = BigInt(left[2] ?? "0");
+    const rightCounter = BigInt(right[2] ?? "0");
+    if (leftCounter !== rightCounter) return leftCounter > rightCounter ? -1 : 1;
+  }
+  return compareTagNames(a, b);
 }
 
 function compareTagNames(a: string, b: string): number {

@@ -61,7 +61,7 @@ test("property: publishing release tags preserves empty and item-bearing random 
     // Adding an alias on an older commit preserves that window as well.
     const olderAliases = git("tag", "--list").split("\n").filter((name) => name !== "docs-snapshot" && Boolean(name));
     const suffix = trial % 2 === 0 ? "" : "-2";
-    if (suffix) git("tag", "v2026.11.7", previousSameDay);
+    if (suffix) git("tag", "v2026.11.7", trial % 4 === 3 ? target : previousSameDay);
     const version = `2026.11.7${suffix}`;
     if (trial % 3 !== 0) items.push({ id: "current", title: "Delivered release item", status: "closed", release: version });
     // Alternate explicit and timestamp-only membership within an unchanged boundary.
@@ -70,7 +70,7 @@ test("property: publishing release tags preserves empty and item-bearing random 
     const options: GenerateChangelogOptions = { items, version, respectItemRelease: true, includeEmpty: true, dependencyUpdates: false, releaseWindows: resolveReleaseTagWindows(context) };
     const before = projection(options);
     const withoutEmpty = projection({ ...options, includeEmpty: false });
-    const spelling = `${spellings[trial % spellings.length]}${suffix}`;
+    const spelling = `${spellings[Math.floor(next() * spellings.length)]}${suffix}`;
     git("tag", spelling, target);
     const afterOptions = { ...options, releaseWindows: resolveReleaseTagWindows(context) };
     assert.ok(afterOptions.releaseWindows.find((window) => window.heading.startsWith(`${version} - `))?.until, `tag recognized trial ${trial}`);

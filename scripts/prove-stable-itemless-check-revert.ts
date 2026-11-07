@@ -21,6 +21,7 @@ try {
     { name: "empty-unreleased-restored", file: "generator.ts", from: "|| (options.includeEmpty && sectionVersionKey(section.heading) !== undefined)", to: "|| options.includeEmpty", failures: 2 },
     { name: "v-only-discovery-restored", file: "release-context.ts", from: 'pattern ?? "*"', to: 'pattern ?? "v*"', failures: 1 },
     { name: "duplicate-windows-restored", file: "release-context.ts", from: "if (seen.has(key)) return false;", to: "if (seen.has(key)) return true;", failures: 1 },
+    { name: "same-instant-counter-order-removed", file: "release-context.ts", from: "return compareSameInstantTagNames(a.name, b.name);", to: "return compareTagNames(a.name, b.name);", failures: 1 },
     { name: "diagnostics-without-dependencies", file: "generator.ts", from: "const sections = buildEnrichedSections(afterItemRelease, options);", to: "const sections = buildSections(afterItemRelease, options);", failures: 1, tests: 1, pattern: "^dependency-only Unreleased" },
     { name: "item-list-without-dependencies", file: "generator.ts", from: "return selectChangelogSections(options).visibleSections.flatMap((section) => section.items);", to: "return limitSections(selectCandidateSections(buildSections(filterItems(options), options), options), options).flatMap((section) => section.items);", failures: 1, tests: 1, pattern: "^dependency-only Unreleased" },
   ]) {
