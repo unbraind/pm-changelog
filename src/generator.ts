@@ -1,5 +1,5 @@
 import { normalizeUnicodeText } from "./output-unicode.ts";
-import { readContractChange } from "./contract-changes.ts";
+import { readPresentedContractChange } from "./contract-changes.ts";
 import type { ChangelogClaimSource } from "./types.ts";
 import { spawnSync } from "node:child_process";
 import { existsSync, readFileSync, writeFileSync } from "node:fs";
@@ -2103,7 +2103,7 @@ export function parseChangelogEntryFrom(value: string): ChangelogEntryFrom {
  * Empty, whitespace-only and non-string resolutions fall back to title. */
 function resolveEntryTitle(item: PmItem, options: GenerateChangelogOptions): string {
   if (needsNeutralClosure(item, options)) return `Closed: ${toSingleLine(item.title)}`;
-  if (readContractChange(item)) return toSingleLine(item.title);
+  if (readPresentedContractChange(item, options)) return toSingleLine(item.title);
   if (options.entryFrom === "close_reason") {
     const resolution = resolveChangelogResolution(item);
     if (resolution !== undefined) return resolution;
@@ -2137,11 +2137,6 @@ export function lintChangelogEntries(options: GenerateChangelogOptions): string[
     warnings.push(`defect_title: ${id}: closed Fixed entry describes a defect without resolution prose. Run pm update ${id} --close-reason "Describe the fix", then use --entry-from close_reason for generation and --check.`);
   }
   return warnings;
-}
-
-/** Apply closure evidence policy before publishing a declared behavior change. */
-function readPresentedContractChange(item: PmItem, context: ChangelogStatusContext): ReturnType<typeof readContractChange> {
-  return needsNeutralClosure(item, context) ? undefined : readContractChange(item);
 }
 
 /** Normalize and escape one field without allowing code spans to cross field boundaries. */

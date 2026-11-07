@@ -530,6 +530,9 @@ For eligible declarations, `--changelog-json` includes the same normalized
 blank or not text. Missing or malformed `before`/`after` values produce a
 `contract_change` gap. Historical incomplete declarations remain readable;
 Markdown shows explicit missing-field placeholders and JSON uses empty strings.
+Contract-specific gaps apply only when the claim publishes a contract declaration.
+Neutral Closed claims retain ordinary evidence checks without migration or
+contract-change remedies for their hidden metadata.
 No contract change is inferred from a title, type, audience facet or breaking flag.
 
 ## Resolution summaries

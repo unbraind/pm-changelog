@@ -18,16 +18,24 @@ await runCreate({ title: "Native fixture", type: "Task", status: "closed", close
 const native = (await listAllComplete({}, { pmRoot: root })).items[0] as PmItem;
 const declaration = { before: "Allowed", after: "Refused", migrate: "Handle the refusal" };
 const item = { ...native, title: "Declared\n behavior\r\nchanged", contract_change: null, metadata: { contract_change: declaration } };
-const capture = await createReleaseMilestone(new DirectoryReleaseMilestoneStore(root), "1.0.0", { capturedAt: new Date().toISOString(), items: [item] });
+const neutral: PmItem = { ...native, id: "fixture-neutral", title: "Neutral closure", type: "Issue", close_reason: "Investigation complete",
+  files: [], tests: [], links: [], resolution: undefined, actual_result: undefined, contract_change: {}, metadata: undefined };
+const capture = await createReleaseMilestone(new DirectoryReleaseMilestoneStore(root), "1.0.0", { capturedAt: new Date().toISOString(), items: [item, neutral] });
 const history = resolveTrackerReleaseHistory([capture], []);
 const entries = createChangelogSummary({ ...history, entryFrom: "close_reason" });
+assert.equal(entries.length, 2);
 assert.equal(entries[0].title, "Declared behavior changed");
 assert.equal(formatSummaryLine(entries[0]).split("\n").length, 1);
 const document = buildChangelogDocument(history);
 assert.equal(document.releases[0].sections[0].items[0].title, entries[0].title);
 assert.deepEqual(document.releases[0].sections[0].items[0].contract_change, declaration);
 assert.match(createChangelog(history).markdown, /Allowed → Refused\. Migrate: Handle the refusal/);
+const neutralDocument = document.releases[0].sections.flatMap((section) => section.items).find((row) => row.id === neutral.id)!;
+assert.equal(neutralDocument.title, "Closed: Neutral closure");
+assert.equal(Object.hasOwn(neutralDocument, "contract_change"), false);
 const report = auditChangelogClaims(history);
+const neutralClaim = report.claims.find((claim) => claim.items.includes(neutral.id!))!;
+assert.deepEqual(neutralClaim.gaps, ["delivery", "test_result", "tests"]);
 assert.equal(report.claims[0].gaps.includes("migration"), false);
 assert.equal(report.claims[0].gaps.includes("contract_change"), false);
 /** TOON's documented JSON scalar columns preserve the complete claim arrays. */
@@ -43,18 +51,18 @@ function run(args: string[], milestones = true): string {
   assert.equal(result.status, 0, result.stderr);
   return result.stdout;
 }
-assert.equal(run(["--summary"]).trimEnd().split("\n").length, 1);
+assert.equal(run(["--summary"]).trimEnd().split("\n").length, entries.length);
 assert.equal(JSON.parse(run(["--summary", "--format", "json"])).entries[0].title, entries[0].title);
 assert.deepEqual(JSON.parse(run(["--changelog-json"])).releases[0].sections[0].items[0].contract_change, declaration);
 assert.match(run(["--stdout"]), /Allowed → Refused\. Migrate: Handle the refusal/);
 assert.deepEqual(toonClaims(run(["audit"])), JSON.parse(run(["audit", "--format", "json"])).claims);
-const input = join(cwd, "items.json"); writeFileSync(input, JSON.stringify([item]));
+const input = join(cwd, "items.json"); writeFileSync(input, JSON.stringify([item, neutral]));
 assert.equal(JSON.parse(run(["--input", input, "--summary", "--format", "json"], false)).entries[0].title, entries[0].title);
 assert.deepEqual(JSON.parse(run(["--input", input, "--changelog-json"], false)).releases[0].sections[0].items[0].contract_change, declaration);
 const activated = await activateExtensionForTest(extension, { name: "pm-changelog", capabilities: ["commands", "schema", "importers", "renderers"] });
 assert.deepEqual(activated.failed, []);
 const plain = await runRegisteredCommandForTest(activated.commands, { command: "changelog generate", pmRoot: root, options: { milestones: true, summary: true } });
-assert.equal((plain.result as { summary: string }).summary.split("\n").length, 1);
+assert.equal((plain.result as { summary: string }).summary.split("\n").length, entries.length);
 const json = await runRegisteredCommandForTest(activated.commands, { command: "changelog generate", pmRoot: root, options: { milestones: true, summary: true, format: "json" } });
 assert.equal(JSON.parse((json.result as { output: string }).output).entries[0].title, entries[0].title);
 for (const format of ["json", "toon"]) {

@@ -1,4 +1,5 @@
-import type { PmItem } from "./types.ts";
+import { needsNeutralClosure } from "./closure-policy.ts";
+import type { ChangelogStatusContext, PmItem } from "./types.ts";
 
 /** Explicit observable SDK or CLI behavior change, with caller migration guidance. */
 export interface ContractChange {
@@ -21,6 +22,11 @@ export function readContractChange(item: PmItem): ContractChange | undefined {
   const migrate = contractText(row.migrate);
   const api = contractText(row.api);
   return { ...(api ? { api } : {}), before, after, migrate };
+}
+
+/** Share the renderer's declaration eligibility with every consumer of published claims. */
+export function readPresentedContractChange(item: PmItem, context: ChangelogStatusContext): ContractChange | undefined {
+  return needsNeutralClosure(item, context) ? undefined : readContractChange(item);
 }
 
 /** Trim authored text while treating absent or malformed fields as missing evidence. */

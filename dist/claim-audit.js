@@ -3,7 +3,7 @@ import { normalizeUnicodeOutput, encodeUnicodeOutput } from "./output-unicode.js
 import { spawnSync } from "node:child_process";
 import { createHash } from "node:crypto";
 import { createChangelog } from "./generator.js";
-import { readContractChange } from "./contract-changes.js";
+import { readPresentedContractChange } from "./contract-changes.js";
 import { hasRepairEvidence, recordsDelivery } from "./closure-policy.js";
 /** Stable diagnostics and recovery guidance for each absent evidence dimension. */
 export const CLAIM_AUDIT_REMEDIES = {
@@ -130,7 +130,7 @@ export function auditChangelogClaims(options, testReceipts = []) {
             }
             if (source.kind === "contributors")
                 continue;
-            const contract = readContractChange(item);
+            const contract = readPresentedContractChange(item, options);
             if (contract) {
                 if (!contract.migrate)
                     gaps.add("migration");

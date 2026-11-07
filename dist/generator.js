@@ -1,5 +1,5 @@
 import { normalizeUnicodeText } from "./output-unicode.js";
-import { readContractChange } from "./contract-changes.js";
+import { readPresentedContractChange } from "./contract-changes.js";
 import { spawnSync } from "node:child_process";
 import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import { createRequire } from "node:module";
@@ -1880,7 +1880,7 @@ export function parseChangelogEntryFrom(value) {
 function resolveEntryTitle(item, options) {
     if (needsNeutralClosure(item, options))
         return `Closed: ${toSingleLine(item.title)}`;
-    if (readContractChange(item))
+    if (readPresentedContractChange(item, options))
         return toSingleLine(item.title);
     if (options.entryFrom === "close_reason") {
         const resolution = resolveChangelogResolution(item);
@@ -1920,10 +1920,6 @@ export function lintChangelogEntries(options) {
         warnings.push(`defect_title: ${id}: closed Fixed entry describes a defect without resolution prose. Run pm update ${id} --close-reason "Describe the fix", then use --entry-from close_reason for generation and --check.`);
     }
     return warnings;
-}
-/** Apply closure evidence policy before publishing a declared behavior change. */
-function readPresentedContractChange(item, context) {
-    return needsNeutralClosure(item, context) ? undefined : readContractChange(item);
 }
 /** Normalize and escape one field without allowing code spans to cross field boundaries. */
 function formatContractText(value) {
