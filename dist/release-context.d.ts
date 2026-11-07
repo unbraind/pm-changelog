@@ -34,6 +34,7 @@ export interface ReleaseContextOptions {
  * a release being cut right now, whose tag does not exist yet. */
 export interface ReleaseTagHistoryOptions {
     cwd?: string;
+    /** Optional Git glob; the default accepts version tags with or without v. */
     tagPattern?: string;
     /**
      * Include release tags that are not reachable from HEAD. Rebases and history

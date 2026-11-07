@@ -241,16 +241,8 @@ export function createChangelog(options, onClaim) {
         onClaim({ ...source, category: source.kind === "item" ? classifyItem(source.items[0], options) : undefined, line: physicalLines - source.claim.split("\n").length + 1 });
     };
     if (sections.length === 0) {
-        // A deliberately empty `releaseWindows` list (suppressed pending release
-        // asserted) means every section was suppressed, so even `--include-empty`
-        // must not resurrect a heading for the placeholder version the caller
-        // suppressed. An accidentally empty list is absent history and falls
-        // back to the single-version section, so this branch is not reached.
-        if (options.includeEmpty && !isDeliberateEmptySuppression(options)) {
-            const heading = buildVersionHeading(options.version, options.date);
-            lines.push(`## ${heading}`, "", "No changes.", "");
-            emitClaim({ line: lines.length - 1, release: heading, section: "", claim: "No changes.", kind: "empty", items: [] });
-        }
+        // Empty grouping or deliberately suppressed history has no release to
+        // retain; includeEmpty must not fabricate an Unreleased placeholder.
         return {
             markdown: lines.join("\n").trimEnd() + "\n",
             sections,
@@ -417,15 +409,20 @@ function selectChangelogSections(options) {
     if (options.dependencyUpdates !== false && options.gitCwd) {
         sections = enrichSectionsWithDependencyCommits(sections, options, options.gitCwd);
     }
-    const candidateSections = options.includeEmpty
-        ? sections
-        : sections.filter((section) => section.items.length > 0 || (section.dependencyCommits?.length ?? 0) > 0);
+    const candidateSections = selectCandidateSections(sections, options);
     return {
         items,
         sections,
         visibleSections: limitSections(candidateSections, options),
         sectionBy: options.sectionBy ?? "category",
     };
+}
+/** Keep empty releases on request, but never fabricate empty pending notes.
+ * Apply before limits so an empty Unreleased window cannot consume a release slot. */
+function selectCandidateSections(sections, options) {
+    return sections.filter((section) => section.items.length > 0
+        || (section.dependencyCommits?.length ?? 0) > 0
+        || (options.includeEmpty && sectionVersionKey(section.heading) !== undefined));
 }
 /** Build the canonical ordered groups for one visible release section. */
 function groupSectionItems(section, sectionBy, options) {
@@ -2075,9 +2072,7 @@ export function suggestSemver(options) {
 export function visibleChangelogItems(options) {
     const filtered = filterItems(options);
     const sections = buildSections(filtered, options);
-    const candidateSections = options.includeEmpty
-        ? sections
-        : sections.filter((section) => section.items.length > 0);
+    const candidateSections = selectCandidateSections(sections, options);
     const visibleSections = limitSections(candidateSections, options);
     return visibleSections.flatMap((section) => section.items);
 }
@@ -2152,9 +2147,7 @@ export function explainChangelogSelection(options) {
     const excludedByReleaseWindow = hasReleaseWindows
         ? afterItemRelease.filter((item) => !assignedToReleaseWindows.has(item))
         : [];
-    const candidateSections = options.includeEmpty
-        ? sections
-        : sections.filter((section) => section.items.length > 0);
+    const candidateSections = selectCandidateSections(sections, options);
     const visibleSections = limitSections(candidateSections, options);
     const visibleSectionRefs = new Set(visibleSections);
     const hiddenByVisibility = candidateSections

@@ -232,7 +232,7 @@ export function resolveReleaseTagWindows(options = {}) {
 export function resolveReleaseTagWindowResolution(options = {}) {
     const cwd = resolve(options.cwd ?? process.cwd());
     assertReleaseTagHistory({ cwd, requiredBy: ["--all-release-tags"] });
-    const tags = listReleaseTags(cwd, options.tagPattern ?? "v*", options.includeOrphaned);
+    const tags = listReleaseTags(cwd, options.tagPattern, options.includeOrphaned);
     const pending = resolvePendingReleaseTag(options, tags);
     // `pendingRelease: false` asserts no release is being cut, so an untagged
     // pendingVersion is a placeholder (a package version that has never been
@@ -322,8 +322,8 @@ function resolvePendingReleaseTag(options, existingTags) {
     if (!version)
         return undefined;
     const candidates = releaseTagCandidates(version);
-    const candidateSet = new Set(candidates);
-    if (existingTags.some((tag) => candidateSet.has(tag.name)))
+    const key = formatTagVersion(version).toLowerCase();
+    if (existingTags.some((tag) => formatTagVersion(tag.name).toLowerCase() === key))
         return undefined;
     // Preserve the caller's version format: the first candidate is the verbatim
     // `v${version}`. Do not force calendar months/days to a zero-padded width —
@@ -418,7 +418,7 @@ function findPreviousTag(cwd, releaseTag) {
  * Annotated tags are dated by the commit they point at rather than by when the
  * tag object was written, so a retagged release keeps its original date. */
 function listReleaseTags(cwd, pattern, includeOrphaned = false) {
-    const args = ["tag", "--list", pattern];
+    const args = ["tag", "--list", pattern ?? "*"];
     // Default to reachable tags only. When includeOrphaned is set the `--merged
     // HEAD` filter is dropped so tags orphaned by rebases/history rewrites are
     // still discovered; the chronological sort and item-to-window assignment
@@ -430,11 +430,20 @@ function listReleaseTags(cwd, pattern, includeOrphaned = false) {
     const output = runGit(cwd, args);
     if (!output)
         return [];
-    return output
+    const tags = output
         .split("\n")
         .map(parseTagLine)
         .filter((tag) => Boolean(tag))
+        .filter((tag) => pattern !== undefined || /^v/i.test(tag.name) || /^\d+\.\d+\.\d+(?:[-+].+)?$/.test(tag.name))
         .sort(compareReleaseTags);
+    const seen = new Set();
+    return tags.filter((tag) => {
+        const key = formatTagVersion(tag.name).toLowerCase();
+        if (seen.has(key))
+            return false;
+        seen.add(key);
+        return true;
+    });
 }
 /**
  * Total deterministic comparator for ReleaseTag pairs. Contract:

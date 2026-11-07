@@ -465,12 +465,9 @@ describe("generator: buildChangelogDocument includeEmpty", () => {
 // --- remaining branch coverage ----------------------------------------------
 
 describe("generator: empty and no-release-section paths", () => {
-  it("createChangelog emits a No changes section under includeEmpty with no sections", () => {
-    // groupBy release with zero items yields no sections, so the
-    // sections.length === 0 + includeEmpty branch emits a placeholder.
+  it("createChangelog does not invent Unreleased under includeEmpty with no sections", () => {
     const result = createChangelog({ items: [], groupBy: "release", includeEmpty: true });
-    match(result.markdown, /No changes\./);
-    match(result.markdown, /## Unreleased/);
+    equal(result.markdown, "# Changelog\n");
   });
 
   it("createChangelog returns only the title when sections are empty and includeEmpty is off", () => {

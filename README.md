@@ -150,7 +150,11 @@ carries the selection report itself: the standalone CLI's JSON error has
 `filter_*`, `stage_*` and `excluded_*` entries in its typed context.
 
 For an intentionally empty release, opt in with `--include-empty`; it emits
-the requested heading and `No changes.`. Visibility filters must still retain
+the requested versioned heading and `No changes.`. Empty `Unreleased` sections
+are always omitted, including after the package version is tagged. Pending items
+(or explicitly requested dependency notes) still create `Unreleased`. The same
+visibility rule applies to Markdown, JSON, summaries, diagnostics and limits.
+Visibility filters must still retain
 that section. For historical-only regeneration, `--no-pending-release`
 together with `--all-release-tags` suppresses the untagged requested version's
 pending window, and only that window may then be absent. A requested version
@@ -202,6 +206,24 @@ visibility filters as generation, and applies to conventional/emoji Fixed headin
 Grouping by type, status, or label has no Fixed heading and produces no warning. The warning
 leaves markdown, JSON stdout, and the drift exit code unchanged. Follow its `pm update <id>
 --close-reason "Describe the fix"` recovery and use `--entry-from close_reason` consistently.
+
+### Stable checks across tag publication
+
+With `--all-release-tags --release-version-from-package --include-empty`,
+publishing the requested release tag preserves the versioned output when the
+release boundary and date match the prepared release. This holds for empty and
+item-bearing releases. Version tags accept a leading `v` or no prefix by default;
+calendar padding aliases share one window (`2026.11.7`, `v2026.11.07`, and mixed
+padding). An explicit `--release-tag-pattern` still limits discovery.
+
+Tags remain release-history inputs: adding a previously unknown *different*
+version can add a release section or change timestamp attribution. Tagging an
+older commit with a different date/boundary can also change that release's
+window. Conflicting aliases on different commits select the newest commit time;
+aliases should identify the same release commit. Use immutable tracker milestones
+for history independent of Git tags. `--date-from-version` supplies a pending
+calendar date; tagged windows retain their commit date. Stability does not imply
+migration of changelogs generated with a different generator version.
 
 ### Dependency updates and itemless releases
 

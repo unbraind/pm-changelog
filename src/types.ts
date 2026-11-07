@@ -167,6 +167,7 @@ export interface GenerateChangelogOptions extends ChangelogStatusContext {
    * declarations in ordinary repositories are unaffected. Absent → no
    * declaration is treated as suppressed. */
   suppressedPendingRelease?: string;
+  /** Keep empty versioned release sections; empty Unreleased sections are always omitted. */
   includeEmpty?: boolean;
   includeLinks?: boolean;
   /** Base URL used to construct clickable links for pm item IDs.

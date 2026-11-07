@@ -477,7 +477,7 @@ test("createChangelog preserves empty release windows when includeEmpty is set",
   });
 
   assert.equal(result.itemCount, 0);
-  assert.match(result.markdown, /## Unreleased\n\nNo changes\./);
+  assert.doesNotMatch(result.markdown, /## Unreleased/);
   assert.match(result.markdown, /## 1\.2\.0 - 2026-05-17\n\nNo changes\./);
 });
 
