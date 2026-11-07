@@ -8,6 +8,8 @@ export interface ClaimTestReceipt {
 }
 /** Stable diagnostics and recovery guidance for each absent evidence dimension. */
 export declare const CLAIM_AUDIT_REMEDIES: {
+    readonly migration: "Record nonblank migrate text in contract_change describing the caller migration.";
+    readonly contract_change: "Record nonblank before and after text in contract_change describing the observable behavior.";
     readonly resolution: "Record the delivered outcome in close_reason or resolution.";
     readonly tests: "Link a test command or test path to the item.";
     readonly test_result: "Supply a passing receipt matching a linked command or path; retain its evidence reference.";

@@ -1,4 +1,5 @@
 import type { ChangeFacet } from "./audience-contracts.ts";
+import type { ContractChange } from "./contract-changes.ts";
 import type { RuntimeStatusRegistry } from "@unbrained/pm-cli/sdk";
 /** Lifecycle state of a pm item. The trailing `string` keeps custom workspace
  * statuses assignable, since pm lets a project define its own vocabulary and a
@@ -9,6 +10,8 @@ export type PmItemStatus = "open" | "in_progress" | "blocked" | "closed" | "canc
  * list --json` emitted, which varies by workspace schema and pm version; only
  * `title` is depended on unconditionally. */
 export interface PmItem {
+    /** Explicit contract metadata; incomplete historical values remain readable and auditable. */
+    contract_change?: unknown;
     /** Audience-tagged publishing facets persisted in core item metadata. */
     change_facets?: ChangeFacet[];
     id?: string;
@@ -357,6 +360,8 @@ export interface ChangelogSection {
 }
 /** A single item as it appears in the structured `--changelog-json` document. */
 export interface ChangelogDocumentItem {
+    /** Present only for declared changes, including empty strings for missing evidence. */
+    contract_change?: ContractChange;
     id?: string;
     title: string;
     type?: string;

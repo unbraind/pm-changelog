@@ -81,9 +81,9 @@ function validCaptureTime(value: string): boolean {
 
 /** Copy only fields consumed by rendering, classification and entry ordering. */
 function renderItem(item: PmItem): PmItem {
-  const keys = ["id", "title", "status", "type", "priority", "tags", "itemFolder", "url", "assignee", "author", "created_at", "updated_at", "closed_at", "completed_at", "release", "milestone", "breaking", "close_reason", "resolution", "actual_result"] as const;
+  const keys = ["id", "title", "status", "type", "priority", "tags", "itemFolder", "url", "assignee", "author", "created_at", "updated_at", "closed_at", "completed_at", "release", "milestone", "breaking", "close_reason", "resolution", "actual_result", "contract_change"] as const;
   const row = Object.fromEntries(keys.filter((key) => item[key] !== undefined).map((key) => [key, item[key]])) as unknown as PmItem;
-  const metadata = Object.fromEntries(["release", "milestone", "breaking"].filter((key) => item.metadata?.[key] !== undefined).map((key) => [key, item.metadata![key]]));
+  const metadata = Object.fromEntries(["release", "milestone", "breaking", "contract_change"].filter((key) => item.metadata?.[key] !== undefined).map((key) => [key, item.metadata![key]]));
   if (Object.keys(metadata).length) row.metadata = metadata;
   for (const key of ["files", "tests", "links"] as const) {
     if (!Array.isArray(item[key])) continue;

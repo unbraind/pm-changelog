@@ -97,3 +97,4 @@ export { AgentContractDriftError, parseAgentObligation, parseAgentContractRange,
 export type { AgentObligation, AgentContractDefinition, AgentContractReference, AgentContractChange, AgentContractOmission, AgentContractDriftOptions, AgentContractDriftReport } from "./agent-contract-drift.ts";
 
 export { UnicodeOutputError, normalizeUnicodeText } from "./output-unicode.ts";
+export type { ContractChange } from "./contract-changes.ts";
