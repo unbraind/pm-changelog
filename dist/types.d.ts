@@ -173,7 +173,8 @@ export interface GenerateChangelogOptions extends ChangelogStatusContext {
      * the default `sectionBy: "category"` grouping. Absent → headings unchanged. */
     conventional?: boolean;
     /** OPT-IN: append a "Contributors" list per release, derived from item
-     * assignee (falling back to author). Absent → no Contributors section. */
+     * assignee (falling back to author), in case-insensitive lexical order.
+     * Case-only aliases use a deterministic spelling. Absent → no section. */
     contributors?: boolean;
     /** OPT-IN: keep only the most recent N release sections. Applies only when
      * `releaseWindows` produced the sections. Absent/0 → all releases. */
@@ -184,7 +185,8 @@ export interface GenerateChangelogOptions extends ChangelogStatusContext {
     sinceVersion?: string;
     /** OPT-IN: when true, emit an extra `### Breaking Changes` group per release
      * listing items detected as breaking (type/tag/title contains "breaking", or
-     * a truthy `breaking` flag). Absent → no Breaking Changes section. */
+     * a truthy `breaking` flag), in completion-first then creation/id order.
+     * Absent → no Breaking Changes section. */
     breakingChanges?: boolean;
     /** OPT-IN: append the first N characters of each item's body/description to
      * its changelog entry (single-lined, escaped). Absent/0 → bodies omitted. */
@@ -382,9 +384,9 @@ export interface ChangelogDocumentRelease {
     version?: string;
     item_count: number;
     sections: ChangelogDocumentSection[];
-    /** Present only when `--contributors` is set. */
+    /** Case-insensitive lexical handle order; present only with `--contributors`. */
     contributors?: string[];
-    /** Present only when `--breaking-changes` is set: items detected as breaking. */
+    /** Breaking entries in completion-first then creation/id order; opt-in only. */
     breaking_changes?: ChangelogDocumentItem[];
     /** Present when the itemless default or explicit dependencyUpdates found Dependabot commits. */
     dependencies?: ChangelogDocumentDependency[];

@@ -353,7 +353,7 @@ export function createChangelog(
       // up front. Undeclared items also appear in their ordinary group below;
       // contract declarations retain a single migration-bearing entry.
       if (options.breakingChanges) {
-        const breaking = section.items.filter((item) => isBreakingItem(item, options) && !readPresentedContractChange(item, options));
+        const breaking = collectBreakingItems(section.items, options);
         if (breaking.length > 0) {
           lines.push(`### ${maybeEmoji("Breaking Changes", options)}`, "");
           for (const item of breaking) {
@@ -573,7 +573,7 @@ export function buildChangelogDocument(options: GenerateChangelogOptions): Chang
       sections: sectionGroups,
       contributors: options.contributors ? collectContributors(section.items) : undefined,
       breaking_changes: options.breakingChanges
-        ? section.items.filter((item) => isBreakingItem(item, options) && !readPresentedContractChange(item, options)).map((item) => toDocumentItem(item, options))
+        ? collectBreakingItems(section.items, options).map((item) => toDocumentItem(item, options))
         : undefined,
       dependencies: section.dependencyCommits?.map((commit) => ({
         subject: commit.subject,
@@ -1261,6 +1261,9 @@ function buildSections(items: PmItem[], options: GenerateChangelogOptions): Chan
  * the release its timestamps place it in, on every ordinary `--all-release-tags`
  * run, while the attribution provenance still classified the item as placed by
  * timestamp (Greptile, PR #174).
+ *
+ * Placement priority does not imply presentation priority: sort each completed
+ * bucket so declared, verified and timestamp-placed items share one entry order.
  */
 function assignItemsToReleaseWindows(
   items: PmItem[],
@@ -1316,7 +1319,7 @@ function assignItemsToReleaseWindows(
 
   return windows.map((window) => ({
     heading: window.heading,
-    items: buckets.get(window.heading)!,
+    items: buckets.get(window.heading)!.sort(compareItems),
   }));
 }
 
@@ -1751,22 +1754,28 @@ function titleCase(value: string): string {
 }
 
 /**
- * OPT-IN (`--contributors`): unique contributor handles for a release, ordered
- * by first appearance. Prefers `assignee`, falls back to `author`; ignores the
- * `unknown` placeholder pm writes when no author is recorded.
+ * OPT-IN (`--contributors`): unique contributor handles in lowercase-key
+ * lexical order, independent of item order. Case-only aliases retain the
+ * lexically smallest original spelling. Prefers `assignee`, falls back to
+ * `author`; ignores the `unknown` placeholder pm writes without an author.
  */
 function collectContributors(items: PmItem[]): string[] {
-  const seen = new Set<string>();
-  const ordered: string[] = [];
+  const names = new Map<string, string>();
   for (const item of items) {
     const candidate = pickContributor(item.assignee) ?? pickContributor(item.author);
     if (!candidate) continue;
     const key = candidate.toLowerCase();
-    if (seen.has(key)) continue;
-    seen.add(key);
-    ordered.push(candidate);
+    const previous = names.get(key);
+    if (previous === undefined || candidate < previous) names.set(key, candidate);
   }
-  return ordered;
+  return [...names.keys()].sort().map((key) => names.get(key)!);
+}
+
+/** Select breaking entries with their own explicit completion-first,
+ * creation/id order. Markdown and JSON share this projection instead of
+ * relying on the caller's item encounter order. */
+function collectBreakingItems(items: PmItem[], context: ChangelogStatusContext): PmItem[] {
+  return items.filter((item) => isBreakingItem(item, context) && !readPresentedContractChange(item, context)).sort(compareItems);
 }
 
 /** Accept an item's author field as a creditable contributor, or reject it.
@@ -2603,15 +2612,31 @@ function getStringField(item: PmItem, field: "release" | "milestone"): string | 
   return undefined;
 }
 
-/** Order items newest-first, breaking ties on title so items sharing a
- * timestamp - or lacking one entirely - still render in a stable order across
- * regenerations. */
+/** Compare keys for entries without completion fields by locale-independent code units. */
+function compareItemText(left: string, right: string): number {
+  return left < right ? -1 : left > right ? 1 : 0;
+}
+
+/** Order completed entries first, newest completion first, retaining their
+ * title/id tie breakers. Entries without completion timestamps follow by
+ * creation time (newest first), then id. Missing or invalid creation dates
+ * sort last. Invalid resolved completions follow valid completions and precede
+ * entries without completion fields, retaining title/id ties. Only entries
+ * without completion fields use code-unit text ties; completed entries retain
+ * their existing locale comparisons. Metadata writes must never affect this order;
+ * release-window placement continues to use {@link itemTimestamp}. */
 function compareItems(a: PmItem, b: PmItem): number {
-  const aTime = Date.parse(itemTimestamp(a) ?? "");
-  const bTime = Date.parse(itemTimestamp(b) ?? "");
-  if (!Number.isNaN(aTime) && !Number.isNaN(bTime) && aTime !== bTime) {
+  const aCompletion = resolveCompletionTimestamp({ completed_at: a.completed_at, closed_at: a.closed_at });
+  const bCompletion = resolveCompletionTimestamp({ completed_at: b.completed_at, closed_at: b.closed_at });
+  if (aCompletion.resolved !== bCompletion.resolved) return aCompletion.resolved ? -1 : 1;
+  const aDate = Date.parse((aCompletion.resolved ? aCompletion.timestamp : a.created_at) ?? "");
+  const bDate = Date.parse((bCompletion.resolved ? bCompletion.timestamp : b.created_at) ?? "");
+  const aTime = Number.isNaN(aDate) ? -Infinity : aDate;
+  const bTime = Number.isNaN(bDate) ? -Infinity : bDate;
+  if (aTime !== bTime) {
     return bTime - aTime;
   }
+  if (!aCompletion.resolved) return compareItemText(a.id ?? "", b.id ?? "") || compareItemText(a.title, b.title);
   return a.title.localeCompare(b.title) || (a.id ?? "").localeCompare(b.id ?? "");
 }
 

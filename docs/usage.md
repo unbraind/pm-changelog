@@ -185,6 +185,33 @@ npx pm-changelog --all-release-tags --mode replace --output CHANGELOG.md \
 
 `--all-release-tags` creates a newest-first `Unreleased` section for closed items after the latest tag, then one section per matching git tag. Release section dates come from the tag commit timestamp. Items with a `release` field whose value matches a known tag (`v2026.05.24-7`, `2026.05.24-7`, etc.) are bucketed into that tag's section regardless of timestamps; items without a matching `release` field use each item's authoritative `completed_at`, then fall back to the inferred `closed_at`, `updated_at`, and `created_at` for legacy records. Empty release windows are omitted unless `--include-empty` is passed.
 
+Within each section, entries with `completed_at` or `closed_at` come first,
+newest completion first (ties use title, then ID). Entries without a completion
+timestamp follow, ordered by `created_at` newest first, then ID ascending;
+missing or invalid creation dates sort last. This includes legacy closed items
+without completion fields. Comments, linked files, tests and claims do not
+change this order. Entries without completion fields compare ID/title ties by
+UTF-16 code units, independent of the machine's locale. Completed entries retain
+their existing title/ID tie comparisons. A nonempty but invalid completion timestamp retains the
+SDK's completion precedence (`completed_at` before `closed_at`): it sorts after
+valid completions and before entries without completion fields, by title then ID,
+when declared or verified release membership includes it. Timestamp placement
+continues to exclude invalid completion dates.
+Markdown, release notes, `--check`, JSON and summaries share
+the same ordering, including entries placed by declared release, verified
+membership or timestamps within the same release window. Release-window
+placement still uses the timestamp rules
+above, so a metadata write can still change placement when a window relies on
+the legacy `updated_at` fallback.
+
+Contributor lists use case-insensitive lexical handle order. Case-only aliases
+are deduplicated using the lexically smallest original spelling; `assignee`
+still takes precedence over `author`. Breaking Changes lists explicitly use the
+completion-first, then creation/ID order above in both Markdown and JSON.
+Type, status and label groups retain first appearance in that canonical entry
+order, and summaries retain their section's entry order. Release-placement
+diagnostic samples keep their placement-time chronology.
+
 For live tracker reads, the CLI and extension also verify undeclared items against
 the item state stored in each tag. Work completed on a branch before an unrelated
 release stays `Unreleased` until the first tag contains its selected status. A

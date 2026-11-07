@@ -1,0 +1,21 @@
+id: pmc-closed-locale-ties
+title: Decide locale-independent ties for completed changelog entries
+description: "Equal completion timestamps retain the existing locale-sensitive title/ID order. Verified main-build goldens differ between English and Swedish locales for accented titles, and code-unit ordering would change existing completed output. The current non-lifecycle write-stability task explicitly preserves completed ordering. Decide a separate compatibility policy for cross-locale completed ties, with corpus and projection coverage before changing the behavior."
+type: Issue
+status: open
+priority: 3
+tags[2]: follow-up,ordering
+created_at: "2026-11-06T20:26:54.672Z"
+updated_at: "2026-11-06T20:32:04.748Z"
+author: codex-sol
+acceptance_criteria: "Document compatibility policy for equal completion timestamps; compare English and Swedish baseline goldens; retain completion timestamp precedence and release placement; cover Markdown, JSON and summaries."
+comments[1]{created_at,author,text}:
+  "2026-11-06T20:32:04.731Z",codex-sol,"Verified the original main build in English and Swedish locales: equal completion timestamps order underscore/dash and lowercase/uppercase title or ID ties using the existing locale comparator, with accented titles moving relative to z between locales. The current write-stability change deliberately preserves this behavior under its scope restriction. A dedicated compatibility regression captures both baseline ID orders and passes in the 10-test linked suite. Any future completed-tie policy change must explicitly update this compatibility contract."
+files[2]{path,scope}:
+  src/generator.ts,project
+  test/stable-section-order.test.ts,project
+tests[1]{command,scope,timeout_seconds,provenance{author,created_at,source_kind,source_ref}}:
+  "npm run build && npm run build:test && node --test --test-concurrency=2 --test-name-pattern=completed test/stable-section-order.test.ts",project,300,codex-sol,"2026-11-06T20:28:07.213Z",local_mutation,stable-section-order-for-open-items
+docs[1]{path,scope}:
+  docs/usage.md,project
+body: ""

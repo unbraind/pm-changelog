@@ -73,8 +73,8 @@
 ### Other
 
 - Correct tracker reconciliation review evidence ([pmc-review-266](https://github.com/unbraind/pm-changelog/blob/main/.agents/pm/chores/pmc-review-266.toon))
-- Release readiness hardening for pm-changelog ([pmc-14cx](https://github.com/unbraind/pm-changelog/blob/main/.agents/pm/tasks/pmc-14cx.toon))
 - Bump @unbrained/pm-cli SDK to \>=2026.5.24 ([pmc-cfhf](https://github.com/unbraind/pm-changelog/blob/main/.agents/pm/tasks/pmc-cfhf.toon))
+- Release readiness hardening for pm-changelog ([pmc-14cx](https://github.com/unbraind/pm-changelog/blob/main/.agents/pm/tasks/pmc-14cx.toon))
 
 ## 2026.10.23 - 2026-10-23
 
@@ -206,11 +206,11 @@
 
 ### Fixed
 
-- The installed pm resolver's memo makes three untested failures appear and disappear from exact coverage ([pmc-kd73](https://github.com/unbraind/pm-changelog/blob/main/.agents/pm/issues/pmc-kd73.toon))
-- The empty-windows fallback re-fabricates a dated placeholder heading on the library path ([pmc-zgnm](https://github.com/unbraind/pm-changelog/blob/main/.agents/pm/issues/pmc-zgnm.toon))
 - Suppressed pending release can relocate or drop an item (Greptile issue 2, PR \#174) ([pmc-hox8](https://github.com/unbraind/pm-changelog/blob/main/.agents/pm/issues/pmc-hox8.toon))
 - Pending release windows must not claim a never-released package version ([pmc-1vma](https://github.com/unbraind/pm-changelog/blob/main/.agents/pm/issues/pmc-1vma.toon))
 - Extension surface has no --no-pending-release equivalent (Greptile issue 1, PR \#174) ([pmc-zj2w](https://github.com/unbraind/pm-changelog/blob/main/.agents/pm/issues/pmc-zj2w.toon))
+- The installed pm resolver's memo makes three untested failures appear and disappear from exact coverage ([pmc-kd73](https://github.com/unbraind/pm-changelog/blob/main/.agents/pm/issues/pmc-kd73.toon))
+- The empty-windows fallback re-fabricates a dated placeholder heading on the library path ([pmc-zgnm](https://github.com/unbraind/pm-changelog/blob/main/.agents/pm/issues/pmc-zgnm.toon))
 
 ## 2026.9.1 - 2026-09-01
 
@@ -284,14 +284,14 @@
 
 ### Fixed
 
-- Node 22 exact branch coverage is nondeterministic across identical CI reruns ([pmc-v18w](https://github.com/unbraind/pm-changelog/blob/main/.agents/pm/issues/pmc-v18w.toon))
-- Repository-local pm 2026.8.6 prepare removes the 2026.8.7 extension merge fence ([pmc-rdc3](https://github.com/unbraind/pm-changelog/blob/main/.agents/pm/issues/pmc-rdc3.toon))
 - Propagate the docstring gate entry guard fix ([pmc-g5f7](https://github.com/unbraind/pm-changelog/blob/main/.agents/pm/issues/pmc-g5f7.toon))
 - changelog:check verified in prepend mode against a replace-mode CHANGELOG, making the gate unsatisfiable ([pmc-s2bk](https://github.com/unbraind/pm-changelog/blob/main/.agents/pm/issues/pmc-s2bk.toon))
 - The release merge-wait read branch protection which the workflow token can never read ([pmc-o58h](https://github.com/unbraind/pm-changelog/blob/main/.agents/pm/issues/pmc-o58h.toon))
 - Retire the vendored docstring gate for the canonical pm-ops analyzer ([pmc-j0dx](https://github.com/unbraind/pm-changelog/blob/main/.agents/pm/issues/pmc-j0dx.toon))
 - Self-referential release-context test freezes the package version the release bump mutates ([pmc-iygx](https://github.com/unbraind/pm-changelog/blob/main/.agents/pm/issues/pmc-iygx.toon))
+- Node 22 exact branch coverage is nondeterministic across identical CI reruns ([pmc-v18w](https://github.com/unbraind/pm-changelog/blob/main/.agents/pm/issues/pmc-v18w.toon))
 - Node-CLI acceptance test assumes pmc-or-pm item prefixes and leaks the invoking PM tracker ([pmc-femy](https://github.com/unbraind/pm-changelog/blob/main/.agents/pm/issues/pmc-femy.toon))
+- Repository-local pm 2026.8.6 prepare removes the 2026.8.7 extension merge fence ([pmc-rdc3](https://github.com/unbraind/pm-changelog/blob/main/.agents/pm/issues/pmc-rdc3.toon))
 
 ### Other
 
@@ -329,8 +329,8 @@
 
 ### Added
 
-- Enforce a real coverage gate by running tests against TypeScript sources ([pmc-6jr4](https://github.com/unbraind/pm-changelog/blob/main/.agents/pm/features/pmc-6jr4.toon))
 - Adopt authoritative completion-timestamp contract from pm-cli SDK ([pmc-366b](https://github.com/unbraind/pm-changelog/blob/main/.agents/pm/features/pmc-366b.toon))
+- Enforce a real coverage gate by running tests against TypeScript sources ([pmc-6jr4](https://github.com/unbraind/pm-changelog/blob/main/.agents/pm/features/pmc-6jr4.toon))
 
 ## 2026.7.29 - 2026-07-28
 
@@ -542,12 +542,12 @@
 
 ### Added
 
-- Opt-in changelog enhancements ([pmc-emx6](https://github.com/unbraind/pm-changelog/blob/main/.agents/pm/features/pmc-emx6.toon))
 - Add --changelog-json structured document output ([pmc-gl6b](https://github.com/unbraind/pm-changelog/blob/main/.agents/pm/tasks/pmc-gl6b.toon))
 - Add --limit and --since-version release windowing ([pmc-xtwa](https://github.com/unbraind/pm-changelog/blob/main/.agents/pm/tasks/pmc-xtwa.toon))
 - Add --contributors per-release contributor list ([pmc-imsu](https://github.com/unbraind/pm-changelog/blob/main/.agents/pm/tasks/pmc-imsu.toon))
 - Add --conventional Conventional-Commits heading mapping ([pmc-91hn](https://github.com/unbraind/pm-changelog/blob/main/.agents/pm/tasks/pmc-91hn.toon))
 - Add --section-by type\|status\|label within-release grouping ([pmc-qro6](https://github.com/unbraind/pm-changelog/blob/main/.agents/pm/tasks/pmc-qro6.toon))
+- Opt-in changelog enhancements ([pmc-emx6](https://github.com/unbraind/pm-changelog/blob/main/.agents/pm/features/pmc-emx6.toon))
 
 ### Fixed
 
@@ -589,9 +589,9 @@
 
 - Bump @types/node to ^25.9.1 and rewire CI to full-history changelog ([pmc-w8iu](https://github.com/unbraind/pm-changelog/blob/main/.agents/pm/chores/pmc-w8iu.toon))
 - Cut and publish pm-changelog 2026.5.25-1 release to npm and GitHub ([pmc-9wvl](https://github.com/unbraind/pm-changelog/blob/main/.agents/pm/tasks/pmc-9wvl.toon))
-- Production readiness audit and release for pm-changelog 2026-05-25 ([pmc-9mck](https://github.com/unbraind/pm-changelog/blob/main/.agents/pm/epics/pmc-9mck.toon))
-- Replace inline node -e JavaScript with TypeScript helper ([pmc-vvpy](https://github.com/unbraind/pm-changelog/blob/main/.agents/pm/chores/pmc-vvpy.toon))
 - Verify pm-changelog install and CLI work in a clean temp folder ([pmc-3jj2](https://github.com/unbraind/pm-changelog/blob/main/.agents/pm/tasks/pmc-3jj2.toon))
+- Replace inline node -e JavaScript with TypeScript helper ([pmc-vvpy](https://github.com/unbraind/pm-changelog/blob/main/.agents/pm/chores/pmc-vvpy.toon))
+- Production readiness audit and release for pm-changelog 2026-05-25 ([pmc-9mck](https://github.com/unbraind/pm-changelog/blob/main/.agents/pm/epics/pmc-9mck.toon))
 
 ## 2026.5.24-15 - 2026-05-24
 
@@ -662,8 +662,8 @@
 
 ### Fixed
 
-- Published package sourcemaps point to missing source files ([pmc-l9z0](https://github.com/unbraind/pm-changelog/blob/main/.agents/pm/issues/pmc-l9z0.toon))
 - Production readiness refresh for pm-changelog sourcemap fix ([pmc-pm02](https://github.com/unbraind/pm-changelog/blob/main/.agents/pm/chores/pmc-pm02.toon))
+- Published package sourcemaps point to missing source files ([pmc-l9z0](https://github.com/unbraind/pm-changelog/blob/main/.agents/pm/issues/pmc-l9z0.toon))
 
 ### Other
 
@@ -700,8 +700,8 @@
 
 ### Other
 
-- Production readiness refresh for pm-changelog v2026.05.23-7 ([pmc-t7ie](https://github.com/unbraind/pm-changelog/blob/main/.agents/pm/epics/pmc-t7ie.toon))
 - Convert test source to typed TypeScript ([pmc-yzeq](https://github.com/unbraind/pm-changelog/blob/main/.agents/pm/tasks/pmc-yzeq.toon))
+- Production readiness refresh for pm-changelog v2026.05.23-7 ([pmc-t7ie](https://github.com/unbraind/pm-changelog/blob/main/.agents/pm/epics/pmc-t7ie.toon))
 
 ## 2026.5.23-6 - 2026-05-23
 
@@ -750,7 +750,7 @@
 ### Other
 
 - Final release verification and npm publication audit ([pmc-jk1a](https://github.com/unbraind/pm-changelog/blob/main/.agents/pm/chores/pmc-jk1a.toon))
-- Release pm-changelog 0.1.0 as a production-ready pm package ([pmc-ysps](https://github.com/unbraind/pm-changelog/blob/main/.agents/pm/epics/pmc-ysps.toon))
 - Document pm governance for the package lifecycle ([pmc-xl68](https://github.com/unbraind/pm-changelog/blob/main/.agents/pm/chores/pmc-xl68.toon))
 - Align GitHub repository settings for public package release ([pmc-w1sp](https://github.com/unbraind/pm-changelog/blob/main/.agents/pm/chores/pmc-w1sp.toon))
 - Verify pm-changelog in a clean temporary project ([pmc-800h](https://github.com/unbraind/pm-changelog/blob/main/.agents/pm/tasks/pmc-800h.toon))
+- Release pm-changelog 0.1.0 as a production-ready pm package ([pmc-ysps](https://github.com/unbraind/pm-changelog/blob/main/.agents/pm/epics/pmc-ysps.toon))
