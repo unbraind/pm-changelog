@@ -2,6 +2,14 @@
 
 > Compatibility: explicit tag options (--all-release-tags, --since-previous-tag, --until-release-tag) now require an accessible Git repository and fail with MissingTagHistoryError in source archives and container contexts without Git history. Use tracker-only generation or --milestones there.
 
+## 2026.11.7 - 2026-11-07
+
+### Dependencies
+
+- Bump unbraind/pm-github/.github/workflows/pm-github-sync.yml ([#330](https://github.com/unbraind/pm-changelog/pull/330))
+- Bump unbraind/pm-github/.github/workflows/pm-github-closeout.yml ([#331](https://github.com/unbraind/pm-changelog/pull/331))
+- Bump the codeql-action group with 2 updates ([#329](https://github.com/unbraind/pm-changelog/pull/329))
+
 ## 2026.11.6 - 2026-11-06
 
 ### Dependencies
