@@ -76,3 +76,14 @@ has no merged-change receipt input; tracker snapshots/milestones capture items,
 not merged non-item changes. `pmc-portable-change-receipts` designs an immutable,
 git-optional receipt source rather than adding another Git-only inference path.
 CI's npm and Bun release gates provide the full-suite evidence at the PR head.
+
+## CI cutoff receipt
+
+The 30-minute wait cutoff was reached with code head
+`5cf94f2db8fa68eecbb0a5e38d8e61a7e32daa41` still in lifecycle validation:
+[CI run](https://github.com/unbraind/pm-changelog/actions/runs/42422378771),
+[CodeQL run](https://github.com/unbraind/pm-changelog/actions/runs/42422378874).
+Zero of four npm/Bun release gates on Node 22/26 were verified at that point.
+No full-suite counts or coverage are claimed. This tracker/evidence receipt
+triggers a fresh exact-head run; the PR checks identify it. Verification and
+closure remain with the orchestrator.
