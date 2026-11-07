@@ -275,7 +275,10 @@ const breakingItems: PmItem[] = [
 test("--breaking-changes emits a Breaking Changes section listing detected items", () => {
   const md = createChangelog({ items: breakingItems, version: "2.0.0", date: "2026-05-28", breakingChanges: true }).markdown;
   assert.match(md, /### Breaking Changes\n/);
-  assert.match(md, /### Breaking Changes\n\n- Drop legacy API/);
+  // These legacy rows have no completion/creation fields: ID order is stable,
+  // whereas their updated_at values describe mutable metadata writes.
+  assert.match(md, /### Breaking Changes\n\n- Rename config keys/);
+  assert.match(md, /- Rename config keys \(pm-brk-flag\)\n- Drop legacy API \(pm-brk-tag\)/);
   assert.match(md, /- Rename config keys/);
   assert.match(md, /- BREAKING: remove --old flag/);
   // The non-breaking item must NOT appear under Breaking Changes.
@@ -293,7 +296,7 @@ test("--breaking-changes is absent by default (byte-identical)", () => {
 test("--breaking-changes surfaces in the structured document", () => {
   const doc = buildChangelogDocument({ items: breakingItems, version: "2.0.0", date: "2026-05-28", breakingChanges: true });
   const ids = (doc.releases[0].breaking_changes ?? []).map((i) => i.id);
-  assert.deepEqual(ids.sort(), ["pm-brk-flag", "pm-brk-tag", "pm-brk-title"]);
+  assert.deepEqual(ids, ["pm-brk-flag", "pm-brk-tag", "pm-brk-title"]);
 });
 
 // ---------------------------------------------------------------------------
