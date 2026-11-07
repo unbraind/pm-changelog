@@ -159,6 +159,7 @@ test("declared issues without repair evidence retain neutral closure in every ou
       const document = buildChangelogDocument(options);
       assert.deepEqual(document.releases[0].breaking_changes, []);
       assert.equal(document.releases[0].sections[0].heading, "Closed");
+      assert.equal(Object.hasOwn(document.releases[0].sections[0].items[0], "contract_change"), false);
       assert.equal(document.releases[0].sections[0].items[0].title, "Closed: Security parser change");
       assert.equal(document.suggested_semver!.bump, "none");
       assert.equal(createChangelogSummary(options)[0].title, "Closed: Security parser change");

@@ -648,7 +648,7 @@ export function formatSummaryLine(entry: ChangelogSummaryEntry): string {
   const separatorStart = findReleaseSeparatorStart(entry.heading);
   const versionLabel = entry.version ?? entry.heading.slice(0, separatorStart ?? entry.heading.length);
   const idSuffix = entry.id ? ` (${entry.id})` : "";
-  return `[${versionLabel}] ${entry.category}: ${entry.title}${idSuffix}`;
+  return toSingleLine(`[${versionLabel}] ${entry.category}: ${entry.title}${idSuffix}`);
 }
 
 /** Project an item onto one `--summary` row, keeping its title single-lined so
@@ -665,7 +665,7 @@ function toSummaryEntry(
     version,
     category,
     id: item.id,
-    title: readPresentedContractChange(item, options) ? item.title : resolveEntryTitle(item, options),
+    title: resolveEntryTitle(item, options),
     type: typeof item.type === "string" ? item.type : undefined,
     status: typeof item.status === "string" ? item.status : undefined,
   };
@@ -678,7 +678,7 @@ function toDocumentItem(item: PmItem, options: GenerateChangelogOptions): Change
   return {
     ...(contract ? { contract_change: contract } : {}),
     id: item.id,
-    title: contract ? item.title : resolveEntryTitle(item, options),
+    title: resolveEntryTitle(item, options),
     type: item.type,
     status: item.status,
     priority: item.priority,
@@ -2103,6 +2103,7 @@ export function parseChangelogEntryFrom(value: string): ChangelogEntryFrom {
  * Empty, whitespace-only and non-string resolutions fall back to title. */
 function resolveEntryTitle(item: PmItem, options: GenerateChangelogOptions): string {
   if (needsNeutralClosure(item, options)) return `Closed: ${toSingleLine(item.title)}`;
+  if (readContractChange(item)) return toSingleLine(item.title);
   if (options.entryFrom === "close_reason") {
     const resolution = resolveChangelogResolution(item);
     if (resolution !== undefined) return resolution;

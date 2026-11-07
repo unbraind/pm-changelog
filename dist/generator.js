@@ -537,7 +537,7 @@ export function formatSummaryLine(entry) {
     const separatorStart = findReleaseSeparatorStart(entry.heading);
     const versionLabel = entry.version ?? entry.heading.slice(0, separatorStart ?? entry.heading.length);
     const idSuffix = entry.id ? ` (${entry.id})` : "";
-    return `[${versionLabel}] ${entry.category}: ${entry.title}${idSuffix}`;
+    return toSingleLine(`[${versionLabel}] ${entry.category}: ${entry.title}${idSuffix}`);
 }
 /** Project an item onto one `--summary` row, keeping its title single-lined so
  * each entry stays exactly one line. */
@@ -547,7 +547,7 @@ function toSummaryEntry(heading, version, category, item, options) {
         version,
         category,
         id: item.id,
-        title: readPresentedContractChange(item, options) ? item.title : resolveEntryTitle(item, options),
+        title: resolveEntryTitle(item, options),
         type: typeof item.type === "string" ? item.type : undefined,
         status: typeof item.status === "string" ? item.status : undefined,
     };
@@ -559,7 +559,7 @@ function toDocumentItem(item, options) {
     return {
         ...(contract ? { contract_change: contract } : {}),
         id: item.id,
-        title: contract ? item.title : resolveEntryTitle(item, options),
+        title: resolveEntryTitle(item, options),
         type: item.type,
         status: item.status,
         priority: item.priority,
@@ -1880,6 +1880,8 @@ export function parseChangelogEntryFrom(value) {
 function resolveEntryTitle(item, options) {
     if (needsNeutralClosure(item, options))
         return `Closed: ${toSingleLine(item.title)}`;
+    if (readContractChange(item))
+        return toSingleLine(item.title);
     if (options.entryFrom === "close_reason") {
         const resolution = resolveChangelogResolution(item);
         if (resolution !== undefined)

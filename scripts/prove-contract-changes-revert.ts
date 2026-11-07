@@ -12,11 +12,11 @@ try {
   }
   mkdirSync(join(scratch, "test"));
   mkdirSync(join(scratch, "home"));
-  cpSync(resolve("test/contract-changes.test.ts"), join(scratch, "test/contract-changes.test.ts"));
+  for (const file of ["contract-changes.test.ts", "contract-projections.test.ts"]) cpSync(resolve("test", file), join(scratch, "test", file));
   symlinkSync(resolve("node_modules"), join(scratch, "node_modules"), "junction");
   const childEnv = { PATH: process.env.PATH, HOME: join(scratch, "home"), NPM_CONFIG_USERCONFIG: "/dev/null", GIT_CONFIG_GLOBAL: "/dev/null", GIT_CONFIG_NOSYSTEM: "1", DO_NOT_TRACK: "1" };
   /** Execute only the matching regression with no inherited credentials or tracker. */
-  const run = (pattern: string) => spawnSync(process.execPath, ["--test", "--test-concurrency=2", `--test-name-pattern=${pattern}`, "test/contract-changes.test.ts"], {
+  const run = (pattern: string, testFile: string) => spawnSync(process.execPath, ["--test", "--test-concurrency=2", `--test-name-pattern=${pattern}`, `test/${testFile}`], {
     cwd: scratch, encoding: "utf8", env: childEnv, timeout: 120000,
   });
   /** Rebuild the copied extension so activation tests exercise the mutated artifact. */
@@ -29,10 +29,10 @@ try {
       from: ', { name: "contract_change", type: "object", optional: true }', to: "" },
     { rule: "neutral closure eligibility", path: "src/generator.ts", pattern: "^declared issues without repair", rebuild: false,
       from: "return needsNeutralClosure(item, context) ? undefined : readContractChange(item);", to: "return readContractChange(item);" },
-    { rule: "JSON neutral title", path: "src/generator.ts", pattern: "^declared issues without repair", rebuild: false,
+    { rule: "JSON neutral projection", path: "src/generator.ts", pattern: "^declared issues without repair", rebuild: false,
       from: "const contract = readPresentedContractChange(item, options);", to: "const contract = readContractChange(item);" },
     { rule: "summary neutral title", path: "src/generator.ts", pattern: "^declared issues without repair", rebuild: false,
-      from: "title: readPresentedContractChange(item, options) ? item.title : resolveEntryTitle(item, options),", to: "title: readContractChange(item) ? item.title : resolveEntryTitle(item, options)," },
+      from: "title: resolveEntryTitle(item, options),", to: "title: readContractChange(item) ? item.title : resolveEntryTitle(item, options)," },
     { rule: "field grouping closure precedence", path: "src/generator.ts", pattern: "^declared issues without repair", rebuild: false,
       from: "if (readPresentedContractChange(item, context)) {", to: "if (readContractChange(item)) {" },
     { rule: "category grouping closure precedence", path: "src/generator.ts", pattern: "^declared issues without repair", rebuild: false,
@@ -43,16 +43,27 @@ try {
       from: "return escapeItemTitleMarkdown(toSingleLine(value), true);", to: "return escapeItemTitleMarkdown(toSingleLine(value));" },
     { rule: "unmatched opening run recovery", path: "src/generator.ts", pattern: "^contract Markdown isolates", rebuild: false,
       from: "if (matchFullFences) {\n        result += escapeItemTitleText(fence);", to: "if (false) {\n        result += escapeItemTitleText(fence);" },
+    { rule: "nullish metadata precedence", path: "src/contract-changes.ts", pattern: "^contract projection: nullish", testFile: "contract-projections.test.ts", rebuild: false,
+      from: "const value = (direct === undefined || direct === null) && nested !== undefined ? nested : direct;", to: "const value = direct !== undefined ? direct : nested;" },
+    { rule: "summary title projection", path: "src/generator.ts", pattern: "^contract projection: every presentation", testFile: "contract-projections.test.ts", rebuild: false,
+      from: "title: resolveEntryTitle(item, options),", to: "title: readPresentedContractChange(item, options) ? item.title : resolveEntryTitle(item, options)," },
+    { rule: "document title projection", path: "src/generator.ts", pattern: "^contract projection: every presentation", testFile: "contract-projections.test.ts", rebuild: false,
+      from: "...(contract ? { contract_change: contract } : {}),\n    id: item.id,\n    title: resolveEntryTitle(item, options),", to: "...(contract ? { contract_change: contract } : {}),\n    id: item.id,\n    title: contract ? item.title : resolveEntryTitle(item, options)," },
+    { rule: "shared entry-source policy", path: "src/generator.ts", pattern: "^contract projection: every presentation", testFile: "contract-projections.test.ts", rebuild: false,
+      from: "  if (readContractChange(item)) return toSingleLine(item.title);\n", to: "" },
+    { rule: "summary formatter line boundary", path: "src/generator.ts", pattern: "^contract projection: summary formatter", testFile: "contract-projections.test.ts", rebuild: false,
+      from: "return toSingleLine(`[${versionLabel}] ${entry.category}: ${entry.title}${idSuffix}`);", to: "return `[${versionLabel}] ${entry.category}: ${entry.title}${idSuffix}`;" },
   ]) {
+    const testFile = ("testFile" in proof ? proof.testFile : undefined) ?? "contract-changes.test.ts";
     const source = join(scratch, proof.path), fixed = readFileSync(source, "utf8");
-    assert.equal(run(proof.pattern).status, 0, `fixed: ${proof.rule}`);
+    assert.equal(run(proof.pattern, testFile).status, 0, `fixed: ${proof.rule}`);
     assert.ok(fixed.includes(proof.from), proof.rule);
     let reverted = fixed.replace(proof.from, proof.to);
     if (proof.rule === "contract field isolation") reverted = reverted.replace("return `${title}${id}${metadata}${link}${preview}`;", "return `${merged}${id}${metadata}${link}${preview}`;");
     try {
       writeFileSync(source, reverted);
       if (proof.rebuild) build();
-      const result = run(proof.pattern);
+      const result = run(proof.pattern, testFile);
       assert.notEqual(result.status, 0, `revert must fail: ${proof.rule}`);
       assert.equal(result.signal, null, `revert must fail normally: ${proof.rule}`);
       assert.match(result.stdout + result.stderr, /ERR_ASSERTION|AssertionError|extension_item_field_unknown/, `behavioral failure: ${proof.rule}`);
@@ -60,7 +71,7 @@ try {
       writeFileSync(source, fixed);
       if (proof.rebuild) build();
     }
-    assert.equal(run(proof.pattern).status, 0, `restored: ${proof.rule}`);
+    assert.equal(run(proof.pattern, testFile).status, 0, `restored: ${proof.rule}`);
     console.log(JSON.stringify({ rule: proof.rule, fixed_pass: 1, behavioral_revert_fail: 1, restored_pass: 1 }));
   }
 } finally {

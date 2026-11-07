@@ -10,7 +10,9 @@ export interface ContractChange {
 
 /** Preserve incomplete historical declarations as auditable gaps, never inferred prose. */
 export function readContractChange(item: PmItem): ContractChange | undefined {
-  const value = item.contract_change !== undefined ? item.contract_change : item.metadata?.contract_change;
+  const direct = item.contract_change;
+  const nested = item.metadata?.contract_change;
+  const value = (direct === undefined || direct === null) && nested !== undefined ? nested : direct;
   if (value === undefined) return undefined;
   const row = value !== null && typeof value === "object" && !Array.isArray(value)
     ? value as Record<string, unknown> : {};

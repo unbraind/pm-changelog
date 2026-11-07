@@ -500,7 +500,9 @@ With this extension active, author it using
 Projects that independently register the same object field through `pm schema
 add-field` use their declared `--contract-change` flag instead (SDK option
 `contractChange`). Caller-supplied `PmItem` objects may also put the declaration
-under `metadata.contract_change`; the direct field takes precedence. `api` is
+under `metadata.contract_change`; a non-null direct field takes precedence.
+A null or absent direct field falls back to metadata; standalone null values
+remain readable as incomplete declarations with audit gaps. `api` is
 optional. Text is trimmed; JSON retains embedded newlines, while Markdown escapes
 and flattens them like item titles.
 
@@ -517,7 +519,8 @@ list. Existing evidence checks and semver classification still apply independent
 of this presentation heading. Closed issue-like items without repair evidence retain
 the neutral Closed heading and wording, including in JSON and summaries, even
 when a declaration or breaking flag is present. The declaration
-uses the item title even with `--entry-from close_reason`. Existing status,
+uses the single-line item title even with `--entry-from close_reason`,
+including in JSON and compact summaries. Existing status,
 non-change and release filters still apply. Undeclared items retain their existing
 rendering. Tracker milestones freeze declarations with the rendered item.
 
