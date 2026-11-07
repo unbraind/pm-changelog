@@ -501,13 +501,7 @@ interface ChangelogItemGroup {
  */
 function selectChangelogSections(options: GenerateChangelogOptions): SelectedChangelogSections {
   const items = filterItems(options);
-  let sections = buildSections(items, options);
-
-  // The itemless default preserves sections already committed at release tags.
-  if (options.dependencyUpdates !== false && options.gitCwd) {
-    sections = enrichSectionsWithDependencyCommits(sections, options, options.gitCwd);
-  }
-
+  const sections = buildEnrichedSections(items, options);
   const candidateSections = selectCandidateSections(sections, options);
   return {
     items,
@@ -515,6 +509,16 @@ function selectChangelogSections(options: GenerateChangelogOptions): SelectedCha
     visibleSections: limitSections(candidateSections, options),
     sectionBy: options.sectionBy ?? "category",
   };
+}
+
+/** Build the same dependency-aware windows for rendering, item lists and diagnostics. */
+function buildEnrichedSections(items: PmItem[], options: GenerateChangelogOptions): ChangelogSection[] {
+  const sections = buildSections(items, options);
+  // The itemless default preserves sections already committed at release tags.
+  if (options.dependencyUpdates !== false && options.gitCwd) {
+    return enrichSectionsWithDependencyCommits(sections, options, options.gitCwd);
+  }
+  return sections;
 }
 
 /** Keep empty releases on request, but never fabricate empty pending notes.
@@ -2288,11 +2292,7 @@ export function suggestSemver(options: GenerateChangelogOptions): SemverSuggesti
  * emits (GH #28).
  */
 export function visibleChangelogItems(options: GenerateChangelogOptions): PmItem[] {
-  const filtered = filterItems(options);
-  const sections = buildSections(filtered, options);
-  const candidateSections = selectCandidateSections(sections, options);
-  const visibleSections = limitSections(candidateSections, options);
-  return visibleSections.flatMap((section) => section.items);
+  return selectChangelogSections(options).visibleSections.flatMap((section) => section.items);
 }
 
 /**
@@ -2366,7 +2366,7 @@ export function explainChangelogSelection(options: GenerateChangelogOptions): Ch
       )
     : excludedByTime;
 
-  const sections = buildSections(afterItemRelease, options);
+  const sections = buildEnrichedSections(afterItemRelease, options);
   const assignedToReleaseWindows = new Set(
     hasReleaseWindows ? sections.flatMap((section) => section.items) : []
   );

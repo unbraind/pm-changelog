@@ -131,3 +131,26 @@ test("CLI help states empty Unreleased policy", () => {
   assert.equal(result.status, 0);
   assert.match(result.stdout, /--include-empty\s+Keep empty release sections; omit empty Unreleased/);
 });
+
+
+test("dependency-only Unreleased occupies the same limited slot in every projection", (t) => {
+  const dir = mkdtempSync(join(tmpdir(), "pm-stable-dependency-slot-"));
+  t.after(() => removeGitFixture(dir));
+  initGitFixture(dir);
+  const env = { PATH: process.env.PATH, GIT_CONFIG_GLOBAL: "/dev/null", GIT_CONFIG_NOSYSTEM: "1", GIT_AUTHOR_NAME: "Fixture", GIT_COMMITTER_NAME: "Fixture", GIT_AUTHOR_EMAIL: "fixture@example.invalid", GIT_COMMITTER_EMAIL: "fixture@example.invalid" };
+  const git = (...args: string[]) => execFileSync("git", args, { cwd: dir, env, stdio: "pipe" });
+  /** Give each commit a known release boundary instead of consulting the clock. */
+  const commit = (subject: string, timestamp: string) => execFileSync("git", ["-c", "commit.gpgsign=false", "commit", "--allow-empty", "-m", subject], { cwd: dir, env: { ...env, GIT_AUTHOR_DATE: timestamp, GIT_COMMITTER_DATE: timestamp }, stdio: "pipe" });
+  commit("docs: release", "2026-11-07T10:00:00Z");
+  git("tag", "v2026.11.7");
+  commit("chore(deps): bump example from 1 to 2 (#7)", "2026-11-07T11:00:00Z");
+  for (const includeEmpty of [true, false]) {
+    const options: GenerateChangelogOptions = { items: [{ id: "old", title: "Hidden older delivery", status: "closed", release: "2026.11.7" }], version: "2026.11.7", includeEmpty, dependencyUpdates: true, gitCwd: dir, limit: 1, releaseWindows: resolveReleaseTagWindows({ cwd: dir }) };
+    assert.match(createChangelog(options).markdown, /## Unreleased[\s\S]*### Dependencies/);
+    assert.doesNotMatch(createChangelog(options).markdown, /Hidden older delivery/);
+    assert.equal(buildChangelogDocument(options).releases[0]!.heading, "Unreleased");
+    assert.deepEqual(visibleChangelogItems(options), []);
+    assert.equal(explainChangelogSelection(options).stage_counts.visible_items, 0);
+    assert.equal(explainChangelogSelection(options).excluded_counts.hidden_by_visibility, 1);
+  }
+});

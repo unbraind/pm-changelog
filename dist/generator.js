@@ -404,11 +404,7 @@ export function assertRequestedRelease(options) {
  */
 function selectChangelogSections(options) {
     const items = filterItems(options);
-    let sections = buildSections(items, options);
-    // The itemless default preserves sections already committed at release tags.
-    if (options.dependencyUpdates !== false && options.gitCwd) {
-        sections = enrichSectionsWithDependencyCommits(sections, options, options.gitCwd);
-    }
+    const sections = buildEnrichedSections(items, options);
     const candidateSections = selectCandidateSections(sections, options);
     return {
         items,
@@ -416,6 +412,15 @@ function selectChangelogSections(options) {
         visibleSections: limitSections(candidateSections, options),
         sectionBy: options.sectionBy ?? "category",
     };
+}
+/** Build the same dependency-aware windows for rendering, item lists and diagnostics. */
+function buildEnrichedSections(items, options) {
+    const sections = buildSections(items, options);
+    // The itemless default preserves sections already committed at release tags.
+    if (options.dependencyUpdates !== false && options.gitCwd) {
+        return enrichSectionsWithDependencyCommits(sections, options, options.gitCwd);
+    }
+    return sections;
 }
 /** Keep empty releases on request, but never fabricate empty pending notes.
  * Apply before limits so an empty Unreleased window cannot consume a release slot. */
@@ -2070,11 +2075,7 @@ export function suggestSemver(options) {
  * emits (GH #28).
  */
 export function visibleChangelogItems(options) {
-    const filtered = filterItems(options);
-    const sections = buildSections(filtered, options);
-    const candidateSections = selectCandidateSections(sections, options);
-    const visibleSections = limitSections(candidateSections, options);
-    return visibleSections.flatMap((section) => section.items);
+    return selectChangelogSections(options).visibleSections.flatMap((section) => section.items);
 }
 /**
  * OPT-IN (`--explain`): return machine-readable diagnostics showing how input
@@ -2142,7 +2143,7 @@ export function explainChangelogSelection(options) {
     const excludedByTimeNet = attributionApplies
         ? excludedByTime.filter((item) => !afterItemReleaseRefs.has(item) && !excludedByItemReleaseRefs.has(item))
         : excludedByTime;
-    const sections = buildSections(afterItemRelease, options);
+    const sections = buildEnrichedSections(afterItemRelease, options);
     const assignedToReleaseWindows = new Set(hasReleaseWindows ? sections.flatMap((section) => section.items) : []);
     const excludedByReleaseWindow = hasReleaseWindows
         ? afterItemRelease.filter((item) => !assignedToReleaseWindows.has(item))
