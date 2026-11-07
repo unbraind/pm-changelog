@@ -353,7 +353,7 @@ export function createChangelog(
       // up front. Undeclared items also appear in their ordinary group below;
       // contract declarations retain a single migration-bearing entry.
       if (options.breakingChanges) {
-        const breaking = section.items.filter((item) => isBreakingItem(item, options) && !readContractChange(item));
+        const breaking = section.items.filter((item) => isBreakingItem(item, options) && !readPresentedContractChange(item, options));
         if (breaking.length > 0) {
           lines.push(`### ${maybeEmoji("Breaking Changes", options)}`, "");
           for (const item of breaking) {
@@ -573,7 +573,7 @@ export function buildChangelogDocument(options: GenerateChangelogOptions): Chang
       sections: sectionGroups,
       contributors: options.contributors ? collectContributors(section.items) : undefined,
       breaking_changes: options.breakingChanges
-        ? section.items.filter((item) => isBreakingItem(item, options) && !readContractChange(item)).map((item) => toDocumentItem(item, options))
+        ? section.items.filter((item) => isBreakingItem(item, options) && !readPresentedContractChange(item, options)).map((item) => toDocumentItem(item, options))
         : undefined,
       dependencies: section.dependencyCommits?.map((commit) => ({
         subject: commit.subject,
@@ -665,7 +665,7 @@ function toSummaryEntry(
     version,
     category,
     id: item.id,
-    title: readContractChange(item) ? item.title : resolveEntryTitle(item, options),
+    title: readPresentedContractChange(item, options) ? item.title : resolveEntryTitle(item, options),
     type: typeof item.type === "string" ? item.type : undefined,
     status: typeof item.status === "string" ? item.status : undefined,
   };
@@ -674,7 +674,7 @@ function toSummaryEntry(
 /** Project an item onto its `--changelog-json` form, narrowing the tracker row
  * to the fields the structured document publishes. */
 function toDocumentItem(item: PmItem, options: GenerateChangelogOptions): ChangelogDocumentItem {
-  const contract = readContractChange(item);
+  const contract = readPresentedContractChange(item, options);
   return {
     ...(contract ? { contract_change: contract } : {}),
     id: item.id,
@@ -1713,7 +1713,7 @@ function groupByField(
   };
 
   for (const item of items) {
-    if (readContractChange(item)) {
+    if (readPresentedContractChange(item, context)) {
       push("Changed (SDK contract)", item);
     } else if (needsNeutralClosure(item, context)) {
       push("Closed", item);
@@ -1788,7 +1788,7 @@ function pickContributor(value: unknown): string | undefined {
 function groupByCategory(items: PmItem[], context: ChangelogStatusContext): Map<Category, PmItem[]> {
   const grouped = new Map<Category, PmItem[]>();
   for (const item of items) {
-    const category = readContractChange(item) ? "Changed (SDK contract)" : classifyItem(item, context);
+    const category = readPresentedContractChange(item, context) ? "Changed (SDK contract)" : classifyItem(item, context);
     const categoryItems = grouped.get(category) ?? [];
     categoryItems.push(item);
     grouped.set(category, categoryItems);
@@ -2129,14 +2129,23 @@ export function lintChangelogEntries(options: GenerateChangelogOptions): string[
   return warnings;
 }
 
+/** Apply closure evidence policy before publishing a declared behavior change. */
+function readPresentedContractChange(item: PmItem, context: ChangelogStatusContext): ReturnType<typeof readContractChange> {
+  return needsNeutralClosure(item, context) ? undefined : readContractChange(item);
+}
+
+/** Normalize and escape one field without allowing code spans to cross field boundaries. */
+function formatContractText(value: string): string {
+  return escapeItemTitleMarkdown(toSingleLine(value), true);
+}
+
 /** Render one item as its changelog bullet text, appending only the parts the
  * enabled options asked for. */
 function formatItem(item: PmItem, options: GenerateChangelogOptions): string {
-  const contract = readContractChange(item);
-  const prose = contract
-    ? `${item.title}: ${contract.before || "[missing before]"} → ${contract.after || "[missing after]"}. Migrate: ${contract.migrate || "[missing migration]"}`
-    : resolveEntryTitle(item, options);
-  const title = escapeItemTitleMarkdown(contract ? toSingleLine(prose) : prose);
+  const contract = readPresentedContractChange(item, options);
+  const title = contract
+    ? `${formatContractText(item.title)}: ${formatContractText(contract.before || "[missing before]")} → ${formatContractText(contract.after || "[missing after]")}. Migrate: ${formatContractText(contract.migrate || "[missing migration]")}`
+    : escapeItemTitleMarkdown(resolveEntryTitle(item, options));
   const id = formatItemId(item, options);
   const metadata = formatItemMetadata(item, options);
   const link = options.includeLinks ? formatLink(item.url) : "";
@@ -2681,7 +2690,7 @@ function escapeMarkdown(value: string): string {
  * quoting a flag as `` `--add` `` keeps rendering as code instead of having its
  * backticks escaped into literal text. An unterminated span is escaped as
  * ordinary text rather than swallowing the rest of the title. */
-function escapeItemTitleMarkdown(value: string): string {
+function escapeItemTitleMarkdown(value: string, matchFullFences = false): string {
   let result = "";
   let index = 0;
   while (index < value.length) {
@@ -2692,8 +2701,16 @@ function escapeItemTitleMarkdown(value: string): string {
     }
     result += escapeItemTitleText(value.slice(index, start));
     const fence = value.slice(start).match(/^`+/)![0];
-    const end = value.indexOf(fence, start + fence.length);
+    let end = value.indexOf(fence, start + fence.length);
+    while (matchFullFences && end !== -1 && (value[end - 1] === "`" || value[end + fence.length] === "`")) {
+      end = value.indexOf(fence, end + 1);
+    }
     if (end === -1) {
+      if (matchFullFences) {
+        result += escapeItemTitleText(fence);
+        index = start + fence.length;
+        continue;
+      }
       result += escapeItemTitleText(value.slice(start));
       break;
     }

@@ -477,7 +477,7 @@ under `metadata.contract_change`; the direct field takes precedence. `api` is
 optional. Text is trimmed; JSON retains embedded newlines, while Markdown escapes
 and flattens them like item titles.
 
-Declared items appear once under `### Changed (SDK contract)`, including items
+Eligible declared items appear once under `### Changed (SDK contract)`, including items
 otherwise classified as Fixed or Security:
 
 ```markdown
@@ -487,14 +487,16 @@ otherwise classified as Fixed or Security:
 This dedicated group also applies with `--section-by`, `--conventional` and
 `--breaking-changes`; declared items are not repeated in the Breaking Changes
 list. Existing evidence checks and semver classification still apply independently
-of this presentation heading. The declaration
+of this presentation heading. Closed issue-like items without repair evidence retain
+the neutral Closed heading and wording, including in JSON and summaries, even
+when a declaration or breaking flag is present. The declaration
 uses the item title even with `--entry-from close_reason`. Existing status,
 non-change and release filters still apply. Undeclared items retain their existing
 rendering. Tracker milestones freeze declarations with the rendered item.
 
-`--changelog-json` includes the same normalized `contract_change` record on the
-item, alongside its `id` and `title`. `pm changelog audit` maps the exact rendered
-line to the source item and reports a `migration` gap when `migrate` is absent,
+For eligible declarations, `--changelog-json` includes the same normalized
+`contract_change` record on the item, alongside its `id` and `title`.
+`pm changelog audit` maps the exact rendered line to the source item and reports a `migration` gap when `migrate` is absent,
 blank or not text. Missing or malformed `before`/`after` values produce a
 `contract_change` gap. Historical incomplete declarations remain readable;
 Markdown shows explicit missing-field placeholders and JSON uses empty strings.

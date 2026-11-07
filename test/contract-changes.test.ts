@@ -4,7 +4,8 @@ import { cpSync, mkdirSync, mkdtempSync, rmSync, symlinkSync, writeFileSync } fr
 import { tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
 import test from "node:test";
-import { listAllComplete, runCreate, runInit, runWithActiveExtensions, schemaAddField } from "@unbrained/pm-cli/sdk";
+import { marked } from "marked";
+import { listAllComplete, runCreate, runInit, runUpdate, runWithActiveExtensions, schemaAddField } from "@unbrained/pm-cli/sdk";
 import { auditChangelogClaims, buildChangelogDocument, createChangelog, createChangelogSummary, createReleaseMilestone, DirectoryReleaseMilestoneStore, resolveTrackerReleaseHistory } from "../src/index.ts";
 import type { PmItem } from "../src/index.ts";
 
@@ -144,4 +145,88 @@ test("actual extension authors declarations and host audit finds SDK-created mis
     assert.match(createChangelog(history).markdown, /### Changed \(SDK contract\)/);
     assert.deepEqual(buildChangelogDocument(history).releases[0].sections[0].items[0].contract_change, metadata ? declaration : { before: "Allowed", after: "Refused", migrate: "" });
   }
+});
+
+
+test("declared issues without repair evidence retain neutral closure in every output", () => {
+  for (const type of ["Issue", "Bug", "Defect", "Bugfix"]) {
+    for (const sectionBy of ["category", "type", "status", "label"] as const) {
+      const item: PmItem = { id: "fixture-neutral", title: "Security parser change", type, status: "closed", close_reason: "Closed on GitHub", breaking: true, tags: ["one", "two"], contract_change: declaration };
+      const options = { items: [item], sectionBy, entryFrom: "close_reason" as const, breakingChanges: true, suggestSemver: true };
+      const markdown = createChangelog(options).markdown;
+      assert.match(markdown, /### Closed\n\n- Closed: Security parser change \(fixture-neutral\)/);
+      assert.doesNotMatch(markdown, /SDK contract|Migrate:|Rows were|Breaking Changes/);
+      const document = buildChangelogDocument(options);
+      assert.deepEqual(document.releases[0].breaking_changes, []);
+      assert.equal(document.releases[0].sections[0].heading, "Closed");
+      assert.equal(document.releases[0].sections[0].items[0].title, "Closed: Security parser change");
+      assert.equal(document.suggested_semver!.bump, "none");
+      assert.equal(createChangelogSummary(options)[0].title, "Closed: Security parser change");
+      const report = auditChangelogClaims(options);
+      assert.equal(report.claims.length, 1);
+      assert.equal(report.claims[0].section, "Closed");
+      assert.equal(report.claims[0].claim, markdown.split("\n")[report.claims[0].line - 1]);
+      assert.equal(report.claims[0].gaps.includes("repair"), false);
+      // Linked repair evidence restores the migration-bearing entry and major bump.
+      const repaired = { ...options, items: [{ ...item, files: [{ path: "src/parser.ts" }] }] };
+      assert.match(createChangelog(repaired).markdown, /### Changed \(SDK contract\)/);
+      assert.match(createChangelog(repaired).markdown, /Migrate: Sort explicitly for other orders/);
+      assert.equal(buildChangelogDocument(repaired).suggested_semver!.bump, "major");
+    }
+  }
+});
+
+test("contract Markdown isolates fields and matches only complete equal backtick runs", () => {
+  const cases = [
+    { before: "`before", after: "after`", migrate: "`migrate", spans: [] },
+    { before: "`before``", after: "``after`", migrate: "``migrate`", spans: [] },
+    { before: "``before```", after: "```after``", migrate: "`migrate``", spans: [] },
+    { before: "`before`` tail`", after: "``after``` tail``", migrate: "`use` now", spans: ["before`` tail", "after``` tail", "use"] },
+    { before: "`unmatched ``inner``", after: "`after`", migrate: " ", spans: ["inner", "after"] },
+    { before: "", after: "", migrate: "", spans: [] },
+    { before: "[before]\nline", after: "*after*", migrate: "`sort`\nnow", spans: ["sort"] },
+  ];
+  for (const fields of cases) {
+    const item: PmItem = { id: "fixture-fences", title: "Contract`", status: "closed", contract_change: fields };
+    const options = { items: [item] };
+    const markdown = createChangelog(options).markdown;
+    const report = auditChangelogClaims(options);
+    const bullet = markdown.split("\n").find((line) => line.startsWith("- "))!;
+    assert.equal(report.claims[0].claim, bullet);
+    assert.equal(markdown.split("\n")[report.claims[0].line - 1], bullet);
+    const html = marked.parseInline(bullet, { async: false });
+    assert.deepEqual([...html.matchAll(/<code>(.*?)<\/code>/g)].map((match) => match[1]), fields.spans);
+    assert.ok(html.includes(" → "));
+    assert.ok(html.includes(". Migrate: "));
+    assert.ok(html.includes("Contract`: "));
+    for (const name of ["before", "after", "migrate"] as const) {
+      if (!fields[name].trim()) assert.ok(html.includes(`[missing ${name === "migrate" ? "migration" : name}]`));
+    }
+    assert.doesNotMatch(html, /<em>|<strong>|<a /);
+  }
+});
+
+test("active extension runUpdate persists and replaces contract_change without git", async (t) => {
+  const cwd = mkdtempSync(join(tmpdir(), "pm-contract-update-"));
+  t.after(() => rmSync(cwd, { recursive: true, force: true }));
+  const root = join(cwd, ".agents/pm");
+  await runInit("pm", { path: root }, { defaults: true, agentGuidance: "skip" });
+  const target = join(root, "extensions/pm-changelog");
+  mkdirSync(target, { recursive: true });
+  cpSync(resolve("dist"), join(target, "dist"), { recursive: true });
+  cpSync(resolve("manifest.json"), join(target, "manifest.json"));
+  writeFileSync(join(target, "package.json"), JSON.stringify({ type: "module" }));
+  symlinkSync(resolve("node_modules"), join(target, "node_modules"), "junction");
+  await runWithActiveExtensions({ path: root }, async () => {
+    const created = await runCreate({ title: "Updated contract", type: "Task", status: "open", createMode: "progressive" }, { path: root, author: "fixture" });
+    const id = created.item.id;
+    for (const contract of [declaration, { before: "Allowed", after: "Refused", migrate: "Handle the refusal" }]) {
+      await runUpdate(id, { field: [`contract_change=${JSON.stringify(contract)}`] }, { path: root, author: "fixture" });
+      const stored = (await listAllComplete({}, { pmRoot: root })).items.find((item) => item.id === id)!;
+      assert.deepEqual(stored.contract_change, contract);
+      assert.equal(stored.title, "Updated contract");
+      const document = buildChangelogDocument({ items: [stored as PmItem], includeStatuses: ["open"] });
+      assert.deepEqual(document.releases[0].sections[0].items[0].contract_change, contract);
+    }
+  });
 });
