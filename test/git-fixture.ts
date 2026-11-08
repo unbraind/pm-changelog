@@ -24,6 +24,14 @@ export function cloneGitFixture(directory: string, args: string[]): void {
   execFileSync("git", [...foregroundArgs, "clone", ...foregroundArgs, ...args, directory], { stdio: "pipe" });
 }
 
+/** Add an alias only when loose refs can represent it on case-insensitive filesystems. */
+export function addGitTagAlias(directory: string, name: string, target: string): boolean {
+  const names = execFileSync("git", ["tag", "--list"], { cwd: directory, encoding: "utf8" }).trim().split("\n");
+  if (names.some((existing) => existing.toLowerCase() === name.toLowerCase())) return false;
+  execFileSync("git", ["tag", name, target], { cwd: directory, stdio: "pipe" });
+  return true;
+}
+
 /** Retry transient directory races while removing an owned fixture tree. */
 export function removeGitFixture(directory: string): void {
   rmSync(directory, { recursive: true, force: true, maxRetries: 5, retryDelay: 50 });

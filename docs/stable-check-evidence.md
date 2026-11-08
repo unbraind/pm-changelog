@@ -87,3 +87,41 @@ Zero of four npm/Bun release gates on Node 22/26 were verified at that point.
 No full-suite counts or coverage are claimed. This tracker/evidence receipt
 triggers a fresh exact-head run; the PR checks identify it. Verification and
 closure remain with the orchestrator.
+
+## Review round: alias ordering, portable fixtures and flag documentation
+
+The equal-time comparator previously chose numeric counters for some pairs and
+raw spelling for others. A base release, numeric successor and `rc.1` prerelease
+could form a cycle. Every pair now compares one independently derived tuple:
+normalized group, suffix class, descending counter, normalized identity, then
+raw spelling. The same rule handles invalid timestamps. Aliases stay contiguous
+before deduplication and cannot reorder other releases.
+
+The fixture helper refuses case-only duplicate loose refs on every filesystem,
+while preserving distinct prefix/padding aliases. Uppercase-only refs still run.
+The usage options row now states the versioned-release policy and the empty
+Unreleased exception; every shipped options table is checked.
+
+Validation for this continuation:
+
+- Focused command: `node --test --test-concurrency=2 test/release-context.test.ts test/stable-itemless-check.test.ts test/shipped-docs.test.ts`: 53 passed, zero failures or skips.
+- The comparator property checks all triples of 56 adversarial names at valid and invalid timestamps, 128 shuffled permutations and equivalent-alias additions. Real-Git limited CLI checks retain identical Markdown/JSON/summary output across mixed numeric/prerelease aliases.
+- `node scripts/prove-stable-review-revert.ts`: restoring pair-dependent comparisons, case-sensitive fixture matching or the stale options description causes one assertion failure each. Every fixed/restored run passes. The pinned pm linked runner also passes all three proofs.
+- `node scripts/accept-stable-review.ts`: one packed artifact installed by npm and Bun preserves seven projections per consumer across alias publication. Node/Bun SDK, standalone CLI, installed extension, Markdown, JSON and TOON diagnostics are covered; unchanged-file checks pass on both runtimes.
+- Packed artifact SHA-512: `076f0a19ce85098c3184415d0722e9a7709b86739b37ba39fb8f5e49fcfa113ebddb734598ea24e38ee6272baa29ade5739df397cdd1a69aee8d12ade5900373`.
+- Typecheck, test compilation, docstring lint (44 files, 266 declarations) and generated changelog/link checks pass. Full npm/Bun release gates ran sequentially on Node 24.19.0 with two workers, fresh HOME and isolated Git configuration.
+- The previous head's completed CI exposed two fixtures that still assumed empty Unreleased sections. Their existing assertions remain: empty-claim auditing now requests an explicit release, and pending-release parity uses delivered work in an owned tracker/history. An extra assertion checks zero claims for empty Unreleased. Both focused regressions pass (2/2); the superseded local full run was stopped before restarting with these fixture repairs.
+
+The public consumer migration limits above remain unchanged. This review fix
+does not claim to repair pm-jira/pm-ops historical projection drift.
+
+| Local gate | Tests passed | Failures / skips | Lines / branches / functions | Required sources |
+| --- | ---: | --- | --- | ---: |
+| `npm run release:check` | 1022 | 0 / 0 | 100% / 100% / 100% | 28 |
+| `bun run release:check` | 1022 | 0 / 0 | 100% / 100% / 100% | 28 |
+
+Both complete gates also pass production audit (zero vulnerabilities), packed
+file allowlist/content checks, changelog/link checks, release-date verification
+and publication-attestation verification. Statement coverage is not independently
+measured. Fresh Node 22/26 CI and reviewer results must still be assessed at the
+final pushed head; these local results do not claim that matrix has passed.

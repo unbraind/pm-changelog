@@ -689,7 +689,7 @@ test("the pm host gate refuses every version below the declared floor", () => {
   );
 });
 
-test("CLI and extension produce byte-identical output with and without --no-pending-release", async () => {
+test("CLI and extension produce byte-identical output with and without --no-pending-release", async (t) => {
   // Greptile issue 1 on PR #174: the extension surface had no equivalent of
   // the CLI's `--no-pending-release`, so the two surfaces could silently
   // diverge for the same inputs. This equivalence test runs both surfaces
@@ -698,6 +698,16 @@ test("CLI and extension produce byte-identical output with and without --no-pend
   // let them drift.
   const { commands } = await activateChangelog();
   const cli = join(process.cwd(), "src", "cli.ts");
+  // Own the history and pending work instead of relying on the package's tags
+  // and tracker to happen to have a nonempty Unreleased section.
+  const cwd = mkdtempSync(join(tmpdir(), "pm-extension-pending-parity-"));
+  t.after(() => removeGitFixture(cwd));
+  initGitFixture(cwd);
+  const pmRoot = join(cwd, ".agents", "pm");
+  await runInit("parity", { path: pmRoot }, { defaults: true, agentGuidance: "skip" });
+  execFileSync("git", ["-c", "user.name=Fixture", "-c", "user.email=fixture@example.invalid", "-c", "commit.gpgsign=false", "commit", "--allow-empty", "-m", "fixture"], { cwd, stdio: "pipe", env: { PATH: process.env.PATH, GIT_CONFIG_GLOBAL: "/dev/null", GIT_CONFIG_NOSYSTEM: "1", GIT_AUTHOR_DATE: "2026-01-01T10:00:00Z", GIT_COMMITTER_DATE: "2026-01-01T10:00:00Z" } });
+  execFileSync("git", ["tag", "v2026.1.1"], { cwd, stdio: "pipe" });
+  await runCreate({ id: "pending-parity", title: "Deliver pending work", type: "Task", status: "closed", closeReason: "Delivered", release: "2099.1.2", createMode: "progressive", unset: ["parent", "goal", "objective", "sprint"] }, { path: pmRoot, author: "fixture" });
   // A future version not yet tagged triggers the pending-release path; with
   // `--no-pending-release` the pending window is suppressed and `Unreleased`
   // leads, exactly as the CLI does.
@@ -712,13 +722,14 @@ test("CLI and extension produce byte-identical output with and without --no-pend
     const label = suppress ? "with --no-pending-release" : "without --no-pending-release";
 
     // CLI surface — reads items via the pm CLI binary, resolves tags from the
-    // repo root cwd, and writes markdown to stdout.
+    // fixture cwd, and writes markdown to stdout.
     const cliArgs = [
-      cli, "--pm-root", TRACKER_ROOT,
+      cli, "--pm-root", pmRoot, "--pm-bin", join(process.cwd(), "node_modules", ".bin", "pm"),
       "--all-release-tags", "--release-version", "2099.1.2", "--date-from-version", "--include-empty", "--stdout",
     ];
     if (suppress) cliArgs.push("--no-pending-release");
     const cliOutput = execFileSync(process.execPath, cliArgs, {
+      cwd,
       encoding: "utf-8",
       env: { ...process.env, TZ: "UTC" },
     });
@@ -730,7 +741,7 @@ test("CLI and extension produce byte-identical output with and without --no-pend
     const extResult = await runRegisteredCommandForTest(commands, {
       command: "changelog generate",
       options: extOptions,
-      pmRoot: TRACKER_ROOT,
+      pmRoot,
     });
     const extOutput = (commandResult(extResult) as { changelog: string }).changelog;
 
@@ -738,6 +749,7 @@ test("CLI and extension produce byte-identical output with and without --no-pend
       cliOutput, extOutput,
       `CLI and extension must produce byte-identical output ${label}`,
     );
+    assert.match(extOutput, /Deliver pending work/, "both paths retain the delivered fixture item");
 
     // Sanity: the flag actually changes the output — without it the pending
     // window leads, with it Unreleased leads. This guards against a future

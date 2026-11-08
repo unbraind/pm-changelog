@@ -215,7 +215,9 @@ release boundary and date match the prepared release. This holds for empty and
 item-bearing releases. Version tags accept a leading `v` or no prefix by default;
 calendar padding aliases share one window (`2026.11.7`, `v2026.11.07`, and mixed
 padding). When commit timestamps tie, a same-day `-2` release sorts before its
-base release (and `-10` before `-2`). An explicit `--release-tag-pattern` still
+base release (and `-10` before `-2`), followed by other suffixes in normalized
+spelling order. All equal-time tags use one normalized ordering key, so aliases
+cannot reorder distinct releases. An explicit `--release-tag-pattern` still
 limits discovery.
 
 Tags remain release-history inputs: adding a previously unknown *different*

@@ -9,7 +9,7 @@ import { buildChangelogDocument, createChangelog, createChangelogSummary, explai
 import { cliTestSurface } from "../src/cli.ts";
 import { visibleChangelogItems } from "../src/generator.ts";
 import type { GenerateChangelogOptions, PmItem } from "../src/index.ts";
-import { initGitFixture, removeGitFixture } from "./git-fixture.ts";
+import { addGitTagAlias, initGitFixture, removeGitFixture } from "./git-fixture.ts";
 
 /** A reproducible PRNG makes random histories replayable without another dependency. */
 function random(seed: number): () => number {
@@ -78,10 +78,10 @@ test("property: publishing release tags preserves empty and item-bearing random 
     assert.deepEqual(projection({ ...afterOptions, includeEmpty: false }), withoutEmpty, `nonempty trial ${trial}`);
     if (olderAliases[0]) {
       const alias = olderAliases[0].startsWith("v") ? olderAliases[0].slice(1) : `v${olderAliases[0]}`;
-      git("tag", alias, `${olderAliases[0]}^{commit}`);
+      addGitTagAlias(dir, alias, `${olderAliases[0]}^{commit}`);
     }
     // Publishing another spelling of either the newest or an older release cannot duplicate windows.
-    git("tag", `V2026.11.07${suffix}`, target);
+    addGitTagAlias(dir, `V2026.11.07${suffix}`, target);
     assert.deepEqual(projection({ ...options, releaseWindows: resolveReleaseTagWindows(context) }), before, `alias trial ${trial}`);
   }
 });
@@ -98,6 +98,50 @@ test("empty Unreleased never consumes a release slot across visibility projectio
   assert.equal(createChangelog({ items: [], includeEmpty: true }).markdown, "# Changelog\n");
   assert.deepEqual(buildChangelogDocument({ items: [], includeEmpty: true }).releases, []);
   assert.equal(createChangelog({ items: [], groupBy: "release", includeEmpty: true }).markdown, "# Changelog\n");
+});
+
+test("alias fixture refuses every case-only duplicate while preserving portable aliases", (t) => {
+  const dir = mkdtempSync(join(tmpdir(), "pm-stable-alias-fixture-"));
+  t.after(() => removeGitFixture(dir));
+  initGitFixture(dir);
+  execFileSync("git", ["-c", "user.name=Fixture", "-c", "user.email=fixture@example.invalid", "-c", "commit.gpgsign=false", "commit", "--allow-empty", "-m", "fixture"], { cwd: dir, stdio: "pipe" });
+  for (const name of ["v2026.11.07", "2026.11.7", "V2026.11.07-rc.1"]) {
+    assert.equal(addGitTagAlias(dir, name, "HEAD"), true);
+    for (const spelling of [name, name.toUpperCase(), name.toLowerCase()]) assert.equal(addGitTagAlias(dir, spelling, "HEAD"), false);
+  }
+  const tags = execFileSync("git", ["tag", "--list"], { cwd: dir, encoding: "utf8" }).trim().split("\n");
+  assert.equal(tags.length, 3);
+  assert.equal(new Set(tags.map((name) => name.toLowerCase())).size, tags.length);
+});
+
+test("mixed prerelease aliases preserve all release projections and the limited CLI check", async (t) => {
+  const dir = mkdtempSync(join(tmpdir(), "pm-stable-mixed-aliases-"));
+  t.after(() => removeGitFixture(dir));
+  initGitFixture(dir);
+  const root = join(dir, ".agents/pm");
+  await runInit("mixed", { path: root }, { defaults: true, agentGuidance: "skip" });
+  const env = { PATH: process.env.PATH, GIT_CONFIG_GLOBAL: "/dev/null", GIT_CONFIG_NOSYSTEM: "1", GIT_CEILING_DIRECTORIES: dirname(dir), GIT_AUTHOR_NAME: "Fixture", GIT_COMMITTER_NAME: "Fixture", GIT_AUTHOR_EMAIL: "fixture@example.invalid", GIT_COMMITTER_EMAIL: "fixture@example.invalid", GIT_AUTHOR_DATE: "2026-11-07T10:00:00Z", GIT_COMMITTER_DATE: "2026-11-07T10:00:00Z", DO_NOT_TRACK: "1" };
+  const git = (...args: string[]) => execFileSync("git", args, { cwd: dir, env, stdio: "pipe" });
+  git("-c", "commit.gpgsign=false", "commit", "--allow-empty", "-m", "fixture");
+  for (const name of ["v2026.11.7-2", "2026.11.7", "2026.11.7-rc.1"]) git("tag", name);
+  const options = (): GenerateChangelogOptions => ({ items: ["2026.11.7-2", "2026.11.7", "2026.11.7-rc.1"].map((release) => ({ id: release, title: release, status: "closed", release })), respectItemRelease: true, includeEmpty: true, dependencyUpdates: false, releaseWindows: resolveReleaseTagWindows({ cwd: dir }) });
+  const before = projection(options());
+  assert.match(createChangelog({ ...options(), limit: 1 }).markdown, /## 2026\.11\.7-2/);
+  const args = [resolve("src/cli.ts"), "--pm-root", root, "--pm-bin", resolve("node_modules/@unbrained/pm-cli/dist/cli.js"), "--all-release-tags", "--include-empty", "--no-dependency-updates", "--limit", "1"];
+  const cli = (...extra: string[]) => {
+    const result = spawnSync(process.execPath, [...args, ...extra], { cwd: dir, env, encoding: "utf8" });
+    assert.equal(result.status, 0, result.stderr);
+    return result.stdout;
+  };
+  const formats = [["--stdout"], ["--format", "json"], ["--summary", "--format", "json"]];
+  const output = formats.map((format) => cli(...format));
+  cli("--output", "CHANGELOG.md", "--mode", "replace");
+  for (const alias of ["2026.11.7-2", "v2026.11.07-2", "V2026.11.07", "v2026.11.07-rc.1"]) {
+    assert.equal(addGitTagAlias(dir, alias, "HEAD"), true);
+    assert.deepEqual(projection(options()), before, alias);
+    assert.deepEqual(formats.map((format) => cli(...format)), output, alias);
+    cli("--output", "CHANGELOG.md", "--mode", "replace", "--check");
+  }
 });
 
 test("plain tracker checks empty versioned releases with no git executable", async (t) => {

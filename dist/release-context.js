@@ -450,7 +450,10 @@ function listReleaseTags(cwd, pattern, includeOrphaned = false) {
  *  1. Valid parsed timestamps sort in descending order (newest first).
  *  2. A tag with a valid (parseable) timestamp sorts before one with an invalid
  *     unparseable timestamp, regardless of name.
- *  3. Two tags with equally-invalid timestamps tie-break by name ascending.
+ *  3. Equal or invalid timestamps use the same alias-normalized name key.
+ *     Calendar releases group by date, then numbered successors (descending),
+ *     the base release, and other suffixes (ascending). Raw spelling only
+ *     breaks ties within a normalized identity.
  *
  * This replaces bare `Date.parse(a) - Date.parse(b)` which returns `NaN` when
  * either timestamp is unparseable — and `Array.sort(NaN)` is non-deterministic
@@ -474,19 +477,38 @@ export function compareReleaseTags(a, b) {
         // One valid, one invalid → valid before invalid
         return aValid ? -1 : 1;
     }
-    // Neither parses → name tie-break (stable total order)
-    return compareTagNames(a.name, b.name);
+    // Neither parses → the same alias-invariant total order.
+    return compareSameInstantTagNames(a.name, b.name);
 }
-/** Keep same-day release counters newest first when commit times tie; otherwise retain name ordering. */
+/** Derive a key independently of the other tag, so every alias stays in one group. */
+function tagOrderKey(tag) {
+    const identity = formatTagVersion(tag).toLowerCase();
+    const calendar = identity.match(/^(\d{4}\.\d{1,2}\.\d{1,2})(?:-(.+))?$/);
+    if (!calendar)
+        return { group: identity, phase: 0, counter: 0n, identity };
+    const suffix = calendar[2];
+    const numbered = suffix !== undefined && /^\d+$/.test(suffix);
+    return {
+        group: `v${calendar[1]}`,
+        phase: numbered ? 0 : suffix === undefined ? 1 : 2,
+        counter: numbered ? BigInt(suffix) : 0n,
+        identity,
+    };
+}
+/** Compare one lexicographic tuple for all pairs; spelling cannot reorder other releases. */
 function compareSameInstantTagNames(a, b) {
-    const left = formatTagVersion(a).match(/^(\d{4}\.\d{1,2}\.\d{1,2})(?:-(\d+))?$/);
-    const right = formatTagVersion(b).match(/^(\d{4}\.\d{1,2}\.\d{1,2})(?:-(\d+))?$/);
-    if (left && right && left[1] === right[1]) {
-        const leftCounter = BigInt(left[2] ?? "0");
-        const rightCounter = BigInt(right[2] ?? "0");
-        if (leftCounter !== rightCounter)
-            return leftCounter > rightCounter ? -1 : 1;
-    }
+    const left = tagOrderKey(a);
+    const right = tagOrderKey(b);
+    const group = compareTagNames(left.group, right.group);
+    if (group !== 0)
+        return group;
+    if (left.phase !== right.phase)
+        return left.phase - right.phase;
+    if (left.counter !== right.counter)
+        return left.counter > right.counter ? -1 : 1;
+    const identity = compareTagNames(left.identity, right.identity);
+    if (identity !== 0)
+        return identity;
     return compareTagNames(a, b);
 }
 function compareTagNames(a, b) {

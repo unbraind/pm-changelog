@@ -183,7 +183,7 @@ npx pm-changelog --all-release-tags --mode replace --output CHANGELOG.md \
   --item-url-base https://github.com/owner/repo/blob/main/.agents/pm
 ```
 
-`--all-release-tags` creates a newest-first `Unreleased` section for closed items after the latest tag, then one section per matching git tag. Release section dates come from the tag commit timestamp. Items with a `release` field whose value matches a known tag (`v2026.05.24-7`, `2026.05.24-7`, etc.) are bucketed into that tag's section regardless of timestamps; items without a matching `release` field use each item's authoritative `completed_at`, then fall back to the inferred `closed_at`, `updated_at`, and `created_at` for legacy records. Empty release windows are omitted unless `--include-empty` is passed.
+`--all-release-tags` creates a newest-first `Unreleased` section for closed items after the latest tag, then one section per matching git tag. Release section dates come from the tag commit timestamp. Items with a `release` field whose value matches a known tag (`v2026.05.24-7`, `2026.05.24-7`, etc.) are bucketed into that tag's section regardless of timestamps; items without a matching `release` field use each item's authoritative `completed_at`, then fall back to the inferred `closed_at`, `updated_at`, and `created_at` for legacy records. Empty versioned release windows are omitted unless `--include-empty` is passed. Empty `Unreleased` sections are always omitted.
 
 Within each section, entries with `completed_at` or `closed_at` come first,
 newest completion first (ties use title, then ID). Entries without a completion
@@ -430,7 +430,7 @@ and its history untouched in the tracker. Both flags are reported by `--explain`
 | `--no-check-diff` | false | With `--check`, suppress the drift diff; the exit code is unchanged. For callers that only want the pass/fail signal |
 | `--github-output` | false | Write summary fields to `$GITHUB_OUTPUT` |
 | `--github-step-summary` | false | Append generated markdown to `$GITHUB_STEP_SUMMARY` |
-| `--include-empty` | false | Emit an empty section when no items match. When using `--all-release-tags`, empty release windows are omitted by default; pass this flag to keep them as `No changes.` sections. |
+| `--include-empty` | false | Keep empty versioned release sections as `No changes.` (the requested `--version` or tag windows with `--all-release-tags`). Empty `Unreleased` sections are always omitted. Without this flag, empty release sections are omitted. |
 | `--include-links` | false | Include item `url` values in generated entries |
 | `--item-url-base <url>` | - | Make item IDs clickable links to their `.toon` files; point to `.agents/pm` in the repo (e.g. `https://github.com/owner/repo/blob/main/.agents/pm`). The type subdirectory (`issues/`, `tasks/`, `chores/`, etc.) is derived automatically from each item's type. |
 | `--item-ref-style <style>` | `auto` | How item IDs render as references: `auto` (blob link when `--item-url-base` is set, else a neutral label), `label` (always a neutral `(id)` — public-registry safe), `toon` (force the blob link), `github` (public issue/PR link from the item's `gh:owner/repo#N` provenance tag, falling back to a label) |
