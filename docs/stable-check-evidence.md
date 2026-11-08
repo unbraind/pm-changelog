@@ -75,7 +75,7 @@ Dependency-only notes currently depend on Git subjects. `GenerateChangelogOption
 has no merged-change receipt input; tracker snapshots/milestones capture items,
 not merged non-item changes. `pmc-portable-change-receipts` designs an immutable,
 git-optional receipt source rather than adding another Git-only inference path.
-CI's npm and Bun release gates provide the full-suite evidence at the PR head.
+CI's npm and Bun release gates at the final PR head must provide the full-suite evidence before merge; the completed matrix recorded below ran on a prior head.
 
 ## CI cutoff receipt
 
