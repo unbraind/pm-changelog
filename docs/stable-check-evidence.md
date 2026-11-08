@@ -125,3 +125,50 @@ file allowlist/content checks, changelog/link checks, release-date verification
 and publication-attestation verification. Statement coverage is not independently
 measured. Fresh Node 22/26 CI and reviewer results must still be assessed at the
 final pushed head; these local results do not claim that matrix has passed.
+
+## Continuation: acceptance build and Git fixture isolation
+
+The prior code head `63b4d4e82814ac598f48520a231a164effa9de5b` subsequently
+passed [CI run 42432962949](https://github.com/unbraind/pm-changelog/actions/runs/42432962949):
+lifecycle, npm and Bun release gates on Node 22/26 (four complete gates), and
+both direct Bun runtime smoke steps. The 1022-test counts above belong to that
+earlier source; the following review corrections require fresh CI at their
+pushed head.
+
+The packed acceptance runner now builds current source before `npm pack
+--ignore-scripts`. All shared Git fixture commands strip inherited repository
+location overrides. Alias discovery and creation use the same sanitized
+environment, preserving the case-insensitive collision guard.
+
+The fixture regression exercises eight location overrides individually and
+together, including a name that exists only in a separate repository. It checks
+initialization, cloning and alias creation, and verifies that the other
+repository's refs, configuration and index remain unchanged. The original
+foreground-policy and cleanup tests are retained.
+
+`node scripts/prove-stable-fixture-hygiene.ts` uses disposable copies to restore
+the old environment policy, independently remove isolation from alias discovery
+and creation, and remove the acceptance build. The packing proof deliberately
+poisons the disposable emitted CLI before each run: fixed and restored source
+must rebuild it and pass real npm/Bun consumers; reverting the build must fail
+with the stale-code marker. The pinned pm linked-test runner records the proof's
+execution without adding test-run artifacts to the package tracker.
+
+The linked proof passed in 125.288 seconds: all four independent reversions
+failed, and every fixed/restored run passed. Restored npm and Bun consumers each
+preserved seven projections and passed Node/Bun unchanged-file checks using one
+archive, SHA-512
+`c41a0032d5d5341314dfec4734789c27a3c2e337dbd7fc30c25706ef643b57ffc2782df572ff38adbe7862f2212f7640654e72ee9e7954f7ea946b939bc849be`.
+
+Local validation: the focused release-context/stability/docs/fixture command
+passed 54 tests with zero failures/skips, and the complete fixture file passed
+3/3 after retaining both pre-existing assertions. Typecheck, test compilation,
+docstring lint (45 files, 266 declarations) and whitespace checks pass. No
+separate lint script is configured.
+
+Fresh public clones confirm the same three prepared-release snapshots, bytes
+and SHA-256 digests listed above. Refreshed main heads are pm-jira `9ff81121748701c3f95e40e758ec28d89ac73805`,
+pm-ops `659adc86125b027b79eb40239a4f84b80c716347`, and pm-ado
+`0e995570c626d72151719d8c3dd0eab2f4974a05`. Generated-baseline checks pass
+before/after all three tags; original-file results remain fail/fail, fail/fail,
+and pass/pass respectively. No public consumer source or tracker was changed.

@@ -6,10 +6,10 @@ status: in_progress
 priority: 1
 tags[1]: "gh:unbraind/pm-changelog#333"
 created_at: "2026-11-07T22:05:29.088Z"
-updated_at: "2026-11-08T01:07:46.803Z"
+updated_at: "2026-11-08T11:32:40.438Z"
 author: pi-agent
 acceptance_criteria: "Empty and item-bearing releases render byte-identically across tag publication; empty Unreleased does not displace releases; Randomized tests and revert proof cover aliases, older commits, same-day versions and no-git trackers; Document include-empty; audit git-optional dependency notes and record follow-up when unsupported; Public pm-jira, pm-ops and third tracker evidence; targeted tests, typecheck and npm/Bun CI release gates"
-comments[16]{created_at,author,text}:
+comments[18]{created_at,author,text}:
   "2026-11-07T22:05:31.520Z",pi-agent,"Closed pmc-itemless-pending covers git-derived notes, not include-empty visibility. Public pm-jira main 9ff81121748701c3f95e40e758ec28d89ac73805 reproduces the empty Unreleased diff. Current generator also differs from that consumer historical baseline in dependency notes and old item ordering; measure those separately from tag-only stability."
   "2026-11-07T22:07:05.913Z",pi-agent,"Selection fix omits empty Unreleased before limits on all item visibility paths, retaining empty versioned releases. Tag audit found default v-only discovery and duplicate calendar aliases; normalize equivalent tags into one window and accept unprefixed version tags by default. Different historical versions or changed commit boundaries are real release-history changes, so arbitrary tag-set independence is impossible; README documents that boundary and immutable milestone alternative. Git-optional merged-change receipt design is tracked in pmc-portable-change-receipts; no new git-only notes logic."
   "2026-11-07T22:14:21.318Z",pi-agent,"Targeted generator/itemless/release-context/stability suite: 212 tests passed, zero failures/skips. Typecheck, test compilation and docstring lint passed (265 declarations). Disposable behavioral reverts: restoring empty Unreleased visibility fails both property and slot-selection regressions (2 failures); restoring v-only discovery fails property (1); restoring duplicate alias windows fails property (1). Each fixed/restored run passes both selected tests. Pinned pm test --run --progress --only-last ran the proof successfully; test-result tracking is disabled, so this comment retains counts without package-owned run artefacts. pm-ops uses scripts/pm-changelog.ts to strip empty Unreleased; its passing checks do not show an item-bearing exemption."
@@ -26,12 +26,15 @@ comments[16]{created_at,author,text}:
   "2026-11-07T23:57:27.063Z",codex-sol,"Prior-head CI finished after the earlier cutoff: run 42422488295 passed lifecycle but both Node 22/26 npm gates failed two old fixtures (claim-audit empty unversioned claim; extension parity expecting empty Unreleased from the package tracker). Stopped the first local full run when these concrete failures were discovered; it is canceled evidence, not a pass. Preserve all existing assertions: give the empty claim an explicit version, add a zero-claim assertion for empty Unreleased, and move pending-release parity into a real scratch tracker/Git history with delivered pending work. This removes reliance on mutable package history without weakening the parity or release-heading checks. Focus these cases before restarting the unchanged full gates."
   "2026-11-08T00:41:49.333Z",codex-sol,"Full npm run release:check passed with isolated HOME/Git config and two workers: 1022 tests, 0 failures, 0 skips; all 28 configured source files reported at 100% lines/branches/functions. Production audit found 0 vulnerabilities; pack allowlist/content scan, changelog/link check, release-date and publication-attestation checks passed. The two prior-head CI fixture failures are fixed and pass within this full run. Bun run release:check is now running sequentially on the same source. Statement coverage is not independently measured by this gate."
   "2026-11-08T01:07:42.191Z",codex-sol,"Final review validation: npm run release:check and bun run release:check both pass on unchanged source, sequentially with two workers and isolated HOME/Git config. Each reports 1022 passed, 0 failed/canceled/skipped; all 28 required sources at 100% lines/branches/functions. Each production audit has 0 vulnerabilities; both package allowlist/content scans cover 107 files with 0 failures; changelog/link, release-date and publication-attestation checks pass. Focused review tests pass 53/53; the two retained CI fixture assertions pass 2/2 and in both full gates. Three disposable review reverts fail independently (1 each), with all fixed/restored cases passing through the pinned pm runner. Packed npm/Bun consumers preserve seven projections each and Node/Bun check mode. No test or threshold was removed or reduced. Origin/main is still current (zero commits behind). Existing consumer migration and portable-receipt follow-ups are retained without duplicates. Release this implementation claim for orchestrator verification; keep the item in progress. Fresh pushed-head CI and re-review remain required before closure or merge."
-files[21]{path,scope}:
+  "2026-11-08T11:26:08.063Z",codex-sol,"Continuation preserves all five existing commits and PR #333. Current remote head 63b4d4e passed CI lifecycle and both Node 22/26 matrix jobs. Two remaining review findings are valid: build current source before packing with lifecycle scripts disabled; isolate Git fixture commands from inherited repository-location overrides. Add focused regressions and isolated revert proofs, rerun packed npm/Bun acceptance, then finish tracker writes before fresh exact-head CI. Existing consumer projection migration and git-optional receipt designs remain separate follow-ups."
+  "2026-11-08T11:32:39.359Z",codex-sol,"Final continuation results: focused release-context/stability/docs/fixture suite passes 54/54, zero failures/skips; the complete fixture file retains both existing regressions and passes 3/3, also through pinned pm test --run --progress. Typecheck, test compilation, docstring lint (45 files, 266 declarations) and whitespace checks pass. Pinned pm test --run --progress --match prove-stable-fixture-hygiene passes in 125.288 seconds: four independent old behaviors fail (inherited Git locations, alias discovery override, alias creation override, skipped build with poisoned emitted CLI), with every fixed/restored run passing. Restored real npm/Bun consumers each preserve seven projections and Node/Bun check mode on one packed artifact; SHA-512 c41a0032d5d5341314dfec4734789c27a3c2e337dbd7fc30c25706ef643b57ffc2782df572ff38adbe7862f2212f7640654e72ee9e7954f7ea946b939bc849be. Fresh public clones reproduce all three prior release snapshot byte hashes: generated checks pass before/after each tag; original committed files remain fail/fail for pm-jira and direct pm-ops, pass/pass for pm-ado. Current public main heads and exact snapshots are documented in docs/stable-check-evidence.md. Earlier head 63b4d4e passed CI 42432962949 lifecycle and all four npm/Bun release gates on Node 22/26; its local full gates recorded 1022/1022, not a count for this added regression. Fresh CI at the final pushed head remains required. The two review threads are left open for the orchestrator; no replies or resolutions were sent. Existing follow-ups remain unchanged and no items are closed."
+files[23]{path,scope}:
   dist/release-context.d.ts,project
   dist/release-context.d.ts.map,project
   dist/release-context.js,project
   dist/release-context.js.map,project
   scripts/accept-stable-review.ts,project
+  scripts/prove-stable-fixture-hygiene.ts,project
   scripts/prove-stable-itemless-check-revert.ts,project
   scripts/prove-stable-review-revert.ts,project
   scripts/verify-stable-check-fleet.ts,project
@@ -44,11 +47,12 @@ files[21]{path,scope}:
   test/extension.test.ts,project
   test/generator-coverage.test.ts,project
   test/generator.test.ts,project
+  test/git-fixture.test.ts,project
   test/git-fixture.ts,project
   test/release-context.test.ts,project
   test/shipped-docs.test.ts,project
   test/stable-itemless-check.test.ts,project
-tests[7]{command,scope,timeout_seconds,provenance{author,created_at,source_kind,source_ref}}:
+tests[9]{command,scope,timeout_seconds,provenance{author,created_at,source_kind,source_ref}}:
   node --test --test-concurrency=2 test/stable-itemless-check.test.ts test/release-context.test.ts,project,240,pi-agent,"2026-11-07T22:11:37.129Z",local_mutation,fix/stable-check-after-itemless-release
   node scripts/prove-stable-itemless-check-revert.ts,project,300,pi-agent,"2026-11-07T22:11:40.732Z",local_mutation,fix/stable-check-after-itemless-release
   node scripts/prove-stable-review-revert.ts,project,180,codex-sol,"2026-11-07T23:47:44.525Z",local_mutation,fix/stable-check-after-itemless-release
@@ -56,6 +60,8 @@ tests[7]{command,scope,timeout_seconds,provenance{author,created_at,source_kind,
   "npm run release:check",project,3600,codex-sol,"2026-11-07T23:49:03.032Z",local_mutation,fix/stable-check-after-itemless-release
   "bun run release:check",project,3600,codex-sol,"2026-11-07T23:49:07.246Z",local_mutation,fix/stable-check-after-itemless-release
   "node --test --test-concurrency=2 --test-name-pattern=\"empty selections and empty release assertions|CLI and extension produce byte-identical output with and without\" test/claim-audit.test.ts test/extension.test.ts",project,240,codex-sol,"2026-11-07T23:59:56.724Z",local_mutation,fix/stable-check-after-itemless-release
+  node scripts/prove-stable-fixture-hygiene.ts,project,900,codex-sol,"2026-11-08T11:29:20.257Z",local_mutation,fix/stable-check-after-itemless-release
+  node --test --test-concurrency=2 test/git-fixture.test.ts,project,120,codex-sol,"2026-11-08T11:29:21.394Z",local_mutation,fix/stable-check-after-itemless-release
 docs[3]{path,scope}:
   docs/stable-check-evidence.md,project
   docs/usage.md,project

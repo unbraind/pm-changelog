@@ -17,6 +17,7 @@ function run(binary: string, args: string[], cwd: string): string {
   return execFileSync(binary, args, { cwd, env: childEnv, encoding: "utf8", stdio: "pipe", timeout: 240000, maxBuffer: 8 * 1024 * 1024 });
 }
 try {
+  run("npm", ["run", "build"], repository);
   const packed = JSON.parse(run("npm", ["pack", "--ignore-scripts", "--json", "--pack-destination", scratch], repository)) as { filename: string }[];
   assert.equal(packed.length, 1);
   const archive = join(scratch, packed[0].filename);
