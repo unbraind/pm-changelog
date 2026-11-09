@@ -1,4 +1,4 @@
-import { initGitFixture, cloneGitFixture, removeGitFixture } from "./git-fixture.ts";
+import { initGitFixture, cloneGitFixture, removeGitFixture, fixtureEnvironment } from "./git-fixture.ts";
 import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
 import { mkdtempSync, readFileSync, writeFileSync } from "node:fs";
@@ -706,7 +706,7 @@ test("CLI and extension produce byte-identical output with and without --no-pend
   const pmRoot = join(cwd, ".agents", "pm");
   await runInit("parity", { path: pmRoot }, { defaults: true, agentGuidance: "skip" });
   execFileSync("git", ["-c", "user.name=Fixture", "-c", "user.email=fixture@example.invalid", "-c", "commit.gpgsign=false", "commit", "--allow-empty", "-m", "fixture"], { cwd, stdio: "pipe", env: { PATH: process.env.PATH, GIT_CONFIG_GLOBAL: "/dev/null", GIT_CONFIG_NOSYSTEM: "1", GIT_AUTHOR_DATE: "2026-01-01T10:00:00Z", GIT_COMMITTER_DATE: "2026-01-01T10:00:00Z" } });
-  execFileSync("git", ["tag", "v2026.1.1"], { cwd, stdio: "pipe" });
+  execFileSync("git", ["tag", "v2026.1.1"], { cwd, stdio: "pipe", env: fixtureEnvironment() });
   await runCreate({ id: "pending-parity", title: "Deliver pending work", type: "Task", status: "closed", closeReason: "Delivered", release: "2099.1.2", createMode: "progressive", unset: ["parent", "goal", "objective", "sprint"] }, { path: pmRoot, author: "fixture" });
   // A future version not yet tagged triggers the pending-release path; with
   // `--no-pending-release` the pending window is suppressed and `Unreleased`

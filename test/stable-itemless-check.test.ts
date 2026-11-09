@@ -9,7 +9,7 @@ import { buildChangelogDocument, createChangelog, createChangelogSummary, explai
 import { cliTestSurface } from "../src/cli.ts";
 import { visibleChangelogItems } from "../src/generator.ts";
 import type { GenerateChangelogOptions, PmItem } from "../src/index.ts";
-import { addGitTagAlias, initGitFixture, removeGitFixture } from "./git-fixture.ts";
+import { addGitTagAlias, fixtureEnvironment, initGitFixture, removeGitFixture } from "./git-fixture.ts";
 
 /** A reproducible PRNG makes random histories replayable without another dependency. */
 function random(seed: number): () => number {
@@ -104,12 +104,12 @@ test("alias fixture refuses every case-only duplicate while preserving portable 
   const dir = mkdtempSync(join(tmpdir(), "pm-stable-alias-fixture-"));
   t.after(() => removeGitFixture(dir));
   initGitFixture(dir);
-  execFileSync("git", ["-c", "user.name=Fixture", "-c", "user.email=fixture@example.invalid", "-c", "commit.gpgsign=false", "commit", "--allow-empty", "-m", "fixture"], { cwd: dir, stdio: "pipe" });
+  execFileSync("git", ["-c", "user.name=Fixture", "-c", "user.email=fixture@example.invalid", "-c", "commit.gpgsign=false", "commit", "--allow-empty", "-m", "fixture"], { cwd: dir, stdio: "pipe", env: fixtureEnvironment() });
   for (const name of ["v2026.11.07", "2026.11.7", "V2026.11.07-rc.1"]) {
     assert.equal(addGitTagAlias(dir, name, "HEAD"), true);
     for (const spelling of [name, name.toUpperCase(), name.toLowerCase()]) assert.equal(addGitTagAlias(dir, spelling, "HEAD"), false);
   }
-  const tags = execFileSync("git", ["tag", "--list"], { cwd: dir, encoding: "utf8" }).trim().split("\n");
+  const tags = execFileSync("git", ["tag", "--list"], { cwd: dir, encoding: "utf8", env: fixtureEnvironment() }).trim().split("\n");
   assert.equal(tags.length, 3);
   assert.equal(new Set(tags.map((name) => name.toLowerCase())).size, tags.length);
 });

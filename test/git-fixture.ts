@@ -6,7 +6,7 @@ const fixtureConfig = ["gc.auto=0", "maintenance.auto=false", "core.fsmonitor=fa
 const foregroundArgs = fixtureConfig.flatMap((setting) => ["-c", setting]);
 
 /** Keep inherited repository locations from redirecting an owned fixture's commands. */
-function fixtureEnvironment(): NodeJS.ProcessEnv {
+export function fixtureEnvironment(): NodeJS.ProcessEnv {
   return Object.fromEntries(Object.entries(process.env).filter(([key]) => !/^GIT_(DIR|WORK_TREE|INDEX_FILE|OBJECT_DIRECTORY|ALTERNATE_OBJECT_DIRECTORIES|COMMON_DIR|NAMESPACE|PREFIX)$/i.test(key)));
 }
 
