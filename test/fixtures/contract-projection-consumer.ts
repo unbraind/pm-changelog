@@ -31,11 +31,11 @@ assert.equal(document.releases[0].sections[0].items[0].title, entries[0].title);
 assert.deepEqual(document.releases[0].sections[0].items[0].contract_change, declaration);
 assert.match(createChangelog(history).markdown, /Allowed → Refused\. Migrate: Handle the refusal/);
 const neutralDocument = document.releases[0].sections.flatMap((section) => section.items).find((row) => row.id === neutral.id)!;
-assert.equal(neutralDocument.title, "Closed: Neutral closure");
-assert.equal(Object.hasOwn(neutralDocument, "contract_change"), false);
+assert.equal(neutralDocument.title, "Neutral closure");
+assert.deepEqual(neutralDocument.contract_change, { before: "", after: "", migrate: "" });
 const report = auditChangelogClaims(history);
 const neutralClaim = report.claims.find((claim) => claim.items.includes(neutral.id!))!;
-assert.deepEqual(neutralClaim.gaps, ["delivery", "test_result", "tests"]);
+assert.deepEqual(neutralClaim.gaps, ["contract_change", "delivery", "migration", "test_result", "tests"]);
 assert.equal(report.claims[0].gaps.includes("migration"), false);
 assert.equal(report.claims[0].gaps.includes("contract_change"), false);
 /** TOON's documented JSON scalar columns preserve the complete claim arrays. */

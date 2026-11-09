@@ -148,27 +148,38 @@ test("actual extension authors declarations and host audit finds SDK-created mis
 });
 
 
-test("declared issues without repair evidence retain neutral closure in every output", () => {
+test("declared issues without repair evidence publish their contract entry in every output", () => {
   for (const type of ["Issue", "Bug", "Defect", "Bugfix"]) {
     for (const sectionBy of ["category", "type", "status", "label"] as const) {
       const item: PmItem = { id: "fixture-neutral", title: "Security parser change", type, status: "closed", close_reason: "Closed on GitHub", breaking: true, tags: ["one", "two"], contract_change: declaration };
       const options = { items: [item], sectionBy, entryFrom: "close_reason" as const, breakingChanges: true, suggestSemver: true };
       const markdown = createChangelog(options).markdown;
-      assert.match(markdown, /### Closed\n\n- Closed: Security parser change \(fixture-neutral\)/);
-      assert.doesNotMatch(markdown, /SDK contract|Migrate:|Rows were|Breaking Changes/);
+      assert.match(markdown, /### Changed \(SDK contract\)\n\n- Security parser change: Rows were unordered → Rows use ID order\. Migrate: Sort explicitly for other orders \(fixture-neutral\)/);
+      assert.doesNotMatch(markdown, /### Closed|Closed:|Breaking Changes/);
       const document = buildChangelogDocument(options);
       assert.deepEqual(document.releases[0].breaking_changes, []);
-      assert.equal(document.releases[0].sections[0].heading, "Closed");
-      assert.equal(Object.hasOwn(document.releases[0].sections[0].items[0], "contract_change"), false);
-      assert.equal(document.releases[0].sections[0].items[0].title, "Closed: Security parser change");
+      assert.equal(document.releases[0].sections[0].heading, "Changed (SDK contract)");
+      assert.deepEqual(document.releases[0].sections[0].items[0].contract_change, declaration);
+      assert.equal(document.releases[0].sections[0].items[0].title, "Security parser change");
+      // Unproven closures never contribute to breaking or semver classification, declared or not.
       assert.equal(document.suggested_semver!.bump, "none");
-      assert.equal(createChangelogSummary(options)[0].title, "Closed: Security parser change");
+      assert.equal(createChangelogSummary(options)[0].title, "Security parser change");
       const report = auditChangelogClaims(options);
       assert.equal(report.claims.length, 1);
-      assert.equal(report.claims[0].section, "Closed");
+      assert.equal(report.claims[0].section, "Changed (SDK contract)");
       assert.equal(report.claims[0].claim, markdown.split("\n")[report.claims[0].line - 1]);
       assert.equal(report.claims[0].gaps.includes("repair"), false);
-      // Linked repair evidence restores the migration-bearing entry and major bump.
+      for (const gap of ["delivery", "tests", "test_result"] as const) assert.ok(report.claims[0].gaps.includes(gap));
+      assert.equal(report.claims[0].gaps.includes("migration"), false);
+      assert.equal(report.claims[0].gaps.includes("contract_change"), false);
+      // Incomplete neutral declarations still publish and audit their missing migration text.
+      const incomplete = { ...options, items: [{ ...item, contract_change: { ...declaration, before: " ", migrate: "" } }] };
+      assert.match(createChangelog(incomplete).markdown, /Security parser change: \\\[missing before\\\] → Rows use ID order\. Migrate: \\\[missing migration\\\]/);
+      const incompleteReport = auditChangelogClaims(incomplete);
+      assert.ok(incompleteReport.claims[0].gaps.includes("migration"));
+      assert.ok(incompleteReport.claims[0].gaps.includes("contract_change"));
+      assert.equal(incompleteReport.ready, false);
+      // Linked repair evidence restores the major bump while the entry stays in the contract group.
       const repaired = { ...options, items: [{ ...item, files: [{ path: "src/parser.ts" }] }] };
       assert.match(createChangelog(repaired).markdown, /### Changed \(SDK contract\)/);
       assert.match(createChangelog(repaired).markdown, /Migrate: Sort explicitly for other orders/);

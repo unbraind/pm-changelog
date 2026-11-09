@@ -1,5 +1,5 @@
 import { normalizeUnicodeText } from "./output-unicode.js";
-import { readPresentedContractChange } from "./contract-changes.js";
+import { readContractChange } from "./contract-changes.js";
 import { spawnSync } from "node:child_process";
 import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import { createRequire } from "node:module";
@@ -537,12 +537,13 @@ export function formatSummaryLine(entry) {
     const separatorStart = findReleaseSeparatorStart(entry.heading);
     const versionLabel = entry.version ?? entry.heading.slice(0, separatorStart ?? entry.heading.length);
     const idSuffix = entry.id ? ` (${entry.id})` : "";
-    return toSingleLine(`[${versionLabel}] ${entry.category}: ${entry.title}${idSuffix}`);
+    return `[${versionLabel}] ${entry.category}: ${entry.title}${idSuffix}`;
 }
 /** Project an item onto one `--summary` row, keeping its title single-lined so
- * each entry stays exactly one line. */
+ * each entry stays exactly one line. Bound contract fields here, where the
+ * declaration is known, without changing caller-supplied summary formatting. */
 function toSummaryEntry(heading, version, category, item, options) {
-    return {
+    const entry = {
         heading,
         version,
         category,
@@ -551,11 +552,19 @@ function toSummaryEntry(heading, version, category, item, options) {
         type: typeof item.type === "string" ? item.type : undefined,
         status: typeof item.status === "string" ? item.status : undefined,
     };
+    if (readContractChange(item) !== undefined) {
+        for (const key of ["heading", "version", "category", "id", "title"]) {
+            const value = entry[key];
+            if (typeof value === "string")
+                entry[key] = toSingleLine(value);
+        }
+    }
+    return entry;
 }
 /** Project an item onto its `--changelog-json` form, narrowing the tracker row
  * to the fields the structured document publishes. */
 function toDocumentItem(item, options) {
-    const contract = readPresentedContractChange(item, options);
+    const contract = readContractChange(item);
     return {
         ...(contract ? { contract_change: contract } : {}),
         id: item.id,
@@ -1507,7 +1516,7 @@ function groupByField(items, sectionBy, context) {
         groups.set(heading, bucket);
     };
     for (const item of items) {
-        if (readPresentedContractChange(item, context)) {
+        if (readContractChange(item)) {
             push("Changed (SDK contract)", item);
         }
         else if (needsNeutralClosure(item, context)) {
@@ -1568,7 +1577,7 @@ function collectContributors(items) {
  * creation/id order. Markdown and JSON share this projection instead of
  * relying on the caller's item encounter order. */
 function collectBreakingItems(items, context) {
-    return items.filter((item) => isBreakingItem(item, context) && !readPresentedContractChange(item, context)).sort(compareItems);
+    return items.filter((item) => isBreakingItem(item, context) && !readContractChange(item)).sort(compareItems);
 }
 /** Accept an item's author field as a creditable contributor, or reject it.
  * Rejects non-strings, blanks, and the literal `unknown` — the placeholder the
@@ -1590,7 +1599,7 @@ function pickContributor(value) {
 function groupByCategory(items, context) {
     const grouped = new Map();
     for (const item of items) {
-        const category = readPresentedContractChange(item, context) ? "Changed (SDK contract)" : classifyItem(item, context);
+        const category = readContractChange(item) ? "Changed (SDK contract)" : classifyItem(item, context);
         const categoryItems = grouped.get(category) ?? [];
         categoryItems.push(item);
         grouped.set(category, categoryItems);
@@ -1878,10 +1887,10 @@ export function parseChangelogEntryFrom(value) {
 /** Resolve entry prose without mutating the tracker title or its classification.
  * Empty, whitespace-only and non-string resolutions fall back to title. */
 function resolveEntryTitle(item, options) {
+    if (readContractChange(item))
+        return toSingleLine(item.title);
     if (needsNeutralClosure(item, options))
         return `Closed: ${toSingleLine(item.title)}`;
-    if (readPresentedContractChange(item, options))
-        return toSingleLine(item.title);
     if (options.entryFrom === "close_reason") {
         const resolution = resolveChangelogResolution(item);
         if (resolution !== undefined)
@@ -1928,7 +1937,7 @@ function formatContractText(value) {
 /** Render one item as its changelog bullet text, appending only the parts the
  * enabled options asked for. */
 function formatItem(item, options) {
-    const contract = readPresentedContractChange(item, options);
+    const contract = readContractChange(item);
     const title = contract
         ? `${formatContractText(item.title)}: ${formatContractText(contract.before || "[missing before]")} → ${formatContractText(contract.after || "[missing after]")}. Migrate: ${formatContractText(contract.migrate || "[missing migration]")}`
         : escapeItemTitleMarkdown(resolveEntryTitle(item, options));

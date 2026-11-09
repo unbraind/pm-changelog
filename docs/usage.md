@@ -506,8 +506,12 @@ remain readable as incomplete declarations with audit gaps. `api` is
 optional. Text is trimmed; JSON retains embedded newlines, while Markdown escapes
 and flattens them like item titles.
 
-Eligible declared items appear once under `### Changed (SDK contract)`, including items
-otherwise classified as Fixed or Security:
+Declared items appear once under `### Changed (SDK contract)`, including items
+otherwise classified as Fixed, Security or neutral Closed. A closed issue-like
+item without repair evidence publishes its declared entry there too, so callers
+always see the migration line; the neutral `Closed:` wording applies only to
+closures without a declaration. Every declaration on a rendered item publishes,
+so audit remedies only ever describe assertions the changelog actually claims:
 
 ```markdown
 - Repair default order: Rows were unordered → Rows use ID order. Migrate: Sort explicitly for other orders (example-id)
@@ -515,24 +519,30 @@ otherwise classified as Fixed or Security:
 
 This dedicated group also applies with `--section-by`, `--conventional` and
 `--breaking-changes`; declared items are not repeated in the Breaking Changes
-list. Existing evidence checks and semver classification still apply independently
-of this presentation heading. Closed issue-like items without repair evidence retain
-the neutral Closed heading and wording, including in JSON and summaries, even
-when a declaration or breaking flag is present. The declaration
+list. Existing evidence checks still apply independently
+of this presentation heading. Undeclared closures without repair evidence retain
+the neutral Closed heading and wording, including in JSON and summaries. Unproven
+closures never contribute to breaking or semver classification, even when a
+declaration or breaking flag is present. The declaration
 uses the single-line item title even with `--entry-from close_reason`,
 including in JSON and compact summaries. Existing status,
 non-change and release filters still apply. Undeclared items retain their existing
 rendering. Tracker milestones freeze declarations with the rendered item.
+Contract summary fields are normalized while projecting declared items; the
+exported `formatSummaryLine` retains its existing formatting of caller-supplied
+entries, including whitespace and line separators on undeclared entries.
 
-For eligible declarations, `--changelog-json` includes the same normalized
+For each published declaration, `--changelog-json` includes the same normalized
 `contract_change` record on the item, alongside its `id` and `title`.
 `pm changelog audit` maps the exact rendered line to the source item and reports a `migration` gap when `migrate` is absent,
 blank or not text. Missing or malformed `before`/`after` values produce a
 `contract_change` gap. Historical incomplete declarations remain readable;
 Markdown shows explicit missing-field placeholders and JSON uses empty strings.
-Contract-specific gaps apply only when the claim publishes a contract declaration.
-Neutral Closed claims retain ordinary evidence checks without migration or
-contract-change remedies for their hidden metadata.
+Contract-specific gaps apply only when the claim publishes a contract declaration,
+including incomplete declarations on neutral Closed items, whose remedies describe
+the placeholders the changelog actually renders.
+Ordinary evidence checks (resolution, tests, receipts, delivery) still apply to
+every item.
 No contract change is inferred from a title, type, audience facet or breaking flag.
 
 ## Resolution summaries

@@ -58,11 +58,24 @@ test("contract projection: every presentation path shares single-line title and 
   }
 });
 
-test("contract projection: summary formatter bounds every caller-supplied field to one line", () => {
+test("contract projection: summary projection bounds declared fields to one line", () => {
   for (const separator of ["\n", "\r\n", "\r", "\u2028", "\u2029", "\t"]) {
+    for (const id of [undefined, `fixture${separator}id`]) for (const version of [undefined, `one${separator}two`]) {
+      const entries = createChangelogSummary({ version, items: [{ ...base, id, title: `Before${separator}after`, contract_change: declaration }] });
+      const line = formatSummaryLine(entries[0]);
+      assert.doesNotMatch(line, /[\r\n\u2028\u2029\t]/);
+      assert.ok(line.endsWith(`Changed (SDK contract): Before after${id ? " (fixture id)" : ""}`));
+    }
+  }
+});
+
+test("contract projection: undeclared summary formatter preserves legacy caller fields", () => {
+  for (const separator of ["\n", "\r\n", "\r", "\u2028", "\u2029", "\t", "  "]) {
     for (const version of [undefined, `one${separator}two`]) {
-      const line = formatSummaryLine({ heading: `one${separator}two`, version, category: `SDK${separator}contract`, title: `Before${separator}after`, id: `fixture${separator}id` });
-      assert.equal(line, "[one two] SDK contract: Before after (fixture id)");
+      for (const category of [`Fixed${separator}items`, "Changed (SDK contract)"]) {
+        const line = formatSummaryLine({ heading: `one${separator}two`, version, category, title: `  Before${separator}after  `, id: `fixture${separator}id` });
+        assert.equal(line, `[one${separator}two] ${category}:   Before${separator}after   (fixture${separator}id)`);
+      }
     }
   }
 });

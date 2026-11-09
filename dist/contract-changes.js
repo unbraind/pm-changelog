@@ -1,5 +1,7 @@
-import { needsNeutralClosure } from "./closure-policy.js";
-/** Preserve incomplete historical declarations as auditable gaps, never inferred prose. */
+/** Read the item's authored contract declaration: the one presentation policy
+ * shared by Markdown, JSON, summary and audit. Every declaration of a rendered
+ * item publishes; closure evidence still governs repair and semver classification.
+ * Diagnostics describe only assertions the changelog claims. */
 export function readContractChange(item) {
     const direct = item.contract_change;
     const nested = item.metadata?.contract_change;
@@ -13,10 +15,6 @@ export function readContractChange(item) {
     const migrate = contractText(row.migrate);
     const api = contractText(row.api);
     return { ...(api ? { api } : {}), before, after, migrate };
-}
-/** Share the renderer's declaration eligibility with every consumer of published claims. */
-export function readPresentedContractChange(item, context) {
-    return needsNeutralClosure(item, context) ? undefined : readContractChange(item);
 }
 /** Trim authored text while treating absent or malformed fields as missing evidence. */
 function contractText(value) {

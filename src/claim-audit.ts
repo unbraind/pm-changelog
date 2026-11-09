@@ -3,7 +3,7 @@ import { normalizeUnicodeOutput, encodeUnicodeOutput } from "./output-unicode.ts
 import { spawnSync } from "node:child_process";
 import { createHash } from "node:crypto";
 import { createChangelog } from "./generator.ts";
-import { readPresentedContractChange } from "./contract-changes.ts";
+import { readContractChange } from "./contract-changes.ts";
 import { hasRepairEvidence, recordsDelivery } from "./closure-policy.ts";
 import type { GenerateChangelogOptions, PmItem } from "./types.ts";
 
@@ -174,7 +174,7 @@ export function auditChangelogClaims(
         evidence.set(id, record);
       }
       if (source.kind === "contributors") continue;
-      const contract = readPresentedContractChange(item, options);
+      const contract = readContractChange(item);
       if (contract) {
         if (!contract.migrate) gaps.add("migration");
         if (!contract.before || !contract.after) gaps.add("contract_change");
