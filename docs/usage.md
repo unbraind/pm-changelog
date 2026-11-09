@@ -481,6 +481,70 @@ Item links are omitted by default so public CI jobs do not accidentally publish 
 
 Pass `--item-url-base` or `itemUrlBase` to make item IDs themselves clickable links pointing directly to the `.toon` files in the repository. The tool derives the correct type subdirectory (`issues/`, `tasks/`, `chores/`, `features/`, `epics/`) from each item's type automatically — no configuration per type is needed.
 
+## Declared SDK and CLI contract changes
+
+An item can explicitly declare an observable caller contract change in its
+`contract_change` metadata field:
+
+```json
+{
+  "api": "listAllComplete",
+  "before": "Rows were unordered",
+  "after": "Rows use ID order",
+  "migrate": "Sort explicitly for other orders"
+}
+```
+
+With this extension active, author it using
+`pm update <id> --field 'contract_change={"before":"Allowed","after":"Refused","migrate":"Handle the refusal"}'`.
+Projects that independently register the same object field through `pm schema
+add-field` use their declared `--contract-change` flag instead (SDK option
+`contractChange`). Caller-supplied `PmItem` objects may also put the declaration
+under `metadata.contract_change`; a non-null direct field takes precedence.
+A null or absent direct field falls back to metadata; standalone null values
+remain readable as incomplete declarations with audit gaps. `api` is
+optional. Text is trimmed; JSON retains embedded newlines, while Markdown escapes
+and flattens them like item titles.
+
+Declared items appear once under `### Changed (SDK contract)`, including items
+otherwise classified as Fixed, Security or neutral Closed. A closed issue-like
+item without repair evidence publishes its declared entry there too, so callers
+always see the migration line; the neutral `Closed:` wording applies only to
+closures without a declaration. Every declaration on a rendered item publishes,
+so audit remedies only ever describe assertions the changelog actually claims:
+
+```markdown
+- Repair default order: Rows were unordered → Rows use ID order. Migrate: Sort explicitly for other orders (example-id)
+```
+
+This dedicated group also applies with `--section-by`, `--conventional` and
+`--breaking-changes`; declared items are not repeated in the Breaking Changes
+list. Existing evidence checks still apply independently
+of this presentation heading. Undeclared closures without repair evidence retain
+the neutral Closed heading and wording, including in JSON and summaries. Unproven
+closures never contribute to breaking or semver classification, even when a
+declaration or breaking flag is present. The declaration
+uses the single-line item title even with `--entry-from close_reason`,
+including in JSON and compact summaries. Existing status,
+non-change and release filters still apply. Undeclared items retain their existing
+rendering. Tracker milestones freeze declarations with the rendered item.
+Contract summary fields are normalized while projecting declared items; the
+exported `formatSummaryLine` retains its existing formatting of caller-supplied
+entries, including whitespace and line separators on undeclared entries.
+
+For each published declaration, `--changelog-json` includes the same normalized
+`contract_change` record on the item, alongside its `id` and `title`.
+`pm changelog audit` maps the exact rendered line to the source item and reports a `migration` gap when `migrate` is absent,
+blank or not text. Missing or malformed `before`/`after` values produce a
+`contract_change` gap. Historical incomplete declarations remain readable;
+Markdown shows explicit missing-field placeholders and JSON uses empty strings.
+Contract-specific gaps apply only when the claim publishes a contract declaration,
+including incomplete declarations on neutral Closed items, whose remedies describe
+the placeholders the changelog actually renders.
+Ordinary evidence checks (resolution, tests, receipts, delivery) still apply to
+every item.
+No contract change is inferred from a title, type, audience facet or breaking flag.
+
 ## Resolution summaries
 
 Use `--entry-from close_reason` to publish fix prose while preserving a defect-shaped

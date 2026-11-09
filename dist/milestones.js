@@ -45,9 +45,9 @@ function validCaptureTime(value) {
 }
 /** Copy only fields consumed by rendering, classification and entry ordering. */
 function renderItem(item) {
-    const keys = ["id", "title", "status", "type", "priority", "tags", "itemFolder", "url", "assignee", "author", "created_at", "updated_at", "closed_at", "completed_at", "release", "milestone", "breaking", "close_reason", "resolution", "actual_result"];
+    const keys = ["id", "title", "status", "type", "priority", "tags", "itemFolder", "url", "assignee", "author", "created_at", "updated_at", "closed_at", "completed_at", "release", "milestone", "breaking", "close_reason", "resolution", "actual_result", "contract_change"];
     const row = Object.fromEntries(keys.filter((key) => item[key] !== undefined).map((key) => [key, item[key]]));
-    const metadata = Object.fromEntries(["release", "milestone", "breaking"].filter((key) => item.metadata?.[key] !== undefined).map((key) => [key, item.metadata[key]]));
+    const metadata = Object.fromEntries(["release", "milestone", "breaking", "contract_change"].filter((key) => item.metadata?.[key] !== undefined).map((key) => [key, item.metadata[key]]));
     if (Object.keys(metadata).length)
         row.metadata = metadata;
     for (const key of ["files", "tests", "links"]) {

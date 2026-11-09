@@ -97,7 +97,7 @@ export default defineExtension({
   version: "2026.11.7",
 
   activate(api) {
-    api.registerItemFields([{ name: "change_facets", type: "array", optional: true }]);
+    api.registerItemFields([{ name: "change_facets", type: "array", optional: true }, { name: "contract_change", type: "object", optional: true }]);
     api.registerCommand({
       name: "changelog drift",
       description: "Index declared agent-behavior obligation changes across releases; read-only, no git required.",

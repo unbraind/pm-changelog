@@ -1,4 +1,5 @@
 import { normalizeUnicodeText } from "./output-unicode.js";
+import { readContractChange } from "./contract-changes.js";
 import { spawnSync } from "node:child_process";
 import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import { createRequire } from "node:module";
@@ -21,6 +22,7 @@ let resolvedPmCommand;
 const CATEGORY_ORDER = [
     "Added",
     "Changed",
+    "Changed (SDK contract)",
     "Fixed",
     "Removed",
     "Security",
@@ -265,8 +267,8 @@ export function createChangelog(options, onClaim) {
         const hasDeps = Boolean(depCommits && depCommits.length > 0);
         if (hasItems) {
             // OPT-IN (`--breaking-changes`): a dedicated heading listing breaking items
-            // up front. Items still appear in their normal category/field group below,
-            // so this is purely additive and absent by default.
+            // up front. Undeclared items also appear in their ordinary group below;
+            // contract declarations retain a single migration-bearing entry.
             if (options.breakingChanges) {
                 const breaking = collectBreakingItems(section.items, options);
                 if (breaking.length > 0) {
@@ -540,9 +542,10 @@ export function formatSummaryLine(entry) {
     return `[${versionLabel}] ${entry.category}: ${entry.title}${idSuffix}`;
 }
 /** Project an item onto one `--summary` row, keeping its title single-lined so
- * each entry stays exactly one line. */
+ * each entry stays exactly one line. Bound contract fields here, where the
+ * declaration is known, without changing caller-supplied summary formatting. */
 function toSummaryEntry(heading, version, category, item, options) {
-    return {
+    const entry = {
         heading,
         version,
         category,
@@ -551,11 +554,21 @@ function toSummaryEntry(heading, version, category, item, options) {
         type: typeof item.type === "string" ? item.type : undefined,
         status: typeof item.status === "string" ? item.status : undefined,
     };
+    if (readContractChange(item) !== undefined) {
+        for (const key of ["heading", "version", "category", "id", "title"]) {
+            const value = entry[key];
+            if (typeof value === "string")
+                entry[key] = toSingleLine(value);
+        }
+    }
+    return entry;
 }
 /** Project an item onto its `--changelog-json` form, narrowing the tracker row
  * to the fields the structured document publishes. */
 function toDocumentItem(item, options) {
+    const contract = readContractChange(item);
     return {
+        ...(contract ? { contract_change: contract } : {}),
         id: item.id,
         title: resolveEntryTitle(item, options),
         type: item.type,
@@ -1481,6 +1494,7 @@ function insertAfterTitle(markdown, releaseSection) {
 const CONVENTIONAL_HEADINGS = {
     Added: "Features",
     Changed: "Changes",
+    "Changed (SDK contract)": "Changed (SDK contract)",
     Fixed: "Bug Fixes",
     Removed: "Reverts",
     Security: "Security",
@@ -1504,7 +1518,10 @@ function groupByField(items, sectionBy, context) {
         groups.set(heading, bucket);
     };
     for (const item of items) {
-        if (needsNeutralClosure(item, context)) {
+        if (readContractChange(item)) {
+            push("Changed (SDK contract)", item);
+        }
+        else if (needsNeutralClosure(item, context)) {
             push("Closed", item);
         }
         else if (sectionBy === "type") {
@@ -1562,7 +1579,7 @@ function collectContributors(items) {
  * creation/id order. Markdown and JSON share this projection instead of
  * relying on the caller's item encounter order. */
 function collectBreakingItems(items, context) {
-    return items.filter((item) => isBreakingItem(item, context)).sort(compareItems);
+    return items.filter((item) => isBreakingItem(item, context) && !readContractChange(item)).sort(compareItems);
 }
 /** Accept an item's author field as a creditable contributor, or reject it.
  * Rejects non-strings, blanks, and the literal `unknown` — the placeholder the
@@ -1584,7 +1601,7 @@ function pickContributor(value) {
 function groupByCategory(items, context) {
     const grouped = new Map();
     for (const item of items) {
-        const category = classifyItem(item, context);
+        const category = readContractChange(item) ? "Changed (SDK contract)" : classifyItem(item, context);
         const categoryItems = grouped.get(category) ?? [];
         categoryItems.push(item);
         grouped.set(category, categoryItems);
@@ -1872,6 +1889,8 @@ export function parseChangelogEntryFrom(value) {
 /** Resolve entry prose without mutating the tracker title or its classification.
  * Empty, whitespace-only and non-string resolutions fall back to title. */
 function resolveEntryTitle(item, options) {
+    if (readContractChange(item))
+        return toSingleLine(item.title);
     if (needsNeutralClosure(item, options))
         return `Closed: ${toSingleLine(item.title)}`;
     if (options.entryFrom === "close_reason") {
@@ -1913,10 +1932,17 @@ export function lintChangelogEntries(options) {
     }
     return warnings;
 }
+/** Normalize and escape one field without allowing code spans to cross field boundaries. */
+function formatContractText(value) {
+    return escapeItemTitleMarkdown(toSingleLine(value), true);
+}
 /** Render one item as its changelog bullet text, appending only the parts the
  * enabled options asked for. */
 function formatItem(item, options) {
-    const title = escapeItemTitleMarkdown(resolveEntryTitle(item, options));
+    const contract = readContractChange(item);
+    const title = contract
+        ? `${formatContractText(item.title)}: ${formatContractText(contract.before || "[missing before]")} → ${formatContractText(contract.after || "[missing after]")}. Migrate: ${formatContractText(contract.migrate || "[missing migration]")}`
+        : escapeItemTitleMarkdown(resolveEntryTitle(item, options));
     const id = formatItemId(item, options);
     const metadata = formatItemMetadata(item, options);
     const link = options.includeLinks ? formatLink(item.url) : "";
@@ -2437,7 +2463,7 @@ function escapeMarkdown(value) {
  * quoting a flag as `` `--add` `` keeps rendering as code instead of having its
  * backticks escaped into literal text. An unterminated span is escaped as
  * ordinary text rather than swallowing the rest of the title. */
-function escapeItemTitleMarkdown(value) {
+function escapeItemTitleMarkdown(value, matchFullFences = false) {
     let result = "";
     let index = 0;
     while (index < value.length) {
@@ -2448,8 +2474,16 @@ function escapeItemTitleMarkdown(value) {
         }
         result += escapeItemTitleText(value.slice(index, start));
         const fence = value.slice(start).match(/^`+/)[0];
-        const end = value.indexOf(fence, start + fence.length);
+        let end = value.indexOf(fence, start + fence.length);
+        while (matchFullFences && end !== -1 && (value[end - 1] === "`" || value[end + fence.length] === "`")) {
+            end = value.indexOf(fence, end + 1);
+        }
         if (end === -1) {
+            if (matchFullFences) {
+                result += escapeItemTitleText(fence);
+                index = start + fence.length;
+                continue;
+            }
             result += escapeItemTitleText(value.slice(start));
             break;
         }
