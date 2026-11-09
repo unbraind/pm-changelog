@@ -84,7 +84,7 @@ interface CliOptions {
   until?: string;
   untilReleaseTag: boolean;
   allReleaseTags: boolean;
-  releaseTagPattern: string;
+  releaseTagPattern?: string;
   pendingRelease: boolean;
   statuses?: string[];
   groupBy: ChangelogGroupBy;
@@ -455,7 +455,6 @@ function parseArgs(args: string[]): CliOptions {
     sincePreviousTag: false,
     untilReleaseTag: false,
     allReleaseTags: false,
-    releaseTagPattern: "v*",
     pendingRelease: true,
     respectItemRelease: false,
     excludeTags: [],
@@ -1163,7 +1162,7 @@ Options:
       --milestones           Generate from immutable tracker release milestones (no git)
       --all-release-tags    Rebuild full history from git release tag windows
       --release-tag-pattern <glob>
-                            Git tag glob for --all-release-tags (default: v*)
+                            Git tag glob (default: v-prefixed or unprefixed versions)
       --no-pending-release  Nothing is being released right now: suppress the pending
                             release window derived from an untagged --version /
                             --release-version-from-package (e.g. a package.json version
@@ -1204,7 +1203,7 @@ Options:
       --changelog-json      Print the full structured changelog document (releases->sections->items) to stdout
       --explain             Print item-selection diagnostics (counts, exclusions, actionable hints)
       --mode <mode>         replace or prepend existing changelog (default: replace)
-      --include-empty       Explicitly allow an empty requested release section
+      --include-empty       Keep empty release sections; omit empty Unreleased
       --include-links       Include item URLs in generated entries (default: false)
       --no-links            Disable item URLs in generated entries
       --item-url-base <url> Make item IDs clickable links: [pmc-abc]({url}/pmc-abc.toon)

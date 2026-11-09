@@ -14,7 +14,7 @@
  * silently pads or truncates a ragged row - the defect being checked for.
  */
 import { describe, it } from "node:test";
-import { deepEqual } from "node:assert/strict";
+import { deepEqual, match, ok } from "node:assert/strict";
 import { existsSync, readdirSync, readFileSync, statSync } from "node:fs";
 import { dirname, join, relative, resolve } from "node:path";
 import { lexer, walkTokens } from "marked";
@@ -104,6 +104,17 @@ describe("shipped Markdown checks", () => {
 });
 
 describe("shipped Markdown", () => {
+  it("documents the empty Unreleased exception in every include-empty options row", () => {
+    const rows = SHIPPED_MARKDOWN.flatMap((file) => readFileSync(join(ROOT, file), "utf8").split("\n")
+      .filter((line) => /^\|\s*`--include-empty`\s*\|/.test(line)).map((row) => ({ file, row })));
+    ok(rows.length > 0, "the published options table is inspected");
+    for (const { file, row } of rows) {
+      match(row, /Keep empty versioned release sections/, file);
+      match(row, /Empty `Unreleased` sections are always omitted/, file);
+      match(row, /Without this flag, empty release sections are omitted/, file);
+    }
+  });
+
   it("covers the package's documentation", () => {
     deepEqual(["README.md", "CHANGELOG.md", "docs/usage.md"].filter((file) => !SHIPPED_MARKDOWN.includes(file)), []);
   });

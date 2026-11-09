@@ -119,10 +119,11 @@ test("identity and malformed receipt refusals carry recovery guidance", () => {
 });
 
 test("empty selections and empty release assertions have deterministic zero-gap reports", () => {
-  const empty = auditChangelogClaims({ items: [], includeEmpty: true });
+  const empty = auditChangelogClaims({ items: [], version: "1.0.0", includeEmpty: true });
   assert.equal(empty.claims[0].claim, "No changes.");
   assertChangelogClaims(empty);
   assert.equal(auditChangelogClaims({ items: [] }).claim_count, 0);
+  assert.equal(auditChangelogClaims({ items: [], includeEmpty: true }).claim_count, 0, "empty Unreleased makes no claim");
   const window = auditChangelogClaims({ items: [], includeEmpty: true, releaseWindows: [{ heading: "1.0.0", until: "2026-10-21" }] });
   assert.equal(window.ready, true);
 });

@@ -43,6 +43,7 @@ export interface ReleaseContextOptions {
  * a release being cut right now, whose tag does not exist yet. */
 export interface ReleaseTagHistoryOptions {
   cwd?: string;
+  /** Optional Git glob; the default accepts version tags with or without v. */
   tagPattern?: string;
   /**
    * Include release tags that are not reachable from HEAD. Rebases and history
@@ -373,7 +374,7 @@ export function resolveReleaseTagWindowResolution(
 ): ReleaseTagWindowResolution {
   const cwd = resolve(options.cwd ?? process.cwd());
   assertReleaseTagHistory({ cwd, requiredBy: ["--all-release-tags"] });
-  const tags = listReleaseTags(cwd, options.tagPattern ?? "v*", options.includeOrphaned);
+  const tags = listReleaseTags(cwd, options.tagPattern, options.includeOrphaned);
   const pending = resolvePendingReleaseTag(options, tags);
   // `pendingRelease: false` asserts no release is being cut, so an untagged
   // pendingVersion is a placeholder (a package version that has never been
@@ -469,8 +470,8 @@ function resolvePendingReleaseTag(options: ReleaseTagHistoryOptions, existingTag
   const version = options.pendingVersion?.trim();
   if (!version) return undefined;
   const candidates = releaseTagCandidates(version);
-  const candidateSet = new Set(candidates);
-  if (existingTags.some((tag) => candidateSet.has(tag.name))) return undefined;
+  const key = formatTagVersion(version).toLowerCase();
+  if (existingTags.some((tag) => formatTagVersion(tag.name).toLowerCase() === key)) return undefined;
   // Preserve the caller's version format: the first candidate is the verbatim
   // `v${version}`. Do not force calendar months/days to a zero-padded width —
   // downstream consumers (e.g. the pm-cli release pipeline) key off the
@@ -557,6 +558,9 @@ function releaseTagCandidates(version: string): string[] {
     const padded = `${year}.${month.padStart(2, "0")}.${day.padStart(2, "0")}${suffix}`;
     candidates.push(`v${padded}`, padded);
   }
+  // Uppercase `V` spellings resolve last, so an exact lowercase tag keeps priority
+  // and single-release mode bounds `--until` the same way all-tags mode does.
+  for (const candidate of [...candidates]) if (candidate.startsWith("v")) candidates.push(`V${candidate.slice(1)}`);
   return Array.from(new Set(candidates));
 }
 
@@ -568,8 +572,8 @@ function findPreviousTag(cwd: string, releaseTag: string | undefined): string | 
 /** Read matching release tags with their commit timestamps, newest first.
  * Annotated tags are dated by the commit they point at rather than by when the
  * tag object was written, so a retagged release keeps its original date. */
-function listReleaseTags(cwd: string, pattern: string, includeOrphaned = false): ReleaseTag[] {
-  const args = ["tag", "--list", pattern];
+function listReleaseTags(cwd: string, pattern: string | undefined, includeOrphaned = false): ReleaseTag[] {
+  const args = ["tag", "--list", pattern ?? "*"];
   // Default to reachable tags only. When includeOrphaned is set the `--merged
   // HEAD` filter is dropped so tags orphaned by rebases/history rewrites are
   // still discovered; the chronological sort and item-to-window assignment
@@ -579,11 +583,19 @@ function listReleaseTags(cwd: string, pattern: string, includeOrphaned = false):
   args.push("--format=%(refname:short)%09%(*committerdate:iso-strict)%09%(committerdate:iso-strict)");
   const output = runGit(cwd, args);
   if (!output) return [];
-  return output
+  const tags = output
     .split("\n")
     .map(parseTagLine)
     .filter((tag): tag is ReleaseTag => Boolean(tag))
+    .filter((tag) => pattern !== undefined || /^v/i.test(tag.name) || /^\d+\.\d+\.\d+(?:[-+].+)?$/.test(tag.name))
     .sort(compareReleaseTags);
+  const seen = new Set<string>();
+  return tags.filter((tag) => {
+    const key = formatTagVersion(tag.name).toLowerCase();
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
 }
 
 /**
@@ -591,7 +603,10 @@ function listReleaseTags(cwd: string, pattern: string, includeOrphaned = false):
  *  1. Valid parsed timestamps sort in descending order (newest first).
  *  2. A tag with a valid (parseable) timestamp sorts before one with an invalid
  *     unparseable timestamp, regardless of name.
- *  3. Two tags with equally-invalid timestamps tie-break by name ascending.
+ *  3. Equal or invalid timestamps use the same alias-normalized name key.
+ *     Calendar releases group by date, then numbered successors (descending),
+ *     the base release, and other suffixes (ascending). Raw spelling only
+ *     breaks ties within a normalized identity.
  *
  * This replaces bare `Date.parse(a) - Date.parse(b)` which returns `NaN` when
  * either timestamp is unparseable — and `Array.sort(NaN)` is non-deterministic
@@ -608,8 +623,8 @@ export function compareReleaseTags(a: ReleaseTag, b: ReleaseTag): number {
     // Both parse → newest first (descending)
     const diff = bTime - aTime;
     if (diff !== 0) return diff;
-    // Same instant → name tie-break
-    return compareTagNames(a.name, b.name);
+    // Same instant: a same-day successor must precede its base release.
+    return compareSameInstantTagNames(a.name, b.name);
   }
 
   if (aValid !== bValid) {
@@ -617,8 +632,40 @@ export function compareReleaseTags(a: ReleaseTag, b: ReleaseTag): number {
     return aValid ? -1 : 1;
   }
 
-  // Neither parses → name tie-break (stable total order)
-  return compareTagNames(a.name, b.name);
+  // Neither parses → the same alias-invariant total order.
+  return compareSameInstantTagNames(a.name, b.name);
+}
+
+/** Derive a key independently of the other tag, so every alias stays in one group. */
+function tagOrderKey(tag: string): { group: string; phase: number; counter: bigint; identity: string } {
+  const identity = formatTagVersion(tag).toLowerCase();
+  const calendar = identity.match(/^(\d{4}\.\d{1,2}\.\d{1,2})(?:-(.+))?$/);
+  if (!calendar) return { group: identity, phase: 0, counter: 0n, identity };
+  const suffix = calendar[2];
+  const numbered = suffix !== undefined && /^\d+$/.test(suffix);
+  return {
+    group: `v${calendar[1]}`,
+    phase: numbered ? 0 : suffix === undefined ? 1 : 2,
+    counter: numbered ? BigInt(suffix) : 0n,
+    identity,
+  };
+}
+
+/** Compare one lexicographic tuple for all pairs; spelling cannot reorder other releases. */
+function compareSameInstantTagNames(a: string, b: string): number {
+  const left = tagOrderKey(a);
+  const right = tagOrderKey(b);
+  const group = compareTagNames(left.group, right.group);
+  if (group !== 0) return group;
+  if (left.phase !== right.phase) return left.phase - right.phase;
+  if (left.counter !== right.counter) return left.counter > right.counter ? -1 : 1;
+  const identity = compareTagNames(left.identity, right.identity);
+  if (identity !== 0) return identity;
+  // Case aliases of one release: the all-lowercase spelling wins whenever it exists, so publishing an
+  // uppercase alias later (V…, -RC.1) never changes the rendered heading of an unchanged changelog.
+  const lowered = Number(a !== a.toLowerCase()) - Number(b !== b.toLowerCase());
+  if (lowered !== 0) return lowered;
+  return compareTagNames(a, b);
 }
 
 function compareTagNames(a: string, b: string): number {
