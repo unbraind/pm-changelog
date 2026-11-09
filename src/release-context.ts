@@ -661,6 +661,10 @@ function compareSameInstantTagNames(a: string, b: string): number {
   if (left.counter !== right.counter) return left.counter > right.counter ? -1 : 1;
   const identity = compareTagNames(left.identity, right.identity);
   if (identity !== 0) return identity;
+  // Case aliases of one release: the all-lowercase spelling wins whenever it exists, so publishing an
+  // uppercase alias later (V…, -RC.1) never changes the rendered heading of an unchanged changelog.
+  const lowered = Number(a !== a.toLowerCase()) - Number(b !== b.toLowerCase());
+  if (lowered !== 0) return lowered;
   return compareTagNames(a, b);
 }
 

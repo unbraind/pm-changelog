@@ -212,3 +212,21 @@ test("single-release mode resolves an uppercase V tag and bounds --until like al
   // An exact lowercase tag still wins over the uppercase alias.
   if (addGitTagAlias(dir, "v2026.11.7", "HEAD")) assert.equal(resolveReleaseContext({ cwd: dir, version: "2026.11.7" }).releaseTag, "v2026.11.7");
 });
+
+test("a later suffix-case alias on the same commit keeps the rendered release heading", (t) => {
+  const dir = mkdtempSync(join(tmpdir(), "pm-suffix-case-alias-"));
+  t.after(() => removeGitFixture(dir));
+  initGitFixture(dir);
+  const env = { ...fixtureEnvironment(), GIT_AUTHOR_DATE: "2026-11-07T10:00:00Z", GIT_COMMITTER_DATE: "2026-11-07T10:00:00Z" };
+  execFileSync("git", ["-c", "user.name=Fixture", "-c", "user.email=fixture@example.invalid", "-c", "commit.gpgsign=false", "commit", "--allow-empty", "-m", "rc"], { cwd: dir, stdio: "pipe", env });
+  execFileSync("git", ["tag", "v2026.11.7-rc.1"], { cwd: dir, stdio: "pipe", env: fixtureEnvironment() });
+  const headings = () => resolveReleaseTagWindows({ cwd: dir }).map((window) => window.heading);
+  const before = headings();
+  assert.ok(before.some((heading) => heading.startsWith("2026.11.7-rc.1")), before.join(", "));
+  // Packed refs hold both spellings even on case-insensitive filesystems; the helper refuses case-only duplicates.
+  execFileSync("git", ["pack-refs", "--all"], { cwd: dir, stdio: "pipe", env: fixtureEnvironment() });
+  execFileSync("git", ["update-ref", "refs/tags/v2026.11.7-RC.1", "HEAD"], { cwd: dir, stdio: "pipe", env: fixtureEnvironment() });
+  execFileSync("git", ["pack-refs", "--all"], { cwd: dir, stdio: "pipe", env: fixtureEnvironment() });
+  assert.equal(execFileSync("git", ["tag", "--list"], { cwd: dir, encoding: "utf8", env: fixtureEnvironment() }).trim().split("\n").length, 2);
+  assert.deepEqual(headings(), before);
+});
