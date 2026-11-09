@@ -1,9 +1,9 @@
 /** Adversarial projection parity, including historical nulls and packed consumers. */
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
-import { cpSync, mkdirSync, mkdtempSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
+import { cpSync, existsSync, mkdirSync, mkdtempSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
-import { join, resolve } from "node:path";
+import { delimiter, join, resolve } from "node:path";
 import test from "node:test";
 import { decode, encode } from "@toon-format/toon";
 import { auditChangelogClaims, buildChangelogDocument, createChangelog, createChangelogSummary, formatClaimAudit, formatSummaryLine } from "../src/index.ts";
@@ -80,7 +80,7 @@ test("contract projection: undeclared summary formatter preserves legacy caller 
   }
 });
 
-test("packed contract projections agree in Node and Bun SDK, CLI and host without git", (t) => {
+test("packed contract projections agree in Node and available Bun SDK, CLI and host without git", (t) => {
   const cwd = mkdtempSync(join(tmpdir(), "pm-contract-packed-"));
   t.after(() => rmSync(cwd, { recursive: true, force: true }));
   const home = join(cwd, "home"); mkdirSync(home);
@@ -98,8 +98,28 @@ test("packed contract projections agree in Node and Bun SDK, CLI and host withou
   mkdirSync(join(consumer, "node_modules/@unbrained"), { recursive: true });
   symlinkSync(resolve("node_modules/@unbrained/pm-cli"), join(consumer, "node_modules/@unbrained/pm-cli"), "junction");
   cpSync(resolve("test/fixtures/contract-projection-consumer.ts"), join(consumer, "probe.ts"));
-  for (const runtime of [process.execPath, "bun"]) {
+  const bunVersion = spawnSync("bun", ["--version"], { env: childEnv, encoding: "utf8" });
+  const bunMissing = bunVersion.error !== undefined && "code" in bunVersion.error && bunVersion.error.code === "ENOENT";
+  const runtimes = bunMissing ? [process.execPath] : [process.execPath, "bun"];
+  for (const runtime of runtimes) {
     const output = run(runtime, ["probe.ts", join(cwd, runtime === "bun" ? "bun-tracker" : "node-tracker")], consumer);
     assert.match(output, /packed projections passed/);
   }
+});
+
+test("packed contract projections run without Bun installed", (t) => {
+  const cwd = mkdtempSync(join(tmpdir(), "pm-contract-node-only-"));
+  t.after(() => rmSync(cwd, { recursive: true, force: true }));
+  const bin = join(cwd, "bin"), home = join(cwd, "home");
+  mkdirSync(bin); mkdirSync(home);
+  const npm = (process.env.PATH ?? "").split(delimiter).map((path) => join(path, "npm")).find(existsSync);
+  assert.ok(npm, "npm is required by the documented Node setup");
+  symlinkSync(process.execPath, join(bin, "node"));
+  symlinkSync(npm, join(bin, "npm"));
+  const result = spawnSync(process.execPath, ["--test", "--test-concurrency=2", "--test-name-pattern=^packed contract projections agree", "test/contract-projections.test.ts"], {
+    cwd: resolve("."), encoding: "utf8", timeout: 120000,
+    env: { PATH: bin, HOME: home, NPM_CONFIG_USERCONFIG: "/dev/null", GIT_CONFIG_GLOBAL: "/dev/null", GIT_CONFIG_NOSYSTEM: "1", DO_NOT_TRACK: "1" },
+  });
+  assert.equal(result.status, 0, result.stdout + result.stderr);
+  assert.match(result.stdout, /pass 1/);
 });

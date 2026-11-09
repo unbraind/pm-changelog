@@ -13,6 +13,8 @@ try {
   mkdirSync(join(scratch, "test"));
   mkdirSync(join(scratch, "home"));
   for (const file of ["contract-changes.test.ts", "contract-projections.test.ts", "contract-audit-eligibility.test.ts"]) cpSync(resolve("test", file), join(scratch, "test", file));
+  mkdirSync(join(scratch, "test/fixtures"));
+  cpSync(resolve("test/fixtures/contract-projection-consumer.ts"), join(scratch, "test/fixtures/contract-projection-consumer.ts"));
   symlinkSync(resolve("node_modules"), join(scratch, "node_modules"), "junction");
   const childEnv = { PATH: process.env.PATH, HOME: join(scratch, "home"), NPM_CONFIG_USERCONFIG: "/dev/null", GIT_CONFIG_GLOBAL: "/dev/null", GIT_CONFIG_NOSYSTEM: "1", DO_NOT_TRACK: "1" };
   /** Execute only the matching regression with no inherited credentials or tracker. */
@@ -55,6 +57,8 @@ try {
       from: "if (readContractChange(item) !== undefined) {", to: "if (false) {" },
     { rule: "legacy summary formatter compatibility", path: "src/generator.ts", pattern: "^contract projection: undeclared summary formatter", testFile: "contract-projections.test.ts", rebuild: false,
       from: "return `[${versionLabel}] ${entry.category}: ${entry.title}${idSuffix}`;", to: "return toSingleLine(`[${versionLabel}] ${entry.category}: ${entry.title}${idSuffix}`);" },
+    { rule: "Node-only contributor runtime", path: "test/contract-projections.test.ts", pattern: "^packed contract projections run without Bun installed", testFile: "contract-projections.test.ts", rebuild: false,
+      from: 'const runtimes = bunMissing ? [process.execPath] : [process.execPath, "bun"];', to: 'const runtimes = [process.execPath, "bun"];' },
     { rule: "audit shared source precedence", path: "src/claim-audit.ts", pattern: "^contract audit: only published", testFile: "contract-audit-eligibility.test.ts", rebuild: false,
       from: "const contract = readContractChange(item);", to: "const contract = item.contract_change ?? item.metadata?.contract_change ?? item.contract_change;" },
   ]) {
