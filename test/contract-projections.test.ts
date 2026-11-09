@@ -116,6 +116,9 @@ test("packed contract projections run without Bun installed", (t) => {
   assert.ok(npm, "npm is required by the documented Node setup");
   symlinkSync(process.execPath, join(bin, "node"));
   symlinkSync(npm, join(bin, "npm"));
+  // npm spawns lifecycle and exec commands through sh, so the Bun-free PATH still needs a POSIX shell.
+  const sh = [...(process.env.PATH ?? "").split(delimiter), "/bin", "/usr/bin"].map((path) => join(path, "sh")).find(existsSync);
+  if (process.platform !== "win32") { assert.ok(sh, "a POSIX shell is required for npm"); symlinkSync(sh!, join(bin, "sh")); }
   const result = spawnSync(process.execPath, ["--test", "--test-concurrency=2", "--test-name-pattern=^packed contract projections agree", "test/contract-projections.test.ts"], {
     cwd: resolve("."), encoding: "utf8", timeout: 120000,
     env: { PATH: bin, HOME: home, NPM_CONFIG_USERCONFIG: "/dev/null", GIT_CONFIG_GLOBAL: "/dev/null", GIT_CONFIG_NOSYSTEM: "1", DO_NOT_TRACK: "1" },
