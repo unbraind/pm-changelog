@@ -5,7 +5,7 @@ import { tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
 import test from "node:test";
 import { runInit } from "@unbrained/pm-cli/sdk";
-import { buildChangelogDocument, createChangelog, createChangelogSummary, explainChangelogSelection, resolveReleaseTagWindows } from "../src/index.ts";
+import { buildChangelogDocument, createChangelog, createChangelogSummary, explainChangelogSelection, resolveReleaseContext, resolveReleaseTagWindows } from "../src/index.ts";
 import { cliTestSurface } from "../src/cli.ts";
 import { visibleChangelogItems } from "../src/generator.ts";
 import type { GenerateChangelogOptions, PmItem } from "../src/index.ts";
@@ -197,4 +197,18 @@ test("dependency-only Unreleased occupies the same limited slot in every project
     assert.equal(explainChangelogSelection(options).stage_counts.visible_items, 0);
     assert.equal(explainChangelogSelection(options).excluded_counts.hidden_by_visibility, 1);
   }
+});
+
+test("single-release mode resolves an uppercase V tag and bounds --until like all-tags mode", (t) => {
+  const dir = mkdtempSync(join(tmpdir(), "pm-uppercase-release-tag-"));
+  t.after(() => removeGitFixture(dir));
+  initGitFixture(dir);
+  const env = { ...fixtureEnvironment(), GIT_AUTHOR_DATE: "2026-11-07T10:00:00Z", GIT_COMMITTER_DATE: "2026-11-07T10:00:00Z" };
+  execFileSync("git", ["-c", "user.name=Fixture", "-c", "user.email=fixture@example.invalid", "-c", "commit.gpgsign=false", "commit", "--allow-empty", "-m", "release"], { cwd: dir, stdio: "pipe", env });
+  execFileSync("git", ["tag", "V2026.11.07"], { cwd: dir, stdio: "pipe", env: fixtureEnvironment() });
+  const context = resolveReleaseContext({ cwd: dir, version: "2026.11.7", untilReleaseTag: true });
+  assert.equal(context.releaseTag, "V2026.11.07");
+  assert.equal(context.until, "2026-11-07T10:00:00Z");
+  // An exact lowercase tag still wins over the uppercase alias.
+  if (addGitTagAlias(dir, "v2026.11.7", "HEAD")) assert.equal(resolveReleaseContext({ cwd: dir, version: "2026.11.7" }).releaseTag, "v2026.11.7");
 });
