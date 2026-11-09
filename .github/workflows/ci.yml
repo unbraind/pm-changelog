@@ -142,7 +142,9 @@ jobs:
       - name: Committed dist matches a fresh build
         run: |
           npm run build
-          git diff --exit-code --stat -- dist || { echo "::error::dist/ is stale: run npm run build and commit dist/"; exit 1; }
+          # Porcelain status also reports untracked build outputs (a new module the committed importer needs).
+          stale=$(git status --porcelain --untracked-files=all -- dist)
+          if [ -n "$stale" ]; then printf '%s\n' "$stale"; echo "::error::dist/ differs from a fresh build: run npm run build and commit dist/"; exit 1; fi
 
       - name: Release gate with Bun script runner
         run: bun run release:check
