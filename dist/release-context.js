@@ -408,6 +408,11 @@ function releaseTagCandidates(version) {
         const padded = `${year}.${month.padStart(2, "0")}.${day.padStart(2, "0")}${suffix}`;
         candidates.push(`v${padded}`, padded);
     }
+    // Uppercase `V` spellings resolve last, so an exact lowercase tag keeps priority
+    // and single-release mode bounds `--until` the same way all-tags mode does.
+    for (const candidate of [...candidates])
+        if (candidate.startsWith("v"))
+            candidates.push(`V${candidate.slice(1)}`);
     return Array.from(new Set(candidates));
 }
 function findPreviousTag(cwd, releaseTag) {

@@ -137,6 +137,13 @@ jobs:
       - name: Full release gate under npm
         run: npm run release:check
 
+      # GitHub and local pm installs use the tracked dist/ without building, while the test script rebuilds first,
+      # so a source fix without a rebuilt dist/ passed every gate (pm-changelog#333, uppercase V tags).
+      - name: Committed dist matches a fresh build
+        run: |
+          npm run build
+          git diff --exit-code --stat -- dist || { echo "::error::dist/ is stale: run npm run build and commit dist/"; exit 1; }
+
       - name: Release gate with Bun script runner
         run: bun run release:check
 
