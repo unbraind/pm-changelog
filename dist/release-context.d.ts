@@ -34,6 +34,7 @@ export interface ReleaseContextOptions {
  * a release being cut right now, whose tag does not exist yet. */
 export interface ReleaseTagHistoryOptions {
     cwd?: string;
+    /** Optional Git glob; the default accepts version tags with or without v. */
     tagPattern?: string;
     /**
      * Include release tags that are not reachable from HEAD. Rebases and history
@@ -227,7 +228,10 @@ export declare function resolveGenerationReleaseWindows(resolution: ReleaseTagWi
  *  1. Valid parsed timestamps sort in descending order (newest first).
  *  2. A tag with a valid (parseable) timestamp sorts before one with an invalid
  *     unparseable timestamp, regardless of name.
- *  3. Two tags with equally-invalid timestamps tie-break by name ascending.
+ *  3. Equal or invalid timestamps use the same alias-normalized name key.
+ *     Calendar releases group by date, then numbered successors (descending),
+ *     the base release, and other suffixes (ascending). Raw spelling only
+ *     breaks ties within a normalized identity.
  *
  * This replaces bare `Date.parse(a) - Date.parse(b)` which returns `NaN` when
  * either timestamp is unparseable — and `Array.sort(NaN)` is non-deterministic

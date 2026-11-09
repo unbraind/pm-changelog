@@ -1,0 +1,11 @@
+id: pmc-consumer-projection-migration
+title: Plan consumer changelog migration separately from tag-stability fixes
+description: Public consumer committed files generated with pm-changelog 2026.10.31 differ from current generator in historical dependency notes and item ordering independently of release-tag presence.
+type: Issue
+status: open
+priority: 2
+tags: []
+created_at: "2026-11-07T22:14:23.165Z"
+updated_at: "2026-11-07T22:14:23.165Z"
+author: pi-agent
+body: "Initial public pm-jira main 9ff81121748701c3f95e40e758ec28d89ac73805: fixed generator removes the empty Unreleased flip and renders byte-identically with/without v2026.11.07, but unchanged-file checks fail both ways. Remaining differences include historical 2026.11.5 dependency note for PR #191 and older item ordering. Do not hide these with a claim of an original-file pass. Compare immutable public snapshots and the pinned consumer generator, assess whether historical notes should be frozen more narrowly, and propose a separately authorized consumer upgrade/regeneration with exact diff review. pm-ops has its own No tracked changes wording wrapper. Distinguish a release snapshot from current main with post-release merged dependencies: deleting the last tag at that later HEAD widens pending Git notes to include subsequent commits, which changes the release boundary. No consumer tracker, branch, dependency, workflow or public state was modified."

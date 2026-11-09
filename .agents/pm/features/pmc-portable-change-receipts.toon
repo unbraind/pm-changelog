@@ -1,0 +1,11 @@
+id: pmc-portable-change-receipts
+title: Accept immutable merged-change receipts for dependency-only release notes without git
+description: Design a git-optional source of dependency-only release notes; current JSON items and release milestones cannot attest merged non-item changes.
+type: Feature
+status: open
+priority: 2
+tags: []
+created_at: "2026-11-07T22:07:05.056Z"
+updated_at: "2026-11-07T22:07:05.056Z"
+author: pi-agent
+body: "Audit: GenerateChangelogOptions accepts items, releaseWindows and gitCwd/dependencyUpdates, but has no dependency/change receipt input. TrackerReleaseSnapshot and ReleaseMilestone capture items and doneItemIds only. Installed SDK public declarations expose item/history/transaction APIs, not a merged dependency-change feed. Upstream issue search for merged changes release notes returned no match. Proposed design: a versioned immutable release receipt supplied through JSON/SDK and a tracker-store adapter, with explicit release identity, change kind, title, source URL, stable dedupe key, inclusion boundary and digest. Validate completely before output, normalize release identity, reject conflicting duplicate keys, render from the same selection path in Markdown/JSON/summary, and freeze receipt membership in milestones. Never infer merged status from a title or scan Git on this path. Test plain-directory trackers with no git on PATH, exact before/after milestone publication, replay/deduplication, and malformed receipts. Implement separately after agreeing the receipt contract."

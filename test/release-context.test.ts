@@ -614,3 +614,53 @@ describe("release-context: canonicalizeUtcOffset and extractOffset", () => {
     equal(canonicalizeUtcOffset("garbage+00:00"), "garbage+00:00");
   });
 });
+
+describe("release-context: same-instant release counters", () => {
+  it("orders same-day counters newest first before falling back to tag spelling", () => {
+    const timestamp = "2026-11-07T10:00:00Z";
+    ok(compareReleaseTags(TAG("v2026.11.07-2", timestamp), TAG("v2026.11.7", timestamp)) < 0);
+    ok(compareReleaseTags(TAG("2026.11.7", timestamp), TAG("v2026.11.07-2", timestamp)) > 0);
+    ok(compareReleaseTags(TAG("v2026.11.7-10", timestamp), TAG("2026.11.07-2", timestamp)) < 0);
+    equal(compareReleaseTags(TAG("v2026.11.7-2", timestamp), TAG("v2026.11.7-2", timestamp)), 0);
+    ok(compareReleaseTags(TAG("v2026.11.7", timestamp), TAG("zebra", timestamp)) < 0);
+    ok(compareReleaseTags(TAG("alpha", timestamp), TAG("v2026.11.7", timestamp)) < 0);
+    ok(compareReleaseTags(TAG("v2026.11.7", timestamp), TAG("v2026.11.8", timestamp)) < 0);
+  });
+
+  it("uses a total alias-invariant order for arbitrary equal-time tag sets", () => {
+    let seed = 0x3332026;
+    const next = () => { seed = (Math.imul(seed, 1664525) + 1013904223) >>> 0; return seed; };
+    const names = ["alpha", "zebra", "1.2.3", "v1.2.3", "V1.2.3", "vfoo", "foo", "vv2026.11.7"];
+    for (const day of [7, 8, 19]) {
+      for (const suffix of ["", "-0", "-00", "-2", "-10", "-99999999999999999999999", "-rc.1", "-RC.1"]) {
+        names.push(`v2026.11.${day}${suffix}`, `2026.11.${String(day).padStart(2, "0")}${suffix}`);
+      }
+    }
+    for (const timestamp of ["2026-11-07T10:00:00Z", "invalid"]) {
+      const compare = (a: string, b: string) => compareReleaseTags(TAG(a, timestamp), TAG(b, timestamp));
+      for (const a of names) {
+        equal(compare(a, a), 0);
+        for (const b of names) equal(Math.sign(compare(a, b)) + Math.sign(compare(b, a)), 0, `${a}, ${b}`);
+      }
+      // Every triple in the adversarial domain, rather than a few sorted examples.
+      for (const a of names) for (const b of names) for (const c of names) {
+        if (compare(a, b) <= 0 && compare(b, c) <= 0) ok(compare(a, c) <= 0, `${a} <= ${b} <= ${c}`);
+      }
+      const canonical = (name: string) => name.replace(/^v/i, "").replace(/^(\d{4})\.(\d+)\.(\d+)/, (_, y: string, m: string, d: string) => `${y}.${Number(m)}.${Number(d)}`).toLowerCase();
+      const order = (input: string[]) => [...new Set(input.slice().sort(compare).map(canonical))];
+      const expected = order(names);
+      for (let trial = 0; trial < 128; trial++) {
+        const shuffled = names.slice();
+        for (let index = shuffled.length - 1; index > 0; index--) {
+          const other = next() % (index + 1);
+          [shuffled[index], shuffled[other]] = [shuffled[other], shuffled[index]];
+        }
+        deepEqual(order(shuffled), expected, `permutation ${trial}`);
+        const withoutAlias = shuffled.filter((name) => !/^V/.test(name) && !/\.07/.test(name));
+        deepEqual(order(withoutAlias), expected, `alias publication ${trial}`);
+      }
+      deepEqual(["2026.11.7-rc.1", "2026.11.7", "v2026.11.7-2"].sort(compare),
+        ["v2026.11.7-2", "2026.11.7", "2026.11.7-rc.1"]);
+    }
+  });
+});

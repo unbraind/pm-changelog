@@ -137,6 +137,15 @@ jobs:
       - name: Full release gate under npm
         run: npm run release:check
 
+      # GitHub and local pm installs use the tracked dist/ without building, while the test script rebuilds first,
+      # so a source fix without a rebuilt dist/ passed every gate (pm-changelog#333, uppercase V tags).
+      - name: Committed dist matches a fresh build
+        run: |
+          npm run build
+          # Porcelain status also reports untracked build outputs (a new module the committed importer needs).
+          stale=$(git status --porcelain --untracked-files=all -- dist)
+          if [ -n "$stale" ]; then printf '%s\n' "$stale"; echo "::error::dist/ differs from a fresh build: run npm run build and commit dist/"; exit 1; fi
+
       - name: Release gate with Bun script runner
         run: bun run release:check
 

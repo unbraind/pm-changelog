@@ -25,7 +25,7 @@ interface CliOptions {
     until?: string;
     untilReleaseTag: boolean;
     allReleaseTags: boolean;
-    releaseTagPattern: string;
+    releaseTagPattern?: string;
     pendingRelease: boolean;
     statuses?: string[];
     groupBy: ChangelogGroupBy;
