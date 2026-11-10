@@ -1,0 +1,16 @@
+id: pmc-lifecycle-test-budget
+title: Investigate lifecycle stress validation exceeding the bounded gate budget
+description: "Follow-up from pmc-no-empty-unreleased-337: the aggregate importer command capped at 1200 seconds reported 154 passed, zero assertion failures, and one canceled test file. Existing test/release-lifecycles.test.ts was still executing its 500 native multi-release lifecycle cases at cancellation. Related delivered feature: pmc-release-corrections. Investigate repeatable execution cost and bounded validation strategy while preserving every existing invariant and case; no test changes are part of the issue 337 fix."
+type: Issue
+status: open
+priority: 2
+tags[2]: performance,validation
+created_at: "2026-11-10T23:28:19.082Z"
+updated_at: "2026-11-10T23:48:48.567Z"
+author: codex-changelog337
+acceptance_criteria: Measure representative native lifecycle execution and identify dominant costs without weakening existing assertions or silently reducing the 500-case corpus
+comments[1]{created_at,author,text}:
+  "2026-11-10T23:48:48.566Z",codex-changelog337,"Follow-up evidence: the subsequent timeout 2700 npm test passed all 1050 tests in 1181.6 seconds of reported runner time. The existing 500-native-lifecycle test passed in 908.3 seconds. The earlier 1200-second aggregate importer batch still canceled this file after 154 other passed tests; investigate batch composition and runtime variability rather than assuming a semantic regression. No assertions or case counts were changed."
+files[1]{path,scope}:
+  test/release-lifecycles.test.ts,project
+body: ""
