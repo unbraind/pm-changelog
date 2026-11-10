@@ -721,17 +721,17 @@ export function mergeChangelog(
   }
 
   const releaseSections = extractReleaseSections(generated);
+  let next = omitEmptyUnreleasedSections(existing);
+  let action: MergeChangelogResult["action"] = next === existing ? "unchanged" : "replaced";
   if (releaseSections.length === 0) {
-    const unchanged = existing + "\n";
     return {
-      markdown: unchanged,
-      action: "unchanged",
-      changed: false,
+      markdown: next + "\n",
+      action,
+      changed: next !== existing,
     };
   }
 
-  let next = ensureTitle(existing, options.title);
-  let action: MergeChangelogResult["action"] = "unchanged";
+  next = ensureTitle(next, options.title);
 
   // Keep a Changelog semantics (issue #47): when a release is generated — i.e.
   // the generated output carries a concrete version section and no `Unreleased`
@@ -1565,6 +1565,26 @@ function extractReleaseSections(markdown: string): Array<{ heading: string; mark
       markdown: markdown.slice(match.index, end).trimEnd(),
     };
   });
+}
+
+/** Drop legacy empty pending placeholders during prepend regeneration, including
+ * when there are no generated releases. Preserve every meaningful pending body. */
+function omitEmptyUnreleasedSections(markdown: string): string {
+  const headings = findMarkdownHeadings(markdown, "##");
+  const parts: string[] = [];
+  let cursor = 0;
+  for (let index = 0; index < headings.length; index++) {
+    const heading = headings[index]!;
+    if (normalizeReleaseHeadingKey(heading.heading) !== UNRELEASED_HEADING_KEY) continue;
+    const end = headings[index + 1]?.index ?? markdown.length;
+    const body = markdown.slice(heading.end, end).trim();
+    if (body !== "" && body !== "No changes.") continue;
+    parts.push(markdown.slice(cursor, heading.index));
+    cursor = end;
+  }
+  if (parts.length === 0) return markdown;
+  parts.push(markdown.slice(cursor));
+  return parts.map((part) => part.trim()).filter(Boolean).join("\n\n");
 }
 
 /** Swap one existing release section for a regenerated one, matching on a

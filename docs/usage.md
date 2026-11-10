@@ -185,6 +185,11 @@ npx pm-changelog --all-release-tags --mode replace --output CHANGELOG.md \
 
 `--all-release-tags` creates a newest-first `Unreleased` section for closed items after the latest tag, then one section per matching git tag. Release section dates come from the tag commit timestamp. Items with a `release` field whose value matches a known tag (`v2026.05.24-7`, `2026.05.24-7`, etc.) are bucketed into that tag's section regardless of timestamps; items without a matching `release` field use each item's authoritative `completed_at`, then fall back to the inferred `closed_at`, `updated_at`, and `created_at` for legacy records. Empty versioned release windows are omitted unless `--include-empty` is passed. Empty `Unreleased` sections are always omitted.
 
+On the next regeneration, callers' committed changelogs drop any legacy empty
+`Unreleased` / `No changes.` block. Prepend mode also removes a pending heading
+whose body is blank or exactly `No changes.`, even if its release already exists
+or no new release sections are generated. Meaningful pending bodies are kept.
+
 Within each section, entries with `completed_at` or `closed_at` come first,
 newest completion first (ties use title, then ID). Entries without a completion
 timestamp follow, ordered by `created_at` newest first, then ID ascending;
