@@ -449,7 +449,7 @@ async function main(args: string[] = process.argv.slice(2)): Promise<void> {
         summary.regeneration_argv = guidance.argv;
         summary.regeneration_input_required = guidance.input_required;
         summary.regeneration_shell = guidance.shell;
-        driftMessage += `${classification === "rendering_changed" ? ` The generator's rendering changed in ${diagnosis.changedIn} (committed rendering ${diagnosis.comparedVersion});` : " Entry order changed within existing sections;"} ${guidance.message} this is a one-time regeneration after a pm-changelog upgrade.`;
+        driftMessage += `${classification === "rendering_changed" ? ` The generator's rendering changed in ${diagnosis.changedIn} (matches rendering profile ${diagnosis.comparedVersion});` : " Entry order changed within existing sections;"} ${guidance.message} this is a one-time regeneration after a pm-changelog upgrade.`;
       }
       if (classification === "tracker_changed") driftMessage += trackerReorderExplanation(committed, result.markdown);
       summary.message = driftMessage;

@@ -5,7 +5,7 @@ import { tmpdir } from "node:os";
 import { delimiter, dirname, join, resolve } from "node:path";
 import test from "node:test";
 import type { TestContext } from "node:test";
-import { listAllComplete, PmClient, PmCliError, runCreate, runInit, runUpdate } from "@unbrained/pm-cli/sdk";
+import { listAllComplete, PmClient, PmCliError, runCreate, runInit, runUpdate, schemaAddField } from "@unbrained/pm-cli/sdk";
 import { activateExtensionForTest, runRegisteredCommandForTest } from "@unbrained/pm-cli/sdk/testing";
 import { buildConsumerUpgrades, readConsumerUpgrades } from "../src/consumer-upgrades.ts";
 import { HISTORICAL_RENDERING_VERSIONS, RENDERING_PROFILES, mergeChangelog, PREVIOUS_RENDERING_VERSION, RENDERING_VERSION, writeChangelog } from "../src/generator.ts";
@@ -418,6 +418,8 @@ test("retained pre-2026.11.7 ordering is rendering_changed with its original upg
     assert.equal(error.exitCode, 1);
     assert.match(error.message, /rendering changed in 2026\.11\.7/);
     assert.ok(error.context.verification_errors?.includes("rendering_changed_in=2026.11.7"));
+    assert.match(error.message, /matches rendering profile 2026\.11\.6/);
+    assert.doesNotMatch(error.message, /committed rendering/);
     return true;
   });
   // Older profiles must not hide genuinely new tracker data.
@@ -456,7 +458,7 @@ test("published 2026.11.6 empty-section output matches an older profile with new
   const receipt = JSON.parse(result.stdout);
   assert.equal(receipt.classification, "rendering_changed");
   assert.equal(receipt.compared_rendering_version, "2026.11.7", "newest equivalent historical rendering wins");
-  assert.match(receipt.message, /committed rendering 2026\.11\.7/);
+  assert.match(receipt.message, /matches rendering profile 2026\.11\.7/);
   assert.match(receipt.message, /one-time regeneration/);
   assert.equal(readFileSync(output, "utf8"), committed);
 });
@@ -492,4 +494,38 @@ test("package published prepend cleanup obligation carries its 2026.11.11 delive
   const action = report.steps.find((step) => step.id === "regenerate-changelog-prepend-cleanup-337");
   assert.ok(action);
   assert.deepEqual(action.attribution, [{ item: "pmc-no-empty-unreleased-337", release: "2026.11.11" }]);
+});
+
+
+
+test("published legacy contract formatting reproduces its own grouping and entry prose", async (t) => {
+  const cwd = mkdtempSync(join(tmpdir(), "pm-legacy-contract-profile-"));
+  t.after(() => rmSync(cwd, { recursive: true, force: true }));
+  const pmRoot = join(cwd, ".agents/pm"), output = join(cwd, "CHANGELOG.md");
+  await runInit("published", { path: pmRoot }, { defaults: true, agentGuidance: "skip" });
+  await schemaAddField("contract_change", { type: "object" }, { pmRoot });
+  const declaration = { api: "listAllComplete", before: "Rows were unordered", after: "Rows use ID order", migrate: "Sort explicitly for other orders" };
+  await runCreate({ id: "profile-contract", title: "Fix default order", type: "Issue", status: "closed", completedAt: "2026-11-01T00:00:00Z", closeReason: "Fixed behavior; merged PR #12", createMode: "progressive", ...{ contractChange: JSON.stringify(declaration) } }, { path: pmRoot });
+  const items = (await listAllComplete({}, { pmRoot })).items;
+  const options = { items, version: "1.2.0", date: "2026-11-01", output, check: true };
+  for (const profile of ["2026.11.6", "2026.11.7"] as const) {
+    for (const [name, entryFrom] of [["title", "title"], ["reason", "close_reason"]] as const) {
+      const golden = readFileSync(resolve(`test/fixtures/changelog-2026.11.6-contract-${name}.md`), "utf8");
+      assert.equal(writeChangelog({ ...options, entryFrom }, profile).markdown, golden);
+    }
+    const typed = writeChangelog({ ...options, sectionBy: "type" }, profile).markdown;
+    assert.match(typed, /### Issue/);
+    assert.doesNotMatch(typed, /SDK contract|Migrate:/);
+    const breaking = writeChangelog({ ...options, items: items.map((item) => ({ ...item, breaking: true })), breakingChanges: true }, profile).markdown;
+    assert.match(breaking, /### Breaking Changes/);
+  }
+  assert.match(writeChangelog(options).markdown, /Changed \(SDK contract\)[\s\S]*Migrate:/);
+  writeFileSync(output, readFileSync(resolve("test/fixtures/changelog-2026.11.6-contract-title.md"), "utf8"));
+  const result = spawnSync(process.execPath, [CLI, "--pm-root", pmRoot, "--pm-bin", PM, "--version", "1.2.0", "--date", "2026-11-01", "--output", output, "--check", "--json"], { cwd, encoding: "utf8" });
+  assert.equal(result.status, 1, result.stderr);
+  const receipt = JSON.parse(result.stdout);
+  assert.equal(receipt.classification, "rendering_changed");
+  assert.equal(receipt.compared_rendering_version, "2026.11.7");
+  assert.match(receipt.message, /matches rendering profile 2026\.11\.7/);
+  assert.doesNotMatch(receipt.message, /committed rendering/);
 });

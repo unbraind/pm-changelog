@@ -9,24 +9,28 @@ export declare const PREVIOUS_RENDERING_VERSION = "2026.11.10";
  * comparisons when advancing the current/previous Markdown rendering revisions. */
 export declare const RENDERING_PROFILES: {
     readonly "2026.11.11": {
+        readonly contractFormatting: true;
         readonly modernMarkdown: true;
         readonly completionOrder: true;
         readonly emptyUnreleased: false;
         readonly changedIn: "2026.11.11";
     };
     readonly "2026.11.10": {
+        readonly contractFormatting: true;
         readonly modernMarkdown: false;
         readonly completionOrder: true;
         readonly emptyUnreleased: false;
         readonly changedIn: "2026.11.11";
     };
     readonly "2026.11.7": {
+        readonly contractFormatting: false;
         readonly modernMarkdown: false;
         readonly completionOrder: true;
         readonly emptyUnreleased: true;
         readonly changedIn: "2026.11.10";
     };
     readonly "2026.11.6": {
+        readonly contractFormatting: false;
         readonly modernMarkdown: false;
         readonly completionOrder: false;
         readonly emptyUnreleased: true;

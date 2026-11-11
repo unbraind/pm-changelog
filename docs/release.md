@@ -223,9 +223,20 @@ before using its exact-directory `safe.directory` recovery command.
 ## Rendering-action release attribution
 
 After the daily release selects its explicit delivery version, it runs
-`node scripts/attribute-rendering-release.ts "$NPM_VERSION"`. Only delivered,
+`node scripts/attribute-rendering-release.ts "$NPM_VERSION" "$RELEASE_BASE_SHA"`. Only delivered,
 non-neutral items tagged `rendering-change` with no normalized release receive
 that version. Existing releases and active items are preserved. Before a
 version is selected, pending actions stay unattributed. The release metadata PR
 commits `.agents/pm` items and their native append-only history together with
 package files and the regenerated changelog. Retries are idempotent.
+
+
+Attribution is bounded by an immutable preparation/tag commit, not the recovery
+checkout's current HEAD. The job passes its decision base SHA. The attribution
+reader checks exact-version public registry state, prefers the original version
+preparation/tag snapshot, and allows a new base window only for a proven
+unpublished version. Unknown publication or missing Git evidence never opens a
+new window. Each candidate must already be delivered in that snapshot, have the
+same explicit completion timestamp strictly before the boundary commit, and
+retain its rendering declaration. Later, backdated-new, changed, or unproved
+items are logged and left unattributed for a subsequent release or Unreleased.

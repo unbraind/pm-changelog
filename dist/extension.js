@@ -396,7 +396,7 @@ export default defineExtension({
                     const { classification } = drift;
                     const parsed = canonicalRegenerationOptions(ctx.options, generateCommand.flags ?? []);
                     const guidance = classification === "tracker_changed" ? undefined : regenerationCommand(parsed, ["pm", "--path", ctx.pm_root, ...(ctx.global.json ? ["--json"] : []), "changelog", "generate"]);
-                    const diagnosis = `Drift classification: ${classification}.${classification === "rendering_changed" ? ` The generator's rendering changed in ${drift.changedIn} (committed rendering ${drift.comparedVersion}).` : ""}${classification === "tracker_changed" ? trackerReorderExplanation(committed, result.markdown) : ""}`;
+                    const diagnosis = `Drift classification: ${classification}.${classification === "rendering_changed" ? ` The generator's rendering changed in ${drift.changedIn} (matches rendering profile ${drift.comparedVersion}).` : ""}${classification === "tracker_changed" ? trackerReorderExplanation(committed, result.markdown) : ""}`;
                     const remedy = guidance ? ` ${guidance.message} this is a one-time regeneration after a pm-changelog upgrade.` : "";
                     throw new PmCliError(`Changelog is out of date: ${result.output}\n${diagnosis}${remedy}`, EXIT_CODE.GENERIC_FAILURE, {
                         code: classification, required: guidance?.command, verification_errors: [`rendering_version=${RENDERING_VERSION}`, `previous_rendering_version=${PREVIOUS_RENDERING_VERSION}`, ...(drift.changedIn ? [`rendering_changed_in=${drift.changedIn}`, `compared_rendering_version=${drift.comparedVersion}`] : []), ...(guidance ? [`regeneration_argv=${JSON.stringify(guidance.argv)}`] : [])],

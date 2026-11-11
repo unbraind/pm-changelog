@@ -331,9 +331,10 @@ jobs:
           node scripts/sync-version.ts "${NPM_VERSION}"
           # The delivery version is now selected; persist pending rendering
           # actions with native append-only history before checks/generation.
-          node scripts/attribute-rendering-release.ts "${NPM_VERSION}"
+          node scripts/attribute-rendering-release.ts "${NPM_VERSION}" "${RELEASE_BASE_SHA}"
         env:
           NPM_VERSION: ${{ steps.decide.outputs.npm_version }}
+          RELEASE_BASE_SHA: ${{ steps.decide.outputs.base_sha }}
           PM_AUTHOR: release-changelog
           PM_TELEMETRY_SOURCE_CONTEXT: automation
 

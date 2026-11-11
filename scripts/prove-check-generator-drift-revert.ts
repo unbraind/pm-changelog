@@ -208,6 +208,13 @@ try {
     { name: "missing-source-derived-seam", path: "scripts/empty-unreleased-proof.ts", from: 'const matches = [...source.matchAll(definition.seam)];', to: 'const matches: RegExpMatchArray[] = [];', pattern: "^proof reports every", test: "test/proof-run.test.ts" },
     { name: "drop-release-attribution", path: "scripts/attribute-rendering-release.ts", from: 'await runUpdate(item.id, { release }, { path: pmRoot });', to: 'void release;', pattern: "^selected release attributes", test: "test/release-rendering-attribution.test.ts" },
     { name: "omit-release-tracker-staging", path: ".github/workflows/release.yml", from: "dist CHANGELOG.md .agents/pm", to: "dist CHANGELOG.md", pattern: "^selected release attributes", test: "test/release-rendering-attribution.test.ts" },
+    { name: "noncanonical-publication-lookup", path: "scripts/rendering-release-boundary.ts", from: "encodeURIComponent(release)", to: "encodeURIComponent(version)", pattern: "^registry publication proof", test: "test/release-rendering-attribution.test.ts" },
+    { name: "freeze-unpublished-draft-window", path: "scripts/rendering-release-boundary.ts", from: 'if (publication.state === "unpublished") commit = base;', to: 'if (!commit && publication.state === "unpublished") commit = base;', pattern: "^selected release attributes", test: "test/release-rendering-attribution.test.ts" },
+    { name: "authorize-unknown-publication", path: "scripts/rendering-release-boundary.ts", from: 'if (publication.state === "unpublished") commit = base;', to: 'if (!commit) commit = base;', pattern: "^unproved release boundary", test: "test/release-rendering-attribution.test.ts" },
+    { name: "drop-release-decision-base", path: ".github/workflows/release.yml", from: ' "${RELEASE_BASE_SHA}"', to: '', pattern: "^selected release attributes", test: "test/release-rendering-attribution.test.ts" },
+    { name: "new-format-in-old-profiles", path: "src/generator.ts", from: 'contractFormatting: false', to: 'contractFormatting: true', all: true, pattern: "^published legacy contract", test: "test/check-generator-drift.test.ts" },
+    { name: "assert-cli-committed-version", path: "src/cli.ts", from: 'matches rendering profile ${diagnosis.comparedVersion}', to: 'committed rendering ${diagnosis.comparedVersion}', pattern: "^published 2026", test: "test/check-generator-drift.test.ts" },
+    { name: "assert-extension-committed-version", path: "src/extension.ts", from: 'matches rendering profile ${drift.comparedVersion}', to: 'committed rendering ${drift.comparedVersion}', pattern: "^retained pre-2026", test: "test/check-generator-drift.test.ts" },
     { name: "consumer-tracker-instructions", path: "docs/consumer-upgrades.md", from: "run this query from its root", to: "run this query from a consumer root", pattern: "^package catalog documentation", test: "test/check-generator-drift.test.ts" },
   ]) {
     proof.run(mutation.name, () => {
@@ -236,6 +243,33 @@ try {
       console.log(JSON.stringify({ mutation: "remove-published-prepend-delivery", reverted_fail: 1 }));
     } finally { setRelease(release); }
   });
+  proof.run("revert-published-recovery-boundary", () => {
+    const path = join(scratch, "scripts/attribute-rendering-release.ts"), fixed = readFileSync(path, "utf8");
+    const seam = /    if \(!boundary[\s\S]*?\n    }\n/.exec(fixed)?.[0];
+    assert.ok(seam, "Missing attribution boundary guard");
+    try {
+      writeFileSync(path, fixed.replace(seam, ""));
+      fails("^published recovery", 1, "test/release-rendering-attribution.test.ts");
+      console.log(JSON.stringify({ mutation: "revert-published-recovery-boundary", reverted_fail: 1 }));
+    } finally { writeFileSync(path, fixed); }
+  });
+  for (const name of ["formatItem", "resolveEntryTitle", "groupByCategory", "groupByField", "collectBreakingItems"]) {
+    proof.run(`restore-current-contract-${name}`, () => {
+      const start = fixedGenerator.indexOf(`function ${name}(`);
+      assert.ok(start >= 0, name);
+      const end = fixedGenerator.indexOf("\n}", start) + 2;
+      const fixed = fixedGenerator.slice(start, end);
+      const reverted = fixed.replace("RENDERING_PROFILES[renderingVersion].contractFormatting && ", "")
+        .replace("RENDERING_PROFILES[renderingVersion].contractFormatting ? readContractChange(item) : undefined", "readContractChange(item)")
+        .replace("(!RENDERING_PROFILES[renderingVersion].contractFormatting || !readContractChange(item))", "!readContractChange(item)");
+      assert.notEqual(reverted, fixed, name);
+      try {
+        writeFileSync(generator, fixedGenerator.replace(fixed, reverted));
+        fails("^published legacy contract", 1);
+        console.log(JSON.stringify({ mutation: `restore-current-contract-${name}`, reverted_fail: 1 }));
+      } finally { writeFileSync(generator, fixedGenerator); }
+    });
+  }
   proof.run("restored-controls", () => {
     const restored = run();
     assert.equal(restored.status, 0, restored.stdout + restored.stderr);

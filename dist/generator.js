@@ -17,10 +17,10 @@ export const PREVIOUS_RENDERING_VERSION = "2026.11.10";
 /** Retained output contracts in the same generator. Never remove older ordering
  * comparisons when advancing the current/previous Markdown rendering revisions. */
 export const RENDERING_PROFILES = {
-    "2026.11.11": { modernMarkdown: true, completionOrder: true, emptyUnreleased: false, changedIn: "2026.11.11" },
-    "2026.11.10": { modernMarkdown: false, completionOrder: true, emptyUnreleased: false, changedIn: "2026.11.11" },
-    "2026.11.7": { modernMarkdown: false, completionOrder: true, emptyUnreleased: true, changedIn: "2026.11.10" },
-    "2026.11.6": { modernMarkdown: false, completionOrder: false, emptyUnreleased: true, changedIn: "2026.11.7" },
+    "2026.11.11": { contractFormatting: true, modernMarkdown: true, completionOrder: true, emptyUnreleased: false, changedIn: "2026.11.11" },
+    "2026.11.10": { contractFormatting: true, modernMarkdown: false, completionOrder: true, emptyUnreleased: false, changedIn: "2026.11.11" },
+    "2026.11.7": { contractFormatting: false, modernMarkdown: false, completionOrder: true, emptyUnreleased: true, changedIn: "2026.11.10" },
+    "2026.11.6": { contractFormatting: false, modernMarkdown: false, completionOrder: false, emptyUnreleased: true, changedIn: "2026.11.7" },
 };
 /** Older profiles survive subsequent current/previous rendering-version bumps. */
 export const HISTORICAL_RENDERING_VERSIONS = Object.keys(RENDERING_PROFILES)
@@ -295,16 +295,16 @@ export function createChangelog(options, onClaim, renderingVersion = RENDERING_V
                 if (breaking.length > 0) {
                     lines.push(`### ${maybeEmoji("Breaking Changes", options)}`, "");
                     for (const item of breaking) {
-                        lines.push(`- ${formatItem(item, options)}`);
+                        lines.push(`- ${formatItem(item, options, renderingVersion)}`);
                         emitClaim({ line: lines.length, release: section.heading, section: "Breaking Changes", claim: lines[lines.length - 1], kind: "item", items: [item] });
                     }
                     lines.push("");
                 }
             }
-            for (const group of groupSectionItems(section, sectionBy, options)) {
+            for (const group of groupSectionItems(section, sectionBy, options, renderingVersion)) {
                 lines.push(`### ${maybeEmoji(group.heading, options)}`, "");
                 for (const item of group.items) {
-                    lines.push(`- ${formatItem(item, options)}`);
+                    lines.push(`- ${formatItem(item, options, renderingVersion)}`);
                     emitClaim({ line: lines.length, release: section.heading, section: group.heading, claim: lines[lines.length - 1], kind: "item", items: [item] });
                 }
                 lines.push("");
@@ -453,10 +453,10 @@ function selectCandidateSections(sections, options, renderingVersion = RENDERING
         || (options.includeEmpty && (RENDERING_PROFILES[renderingVersion].emptyUnreleased || sectionVersionKey(section.heading) !== undefined)));
 }
 /** Build the canonical ordered groups for one visible release section. */
-function groupSectionItems(section, sectionBy, options) {
+function groupSectionItems(section, sectionBy, options, renderingVersion = RENDERING_VERSION) {
     if (sectionBy !== "category")
-        return groupByField(section.items, sectionBy, options);
-    const grouped = groupByCategory(section.items, options);
+        return groupByField(section.items, sectionBy, options, renderingVersion);
+    const grouped = groupByCategory(section.items, options, renderingVersion);
     const result = [];
     for (const category of CATEGORY_ORDER) {
         const categoryItems = grouped.get(category);
@@ -1735,7 +1735,7 @@ const CONVENTIONAL_HEADINGS = {
  * "Unlabeled" bucket. For `label`, an item may appear under several headings
  * (one per tag) — this is by design and clearly opt-in.
  */
-function groupByField(items, sectionBy, context) {
+function groupByField(items, sectionBy, context, renderingVersion = RENDERING_VERSION) {
     const groups = new Map();
     const push = (heading, item) => {
         const bucket = groups.get(heading) ?? [];
@@ -1743,7 +1743,7 @@ function groupByField(items, sectionBy, context) {
         groups.set(heading, bucket);
     };
     for (const item of items) {
-        if (readContractChange(item)) {
+        if (RENDERING_PROFILES[renderingVersion].contractFormatting && readContractChange(item)) {
             push("Changed (SDK contract)", item);
         }
         else if (needsNeutralClosure(item, context)) {
@@ -1804,7 +1804,7 @@ function collectContributors(items) {
  * creation/id order. Markdown and JSON share this projection instead of
  * relying on the caller's item encounter order. */
 function collectBreakingItems(items, context, renderingVersion = RENDERING_VERSION) {
-    return items.filter((item) => isBreakingItem(item, context) && !readContractChange(item)).sort((a, b) => compareItems(a, b, renderingVersion));
+    return items.filter((item) => isBreakingItem(item, context) && (!RENDERING_PROFILES[renderingVersion].contractFormatting || !readContractChange(item))).sort((a, b) => compareItems(a, b, renderingVersion));
 }
 /** Accept an item's author field as a creditable contributor, or reject it.
  * Rejects non-strings, blanks, and the literal `unknown` — the placeholder the
@@ -1823,10 +1823,10 @@ function pickContributor(value) {
 }
 /** Bucket items under their keep-a-changelog category, preserving the order
  * they arrived in within each bucket. */
-function groupByCategory(items, context) {
+function groupByCategory(items, context, renderingVersion = RENDERING_VERSION) {
     const grouped = new Map();
     for (const item of items) {
-        const category = readContractChange(item) ? "Changed (SDK contract)" : classifyItem(item, context);
+        const category = RENDERING_PROFILES[renderingVersion].contractFormatting && readContractChange(item) ? "Changed (SDK contract)" : classifyItem(item, context);
         const categoryItems = grouped.get(category) ?? [];
         categoryItems.push(item);
         grouped.set(category, categoryItems);
@@ -2113,8 +2113,8 @@ export function parseChangelogEntryFrom(value) {
 }
 /** Resolve entry prose without mutating the tracker title or its classification.
  * Empty, whitespace-only and non-string resolutions fall back to title. */
-function resolveEntryTitle(item, options) {
-    if (readContractChange(item))
+function resolveEntryTitle(item, options, renderingVersion = RENDERING_VERSION) {
+    if (RENDERING_PROFILES[renderingVersion].contractFormatting && readContractChange(item))
         return toSingleLine(item.title);
     if (needsNeutralClosure(item, options))
         return `Closed: ${toSingleLine(item.title)}`;
@@ -2163,11 +2163,11 @@ function formatContractText(value) {
 }
 /** Render one item as its changelog bullet text, appending only the parts the
  * enabled options asked for. */
-function formatItem(item, options) {
-    const contract = readContractChange(item);
+function formatItem(item, options, renderingVersion = RENDERING_VERSION) {
+    const contract = RENDERING_PROFILES[renderingVersion].contractFormatting ? readContractChange(item) : undefined;
     const title = contract
         ? `${formatContractText(item.title)}: ${formatContractText(contract.before || "[missing before]")} → ${formatContractText(contract.after || "[missing after]")}. Migrate: ${formatContractText(contract.migrate || "[missing migration]")}`
-        : escapeItemTitleMarkdown(resolveEntryTitle(item, options));
+        : escapeItemTitleMarkdown(resolveEntryTitle(item, options, renderingVersion));
     const id = formatItemId(item, options);
     const metadata = formatItemMetadata(item, options);
     const link = options.includeLinks ? formatLink(item.url) : "";

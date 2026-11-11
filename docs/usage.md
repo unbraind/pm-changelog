@@ -82,7 +82,7 @@ npx pm-changelog --mode prepend --version "$GITHUB_REF_NAME" --check
 
 File-output checks classify differences in both the message and the `--json`
 receipt. An exact match to any older rendering profile reports `rendering_changed`
-and names the matched version; profiles are tried newest first. The structural
+and names the matched profile; profiles are tried newest first. The structural
 `reorder_only` category describes reordered entry units, while historical
 rendering evidence takes precedence. Other differences are `tracker_changed`.
 An unproved or same-version reorder explains that a `completed_at` edit or a
@@ -116,7 +116,8 @@ revisions land. An exact match to that profile reports `rendering_changed`, name
 2026.11.7, and includes `rendering_changed_in` and `compared_rendering_version`
 in the receipt.
 Upgrade attribution needs a reproduced previous rendering; matching line sets
-alone cannot prove an upgrade.
+alone cannot prove an upgrade. A profile match identifies compatible rendering
+rules; it does not establish which generator version produced the committed file.
 
 Expose summary values to later GitHub Actions steps:
 

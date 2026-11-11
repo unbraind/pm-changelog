@@ -1,0 +1,16 @@
+{
+  "package": "pm-changelog",
+  "version": "2026.11.6",
+  "integrity": "sha512-i6t9hEbME/Ro41hkIN7yjsJKBptWPLcVvrj5mtKsj4oiZMyEbfX9/cM3bieD2aV9Xl4V2gw9LHHlIfTLlmjPPw==",
+  "declaration": {
+    "api": "listAllComplete",
+    "before": "Rows were unordered",
+    "after": "Rows use ID order",
+    "migrate": "Sort explicitly for other orders"
+  },
+  "tracker": "one closed Issue in a real non-git tracker",
+  "options": {
+    "version": "1.2.0",
+    "date": "2026-11-01"
+  }
+}
