@@ -14,6 +14,29 @@ if (!Number.isSafeInteger(size) || size < 1) {
 function runOperation(selectedOperation: string): void {
   const spaces = " ".repeat(size);
   switch (selectedOperation) {
+    case "container-lists":
+    case "container-quotes":
+    case "container-mixed":
+    case "container-separator":
+    case "container-near-separator": {
+      const opener = selectedOperation === "container-quotes" ? "> ".repeat(size) + "text"
+        : selectedOperation === "container-mixed" ? "> - ".repeat(size) + "text"
+        : selectedOperation === "container-separator" ? "- ".repeat(size)
+        : selectedOperation === "container-near-separator" ? "_  ".repeat(size) + "x"
+        : "- ".repeat(size) + "text";
+      const example = opener + "\n".repeat(size) + "\n \n\t\nOutside.\n\n";
+      const history = "## 1.0.0\n\nRetained.\n";
+      const prefix = "# Changelog\n\n" + example;
+      const generated = "# Changelog\n\n## 2.0.0\n\nNew.\n";
+      const existing = prefix + history;
+      if (mergeChangelog(existing, "# Changelog\n").markdown !== existing) throw new Error("no-op changed hostile content");
+      const expected = prefix + generated.slice(13) + "\n" + history;
+      if (mergeChangelog(existing, generated).markdown !== expected) throw new Error("insertion lost hostile content");
+      const containing = "# Changelog\n\n## 2.0.0\n\n" + example + history;
+      if (mergeChangelog(containing, generated).markdown !== generated + "\n" + history) throw new Error("replacement lost history");
+      if (mergeChangelog("# Changelog\n", containing).markdown !== containing) throw new Error("extraction lost hostile content");
+      break;
+    }
     case "section-version": {
       const entries = createChangelogSummary({
         items: [{ id: "redos", title: "Work", status: "closed" }],

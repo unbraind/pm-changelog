@@ -191,6 +191,9 @@ whose body is blank or exactly `No changes.`, even if its release already exists
 or no new release sections are generated. Meaningful pending bodies are kept.
 List and quote containers (including nested and unterminated fences) end at their
 block boundaries, preserving later release history.
+Thematic breaks such as `* * *` take precedence over list markers. The boundary
+scanner tracks at most 32 nested list/quote containers; deeper markers remain
+ordinary content so malformed changelogs cannot grow unbounded parser state.
 
 Headings inside backtick or tilde fenced examples do not define release sections
 or count as committed release headings for dependency-only notes. Retained

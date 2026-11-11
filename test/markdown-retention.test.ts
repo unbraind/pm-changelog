@@ -95,6 +95,36 @@ test("container exits, continuation fences, sibling lists and quoted literals pr
   }
 });
 
+test("property: thematic breaks never create list containers or expose fenced headings", () => {
+  let cases = 0;
+  for (const marker of ["-", "*", "_"]) for (const separator of [marker.repeat(3), `${marker} ${marker} ${marker}`, `${marker}\t${marker}\t${marker}`, `${marker}  ${marker} ${marker} ${marker} \t`]) {
+    for (const indent of ["", " ", "  ", "   "]) for (const blank of ["", "\n"]) {
+      for (const fence of ["```", "~~~~"]) for (const eol of ["\n", "\r\n", "\r", "\u2028", "\u2029"]) {
+        for (const [open, continuation] of [["", ""], ["+ ", "  "], ["> ", "> "], ["> + ", ">   "]]) {
+          const continued = open.endsWith("+ ") ? continuation + indent : continuation;
+          const example = [open + indent + separator, ...(blank ? [""] : []), continued + "  " + fence + "markdown",
+            continued + "# Example title", continued + "## Unreleased", continued, continued + "No changes.",
+            continued, continued + "## 9.0.0", continued + fence].join(eol);
+          const prefix = `# Changelog\n\n${example}\n\n`;
+          const clean = prefix + history;
+          const expected = prefix + generated.slice(13) + "\n" + history;
+          assert.equal(mergeChangelog(prefix + empty + history, "# Changelog\n").markdown, clean, "cleanup");
+          assert.equal(mergeChangelog(clean, "# Changelog\n").markdown, clean, "no-op");
+          assert.equal(mergeChangelog(clean, generated).markdown, expected, "insertion");
+          assert.equal(mergeChangelog(prefix + "## 2.0.0\n\nOld.\n\n" + history, generated).markdown, expected, "replacement");
+          assert.equal(mergeChangelog(prefix + "## Unreleased\n\nPending.\n\n" + history, generated).markdown, expected, "promotion");
+          const extracted = `# Changelog\n\n## 2.0.0\n\n${example}\n\n${history}`;
+          assert.equal(mergeChangelog("# Changelog\n", extracted).markdown, extracted, "generated extraction");
+          assert.equal(mergeChangelog(extracted, generated).markdown, generated + "\n" + history, "history after containing release");
+          assert.equal(mergeChangelog(example + "\n\n" + history, generated).markdown, expected, "title detection");
+          cases++;
+        }
+      }
+    }
+  }
+  assert.equal(cases, 3840);
+});
+
 test("unclosed fences hide all remaining headings, while invalid openers do not hide releases", () => {
   for (const opening of ["```", "~~~", "   ````markdown", " ~~~~~text"]) {
     const existing = `# Changelog\n\n${opening}\n## Unreleased\n\nNo changes.\n\n## 1.0.0\n`;
@@ -104,6 +134,20 @@ test("unclosed fences hide all remaining headings, while invalid openers do not 
   for (const opening of ["``", "~~", "    ```", "```bad`info"]) {
     const existing = `# Changelog\n\n${opening}\n\n${empty}${history}`;
     assert.equal(mergeChangelog(existing, "# Changelog\n").markdown, `# Changelog\n\n${opening}\n\n${history}`);
+  }
+});
+
+test("bounded list, quote and mixed nesting keeps later release boundaries intact", () => {
+  for (const depth of [31, 32, 33, 64]) for (const [open, continuation] of [["- ", "  "], ["> ", "> "], ["> - ", ">   "]]) {
+    const retainedDepth = Math.min(depth, open === "> - " ? 16 : 32);
+    const continued = continuation.repeat(retainedDepth);
+    const example = [open.repeat(depth) + "text", continued + "```markdown", continued + "## Unreleased",
+      continued + "No changes.", continued + "```"].join("\n");
+    const prefix = `# Changelog\n\n${example}\n\n`;
+    assert.equal(mergeChangelog(prefix + empty + history, "# Changelog\n").markdown, prefix + history);
+    assert.equal(mergeChangelog(prefix + history, generated).markdown, prefix + generated.slice(13) + "\n" + history);
+    const containing = `# Changelog\n\n## 2.0.0\n\n${example}\n\n${history}`;
+    assert.equal(mergeChangelog(containing, generated).markdown, generated + "\n" + history);
   }
 });
 
@@ -130,6 +174,8 @@ test("committed fenced examples cannot authorize dependency-only releases in any
   for (const [index, [open, continuation, marker]] of [
     ["", "", "```"], ["", "", "~~~~"], ["- ", "  ", "```"], ["> ", "> ", "~~~~"],
     ["- > ", "  > ", "```"], ["> - ", ">   ", "~~~~"], ["1. ", "   ", "```"],
+    ["* * *\n  ", "", "```"], ["- - -\n\n  ", "", "~~~~"], ["_\t_\t_\n  ", "", "```"],
+    ["- * * *\n    ", "  ", "```"], ["> * * *\n>   ", "> ", "~~~~"],
   ].entries()) {
     const dir = mkdtempSync(join(tmpdir(), "pm-fenced-publication-"));
     t.after(() => removeGitFixture(dir));

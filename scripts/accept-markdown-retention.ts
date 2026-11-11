@@ -14,7 +14,8 @@ const pinned = (JSON.parse(readFileSync(join(repository, "package.json"), "utf8"
 const env = { PATH: process.env.PATH, HOME: scratch, NPM_CONFIG_USERCONFIG: devNull, npm_config_userconfig: devNull,
   NPM_CONFIG_AUDIT: "false", NPM_CONFIG_FUND: "false", DO_NOT_TRACK: "1", GIT_CONFIG_GLOBAL: devNull,
   GIT_CONFIG_NOSYSTEM: "1", GIT_CEILING_DIRECTORIES: dirname(scratch) };
-const example = "    retained code  \n\n# Changelog\n\n~~~~markdown\n# Example title\n## Unreleased\n\nNo changes.\n\n## 1.0.0\n~~~~\n\n";
+const example = "    retained code  \n\n# Changelog\n\n~~~~markdown\n# Example title\n## Unreleased\n\nNo changes.\n\n## 1.0.0\n~~~~\n\n"
+  + "* * *\n  ```markdown\n## Unreleased\n\nNo changes.\n\n# Example title\n## 9.0.0\n```\n\n";
 const history = "## 1.0.0\n\nRetained delivery.  \n";
 const existing = example + "## Unreleased\n\nNo changes.\n\n" + history;
 const expected = example + history;
@@ -74,6 +75,9 @@ try {
       }
       for (const example of [
         "- ```text\n  sample\n  ```", "- paragraph\ncontinued\n\n  ```text\n  sample", "1. outer\n   > ~~~~text\n   > sample\n   > ~~~~", "> ```text\n> sample",
+        "- - -\n  ```markdown\n## Unreleased\n\nNo changes.\n\n## 9.0.0\n```",
+        "> *\t*\t*\n>   ~~~~text\n> ## Unreleased\n> No changes.\n> ~~~~",
+        "- ".repeat(50000) + "text\n" + "\n \n\t\n".repeat(1000) + "Outside.",
       ]) {
         const retained = `# Changelog\n\n## 2.0.0\n\n${example}\n\n${history}`;
         const replacement = "# Changelog\n\n## 2.0.0\n\nNo changes.\n";

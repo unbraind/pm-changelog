@@ -1322,6 +1322,29 @@ function findReleaseSeparatorStart(value) {
     }
     return undefined;
 }
+/** Bound per-line continuation work, including blank lines that consume no
+ * indentation. Markers beyond this depth remain ordinary block content. */
+const MAX_MARKDOWN_CONTAINER_DEPTH = 32;
+/** Thematic breaks take precedence over list markers at every container level.
+ * Tabs are already expanded by the container parser. Scan once without
+ * backtracking, including long almost-matching separators. */
+function isMarkdownThematicBreak(line, start = 0) {
+    let cursor = start;
+    while (cursor < start + 3 && line[cursor] === " ")
+        cursor++;
+    const marker = line[cursor];
+    if (marker !== "-" && marker !== "*" && marker !== "_")
+        return false;
+    let count = 0;
+    for (; cursor < line.length; cursor++) {
+        const character = line[cursor];
+        if (character === marker)
+            count++;
+        else if (character !== " ")
+            return false;
+    }
+    return count >= 3;
+}
 /** Recognize paragraph text eligible for Markdown's lazy list/quote
  * continuation. Blank lines and interrupting block markers end that permission;
  * a later indented fence can still belong to the preceding list item. */
@@ -1330,13 +1353,13 @@ function isMarkdownParagraphLine(line) {
     return text !== "" && !/^ {4}/.test(line) &&
         !/^(?:#{1,6}(?:\s|$)|>|(?:[-+*]|[0-9]{1,9}[.)])(?:\s|$))/.test(text) &&
         !/^`{3,}[^`]*$/.test(text) && !/^~{3}/.test(text) &&
-        !/^(?:(?:- *){3,}|(?:_ *){3,}|(?:\* *){3,})$/.test(text) && !/^=+ *$/.test(text);
+        !isMarkdownThematicBreak(line) && !/^=+ *$/.test(text);
 }
 /** Strip block containers before scanning fences. Continuation indentation is
  * required except for lazy paragraph continuation: leaving a list or quote
  * also ends its code fence.
- * Tabs use Markdown's four-column stops. The bounded marker expressions and
- * forward-only cursor keep this scan linear even for hostile input. */
+ * Tabs use Markdown's four-column stops. Bounded nesting and marker expressions
+ * keep continuation, copying and forward scans linear even for hostile input. */
 function markdownContainerLine(line, containers, fenced, paragraph) {
     let padding = 0;
     line = line.replace(/\t/g, (_tab, offset) => {
@@ -1371,13 +1394,15 @@ function markdownContainerLine(line, containers, fenced, paragraph) {
     const exited = depth < containers.length;
     const next = containers.slice(0, depth);
     if (!fenced || exited) {
-        while (cursor < line.length) {
+        while (cursor < line.length && next.length < MAX_MARKDOWN_CONTAINER_DEPTH) {
             const quote = /^ {0,3}> ?/.exec(line.slice(cursor));
             if (quote) {
                 cursor += quote[0].length;
                 next.push("quote");
                 continue;
             }
+            if (isMarkdownThematicBreak(line, cursor))
+                break;
             const list = /^( {0,3})(?:[-+*]|[0-9]{1,9}[.)])( +|$)/.exec(line.slice(cursor));
             if (!list)
                 break;
