@@ -293,8 +293,6 @@ function cliRegenerationOptions(options: CliOptions): RegenerationOptions {
     ["mode", "mode"],
     ["checkLinks", "check-links"],
     ["explain", "explain"],
-    ["githubOutput", "github-output"],
-    ["githubStepSummary", "github-step-summary"],
   ];
   for (const [key, flag] of fields) {
     const value = options[key];
@@ -436,9 +434,7 @@ async function main(args: string[] = process.argv.slice(2)): Promise<void> {
     let driftMessage: string | undefined;
     if (options.check && result.changed) {
       const committed = existsSync(outputPath) ? readFileSync(outputPath, "utf-8") : "";
-      const diagnosis = diagnoseCheckDrift(committed, result.markdown, () => writeChangelog({
-        ...generationOptions, output: outputPath, mode: options.mode, check: true,
-      }, PREVIOUS_RENDERING_VERSION).markdown, { current: RENDERING_VERSION, previous: PREVIOUS_RENDERING_VERSION }, HISTORICAL_RENDERING_VERSIONS.map((version) => ({
+      const diagnosis = diagnoseCheckDrift(committed, result.markdown, RENDERING_VERSION, HISTORICAL_RENDERING_VERSIONS.map((version) => ({
         version, changedIn: RENDERING_PROFILES[version].changedIn,
         render: () => writeChangelog({ ...generationOptions, output: outputPath, mode: options.mode, check: true }, version).markdown,
       })));
@@ -453,7 +449,7 @@ async function main(args: string[] = process.argv.slice(2)): Promise<void> {
         summary.regeneration_argv = guidance.argv;
         summary.regeneration_input_required = guidance.input_required;
         summary.regeneration_shell = guidance.shell;
-        driftMessage += `${classification === "rendering_changed" ? ` The generator's rendering changed in ${diagnosis.changedIn};` : " Entry order changed within existing sections;"} ${guidance.message} this is a one-time regeneration after a pm-changelog upgrade.`;
+        driftMessage += `${classification === "rendering_changed" ? ` The generator's rendering changed in ${diagnosis.changedIn} (committed rendering ${diagnosis.comparedVersion});` : " Entry order changed within existing sections;"} ${guidance.message} this is a one-time regeneration after a pm-changelog upgrade.`;
       }
       if (classification === "tracker_changed") driftMessage += trackerReorderExplanation(committed, result.markdown);
       summary.message = driftMessage;

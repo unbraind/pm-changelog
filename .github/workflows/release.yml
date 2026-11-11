@@ -329,8 +329,13 @@ jobs:
           rm -rf dist
           npm run build
           node scripts/sync-version.ts "${NPM_VERSION}"
+          # The delivery version is now selected; persist pending rendering
+          # actions with native append-only history before checks/generation.
+          node scripts/attribute-rendering-release.ts "${NPM_VERSION}"
         env:
           NPM_VERSION: ${{ steps.decide.outputs.npm_version }}
+          PM_AUTHOR: release-changelog
+          PM_TELEMETRY_SOURCE_CONTEXT: automation
 
       - name: Run release checks
         if: steps.decide.outputs.should_release == 'true'
@@ -373,7 +378,7 @@ jobs:
           set -euo pipefail
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add package.json package-lock.json manifest.json src/extension.ts dist CHANGELOG.md
+          git add package.json package-lock.json manifest.json src/extension.ts dist CHANGELOG.md .agents/pm
           if git diff --cached --quiet; then
             echo "Release files are already current; creating tag without an extra commit."
           else

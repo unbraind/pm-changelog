@@ -11,23 +11,32 @@ export declare const RENDERING_PROFILES: {
     readonly "2026.11.11": {
         readonly modernMarkdown: true;
         readonly completionOrder: true;
+        readonly emptyUnreleased: false;
         readonly changedIn: "2026.11.11";
     };
     readonly "2026.11.10": {
         readonly modernMarkdown: false;
         readonly completionOrder: true;
+        readonly emptyUnreleased: false;
         readonly changedIn: "2026.11.11";
+    };
+    readonly "2026.11.7": {
+        readonly modernMarkdown: false;
+        readonly completionOrder: true;
+        readonly emptyUnreleased: true;
+        readonly changedIn: "2026.11.10";
     };
     readonly "2026.11.6": {
         readonly modernMarkdown: false;
         readonly completionOrder: false;
+        readonly emptyUnreleased: true;
         readonly changedIn: "2026.11.7";
     };
 };
 /** Supported output contracts; package dependency upgrades need not bump these. */
 export type RenderingVersion = keyof typeof RENDERING_PROFILES;
 /** Older profiles survive subsequent current/previous rendering-version bumps. */
-export declare const HISTORICAL_RENDERING_VERSIONS: readonly ["2026.11.6"];
+export declare const HISTORICAL_RENDERING_VERSIONS: ("2026.11.10" | "2026.11.11" | "2026.11.6" | "2026.11.7")[];
 type PmCommand = {
     bin: string;
     argsPrefix: string[];
@@ -264,5 +273,8 @@ export declare function explainChangelogSelection(options: GenerateChangelogOpti
 /** Classify an explicit item set into a semver bump, excluding non-change and
  * neutral closures even when the caller has not applied option-driven filtering. */
 export declare function suggestSemverForItems(items: PmItem[], context?: ChangelogStatusContext): SemverSuggestion;
+/** Read a field from an item, falling back to the same key under `metadata`,
+ * because pm workspaces store it in either place depending on schema. */
+export declare function getStringField(item: PmItem, field: "release" | "milestone"): string | undefined;
 export {};
 //# sourceMappingURL=generator.d.ts.map

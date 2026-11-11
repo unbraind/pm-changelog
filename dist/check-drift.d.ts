@@ -17,7 +17,7 @@ export interface HistoricalRenderingComparison {
     render: () => string;
 }
 /** Exact historical matches retain their upgrade evidence beyond the last release. */
-export declare function diagnoseCheckDrift(committed: string, generated: string, previous: () => string, revisions: RenderingRevisions, historical: readonly HistoricalRenderingComparison[]): {
+export declare function diagnoseCheckDrift(committed: string, generated: string, current: string, comparisons: readonly HistoricalRenderingComparison[]): {
     classification: CheckDriftClassification;
     changedIn?: string;
     comparedVersion?: string;

@@ -1,0 +1,11 @@
+{
+  "package": "pm-changelog",
+  "version": "2026.11.6",
+  "integrity": "sha512-i6t9hEbME/Ro41hkIN7yjsJKBptWPLcVvrj5mtKsj4oiZMyEbfX9/cM3bieD2aV9Xl4V2gw9LHHlIfTLlmjPPw==",
+  "invocation": [
+    "pm-changelog",
+    "--include-empty",
+    "--stdout"
+  ],
+  "tracker": "empty real non-git tracker"
+}

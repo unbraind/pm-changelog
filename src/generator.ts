@@ -49,14 +49,17 @@ export const PREVIOUS_RENDERING_VERSION = "2026.11.10";
 /** Retained output contracts in the same generator. Never remove older ordering
  * comparisons when advancing the current/previous Markdown rendering revisions. */
 export const RENDERING_PROFILES = {
-  "2026.11.11": { modernMarkdown: true, completionOrder: true, changedIn: "2026.11.11" },
-  "2026.11.10": { modernMarkdown: false, completionOrder: true, changedIn: "2026.11.11" },
-  "2026.11.6": { modernMarkdown: false, completionOrder: false, changedIn: "2026.11.7" },
+  "2026.11.11": { modernMarkdown: true, completionOrder: true, emptyUnreleased: false, changedIn: "2026.11.11" },
+  "2026.11.10": { modernMarkdown: false, completionOrder: true, emptyUnreleased: false, changedIn: "2026.11.11" },
+  "2026.11.7": { modernMarkdown: false, completionOrder: true, emptyUnreleased: true, changedIn: "2026.11.10" },
+  "2026.11.6": { modernMarkdown: false, completionOrder: false, emptyUnreleased: true, changedIn: "2026.11.7" },
 } as const;
 /** Supported output contracts; package dependency upgrades need not bump these. */
 export type RenderingVersion = keyof typeof RENDERING_PROFILES;
 /** Older profiles survive subsequent current/previous rendering-version bumps. */
-export const HISTORICAL_RENDERING_VERSIONS = ["2026.11.6"] as const satisfies readonly RenderingVersion[];
+export const HISTORICAL_RENDERING_VERSIONS = (Object.keys(RENDERING_PROFILES) as RenderingVersion[])
+  .filter((version) => compareVersionStrings(version, RENDERING_VERSION) < 0)
+  .sort((a, b) => compareVersionStrings(b, a));
 
 const DEFAULT_TITLE = "Changelog";
 const SUPPRESSED_PENDING_RELEASE = Symbol.for("pm-changelog.suppressedPendingRelease");
@@ -527,7 +530,7 @@ interface ChangelogItemGroup {
 function selectChangelogSections(options: GenerateChangelogOptions, renderingVersion: RenderingVersion = RENDERING_VERSION): SelectedChangelogSections {
   const items = filterItems(options, renderingVersion);
   const sections = buildEnrichedSections(items, options, renderingVersion);
-  const candidateSections = selectCandidateSections(sections, options);
+  const candidateSections = selectCandidateSections(sections, options, renderingVersion);
   return {
     items,
     sections,
@@ -548,10 +551,10 @@ function buildEnrichedSections(items: PmItem[], options: GenerateChangelogOption
 
 /** Keep empty releases on request, but never fabricate empty pending notes.
  * Apply before limits so an empty Unreleased window cannot consume a release slot. */
-function selectCandidateSections(sections: ChangelogSection[], options: GenerateChangelogOptions): ChangelogSection[] {
+function selectCandidateSections(sections: ChangelogSection[], options: GenerateChangelogOptions, renderingVersion: RenderingVersion = RENDERING_VERSION): ChangelogSection[] {
   return sections.filter((section) => section.items.length > 0
     || (section.dependencyCommits?.length ?? 0) > 0
-    || (options.includeEmpty && sectionVersionKey(section.heading) !== undefined));
+    || (options.includeEmpty && (RENDERING_PROFILES[renderingVersion].emptyUnreleased || sectionVersionKey(section.heading) !== undefined)));
 }
 
 /** Build the canonical ordered groups for one visible release section. */
@@ -2815,7 +2818,7 @@ function formatLink(url: string | undefined): string {
 
 /** Read a field from an item, falling back to the same key under `metadata`,
  * because pm workspaces store it in either place depending on schema. */
-function getStringField(item: PmItem, field: "release" | "milestone"): string | undefined {
+export function getStringField(item: PmItem, field: "release" | "milestone"): string | undefined {
   const direct = item[field];
   if (typeof direct === "string" && direct.trim()) return direct.trim();
   const fromMetadata = item.metadata?.[field];

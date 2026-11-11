@@ -428,12 +428,68 @@ test("retained pre-2026.11.7 ordering is rendering_changed with its original upg
 
 test("rendering history survives later version bumps and never upgrades equal or current-profile output", () => {
   const old = "- A\n- B\n", current = "- B\n- A\n";
-  const versions = { current: "2026.11.12", previous: "2026.11.11" };
   const profile = { version: "2026.11.6", changedIn: "2026.11.7", render: () => old };
-  assert.deepEqual(diagnoseCheckDrift(old, current, () => current, versions, [profile]),
+  assert.deepEqual(diagnoseCheckDrift(old, current, "2026.11.12", [profile]),
     { classification: "rendering_changed", changedIn: "2026.11.7", comparedVersion: "2026.11.6" });
-  assert.deepEqual(diagnoseCheckDrift(current, current, () => current, versions, [profile]), { classification: "tracker_changed" });
-  assert.deepEqual(diagnoseCheckDrift(old, current, () => current, versions, [{ ...profile, version: versions.current }]), { classification: "tracker_changed" });
-  assert.deepEqual(diagnoseCheckDrift(old, current, () => old, versions, [profile]),
-    { classification: "reorder_only", changedIn: "2026.11.12", comparedVersion: "2026.11.11" });
+  assert.deepEqual(diagnoseCheckDrift(current, current, "2026.11.12", [profile]), { classification: "tracker_changed" });
+  assert.deepEqual(diagnoseCheckDrift(old, current, "2026.11.12", [{ ...profile, version: "2026.11.12" }]), { classification: "tracker_changed" });
+  assert.deepEqual(HISTORICAL_RENDERING_VERSIONS, ["2026.11.10", "2026.11.7", "2026.11.6"]);
+  const tried: string[] = [];
+  const profiles = HISTORICAL_RENDERING_VERSIONS.map((version) => ({ version, changedIn: RENDERING_PROFILES[version].changedIn,
+    render: () => { tried.push(version); return version === "2026.11.10" ? current : old; } }));
+  assert.equal(diagnoseCheckDrift(old, current, RENDERING_VERSION, profiles).comparedVersion, "2026.11.7");
+  assert.deepEqual(tried, ["2026.11.10", "2026.11.7"]);
+  assert.equal(diagnoseCheckDrift("different", current, RENDERING_VERSION, profiles).classification, "tracker_changed");
+});
+
+
+test("published 2026.11.6 empty-section output matches an older profile with newest-first evidence", async (t) => {
+  const cwd = mkdtempSync(join(tmpdir(), "pm-published-empty-"));
+  t.after(() => rmSync(cwd, { recursive: true, force: true }));
+  const pmRoot = join(cwd, ".agents/pm");
+  await runInit("published", { path: pmRoot }, { defaults: true, agentGuidance: "skip" });
+  const output = join(cwd, "CHANGELOG.md");
+  const committed = readFileSync(resolve("test/fixtures/changelog-2026.11.6-empty.md"), "utf8");
+  writeFileSync(output, committed);
+  const result = spawnSync(process.execPath, [CLI, "--pm-root", pmRoot, "--pm-bin", PM, "--include-empty", "--output", output, "--check", "--json"], { cwd, encoding: "utf8" });
+  assert.equal(result.status, 1, result.stderr);
+  const receipt = JSON.parse(result.stdout);
+  assert.equal(receipt.classification, "rendering_changed");
+  assert.equal(receipt.compared_rendering_version, "2026.11.7", "newest equivalent historical rendering wins");
+  assert.match(receipt.message, /committed rendering 2026\.11\.7/);
+  assert.match(receipt.message, /one-time regeneration/);
+  assert.equal(readFileSync(output, "utf8"), committed);
+});
+
+
+test("local regeneration omits CI reporting flags and succeeds without their environment", async (t) => {
+  const f = await fixture(t);
+  const before = readFileSync(f.output, "utf8");
+  writeFileSync(f.output, before.replace("# Changelog\n", "# Changelog\n\n## Unreleased\n\nNo changes.\n"));
+  const parsed = cliTestSurface.parseArgs([...f.args, "--mode", "prepend", "--check", "--set-output", "--github-step-summary"]);
+  const model = cliTestSurface.cliRegenerationOptions(parsed);
+  assert.equal(model["github-output"], undefined);
+  assert.equal(model["github-step-summary"], undefined);
+  const guidance = regenerationCommand({ ...model, "github-output": true, "github-step-summary": true }, ["node", CLI]);
+  assert.ok(!guidance.argv.some((arg) => arg.startsWith("--github-")));
+  const environment = { ...process.env }; delete environment.GITHUB_OUTPUT; delete environment.GITHUB_STEP_SUMMARY;
+  const result = spawnSync(guidance.command!, { cwd: f.cwd, shell: true, env: environment, encoding: "utf8" });
+  assert.equal(result.status, 0, result.stderr);
+  assert.equal(readFileSync(f.output, "utf8"), before);
+});
+
+
+test("package catalog documentation links every rendering action to its package tracker", async () => {
+  const usage = readFileSync(resolve("docs/consumer-upgrades.md"), "utf8");
+  assert.match(usage, /run this query from its root/);
+  const items = (await listAllComplete({}, { pmRoot: resolve(".agents/pm") })).items.filter((item) => item.tags?.includes("rendering-change"));
+  for (const item of items) assert.ok(usage.includes(`https://github.com/unbraind/pm-changelog/blob/main/.agents/pm/issues/${item.id}.toon`));
+});
+
+
+test("package published prepend cleanup obligation carries its 2026.11.11 delivery", async () => {
+  const report = await readConsumerUpgrades(resolve(".agents/pm"), { audience: "operator", from: "2026.11.10", to: "2026.11.11" });
+  const action = report.steps.find((step) => step.id === "regenerate-changelog-prepend-cleanup-337");
+  assert.ok(action);
+  assert.deepEqual(action.attribution, [{ item: "pmc-no-empty-unreleased-337", release: "2026.11.11" }]);
 });

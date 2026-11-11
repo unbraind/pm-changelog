@@ -7,20 +7,21 @@ workflow engine, persisted Plan, executor, import, sync, retry journal or shared
 mutable state. Existing changelog export remains a read-only publication path.
 
 The package's own catalog records the 2026.11.7 ordering change on
-`pmc-total-item-order`: section entries use completion timestamps and no longer
+[`pmc-total-item-order`](https://github.com/unbraind/pm-changelog/blob/main/.agents/pm/issues/pmc-total-item-order.toon): section entries use completion timestamps and no longer
 shuffle after metadata writes. Its operator action is **regenerate CHANGELOG.md
-once**. Query it with `pm-changelog upgrades --pm-root .agents/pm --audience
+once**. Obtain a checkout of [the package repository](https://github.com/unbraind/pm-changelog)
+and run this query from its root (the published npm package does not ship its tracker).
+A consumer checkout has its own `.agents/pm`, which cannot supply this catalog.
+Query the package tracker with `pm-changelog upgrades --pm-root .agents/pm --audience
 operator --from 2026.11.6 --to 2026.11.7`. The declaration lives in the native
 tracker's `change_facets`, alongside its release and delivery evidence.
 
 The 2026.11.10 release also declares distinct regeneration actions for contract
-rendering (`pmc-contract-changes`) and empty pending-window selection
-(`pmc-stable-itemless-check`). Items tagged `rendering-change` must each have a
+rendering ([`pmc-contract-changes`](https://github.com/unbraind/pm-changelog/blob/main/.agents/pm/issues/pmc-contract-changes.toon)) and empty pending-window selection
+([`pmc-stable-itemless-check`](https://github.com/unbraind/pm-changelog/blob/main/.agents/pm/issues/pmc-stable-itemless-check.toon)). Items tagged `rendering-change` must each have a
 published or pending operator action; the catalog regression verifies that invariant.
-The merged prepend cleanup (`pmc-no-empty-unreleased-337`) declares its distinct
-one-time regeneration action to remove legacy empty Unreleased sections. It has
-no release attribution until publication; the regression verifies that it enters
-the catalog when its delivery release is recorded.
+The 2026.11.11 prepend cleanup ([`pmc-no-empty-unreleased-337`](https://github.com/unbraind/pm-changelog/blob/main/.agents/pm/issues/pmc-no-empty-unreleased-337.toon)) declares its distinct
+one-time regeneration action to remove legacy empty Unreleased sections. Its action is attributed to 2026.11.11, verified against the published npm artifact. Future pending actions receive attribution when the release job selects their delivery version.
 
 Every output-affecting generator change must declare an operator upgrade action
 in this catalog, bump `RENDERING_VERSION`, and retain the preceding rendering

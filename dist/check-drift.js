@@ -60,18 +60,15 @@ export function classifyCheckDrift(committed, generated, previous, revisions) {
     return committed !== generated && upgrade ? "rendering_changed" : "tracker_changed";
 }
 /** Exact historical matches retain their upgrade evidence beyond the last release. */
-export function diagnoseCheckDrift(committed, generated, previous, revisions, historical) {
-    const classification = classifyCheckDrift(committed, generated, previous, revisions);
-    if (classification !== "tracker_changed")
-        return { classification, changedIn: revisions.current, comparedVersion: revisions.previous };
+export function diagnoseCheckDrift(committed, generated, current, comparisons) {
     if (committed !== generated) {
-        for (const profile of historical) {
-            if (profile.version !== revisions.current && committed === profile.render()) {
+        for (const profile of comparisons) {
+            if (profile.version !== current && committed === profile.render()) {
                 return { classification: "rendering_changed", changedIn: profile.changedIn, comparedVersion: profile.version };
             }
         }
     }
-    return { classification };
+    return { classification: "tracker_changed" };
 }
 /** Resolve host camel/kebab spellings through the command's actual flag registry.
  * Unknown host internals are not command flags. Canonical supplied keys win. */
@@ -98,7 +95,7 @@ export function canonicalRegenerationOptions(options, flags) {
 export function regenerationCommand(options, invocation, platform = process.platform) {
     const args = [];
     for (const [name, value] of Object.entries(options)) {
-        if (name === "check" || value === undefined || value === false)
+        if (name === "check" || name === "github-output" || name === "github-step-summary" || value === undefined || value === false)
             continue;
         if (value === true)
             args.push(`--${name}`);

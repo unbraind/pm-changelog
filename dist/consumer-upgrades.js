@@ -2,7 +2,7 @@ import { encodeUnicodeOutput as encode, stringifyUnicodeOutput, normalizeUnicode
 import { RelationshipGraph, analyzeRelationshipExecution, listAllComplete, readSettings, resolveRuntimeStatusRegistry } from "@unbrained/pm-cli/sdk";
 import { buildAudienceContracts, parseChangeAudience } from "./audience-contracts.js";
 import { parseContractRelease, parseContractReleaseHeading } from "./contract-versions.js";
-import { compareVersionStrings } from "./generator.js";
+import { compareVersionStrings, getStringField } from "./generator.js";
 import { ConsumerUpgradeError, parseUpgradeActions } from "./upgrade-actions.js";
 export { ConsumerUpgradeError, parseUpgradeActions } from "./upgrade-actions.js";
 /** Accept stable numeric semver/calendar triplets and numeric daily disambiguators only. */
@@ -31,7 +31,7 @@ export function buildConsumerUpgrades(options) {
         const item = items.get(row.item);
         // A merged, unpublished declaration has no delivery release yet. Keep it
         // out of published obligations while still rejecting explicit invalid releases.
-        if (item.release === undefined && row.release === "Unreleased")
+        if (getStringField(item, "release") === undefined && row.release === "Unreleased")
             continue;
         for (const facet of item.change_facets ?? []) {
             if (facet.audience !== audience || !facet.breaking)

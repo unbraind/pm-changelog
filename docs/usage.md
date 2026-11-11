@@ -80,11 +80,11 @@ Fail CI if the committed changelog is stale:
 npx pm-changelog --mode prepend --version "$GITHUB_REF_NAME" --check
 ```
 
-Checks classify differences in both the message and the `--json` receipt.
-`reorder_only` requires identical entry units within unchanged sections, an exact
-match to the previous renderer on the same tracker, and different declared
-rendering revisions. `rendering_changed` requires that exact previous-renderer
-match for another output difference. Other differences are `tracker_changed`.
+File-output checks classify differences in both the message and the `--json`
+receipt. An exact match to any older rendering profile reports `rendering_changed`
+and names the matched version; profiles are tried newest first. The structural
+`reorder_only` category describes reordered entry units, while historical
+rendering evidence takes precedence. Other differences are `tracker_changed`.
 An unproved or same-version reorder explains that a `completed_at` edit or a
 manual reorder can cause it. Blank lines and indented details stay with their
 entry. File-output checks (`--check` with `--output`, including its default
@@ -93,7 +93,8 @@ even with `--check`, it prints the generated output without comparing or writing
 the file and exits **0** when generation succeeds.
 
 Generator drift includes a regeneration invocation built from parsed options,
-with canonical flag names and `--check` removed. Repeated `--pm-arg` values use
+with canonical flag names. `--check`, `--github-output` and
+`--github-step-summary` are omitted so local regeneration needs no CI output files. Repeated `--pm-arg` values use
 `--pm-arg=value` spelling so leading dashes remain values. The tool never infers
 an executable from an embedding host's argv. The JSON receipt includes
 `regeneration_argv`, `regeneration_shell` and `regeneration_input_required`.
@@ -108,7 +109,9 @@ independently of dependency-only package releases. Every output-affecting change
 must bump it and preserve the immediately preceding rules in the shared
 generator. The initial revisions identify 2026.11.11's Markdown retention and
 empty pending-section cleanup, and the preceding published 2026.11.10 rules.
-The rendering-version table also retains the pre-2026.11.7 comparator after later
+Checks try every older rendering profile in the version table, newest first;
+exact matches report `rendering_changed` and name the matched version. The table
+retains the pre-2026.11.7 comparator and its empty-section selection after later
 revisions land. An exact match to that profile reports `rendering_changed`, names
 2026.11.7, and includes `rendering_changed_in` and `compared_rendering_version`
 in the receipt.

@@ -4,7 +4,7 @@ import type { PlanResultPlan, RelationshipEdge } from "@unbrained/pm-cli/sdk";
 import { buildAudienceContracts, parseChangeAudience } from "./audience-contracts.ts";
 import type { ChangeAudience } from "./audience-contracts.ts";
 import { parseContractRelease, parseContractReleaseHeading } from "./contract-versions.ts";
-import { compareVersionStrings } from "./generator.ts";
+import { compareVersionStrings, getStringField } from "./generator.ts";
 import type { ChangelogStatusContext, PmItem } from "./types.ts";
 import { ConsumerUpgradeError, parseUpgradeActions } from "./upgrade-actions.ts";
 import type { UpgradeAction } from "./upgrade-actions.ts";
@@ -61,7 +61,7 @@ export function buildConsumerUpgrades(options: ConsumerUpgradeOptions): Consumer
     const item = items.get(row.item)!;
     // A merged, unpublished declaration has no delivery release yet. Keep it
     // out of published obligations while still rejecting explicit invalid releases.
-    if (item.release === undefined && row.release === "Unreleased") continue;
+    if (getStringField(item, "release") === undefined && row.release === "Unreleased") continue;
     for (const facet of item.change_facets ?? []) {
       if (facet.audience !== audience || !facet.breaking) continue;
       // Facets without published numeric release attribution cannot become upgrade obligations.

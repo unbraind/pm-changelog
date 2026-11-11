@@ -65,17 +65,15 @@ export function classifyCheckDrift(committed: string, generated: string, previou
 /** One retained comparison profile with the upgrade that changed its output. */
 export interface HistoricalRenderingComparison { version: string; changedIn: string; render: () => string }
 /** Exact historical matches retain their upgrade evidence beyond the last release. */
-export function diagnoseCheckDrift(committed: string, generated: string, previous: () => string, revisions: RenderingRevisions, historical: readonly HistoricalRenderingComparison[]): { classification: CheckDriftClassification; changedIn?: string; comparedVersion?: string } {
-  const classification = classifyCheckDrift(committed, generated, previous, revisions);
-  if (classification !== "tracker_changed") return { classification, changedIn: revisions.current, comparedVersion: revisions.previous };
+export function diagnoseCheckDrift(committed: string, generated: string, current: string, comparisons: readonly HistoricalRenderingComparison[]): { classification: CheckDriftClassification; changedIn?: string; comparedVersion?: string } {
   if (committed !== generated) {
-    for (const profile of historical) {
-      if (profile.version !== revisions.current && committed === profile.render()) {
+    for (const profile of comparisons) {
+      if (profile.version !== current && committed === profile.render()) {
         return { classification: "rendering_changed", changedIn: profile.changedIn, comparedVersion: profile.version };
       }
     }
   }
-  return { classification };
+  return { classification: "tracker_changed" };
 }
 
 /** Canonical parsed flags only; arrays retain repeated option/value pairs. */
@@ -112,7 +110,7 @@ export function canonicalRegenerationOptions(options: Readonly<Record<string, un
 export function regenerationCommand(options: RegenerationOptions, invocation: readonly string[], platform: NodeJS.Platform = process.platform): RegenerationGuidance {
   const args: string[] = [];
   for (const [name, value] of Object.entries(options)) {
-    if (name === "check" || value === undefined || value === false) continue;
+    if (name === "check" || name === "github-output" || name === "github-step-summary" || value === undefined || value === false) continue;
     if (value === true) args.push(`--${name}`);
     else for (const entry of Array.isArray(value) ? value : [value]) args.push(`--${name}=${entry}`);
   }

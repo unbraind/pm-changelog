@@ -218,3 +218,14 @@ container contexts that omit repository metadata. This is a compatibility change
 from the former single-section fallback; the generated changelog carries a notice.
 Git's dubious-ownership refusal is reported separately. Verify ownership and trust
 before using its exact-directory `safe.directory` recovery command.
+
+
+## Rendering-action release attribution
+
+After the daily release selects its explicit delivery version, it runs
+`node scripts/attribute-rendering-release.ts "$NPM_VERSION"`. Only delivered,
+non-neutral items tagged `rendering-change` with no normalized release receive
+that version. Existing releases and active items are preserved. Before a
+version is selected, pending actions stay unattributed. The release metadata PR
+commits `.agents/pm` items and their native append-only history together with
+package files and the regenerated changelog. Retries are idempotent.
