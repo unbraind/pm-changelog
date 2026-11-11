@@ -13,7 +13,7 @@ try {
   const file = join(scratch, "src/generator.ts");
   const fixed = readFileSync(file, "utf8");
   const run = (performance = false) => spawnSync(process.execPath, ["--test", "--test-reporter=tap", "--test-concurrency=2",
-    ...(performance ? ["--test-name-pattern=hostile", "test/generator-redos.test.ts"] : ["test/markdown-retention.test.ts"])], {
+    ...(performance ? ["--experimental-test-coverage", "--test-coverage-include=src/generator.ts", "--test-name-pattern=hostile", "test/generator-redos.test.ts"] : ["test/markdown-retention.test.ts"])], {
     cwd: scratch, encoding: "utf8", timeout: 60000,
     env: { PATH: process.env.PATH, DO_NOT_TRACK: "1" },
   });
@@ -24,8 +24,10 @@ try {
   assert.equal(performanceBaseline.status, 0, performanceBaseline.stdout + performanceBaseline.stderr);
   assert.match(performanceBaseline.stdout, /# pass 5\b/);
   for (const mutation of [
-    { name: "list-before-thematic-break", from: 'if (isMarkdownThematicBreak(line, cursor)) break;', to: 'if (false) break;', performance: false },
+    { name: "list-before-thematic-break", from: 'if (thematicBreakStart !== undefined && cursor >= thematicBreakStart && isMarkdownThematicBreak(line, cursor)) break;', to: 'if (false) break;', performance: false },
     { name: "unbounded-container-nesting", from: 'next.length < MAX_MARKDOWN_CONTAINER_DEPTH', to: 'next.length < Infinity', performance: true },
+    { name: "rescan-blank-containers", from: 'if (/^ *$/.test(line)) {', to: 'if (false) {', performance: true },
+    { name: "rescan-rejected-thematic-suffixes", from: 'const thematicBreakStart = findMarkdownThematicSuffixStart(line);', to: 'const thematicBreakStart = 0;', performance: true },
     { name: "ignore-block-containers", from: 'const block = markdownContainerLine(markdown.slice(lineStart, contentEnd), containers, fence !== undefined, paragraph);', to: 'const block = { content: markdown.slice(lineStart, contentEnd), containers: [], exited: false };' },
     { name: "drop-lazy-container-context", from: '!fenced && paragraph && isMarkdownParagraphLine(line.slice(cursor))', to: '!fenced && false && isMarkdownParagraphLine(line.slice(cursor))' },
     { name: "keep-fence-after-container-exit", from: 'if (block.exited) fence = undefined;', to: 'if (false) fence = undefined;' },

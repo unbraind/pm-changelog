@@ -1524,6 +1524,22 @@ type MarkdownContainer = "quote" | number;
  * indentation. Markers beyond this depth remain ordinary block content. */
 const MAX_MARKDOWN_CONTAINER_DEPTH = 32;
 
+/** Find the earliest possible thematic-break suffix once per line. Nested
+ * openers must not rescan overlapping suffixes that contain ordinary text. */
+function findMarkdownThematicSuffixStart(line: string): number | undefined {
+  let cursor = line.length - 1;
+  while (cursor >= 0 && line[cursor] === " ") cursor--;
+  const marker = line[cursor];
+  if (marker !== "-" && marker !== "*" && marker !== "_") return undefined;
+  let count = 0;
+  for (; cursor >= 0; cursor--) {
+    const character = line[cursor];
+    if (character === marker) count++;
+    else if (character !== " ") break;
+  }
+  return count >= 3 ? cursor + 1 : undefined;
+}
+
 /** Thematic breaks take precedence over list markers at every container level.
  * Tabs are already expanded by the container parser. Scan once without
  * backtracking, including long almost-matching separators. */
@@ -1566,6 +1582,14 @@ function markdownContainerLine(line: string, containers: MarkdownContainer[], fe
     padding += width - 1;
     return " ".repeat(width);
   });
+  // Blank continuations preserve numeric containers without rechecking or
+  // copying their indentation at every depth. A missing quote ends that quote
+  // and everything nested within it, exactly as on a nonblank container exit.
+  if (/^ *$/.test(line)) {
+    const firstQuote = containers.indexOf("quote");
+    return { content: "", containers: firstQuote < 0 ? containers : containers.slice(0, firstQuote), exited: firstQuote >= 0 };
+  }
+  const thematicBreakStart = findMarkdownThematicSuffixStart(line);
   let cursor = 0;
   let depth = 0;
   for (const container of containers) {
@@ -1596,7 +1620,7 @@ function markdownContainerLine(line: string, containers: MarkdownContainer[], fe
         next.push("quote");
         continue;
       }
-      if (isMarkdownThematicBreak(line, cursor)) break;
+      if (thematicBreakStart !== undefined && cursor >= thematicBreakStart && isMarkdownThematicBreak(line, cursor)) break;
       const list = /^( {0,3})(?:[-+*]|[0-9]{1,9}[.)])( +|$)/.exec(line.slice(cursor));
       if (!list) break;
       // Five or more spaces after a marker start indented code, not a fence.
