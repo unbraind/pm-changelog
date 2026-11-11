@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+import type { RegenerationOptions } from "./check-drift.ts";
 import type { Readable } from "node:stream";
 import type { ChangelogEntryFrom, ChangelogGroupBy, ChangelogItemRefStyle, ChangelogReleaseWindow, ChangelogSelectionReport, ChangelogSectionBy, PmItem } from "./types.ts";
 interface CliOptions {
@@ -67,6 +68,8 @@ interface CliOptions {
     githubOutput: boolean;
     githubStepSummary: boolean;
 }
+/** Serialize the parsed CLI model before git/date enrichment changes derived fields. */
+declare function cliRegenerationOptions(options: CliOptions): RegenerationOptions;
 /** Run one CLI invocation end to end: parse flags, resolve the release context
  * from git, load items, generate, then write or compare. */
 declare function main(args?: string[]): Promise<void>;
@@ -203,6 +206,7 @@ declare function requireAnyValue(args: string[], index: number, flag: string): s
 declare function printHelp(): void;
 /** Internal behavior surface used by in-process black-box coverage tests. */
 export declare const cliTestSurface: {
+    cliRegenerationOptions: typeof cliRegenerationOptions;
     applyReleaseContext: typeof applyReleaseContext;
     buildGenerationOptions: typeof buildGenerationOptions;
     buildSummary: typeof buildSummary;

@@ -4,9 +4,9 @@ description: "Render explicit SDK and CLI contract metadata once with before, af
 type: Issue
 status: closed
 priority: 2
-tags[2]: "gh:unbraind/pm-changelog#317","gh:unbraind/pm-changelog#328"
+tags[3]: "gh:unbraind/pm-changelog#317","gh:unbraind/pm-changelog#328",rendering-change
 created_at: "2026-11-06T18:46:38.447Z"
-updated_at: "2026-11-11T08:57:06.668Z"
+updated_at: "2026-11-11T12:03:33.088Z"
 closed_at: "2026-11-11T08:57:06.608Z"
 completed_at: "2026-11-09T21:19:58.000Z"
 author: codex-sol
@@ -70,4 +70,12 @@ tests[5]{command,scope,provenance{author,created_at,source_kind,source_ref}}:
 docs[1]{path,scope}:
   docs/usage.md,project
 close_reason: "PR #328 (3147676), shipped in v2026.11.10."
+change_facets[1]:
+  - audience: operator
+    text: "Declared contract changes now render before, after and migration guidance in Markdown; regenerate CHANGELOG.md once when upgrading to 2026.11.10."
+    breaking: true
+    upgrade_actions[1]:
+      - id: regenerate-changelog-2026-11-10-contracts
+        title: regenerate CHANGELOG.md once for contract rendering
+        requires: []
 body: ""

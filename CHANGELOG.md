@@ -12,7 +12,7 @@
 
 ## 2026.11.10 - 2026-11-10
 
-### Fixed
+### Changed
 
 - Render declared contract changes with migration guidance ([pmc-contract-changes](https://github.com/unbraind/pm-changelog/blob/main/.agents/pm/issues/pmc-contract-changes.toon))
 - Keep changelog checks stable when an empty release is tagged ([pmc-stable-itemless-check](https://github.com/unbraind/pm-changelog/blob/main/.agents/pm/issues/pmc-stable-itemless-check.toon))
@@ -24,7 +24,7 @@
 
 ## 2026.11.7 - 2026-11-07
 
-### Fixed
+### Changed
 
 - Order section entries by completion time; regenerate CHANGELOG.md once after upgrading ([pmc-total-item-order](https://github.com/unbraind/pm-changelog/blob/main/.agents/pm/issues/pmc-total-item-order.toon))
 

@@ -26,7 +26,7 @@ import { auditChangelogClaims, assertChangelogClaims, formatClaimAudit, parseCla
 
 import { countNonChangeClosures } from "./closure-policy.ts";
 
-import { classifyCheckDrift, regenerationCommand } from "./check-drift.ts";
+import { classifyCheckDrift, regenerationCommand, canonicalRegenerationOptions, trackerReorderExplanation } from "./check-drift.ts";
 import { RENDERING_VERSION, PREVIOUS_RENDERING_VERSION, assertRequestedRelease, requestedReleaseSuppressed, MissingRequestedReleaseError, buildChangelogDocument, createChangelog, createChangelogSummary, explainChangelogSelection, formatSummaryLine, lintChangelogEntries, parseChangelogEntryFrom, mergeChangelog, suggestSemver, writeChangelog } from "./generator.ts";
 import {
   MissingTagHistoryError,
@@ -448,15 +448,13 @@ export default defineExtension({
           const committed = existsSync(result.output) ? readFileSync(result.output, "utf-8") : "";
           const classification = classifyCheckDrift(committed, result.markdown, () => writeChangelog({
             ...generationOptions, output, mode, check: true,
-          }, PREVIOUS_RENDERING_VERSION).markdown);
-          const args = Object.entries(ctx.options).flatMap(([key, value]) => value === false || value === undefined
-            ? [] : value === true ? [`--${key}`] : [`--${key}`, String(value)]);
-          const values = new Set(Object.entries(ctx.options).filter(([, value]) => typeof value !== "boolean").map(([key]) => `--${key}`));
-          const command = classification === "tracker_changed" ? undefined : regenerationCommand(args, values, ["pm", "--path", ctx.pm_root, "changelog", "generate"]);
-          const diagnosis = `Drift classification: ${classification}.${classification === "rendering_changed" ? ` The generator's rendering changed in ${RENDERING_VERSION}.` : ""}`;
-          const remedy = command ? ` Run ${command}; this is a one-time regeneration after a pm-changelog upgrade.` : "";
+          }, PREVIOUS_RENDERING_VERSION).markdown, { current: RENDERING_VERSION, previous: PREVIOUS_RENDERING_VERSION });
+          const parsed = canonicalRegenerationOptions(ctx.options, generateCommand.flags ?? []);
+          const guidance = classification === "tracker_changed" ? undefined : regenerationCommand(parsed, ["pm", "--path", ctx.pm_root, ...(ctx.global.json ? ["--json"] : []), "changelog", "generate"]);
+          const diagnosis = `Drift classification: ${classification}.${classification === "rendering_changed" ? ` The generator's rendering changed in ${RENDERING_VERSION}.` : ""}${classification === "tracker_changed" ? trackerReorderExplanation(committed, result.markdown) : ""}`;
+          const remedy = guidance ? ` ${guidance.message} this is a one-time regeneration after a pm-changelog upgrade.` : "";
           throw new PmCliError(`Changelog is out of date: ${result.output}\n${diagnosis}${remedy}`, EXIT_CODE.GENERIC_FAILURE, {
-            code: classification, required: command, verification_errors: [`rendering_version=${RENDERING_VERSION}`, `previous_rendering_version=${PREVIOUS_RENDERING_VERSION}`],
+            code: classification, required: guidance?.command, verification_errors: [`rendering_version=${RENDERING_VERSION}`, `previous_rendering_version=${PREVIOUS_RENDERING_VERSION}`, ...(guidance ? [`regeneration_argv=${JSON.stringify(guidance.argv)}`] : [])],
           });
         }
         return {

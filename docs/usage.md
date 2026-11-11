@@ -80,13 +80,24 @@ Fail CI if the committed changelog is stale:
 npx pm-changelog --mode prepend --version "$GITHUB_REF_NAME" --check
 ```
 
-Checks classify differences in both the message and the `--json` receipt:
-`reorder_only` means the same entries changed order within the same sections;
-`rendering_changed` means the file exactly matches the previous rendering of
-the same tracker; `tracker_changed` covers every other difference. All three
-exit **1**. The first two include the configured invocation without `--check`
-and explain that this is a one-time regeneration after a pm-changelog upgrade.
-`--no-check-diff` hides only the diff, keeping the diagnosis and exit status.
+Checks classify differences in both the message and the `--json` receipt.
+`reorder_only` requires identical entry units within unchanged sections, an exact
+match to the previous renderer on the same tracker, and different declared
+rendering revisions. `rendering_changed` requires that exact previous-renderer
+match for another output difference. Other differences are `tracker_changed`.
+An unproved or same-version reorder explains that a `completed_at` edit or a
+manual reorder can cause it. Blank lines and indented details stay with their
+entry. Every difference still exits **1**.
+
+Generator drift includes a regeneration invocation built from parsed options,
+with canonical flag names and `--check` removed. Repeated `--pm-arg` values use
+`--pm-arg=value` spelling so leading dashes remain values. The tool never infers
+an executable from an embedding host's argv. The JSON receipt includes
+`regeneration_argv`, `regeneration_shell` and `regeneration_input_required`.
+POSIX is the default shell; win32 guidance supplies a PowerShell form and its
+lossless JSON argv. For stdin, no standalone command is advertised: rerun the
+original input pipe without `--check`, supplying the same input to the emitted
+argv. `--no-check-diff` hides only the diff.
 
 The receipt includes `rendering_version` and `previous_rendering_version`.
 `RENDERING_VERSION` in `src/generator.ts` identifies the output contract,
@@ -94,8 +105,8 @@ independently of dependency-only package releases. Every output-affecting change
 must bump it and preserve the immediately preceding rules in the shared
 generator. The initial revisions identify 2026.11.11's Markdown retention and
 empty pending-section cleanup, and the preceding published 2026.11.10 rules.
-Pure reordering (including the 2026.11.7 upgrade) is recognized without needing
-an archived renderer for every older release.
+Upgrade attribution needs a reproduced previous rendering; matching line sets
+alone cannot prove an upgrade.
 
 Expose summary values to later GitHub Actions steps:
 

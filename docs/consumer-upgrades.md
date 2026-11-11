@@ -13,6 +13,11 @@ once**. Query it with `pm-changelog upgrades --pm-root .agents/pm --audience
 operator --from 2026.11.6 --to 2026.11.7`. The declaration lives in the native
 tracker's `change_facets`, alongside its release and delivery evidence.
 
+The 2026.11.10 release also declares distinct regeneration actions for contract
+rendering (`pmc-contract-changes`) and empty pending-window selection
+(`pmc-stable-itemless-check`). Items tagged `rendering-change` must each have a
+published operator action; the catalog regression verifies that invariant.
+
 Every output-affecting generator change must declare an operator upgrade action
 in this catalog, bump `RENDERING_VERSION`, and retain the preceding rendering
 rules in the shared pipeline. Record the item delivery release when it ships.
