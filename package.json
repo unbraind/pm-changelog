@@ -60,7 +60,7 @@
     "pack:dry-run": "node scripts/verify-package.ts --dry-run",
     "prepack": "npm run build",
     "release:check": "npm run check && npm run docstring && npm run coverage && npm run audit:prod && npm run pack:dry-run && npm run pack:scan && npm run changelog:check && npm run verify:release-changelog-date && npm run verify:release-publish-attestation",
-    "test": "npm run build && npm run build:test && node --test test/*.test.ts",
+    "test": "npm run build && npm run build:test && node --test --test-concurrency=2 test/*.test.ts",
     "typecheck": "tsc --noEmit",
     "prepublishOnly": "npm run release:check",
     "release:notes": "node dist/cli.js --pm-root .agents/pm --stdout --since-previous-tag --until-release-tag --release-version-from-package --date-from-version --item-url-base https://github.com/unbraind/pm-changelog/blob/main/.agents/pm --pm-bin ./node_modules/.bin/pm --github-step-summary --respect-item-release --pm-arg=--output-budget --pm-arg=unbounded --pm-arg=--output-limit --pm-arg=unbounded",

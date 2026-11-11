@@ -6,11 +6,11 @@ status: in_progress
 priority: 1
 tags[1]: "gh:unbraind/pm-changelog#337"
 created_at: "2026-11-10T23:00:03.696Z"
-updated_at: "2026-11-11T00:09:52.331Z"
+updated_at: "2026-11-11T00:12:17.693Z"
 assignee: codex-changelog337
 claim_principal: codex-changelog337
 author: codex-changelog337
-comments[16]{created_at,author,text}:
+comments[17]{created_at,author,text}:
   "2026-11-10T23:00:05.874Z",codex-changelog337,"Orientation counts: context reports 216 total items, 13 active (10 open, 3 in_progress), 200 closed, 3 canceled; returned focus 10 with omissions. Open list returned all 10 open items. Exact issue tag search returned 0; keyword searches returned 10 of 65 and 10 of 58. Earlier issue 333 already merged the core visibility filter and documented the policy. This item tracks issue 337 specifically and will verify actual CLI publication sequences plus stale prepend input, without weakening existing tests."
   "2026-11-10T23:01:04.309Z",codex-changelog337,"Confirmed remaining runtime gap: prepend merges keep a legacy empty Unreleased placeholder when the versioned release already exists, and also when no releases are generated. Plan: remove only whitespace-only or literal No changes. pending bodies while merging; preserve meaningful pending prose/dependencies. Keep the merged issue 333 generation filter. Add real-Git writer/commit/tag/check cases for empty, Dependabot-only and released-item windows with both include-empty settings; add per-mode migration and later-item guards. No existing test asserting an empty block needs changing."
   "2026-11-10T23:04:45.793Z",codex-changelog337,"Implementation retains the existing generation filter and cleans legacy empty pending blocks during prepend merge, including the no-generated-release case. Added nine regression tests with real Git publication fixtures and source CLI subprocesses. Initial new-fixture runs exposed expected category naming and the separate requested-release extraction guard; fixtures now retain a real released item in later-work controls so both include-empty settings exercise nonempty Unreleased rather than unrelated missing-release refusals. Existing tests remain unchanged. Typecheck, test compilation, build and docstring lint passed; docstring lint read 47 files and 268 declarations. Linked runner was retried with its supported default schema context after none/source context was refused."
@@ -27,10 +27,12 @@ comments[16]{created_at,author,text}:
   "2026-11-11T00:07:46.680Z",codex-changelog337,"Class audit: all six shared heading-scanner consumers now ignore backtick and tilde fences, including opening length, indentation, closing-length/type rules, and unclosed fences. Found and fixed the separate committed-release receipt scanner: a fenced heading must not authorize dependency-only output. Replaced retained-slice whitespace trimming in cleanup, title creation, insertion, replacement and final merge normalization with linear blank-line trimming that preserves indentation and hard-break spaces. JSON/document/summary selection does not merge retained Markdown; the receipt regression checks those projections too. The release-date verifier reads only its own default-title generated output; other source trims normalize metadata or intentionally rebuild generated content."
   "2026-11-11T00:09:13.716Z",codex-changelog337,"Revert proof: timeout 1200 node scripts/prove-markdown-retention-revert.ts passed. Fixed baseline and restored runs: 4/4. Independent behavioral mutants fail via assertions: ignore code fences 3 tests; restore fenced publication receipts 1; trim cleanup slices 2; trim title insertion 2; trim after-title content 1; trim retained boundaries 2; trim final content line 2. The first two review findings share the fence-boundary rule; the whitespace finding is proven independently across every retained-slice operation. No existing tests were modified or removed."
   "2026-11-11T00:09:52.331Z",codex-changelog337,"Focused gate passed: timeout 1200 node --test --test-concurrency=2 test/generator.test.ts test/generator-coverage.test.ts test/generator-redos.test.ts test/markdown-retention.test.ts test/empty-unreleased.test.ts test/dependency-updates.test.ts: 274/274 tests, 31 suites, zero failures/cancellations/skips, 54.4 seconds. Packed acceptance passed 18 checks per installer (npm and Bun), 36 total, using one archive through Node/Bun SDK, standalone CLI, hosted JSON/TOON write/check and JSON generation in non-Git trackers. Archive SHA512 e2d2cdbaa8ec585f6c5fc8c03dc51271800ba764ecd266f31a4e02e621db51304230a941699e10a9831a3adde594835371990810d210ff6c192dd0d7ed7906ad. Typecheck, test compilation, docstring lint and whitespace checks passed."
-files[10]{path,scope}:
+  "2026-11-11T00:12:17.693Z",codex-changelog337,"Full-gate runner correction: npm appends forwarded flags after the test-file glob; process inspection showed more than two workers despite the trailing concurrency flag. Stopped the owned run (exit 143, not a passing result). The package npm test script now places --test-concurrency=2 before the file glob, so both npm and Bun callers get the requested bound without changing assertions, test selection or timeouts. Restart the full timeout 2700 npm test gate using that script."
+files[11]{path,scope}:
   dist/generator.d.ts.map,project
   dist/generator.js,project
   dist/generator.js.map,project
+  package.json,project
   scripts/accept-markdown-retention.ts,project
   scripts/project-changelog.ts,project
   scripts/prove-empty-unreleased-revert.ts,project
