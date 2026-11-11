@@ -14,7 +14,7 @@ const OPERATION_WATCHDOG_MS = 5_000;
  * pre-fix backtracking hang can be terminated and the budget excludes module
  * startup. CPU usage retains the 250ms algorithm budget when the OS deschedules
  * a worker; a separate wall watchdog still terminates a backtracking hang. */
-function assertCompletesWithinBudget(operation: string): Promise<void> {
+function assertCompletesWithinBudget(operation: string, budgetMs = OPERATION_BUDGET_MS): Promise<void> {
   return new Promise((resolve, reject) => {
     const child = spawn(process.execPath, [WORKER, "--server", String(PATHOLOGICAL_SIZE)], {
       cwd: dirname(WORKER),
@@ -55,7 +55,7 @@ function assertCompletesWithinBudget(operation: string): Promise<void> {
       const result = /^ok ([0-9]+)\n/m.exec(stdout);
       if (ready && result) {
         const cpuMs = Number(result[1]) / 1_000;
-        finish(cpuMs > OPERATION_BUDGET_MS ? new Error(`${operation} used ${cpuMs}ms CPU; budget ${OPERATION_BUDGET_MS}ms`) : undefined);
+        finish(cpuMs > budgetMs ? new Error(`${operation} used ${cpuMs}ms CPU; budget ${budgetMs}ms`) : undefined);
       }
     });
     child.stderr.on("data", (chunk: string) => {
@@ -112,3 +112,9 @@ test("GitHub URL extraction completes for a long URL path", async () => {
 test("GitHub URL rejection completes for a long non-GitHub URL", async () => {
   await assertCompletesWithinBudget("dep-github-nonmatch");
 });
+
+for (const operation of ["container-lists", "container-quotes", "container-mixed", "container-separator", "container-near-separator"]) {
+  test(`hostile ${operation} remains bounded across blank continuations and all Markdown splices`, async () => {
+    await assertCompletesWithinBudget(operation, 1000);
+  });
+}

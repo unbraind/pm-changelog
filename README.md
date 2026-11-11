@@ -209,6 +209,14 @@ leaves markdown, JSON stdout, and the drift exit code unchanged. Follow its `pm 
 
 ### Stable checks across tag publication
 
+Empty `Unreleased` sections are always omitted; `--include-empty` retains only
+versioned release sections. Callers' committed changelogs drop the legacy empty
+`Unreleased` / `No changes.` block on their next regeneration, including in
+prepend mode. Non-empty unreleased items and dependency notes are preserved.
+Prepend merging ignores release headings inside backtick or tilde code fences
+and preserves indentation and hard-break spaces in retained Markdown. Nested list
+and quote fences end at their block boundaries, preserving later release history.
+
 With `--all-release-tags --release-version-from-package --include-empty`,
 publishing the requested release tag preserves the versioned output when the
 release boundary and date match the prepared release. This holds for empty and

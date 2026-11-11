@@ -164,8 +164,8 @@ function hasCommittedReleaseSection(gitCwd, tag, heading, changelogPath = "CHANG
     const result = spawnSync("git", ["show", `${tag}:./${path}`], { cwd: gitCwd, encoding: "utf8", stdio: ["ignore", "pipe", "ignore"] });
     if (result.status !== 0)
         return false;
-    const prefix = `## ${heading.split(" - ", 1)[0].trim()}`;
-    return result.stdout.split(/\r?\n/).some((line) => line === prefix || line.startsWith(`${prefix} - `));
+    const version = heading.split(" - ", 1)[0].trim();
+    return findMarkdownHeadings(result.stdout, "##").some(({ heading: found }) => found === version || found.startsWith(`${version} - `));
 }
 /** Attach Dependabot commits on opt-in, or to itemless pending releases and
  * tagged releases whose committed changelog already contains their heading.
@@ -589,8 +589,8 @@ function toDocumentItem(item, options) {
  * which is what lets `--check` fail only on real drift.
  */
 export function mergeChangelog(existingMarkdown, generatedMarkdown, options = {}) {
-    const existing = existingMarkdown?.trimEnd();
-    const generated = generatedMarkdown.trimEnd();
+    const existing = existingMarkdown === undefined ? undefined : trimMarkdownEnd(existingMarkdown);
+    const generated = trimMarkdownEnd(generatedMarkdown);
     if (!existing) {
         return {
             markdown: generated + "\n",
@@ -599,16 +599,16 @@ export function mergeChangelog(existingMarkdown, generatedMarkdown, options = {}
         };
     }
     const releaseSections = extractReleaseSections(generated);
+    let next = omitEmptyUnreleasedSections(existing);
+    let action = next === existing ? "unchanged" : "replaced";
     if (releaseSections.length === 0) {
-        const unchanged = existing + "\n";
         return {
-            markdown: unchanged,
-            action: "unchanged",
-            changed: false,
+            markdown: next + "\n",
+            action,
+            changed: next !== existing,
         };
     }
-    let next = ensureTitle(existing, options.title);
-    let action = "unchanged";
+    next = ensureTitle(next, options.title);
     // Keep a Changelog semantics (issue #47): when a release is generated — i.e.
     // the generated output carries a concrete version section and no `Unreleased`
     // section of its own — any leading `## Unreleased` section already in the
@@ -619,7 +619,7 @@ export function mergeChangelog(existingMarkdown, generatedMarkdown, options = {}
     const generatedHasUnreleased = releaseSections.some((section) => normalizeReleaseHeadingKey(section.heading) === UNRELEASED_HEADING_KEY);
     const canPromoteUnreleased = !generatedHasUnreleased;
     for (const [index, releaseSection] of releaseSections.entries()) {
-        const replacement = releaseSection.markdown.trimEnd();
+        const replacement = trimMarkdownEnd(releaseSection.markdown);
         const replaced = replaceReleaseSection(next, releaseSection.heading, replacement);
         if (replaced.replaced) {
             next = replaced.markdown;
@@ -642,7 +642,7 @@ export function mergeChangelog(existingMarkdown, generatedMarkdown, options = {}
         if (action !== "replaced")
             action = "inserted";
     }
-    next = next.trimEnd() + "\n";
+    next = trimMarkdownEnd(next) + "\n";
     return {
         markdown: next,
         action,
@@ -1322,21 +1322,172 @@ function findReleaseSeparatorStart(value) {
     }
     return undefined;
 }
+/** Bound per-line continuation work, including blank lines that consume no
+ * indentation. Markers beyond this depth remain ordinary block content. */
+const MAX_MARKDOWN_CONTAINER_DEPTH = 32;
+/** Find the earliest possible thematic-break suffix once per line. Nested
+ * openers must not rescan overlapping suffixes that contain ordinary text. */
+function findMarkdownThematicSuffixStart(line) {
+    let cursor = line.length - 1;
+    while (cursor >= 0 && line[cursor] === " ")
+        cursor--;
+    const marker = line[cursor];
+    if (marker !== "-" && marker !== "*" && marker !== "_")
+        return undefined;
+    let count = 0;
+    for (; cursor >= 0; cursor--) {
+        const character = line[cursor];
+        if (character === marker)
+            count++;
+        else if (character !== " ")
+            break;
+    }
+    return count >= 3 ? cursor + 1 : undefined;
+}
+/** Thematic breaks take precedence over list markers at every container level.
+ * Tabs are already expanded by the container parser. Scan once without
+ * backtracking, including long almost-matching separators. */
+function isMarkdownThematicBreak(line, start = 0) {
+    let cursor = start;
+    while (cursor < start + 3 && line[cursor] === " ")
+        cursor++;
+    const marker = line[cursor];
+    if (marker !== "-" && marker !== "*" && marker !== "_")
+        return false;
+    let count = 0;
+    for (; cursor < line.length; cursor++) {
+        const character = line[cursor];
+        if (character === marker)
+            count++;
+        else if (character !== " ")
+            return false;
+    }
+    return count >= 3;
+}
+/** Recognize paragraph text eligible for Markdown's lazy list/quote
+ * continuation. Blank lines and interrupting block markers end that permission;
+ * a later indented fence can still belong to the preceding list item. */
+function isMarkdownParagraphLine(line) {
+    const text = line.trimStart();
+    return text !== "" && !/^ {4}/.test(line) &&
+        !/^(?:#{1,6}(?:\s|$)|>|(?:[-+*]|[0-9]{1,9}[.)])(?:\s|$))/.test(text) &&
+        !/^`{3,}[^`]*$/.test(text) && !/^~{3}/.test(text) &&
+        !isMarkdownThematicBreak(line) && !/^=+ *$/.test(text);
+}
+/** Strip block containers before scanning fences. Continuation indentation is
+ * required except for lazy paragraph continuation: leaving a list or quote
+ * also ends its code fence.
+ * Tabs use Markdown's four-column stops. Bounded nesting and marker expressions
+ * keep continuation, copying and forward scans linear even for hostile input. */
+function markdownContainerLine(line, containers, fenced, paragraph) {
+    let padding = 0;
+    line = line.replace(/\t/g, (_tab, offset) => {
+        const width = 4 - (offset + padding) % 4;
+        padding += width - 1;
+        return " ".repeat(width);
+    });
+    // Blank continuations preserve numeric containers without rechecking or
+    // copying their indentation at every depth. A missing quote ends that quote
+    // and everything nested within it, exactly as on a nonblank container exit.
+    if (/^ *$/.test(line)) {
+        const firstQuote = containers.indexOf("quote");
+        return { content: "", containers: firstQuote < 0 ? containers : containers.slice(0, firstQuote), exited: firstQuote >= 0 };
+    }
+    const thematicBreakStart = findMarkdownThematicSuffixStart(line);
+    let cursor = 0;
+    let depth = 0;
+    for (const container of containers) {
+        if (container === "quote") {
+            const quote = /^ {0,3}> ?/.exec(line.slice(cursor));
+            if (!quote)
+                break;
+            cursor += quote[0].length;
+        }
+        else {
+            let spaces = 0;
+            while (spaces < container && line[cursor + spaces] === " ")
+                spaces++;
+            if (spaces < container && line.slice(cursor + spaces) !== "")
+                break;
+            cursor += spaces;
+        }
+        depth++;
+    }
+    // A dedented paragraph line can continue the current item, but a heading
+    // or fence cannot. Code blocks never permit lazy continuation.
+    if (depth < containers.length && !fenced && paragraph && isMarkdownParagraphLine(line.slice(cursor))) {
+        return { content: line.slice(cursor), containers, exited: false };
+    }
+    const exited = depth < containers.length;
+    const next = containers.slice(0, depth);
+    if (!fenced || exited) {
+        while (cursor < line.length && next.length < MAX_MARKDOWN_CONTAINER_DEPTH) {
+            const quote = /^ {0,3}> ?/.exec(line.slice(cursor));
+            if (quote) {
+                cursor += quote[0].length;
+                next.push("quote");
+                continue;
+            }
+            if (thematicBreakStart !== undefined && cursor >= thematicBreakStart && isMarkdownThematicBreak(line, cursor))
+                break;
+            const list = /^( {0,3})(?:[-+*]|[0-9]{1,9}[.)])( +|$)/.exec(line.slice(cursor));
+            if (!list)
+                break;
+            // Five or more spaces after a marker start indented code, not a fence.
+            const width = list[2].length > 4 ? list[0].length - list[2].length + 1 : list[0].length + (list[2] === "" ? 1 : 0);
+            cursor += width;
+            next.push(width);
+        }
+    }
+    return { content: line.slice(cursor), containers: next, exited };
+}
 /** Find line-oriented Markdown headings with the requested marker. This is the
  * linear replacement for the old `^#\\s+.+$` / `^##\\s+.+$` expressions. A
  * heading must have the marker, at least one whitespace code unit, and at least
  * one code unit of heading text on the same line. Every ECMAScript line
  * terminator (`\n`, `\r`, `\r\n`, `\u2028`, `\u2029`) ends a line; `\r\n` is
- * one break, not two, so it never creates a spurious empty line. */
+ * one break, not two, so it never creates a spurious empty line. Backtick and
+ * tilde code fences (up to three leading spaces) hide headings until a matching
+ * fence of at least the opening length closes them; an unclosed fence hides
+ * the rest of its block container. List and quote prefixes are tracked before
+ * fences, so a contained closer cannot become a document-wide opener. All
+ * callers share this structural boundary. */
 function findMarkdownHeadings(markdown, marker) {
     const matches = [];
     let lineStart = 0;
+    let containers = [];
+    let paragraph = false;
+    let fence;
     while (lineStart <= markdown.length) {
         let lineEnd = lineStart;
         while (lineEnd < markdown.length && !isLineTerminator(markdown[lineEnd]))
             lineEnd++;
         const contentEnd = lineEnd;
-        if (markdown.startsWith(marker, lineStart)) {
+        const block = markdownContainerLine(markdown.slice(lineStart, contentEnd), containers, fence !== undefined, paragraph);
+        containers = block.containers;
+        if (block.exited)
+            fence = undefined;
+        const line = block.content;
+        paragraph = fence === undefined && isMarkdownParagraphLine(line);
+        let fenceStart = 0;
+        while (fenceStart < line.length && fenceStart < 3 && line[fenceStart] === " ")
+            fenceStart++;
+        const character = line[fenceStart];
+        let fenceEnd = fenceStart;
+        if (character === "`" || character === "~") {
+            while (fenceEnd < line.length && line[fenceEnd] === character)
+                fenceEnd++;
+        }
+        const fenceLength = fenceEnd - fenceStart;
+        const wasFenced = fence !== undefined;
+        if (fence) {
+            if (character === fence.character && fenceLength >= fence.length && /^[ \t]*$/.test(line.slice(fenceEnd)))
+                fence = undefined;
+        }
+        else if (fenceLength >= 3 && (character !== "`" || !line.slice(fenceEnd).includes("`"))) {
+            fence = { character: character, length: fenceLength };
+        }
+        if (!wasFenced && !fence && containers.length === 0 && markdown.startsWith(marker, lineStart)) {
             const prefixEnd = lineStart + marker.length;
             if (contentEnd - prefixEnd >= 2 && isWhitespaceCharacter(markdown[prefixEnd])) {
                 let headingStart = prefixEnd;
@@ -1368,9 +1519,56 @@ function extractReleaseSections(markdown) {
         const end = next?.index ?? markdown.length;
         return {
             heading: match.heading.trim(),
-            markdown: markdown.slice(match.index, end).trimEnd(),
+            markdown: trimMarkdownEnd(markdown.slice(match.index, end)),
         };
     });
+}
+/** Drop legacy empty pending placeholders during prepend regeneration, including
+ * when there are no generated releases. Preserve every meaningful pending body. */
+function omitEmptyUnreleasedSections(markdown) {
+    const headings = findMarkdownHeadings(markdown, "##");
+    const parts = [];
+    let cursor = 0;
+    for (let index = 0; index < headings.length; index++) {
+        const heading = headings[index];
+        if (normalizeReleaseHeadingKey(heading.heading) !== UNRELEASED_HEADING_KEY)
+            continue;
+        const end = headings[index + 1]?.index ?? markdown.length;
+        const body = markdown.slice(heading.end, end).trim();
+        if (body !== "" && body !== "No changes.")
+            continue;
+        parts.push(markdown.slice(cursor, heading.index));
+        cursor = end;
+    }
+    if (parts.length === 0)
+        return markdown;
+    parts.push(markdown.slice(cursor));
+    return parts.map((part) => trimMarkdownStart(trimMarkdownEnd(part))).filter(Boolean).join("\n\n");
+}
+/** Remove blank leading lines without consuming the indentation of content. */
+function trimMarkdownStart(markdown) {
+    let start = 0;
+    for (let index = 0; index < markdown.length; index++) {
+        const character = markdown[index];
+        if (!isWhitespaceCharacter(character))
+            return markdown.slice(start);
+        if (isLineTerminator(character))
+            start = index + 1;
+    }
+    return "";
+}
+/** Remove trailing blank lines, preserving spaces on the last content line
+ * (including Markdown hard breaks). Keep the scan linear on long whitespace. */
+function trimMarkdownEnd(markdown) {
+    let lastContent = markdown.length - 1;
+    while (lastContent >= 0 && isWhitespaceCharacter(markdown[lastContent]))
+        lastContent--;
+    if (lastContent < 0)
+        return "";
+    let end = lastContent + 1;
+    while (end < markdown.length && !isLineTerminator(markdown[end]))
+        end++;
+    return markdown.slice(0, end);
 }
 /** Swap one existing release section for a regenerated one, matching on a
  * normalized heading so a date or padding difference still finds it. Reports
@@ -1386,8 +1584,8 @@ function replaceReleaseSection(markdown, heading, replacement) {
     const start = match.index;
     const nextMatch = matches[matchIndex + 1];
     const end = nextMatch?.index ?? markdown.length;
-    const before = markdown.slice(0, start).trimEnd();
-    const after = markdown.slice(end).trimStart();
+    const before = trimMarkdownEnd(markdown.slice(0, start));
+    const after = trimMarkdownStart(markdown.slice(end));
     const merged = after ? `${before}\n\n${replacement}\n\n${after}` : `${before}\n\n${replacement}`;
     return { markdown: merged, replaced: true };
 }
@@ -1440,7 +1638,7 @@ export function normalizeReleaseHeadingKey(heading) {
 function ensureTitle(markdown, title) {
     if (findMarkdownHeadings(markdown, "#").length > 0)
         return markdown;
-    return `# ${title ?? DEFAULT_TITLE}\n\n${markdown.trimStart()}`;
+    return `# ${title ?? DEFAULT_TITLE}\n\n${trimMarkdownStart(markdown)}`;
 }
 /**
  * Insert a release section in chronological position (Unreleased first, then
@@ -1463,11 +1661,11 @@ function insertReleaseSection(markdown, heading, replacement) {
         return compareVersionStrings(newKey, key) > 0; // place before the first strictly-older release
     });
     if (!insertBefore) {
-        return `${markdown.trimEnd()}\n\n${replacement}`;
+        return `${trimMarkdownEnd(markdown)}\n\n${replacement}`;
     }
     const start = insertBefore.index;
-    const before = markdown.slice(0, start).trimEnd();
-    const after = markdown.slice(start).trimStart();
+    const before = trimMarkdownEnd(markdown.slice(0, start));
+    const after = trimMarkdownStart(markdown.slice(start));
     // `before` is normally the `# Changelog` title (ensureTitle runs first), but
     // guard the empty case so we never emit leading blank lines.
     return `${before}\n\n${replacement}\n\n${after}`;
@@ -1482,8 +1680,8 @@ function insertReleaseSection(markdown, heading, replacement) {
 function insertAfterTitle(markdown, releaseSection) {
     const titleMatch = findMarkdownHeadings(markdown, "#")[0];
     const titleEnd = titleMatch.end;
-    const before = markdown.slice(0, titleEnd).trimEnd();
-    const after = markdown.slice(titleEnd).trim();
+    const before = trimMarkdownEnd(markdown.slice(0, titleEnd));
+    const after = trimMarkdownStart(trimMarkdownEnd(markdown.slice(titleEnd)));
     if (!after)
         return `${before}\n\n${releaseSection}`;
     return `${before}\n\n${releaseSection}\n\n${after}`;
