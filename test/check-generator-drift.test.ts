@@ -5,11 +5,11 @@ import { tmpdir } from "node:os";
 import { delimiter, dirname, join, resolve } from "node:path";
 import test from "node:test";
 import type { TestContext } from "node:test";
-import { listAllComplete, PmCliError, runCreate, runInit, runUpdate } from "@unbrained/pm-cli/sdk";
+import { listAllComplete, PmClient, PmCliError, runCreate, runInit, runUpdate } from "@unbrained/pm-cli/sdk";
 import { activateExtensionForTest, runRegisteredCommandForTest } from "@unbrained/pm-cli/sdk/testing";
-import { readConsumerUpgrades } from "../src/consumer-upgrades.ts";
-import { mergeChangelog, PREVIOUS_RENDERING_VERSION, RENDERING_VERSION, writeChangelog } from "../src/generator.ts";
-import { classifyCheckDrift as classify, regenerationCommand, canonicalRegenerationOptions, isEntryReorder } from "../src/check-drift.ts";
+import { buildConsumerUpgrades, readConsumerUpgrades } from "../src/consumer-upgrades.ts";
+import { HISTORICAL_RENDERING_VERSIONS, RENDERING_PROFILES, mergeChangelog, PREVIOUS_RENDERING_VERSION, RENDERING_VERSION, writeChangelog } from "../src/generator.ts";
+import { diagnoseCheckDrift, classifyCheckDrift as classify, regenerationCommand, canonicalRegenerationOptions, isEntryReorder } from "../src/check-drift.ts";
 import { cliTestSurface } from "../src/cli.ts";
 import extension from "../src/extension.ts";
 import { fixtureEnvironment, initGitFixture } from "./git-fixture.ts";
@@ -249,15 +249,25 @@ test("blank-separated multiline details remain attached to their entry during re
   assert.equal(classifyCheckDrift(before, correct, () => before), "reorder_only");
 });
 
-test("every rendering-change item has a published consumer upgrade catalog action", async () => {
+test("every rendering-change item has a published or pending consumer upgrade catalog action", async () => {
   const items = (await listAllComplete({}, { pmRoot: resolve(".agents/pm") })).items.filter((item) => item.tags?.includes("rendering-change"));
-  assert.ok(items.length >= 3);
-  for (const expected of ["pmc-total-item-order", "pmc-contract-changes", "pmc-stable-itemless-check"]) assert.ok(items.some((item) => item.id === expected));
-  for (const item of items) {
-    assert.equal(typeof item.release, "string");
-    const report = await readConsumerUpgrades(resolve(".agents/pm"), { audience: "operator", from: "0.0.0", to: String(item.release) });
-    assert.ok(report.steps.some((step) => step.attribution.some((ref) => ref.item === item.id)), `${item.id} needs an upgrade action`);
-  }
+  assert.ok(items.length >= 4);
+  for (const expected of ["pmc-total-item-order", "pmc-contract-changes", "pmc-stable-itemless-check", "pmc-no-empty-unreleased-337"]) assert.ok(items.some((item) => item.id === expected));
+  await assert.doesNotReject(async () => {
+    for (const item of items) {
+      const report = typeof item.release === "string"
+        ? await readConsumerUpgrades(resolve(".agents/pm"), { audience: "operator", from: "0.0.0", to: item.release })
+        : buildConsumerUpgrades({ items: [{ ...item, release: RENDERING_VERSION }], audience: "operator", from: "0.0.0", to: RENDERING_VERSION });
+      // A synthetic publication preview validates pending declarations without
+      // inventing a delivery release in the native tracker.
+      if (item.id === "pmc-no-empty-unreleased-337" && item.release === undefined) {
+        assert.ok(report.steps.some((step) => step.id === "regenerate-changelog-prepend-cleanup-337"));
+        const published = await readConsumerUpgrades(resolve(".agents/pm"), { audience: "operator", from: "2026.11.10", to: RENDERING_VERSION });
+        assert.ok(!published.steps.some((step) => step.attribution.some((ref) => ref.item === item.id)));
+      }
+      assert.ok(report.steps.some((step) => step.attribution.some((ref) => ref.item === item.id)), `${item.id} needs an upgrade action`);
+    }
+  });
 });
 
 
@@ -349,4 +359,81 @@ test("canonical host option registry accepts aliases, preserves canonical preced
     [{ long: "--release-version" }, { long: "--exclude-tag" }, { long: "--explain-selection" }, { long: "--no-dependency-updates" }, { long: "--output" }, { long: "--count" }, {}]);
   assert.deepEqual({ ...result }, { "release-version": "2.0.0", "exclude-tag": ["a", "b"], "explain-selection": true, "no-dependency-updates": true, count: 2 });
   assert.deepEqual({ ...canonicalRegenerationOptions({ "release-version": "2.0.0", releaseVersion: "1.0.0", output: [false] }, [{ long: "--release-version" }, { long: "--output" }]) }, { "release-version": "2.0.0" });
+});
+
+
+test("stdout checks emit output without comparing files; usage scopes the exit guarantee", async (t) => {
+  const f = await fixture(t);
+  await f.add("check-new");
+  const before = readFileSync(f.output, "utf8");
+  const result = f.run(["--check", "--stdout"]);
+  assert.equal(result.status, 0, result.stderr);
+  assert.match(result.stdout, /Delivered check-new/);
+  assert.equal(readFileSync(f.output, "utf8"), before);
+  const usage = readFileSync(resolve("docs/usage.md"), "utf8");
+  assert.match(usage, /File-output checks \(`--check` with `--output`/);
+  assert.match(usage, /`--stdout` takes precedence:[\s\S]*exits \*\*0\*\*/);
+});
+
+test("retained pre-2026.11.7 ordering is rendering_changed with its original upgrade evidence", async (t) => {
+  const f = await fixture(t);
+  t.mock.timers.enable({ apis: ["Date"], now: Date.parse("2026-11-02T00:00:00Z") });
+  const client = new PmClient({ pmRoot: f.pmRoot, author: "ordering-test" });
+  for (const id of ["check-active-alpha", "check-active-beta"]) {
+    t.mock.timers.tick(1000);
+    await client.create({ id, title: `Maintain ${id}`, type: "Task", status: "in_progress", tags: "breaking", createMode: "progressive" });
+  }
+  t.mock.timers.tick(1000);
+  await client.comments("check-active-alpha", { add: "Updated progress evidence" });
+  const items = (await listAllComplete({}, { pmRoot: f.pmRoot })).items;
+  const options = { items, includeStatuses: ["closed", "in_progress"], version: "1.2.0", date: "2026-11-01", output: f.output, check: true };
+  assert.ok(HISTORICAL_RENDERING_VERSIONS.includes("2026.11.6"));
+  assert.equal(RENDERING_PROFILES["2026.11.6"].changedIn, "2026.11.7");
+  const old = writeChangelog(options, "2026.11.6").markdown;
+  const current = writeChangelog(options).markdown;
+  assert.ok(old.indexOf("Maintain check-active-alpha") < old.indexOf("Maintain check-active-beta"));
+  assert.ok(current.indexOf("Maintain check-active-beta") < current.indexOf("Maintain check-active-alpha"));
+  assert.notEqual(old, writeChangelog(options, PREVIOUS_RENDERING_VERSION).markdown);
+  // Compare the same records in a release window and a breaking-entry heading.
+  for (const extra of [{ releaseWindows: [{ heading: "1.2.0", date: "2026-11-01" }] }, { breakingChanges: true }]) {
+    assert.notEqual(writeChangelog({ ...options, ...extra }, "2026.11.6").markdown, writeChangelog({ ...options, ...extra }).markdown);
+  }
+  writeFileSync(f.output, old);
+  const result = f.run(["--check", "--json", "--status", "closed,in_progress"]);
+  assert.equal(result.status, 1, result.stderr);
+  const receipt = JSON.parse(result.stdout);
+  assert.equal(receipt.classification, "rendering_changed");
+  assert.equal(receipt.rendering_changed_in, "2026.11.7");
+  assert.equal(receipt.compared_rendering_version, "2026.11.6");
+  assert.match(receipt.message, /rendering changed in 2026\.11\.7/);
+  assert.match(receipt.message, /one-time regeneration/);
+  assert.ok(receipt.regeneration_command);
+  assert.equal(readFileSync(f.output, "utf8"), old);
+  const activation = await activateExtensionForTest(extension, { name: "pm-changelog", capabilities: ["commands", "schema", "importers", "renderers"] });
+  assert.deepEqual(activation.failed, []);
+  await assert.rejects(() => runRegisteredCommandForTest(activation.commands, { command: "changelog generate", pmRoot: f.pmRoot,
+    options: { output: f.output, "release-version": "1.2.0", date: "2026-11-01", status: "closed,in_progress", check: true } }), (error: unknown) => {
+    assert.ok(error instanceof PmCliError);
+    assert.equal(error.code, "rendering_changed");
+    assert.equal(error.exitCode, 1);
+    assert.match(error.message, /rendering changed in 2026\.11\.7/);
+    assert.ok(error.context.verification_errors?.includes("rendering_changed_in=2026.11.7"));
+    return true;
+  });
+  // Older profiles must not hide genuinely new tracker data.
+  await f.add("check-new");
+  assert.equal(JSON.parse(f.run(["--check", "--json", "--status", "closed,in_progress"]).stdout).classification, "tracker_changed");
+});
+
+
+test("rendering history survives later version bumps and never upgrades equal or current-profile output", () => {
+  const old = "- A\n- B\n", current = "- B\n- A\n";
+  const versions = { current: "2026.11.12", previous: "2026.11.11" };
+  const profile = { version: "2026.11.6", changedIn: "2026.11.7", render: () => old };
+  assert.deepEqual(diagnoseCheckDrift(old, current, () => current, versions, [profile]),
+    { classification: "rendering_changed", changedIn: "2026.11.7", comparedVersion: "2026.11.6" });
+  assert.deepEqual(diagnoseCheckDrift(current, current, () => current, versions, [profile]), { classification: "tracker_changed" });
+  assert.deepEqual(diagnoseCheckDrift(old, current, () => current, versions, [{ ...profile, version: versions.current }]), { classification: "tracker_changed" });
+  assert.deepEqual(diagnoseCheckDrift(old, current, () => old, versions, [profile]),
+    { classification: "reorder_only", changedIn: "2026.11.12", comparedVersion: "2026.11.11" });
 });

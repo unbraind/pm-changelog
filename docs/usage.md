@@ -87,7 +87,10 @@ rendering revisions. `rendering_changed` requires that exact previous-renderer
 match for another output difference. Other differences are `tracker_changed`.
 An unproved or same-version reorder explains that a `completed_at` edit or a
 manual reorder can cause it. Blank lines and indented details stay with their
-entry. Every difference still exits **1**.
+entry. File-output checks (`--check` with `--output`, including its default
+`CHANGELOG.md`) exit **1** for every difference. `--stdout` takes precedence:
+even with `--check`, it prints the generated output without comparing or writing
+the file and exits **0** when generation succeeds.
 
 Generator drift includes a regeneration invocation built from parsed options,
 with canonical flag names and `--check` removed. Repeated `--pm-arg` values use
@@ -105,6 +108,10 @@ independently of dependency-only package releases. Every output-affecting change
 must bump it and preserve the immediately preceding rules in the shared
 generator. The initial revisions identify 2026.11.11's Markdown retention and
 empty pending-section cleanup, and the preceding published 2026.11.10 rules.
+The rendering-version table also retains the pre-2026.11.7 comparator after later
+revisions land. An exact match to that profile reports `rendering_changed`, names
+2026.11.7, and includes `rendering_changed_in` and `compared_rendering_version`
+in the receipt.
 Upgrade attribution needs a reproduced previous rendering; matching line sets
 alone cannot prove an upgrade.
 

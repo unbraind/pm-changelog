@@ -14,6 +14,15 @@ import { builtinItemFolder, resolveItemFolder } from "./item-links.js";
 export const RENDERING_VERSION = "2026.11.11";
 /** Last published rendering: prepend retained empty pending placeholders. */
 export const PREVIOUS_RENDERING_VERSION = "2026.11.10";
+/** Retained output contracts in the same generator. Never remove older ordering
+ * comparisons when advancing the current/previous Markdown rendering revisions. */
+export const RENDERING_PROFILES = {
+    "2026.11.11": { modernMarkdown: true, completionOrder: true, changedIn: "2026.11.11" },
+    "2026.11.10": { modernMarkdown: false, completionOrder: true, changedIn: "2026.11.11" },
+    "2026.11.6": { modernMarkdown: false, completionOrder: false, changedIn: "2026.11.7" },
+};
+/** Older profiles survive subsequent current/previous rendering-version bumps. */
+export const HISTORICAL_RENDERING_VERSIONS = ["2026.11.6"];
 const DEFAULT_TITLE = "Changelog";
 const SUPPRESSED_PENDING_RELEASE = Symbol.for("pm-changelog.suppressedPendingRelease");
 const DEFAULT_PM_JSON_MAX_BUFFER = 64 * 1024 * 1024;
@@ -169,7 +178,7 @@ function hasCommittedReleaseSection(gitCwd, tag, heading, changelogPath = "CHANG
     const result = spawnSync("git", ["show", `${tag}:./${path}`], { cwd: gitCwd, encoding: "utf8", stdio: ["ignore", "pipe", "ignore"] });
     if (result.status !== 0)
         return false;
-    if (renderingVersion === PREVIOUS_RENDERING_VERSION) {
+    if (!RENDERING_PROFILES[renderingVersion].modernMarkdown) {
         const prefix = `## ${heading.split(" - ", 1)[0].trim()}`;
         return result.stdout.split(/\r?\n/).some((line) => line === prefix || line.startsWith(`${prefix} - `));
     }
@@ -279,7 +288,7 @@ export function createChangelog(options, onClaim, renderingVersion = RENDERING_V
             // up front. Undeclared items also appear in their ordinary group below;
             // contract declarations retain a single migration-bearing entry.
             if (options.breakingChanges) {
-                const breaking = collectBreakingItems(section.items, options);
+                const breaking = collectBreakingItems(section.items, options, renderingVersion);
                 if (breaking.length > 0) {
                     lines.push(`### ${maybeEmoji("Breaking Changes", options)}`, "");
                     for (const item of breaking) {
@@ -414,7 +423,7 @@ export function assertRequestedRelease(options) {
  * evolve.
  */
 function selectChangelogSections(options, renderingVersion = RENDERING_VERSION) {
-    const items = filterItems(options);
+    const items = filterItems(options, renderingVersion);
     const sections = buildEnrichedSections(items, options, renderingVersion);
     const candidateSections = selectCandidateSections(sections, options);
     return {
@@ -426,7 +435,7 @@ function selectChangelogSections(options, renderingVersion = RENDERING_VERSION) 
 }
 /** Build the same dependency-aware windows for rendering, item lists and diagnostics. */
 function buildEnrichedSections(items, options, renderingVersion = RENDERING_VERSION) {
-    const sections = buildSections(items, options);
+    const sections = buildSections(items, options, renderingVersion);
     // The itemless default preserves sections already committed at release tags.
     if (options.dependencyUpdates !== false && options.gitCwd) {
         return enrichSectionsWithDependencyCommits(sections, options, options.gitCwd, renderingVersion);
@@ -608,7 +617,7 @@ export function mergeChangelog(existingMarkdown, generatedMarkdown, options = {}
         };
     }
     const releaseSections = extractReleaseSections(generated, renderingVersion);
-    let next = renderingVersion === PREVIOUS_RENDERING_VERSION ? existing : omitEmptyUnreleasedSections(existing);
+    let next = !RENDERING_PROFILES[renderingVersion].modernMarkdown ? existing : omitEmptyUnreleasedSections(existing);
     let action = next === existing ? "unchanged" : "replaced";
     if (releaseSections.length === 0) {
         return {
@@ -961,10 +970,10 @@ function isInReleaseWindowMode(options) {
  * not exist. An accidentally empty list falls through to the single-version
  * time window, preserving the absent-history treatment exactly as the
  * pre-distinction behaviour did. */
-function filterItems(options) {
+function filterItems(options, renderingVersion = RENDERING_VERSION) {
     if (isDeliberateEmptySuppression(options))
         return [];
-    const items = filterItemsByStatus(options);
+    const items = filterItemsByStatus(options, renderingVersion);
     if (options.releaseWindows && options.releaseWindows.length > 0)
         return items;
     const withinWindow = filterItemsByTime(items, {
@@ -976,7 +985,7 @@ function filterItems(options) {
 /** Drop untitled, tag-excluded, and wrong-status items, then order them for
  * rendering. An empty status set means "accept every status" rather than
  * "accept none", so an explicit empty list cannot silently empty a release. */
-function filterItemsByStatus(options) {
+function filterItemsByStatus(options, renderingVersion = RENDERING_VERSION) {
     const statuses = new Set((options.includeStatuses ?? defaultDoneStatuses(options)).map((status) => normalizeChangelogStatus(status, options)));
     const excludeTags = normalizeExcludeTags(options.excludeTags);
     return options.items
@@ -986,7 +995,7 @@ function filterItemsByStatus(options) {
         .filter((item) => {
         return matchesStatus(item, options, statuses);
     })
-        .sort(compareItems);
+        .sort((a, b) => compareItems(a, b, renderingVersion));
 }
 /** Keep historical eligibility frozen while explicit status filters retain precedence. */
 function matchesStatus(item, options, statuses) {
@@ -1059,9 +1068,9 @@ function usesSingleVersionSection(options) {
  * one (suppressed pending release asserted) which yields no sections at all.
  * An accidentally empty list is absent history and falls through to the
  * single-version section, so items are preserved under `## Unreleased`. */
-function buildSections(items, options) {
+function buildSections(items, options, renderingVersion = RENDERING_VERSION) {
     if (isInReleaseWindowMode(options)) {
-        return assignItemsToReleaseWindows(items, options.releaseWindows, getSuppressedPendingRelease(options), options.releaseMembership);
+        return assignItemsToReleaseWindows(items, options.releaseWindows, getSuppressedPendingRelease(options), options.releaseMembership, renderingVersion);
     }
     if (options.groupBy === "release" && !options.version) {
         return groupSectionsByMetadata(items, "release", "Unreleased");
@@ -1106,7 +1115,7 @@ function buildSections(items, options) {
  * Placement priority does not imply presentation priority: sort each completed
  * bucket so declared, verified and timestamp-placed items share one entry order.
  */
-function assignItemsToReleaseWindows(items, windows, suppressedPendingRelease, releaseMembership) {
+function assignItemsToReleaseWindows(items, windows, suppressedPendingRelease, releaseMembership, renderingVersion = RENDERING_VERSION) {
     const buckets = new Map();
     for (const window of windows)
         buckets.set(window.heading, []);
@@ -1155,7 +1164,7 @@ function assignItemsToReleaseWindows(items, windows, suppressedPendingRelease, r
     }
     return windows.map((window) => ({
         heading: window.heading,
-        items: buckets.get(window.heading).sort(compareItems),
+        items: buckets.get(window.heading).sort((a, b) => compareItems(a, b, renderingVersion)),
     }));
 }
 /** Normalized release identity of a suppressed pending release, or `""` when
@@ -1472,7 +1481,7 @@ function findMarkdownHeadings(markdown, marker, renderingVersion = RENDERING_VER
         while (lineEnd < markdown.length && !isLineTerminator(markdown[lineEnd]))
             lineEnd++;
         const contentEnd = lineEnd;
-        const block = renderingVersion === PREVIOUS_RENDERING_VERSION
+        const block = !RENDERING_PROFILES[renderingVersion].modernMarkdown
             ? { content: markdown.slice(lineStart, contentEnd), containers: [], exited: false }
             : markdownContainerLine(markdown.slice(lineStart, contentEnd), containers, fence !== undefined, paragraph);
         containers = block.containers;
@@ -1495,7 +1504,7 @@ function findMarkdownHeadings(markdown, marker, renderingVersion = RENDERING_VER
             if (character === fence.character && fenceLength >= fence.length && /^[ \t]*$/.test(line.slice(fenceEnd)))
                 fence = undefined;
         }
-        else if (renderingVersion !== PREVIOUS_RENDERING_VERSION && fenceLength >= 3 && (character !== "`" || !line.slice(fenceEnd).includes("`"))) {
+        else if (RENDERING_PROFILES[renderingVersion].modernMarkdown && fenceLength >= 3 && (character !== "`" || !line.slice(fenceEnd).includes("`"))) {
             fence = { character: character, length: fenceLength };
         }
         if (!wasFenced && !fence && containers.length === 0 && markdown.startsWith(marker, lineStart)) {
@@ -1558,7 +1567,7 @@ function omitEmptyUnreleasedSections(markdown) {
 }
 /** Remove blank leading lines without consuming the indentation of content. */
 function trimMarkdownStart(markdown, renderingVersion = RENDERING_VERSION) {
-    if (renderingVersion === PREVIOUS_RENDERING_VERSION)
+    if (!RENDERING_PROFILES[renderingVersion].modernMarkdown)
         return markdown.trimStart();
     let start = 0;
     for (let index = 0; index < markdown.length; index++) {
@@ -1573,7 +1582,7 @@ function trimMarkdownStart(markdown, renderingVersion = RENDERING_VERSION) {
 /** Remove trailing blank lines, preserving spaces on the last content line
  * (including Markdown hard breaks). Keep the scan linear on long whitespace. */
 function trimMarkdownEnd(markdown, renderingVersion = RENDERING_VERSION) {
-    if (renderingVersion === PREVIOUS_RENDERING_VERSION)
+    if (!RENDERING_PROFILES[renderingVersion].modernMarkdown)
         return markdown.trimEnd();
     let lastContent = markdown.length - 1;
     while (lastContent >= 0 && isWhitespaceCharacter(markdown[lastContent]))
@@ -1696,7 +1705,7 @@ function insertAfterTitle(markdown, releaseSection, renderingVersion = RENDERING
     const titleMatch = findMarkdownHeadings(markdown, "#", renderingVersion)[0];
     const titleEnd = titleMatch.end;
     const before = trimMarkdownEnd(markdown.slice(0, titleEnd), renderingVersion);
-    const after = (renderingVersion === PREVIOUS_RENDERING_VERSION ? markdown.slice(titleEnd).trim() : trimMarkdownStart(trimMarkdownEnd(markdown.slice(titleEnd)), renderingVersion));
+    const after = (!RENDERING_PROFILES[renderingVersion].modernMarkdown ? markdown.slice(titleEnd).trim() : trimMarkdownStart(trimMarkdownEnd(markdown.slice(titleEnd)), renderingVersion));
     if (!after)
         return `${before}\n\n${releaseSection}`;
     return `${before}\n\n${releaseSection}\n\n${after}`;
@@ -1791,8 +1800,8 @@ function collectContributors(items) {
 /** Select breaking entries with their own explicit completion-first,
  * creation/id order. Markdown and JSON share this projection instead of
  * relying on the caller's item encounter order. */
-function collectBreakingItems(items, context) {
-    return items.filter((item) => isBreakingItem(item, context) && !readContractChange(item)).sort(compareItems);
+function collectBreakingItems(items, context, renderingVersion = RENDERING_VERSION) {
+    return items.filter((item) => isBreakingItem(item, context) && !readContractChange(item)).sort((a, b) => compareItems(a, b, renderingVersion));
 }
 /** Accept an item's author field as a creditable contributor, or reject it.
  * Rejects non-strings, blanks, and the literal `unknown` — the placeholder the
@@ -2610,7 +2619,14 @@ function compareItemText(left, right) {
  * without completion fields use code-unit text ties; completed entries retain
  * their existing locale comparisons. Metadata writes must never affect this order;
  * release-window placement continues to use {@link itemTimestamp}. */
-function compareItems(a, b) {
+function compareItems(a, b, renderingVersion = RENDERING_VERSION) {
+    if (!RENDERING_PROFILES[renderingVersion].completionOrder) {
+        const aTime = Date.parse(itemTimestamp(a) ?? "");
+        const bTime = Date.parse(itemTimestamp(b) ?? "");
+        if (!Number.isNaN(aTime) && !Number.isNaN(bTime) && aTime !== bTime)
+            return bTime - aTime;
+        return a.title.localeCompare(b.title) || (a.id ?? "").localeCompare(b.id ?? "");
+    }
     const aCompletion = resolveCompletionTimestamp({ completed_at: a.completed_at, closed_at: a.closed_at });
     const bCompletion = resolveCompletionTimestamp({ completed_at: b.completed_at, closed_at: b.closed_at });
     if (aCompletion.resolved !== bCompletion.resolved)

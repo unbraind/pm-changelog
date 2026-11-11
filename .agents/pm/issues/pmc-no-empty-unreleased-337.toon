@@ -4,9 +4,9 @@ description: "Track issue 337: include-empty retains versioned release sections 
 type: Issue
 status: closed
 priority: 1
-tags[1]: "gh:unbraind/pm-changelog#337"
+tags[2]: "gh:unbraind/pm-changelog#337",rendering-change
 created_at: "2026-11-10T23:00:03.696Z"
-updated_at: "2026-11-11T08:57:07.700Z"
+updated_at: "2026-11-11T14:13:37.165Z"
 closed_at: "2026-11-11T08:57:07.675Z"
 completed_at: "2026-11-11T05:27:43.000Z"
 author: codex-changelog337
@@ -103,4 +103,12 @@ docs[3]{path,scope}:
   docs/usage.md,project
   README.md,project
 close_reason: PR #338 (f231c38) merged on main; not yet published in a release tag.
+change_facets[1]:
+  - audience: operator
+    text: Prepend regeneration removes legacy empty Unreleased sections; regenerate CHANGELOG.md once after upgrading to the release containing this cleanup.
+    breaking: true
+    upgrade_actions[1]:
+      - id: regenerate-changelog-prepend-cleanup-337
+        title: regenerate CHANGELOG.md once to remove empty Unreleased sections
+        requires: []
 body: ""

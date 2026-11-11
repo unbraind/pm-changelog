@@ -62,6 +62,22 @@ export function classifyCheckDrift(committed: string, generated: string, previou
   return committed !== generated && upgrade ? "rendering_changed" : "tracker_changed";
 }
 
+/** One retained comparison profile with the upgrade that changed its output. */
+export interface HistoricalRenderingComparison { version: string; changedIn: string; render: () => string }
+/** Exact historical matches retain their upgrade evidence beyond the last release. */
+export function diagnoseCheckDrift(committed: string, generated: string, previous: () => string, revisions: RenderingRevisions, historical: readonly HistoricalRenderingComparison[]): { classification: CheckDriftClassification; changedIn?: string; comparedVersion?: string } {
+  const classification = classifyCheckDrift(committed, generated, previous, revisions);
+  if (classification !== "tracker_changed") return { classification, changedIn: revisions.current, comparedVersion: revisions.previous };
+  if (committed !== generated) {
+    for (const profile of historical) {
+      if (profile.version !== revisions.current && committed === profile.render()) {
+        return { classification: "rendering_changed", changedIn: profile.changedIn, comparedVersion: profile.version };
+      }
+    }
+  }
+  return { classification };
+}
+
 /** Canonical parsed flags only; arrays retain repeated option/value pairs. */
 export type RegenerationOptions = Readonly<Record<string, string | number | boolean | readonly string[] | undefined>>;
 /** A ready command or an explicit requirement to restore the original input. */

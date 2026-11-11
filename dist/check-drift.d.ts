@@ -10,6 +10,18 @@ export declare function isEntryReorder(committed: string, generated: string): bo
 /** An upgrade needs different revisions AND an exact previous-renderer match.
  * A current-version/manual/timestamp reorder supplies neither proof on its own. */
 export declare function classifyCheckDrift(committed: string, generated: string, previous: () => string, revisions: RenderingRevisions): CheckDriftClassification;
+/** One retained comparison profile with the upgrade that changed its output. */
+export interface HistoricalRenderingComparison {
+    version: string;
+    changedIn: string;
+    render: () => string;
+}
+/** Exact historical matches retain their upgrade evidence beyond the last release. */
+export declare function diagnoseCheckDrift(committed: string, generated: string, previous: () => string, revisions: RenderingRevisions, historical: readonly HistoricalRenderingComparison[]): {
+    classification: CheckDriftClassification;
+    changedIn?: string;
+    comparedVersion?: string;
+};
 /** Canonical parsed flags only; arrays retain repeated option/value pairs. */
 export type RegenerationOptions = Readonly<Record<string, string | number | boolean | readonly string[] | undefined>>;
 /** A ready command or an explicit requirement to restore the original input. */

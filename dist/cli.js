@@ -18,8 +18,8 @@ import { auditChangelogClaims, assertChangelogClaims, formatClaimAudit, parseCla
 import { countNonChangeClosures } from "./closure-policy.js";
 import { checkItemLinks } from "./item-links.js";
 import { createUnifiedDiff, DEFAULT_MAX_DIFF_LINES } from "./diff.js";
-import { classifyCheckDrift, regenerationCommand, trackerReorderExplanation } from "./check-drift.js";
-import { RENDERING_VERSION, PREVIOUS_RENDERING_VERSION, assertRequestedRelease, requestedReleaseSuppressed, MissingRequestedReleaseError, buildChangelogDocument, buildPmListArgs, createChangelog, createChangelogSummary, explainChangelogSelection, formatInferredSources, formatSummaryLine, lintChangelogEntries, parseChangelogEntryFrom, mergeChangelog, parsePmItemsJson, readPmItems, suggestSemver, writeChangelog, } from "./generator.js";
+import { diagnoseCheckDrift, regenerationCommand, trackerReorderExplanation } from "./check-drift.js";
+import { RENDERING_VERSION, PREVIOUS_RENDERING_VERSION, HISTORICAL_RENDERING_VERSIONS, RENDERING_PROFILES, assertRequestedRelease, requestedReleaseSuppressed, MissingRequestedReleaseError, buildChangelogDocument, buildPmListArgs, createChangelog, createChangelogSummary, explainChangelogSelection, formatInferredSources, formatSummaryLine, lintChangelogEntries, parseChangelogEntryFrom, mergeChangelog, parsePmItemsJson, readPmItems, suggestSemver, writeChangelog, } from "./generator.js";
 import { resolveGenerationReleaseWindows, resolveReleaseContext, resolveReleaseTagWindowResolution, } from "./release-context.js";
 import { resolveGitReleaseHistory } from "./release-membership.js";
 // Compatibility aliases for value-taking options. Kept intentionally small and
@@ -330,9 +330,15 @@ async function main(args = process.argv.slice(2)) {
         let driftMessage;
         if (options.check && result.changed) {
             const committed = existsSync(outputPath) ? readFileSync(outputPath, "utf-8") : "";
-            const classification = classifyCheckDrift(committed, result.markdown, () => writeChangelog({
+            const diagnosis = diagnoseCheckDrift(committed, result.markdown, () => writeChangelog({
                 ...generationOptions, output: outputPath, mode: options.mode, check: true,
-            }, PREVIOUS_RENDERING_VERSION).markdown, { current: RENDERING_VERSION, previous: PREVIOUS_RENDERING_VERSION });
+            }, PREVIOUS_RENDERING_VERSION).markdown, { current: RENDERING_VERSION, previous: PREVIOUS_RENDERING_VERSION }, HISTORICAL_RENDERING_VERSIONS.map((version) => ({
+                version, changedIn: RENDERING_PROFILES[version].changedIn,
+                render: () => writeChangelog({ ...generationOptions, output: outputPath, mode: options.mode, check: true }, version).markdown,
+            })));
+            const { classification } = diagnosis;
+            summary.rendering_changed_in = diagnosis.changedIn;
+            summary.compared_rendering_version = diagnosis.comparedVersion;
             summary.classification = classification;
             driftMessage = `Drift classification: ${classification}.`;
             if (classification !== "tracker_changed") {
@@ -341,7 +347,7 @@ async function main(args = process.argv.slice(2)) {
                 summary.regeneration_argv = guidance.argv;
                 summary.regeneration_input_required = guidance.input_required;
                 summary.regeneration_shell = guidance.shell;
-                driftMessage += `${classification === "rendering_changed" ? ` The generator's rendering changed in ${RENDERING_VERSION};` : " Entry order changed within existing sections;"} ${guidance.message} this is a one-time regeneration after a pm-changelog upgrade.`;
+                driftMessage += `${classification === "rendering_changed" ? ` The generator's rendering changed in ${diagnosis.changedIn};` : " Entry order changed within existing sections;"} ${guidance.message} this is a one-time regeneration after a pm-changelog upgrade.`;
             }
             if (classification === "tracker_changed")
                 driftMessage += trackerReorderExplanation(committed, result.markdown);

@@ -5,8 +5,29 @@ import type { ChangelogStatusContext, ChangelogDocument, ChangelogEntryFrom, Cha
 export declare const RENDERING_VERSION = "2026.11.11";
 /** Last published rendering: prepend retained empty pending placeholders. */
 export declare const PREVIOUS_RENDERING_VERSION = "2026.11.10";
+/** Retained output contracts in the same generator. Never remove older ordering
+ * comparisons when advancing the current/previous Markdown rendering revisions. */
+export declare const RENDERING_PROFILES: {
+    readonly "2026.11.11": {
+        readonly modernMarkdown: true;
+        readonly completionOrder: true;
+        readonly changedIn: "2026.11.11";
+    };
+    readonly "2026.11.10": {
+        readonly modernMarkdown: false;
+        readonly completionOrder: true;
+        readonly changedIn: "2026.11.11";
+    };
+    readonly "2026.11.6": {
+        readonly modernMarkdown: false;
+        readonly completionOrder: false;
+        readonly changedIn: "2026.11.7";
+    };
+};
 /** Supported output contracts; package dependency upgrades need not bump these. */
-export type RenderingVersion = typeof RENDERING_VERSION | typeof PREVIOUS_RENDERING_VERSION;
+export type RenderingVersion = keyof typeof RENDERING_PROFILES;
+/** Older profiles survive subsequent current/previous rendering-version bumps. */
+export declare const HISTORICAL_RENDERING_VERSIONS: readonly ["2026.11.6"];
 type PmCommand = {
     bin: string;
     argsPrefix: string[];

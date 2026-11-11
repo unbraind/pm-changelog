@@ -59,6 +59,20 @@ export function classifyCheckDrift(committed, generated, previous, revisions) {
         return upgrade ? "reorder_only" : "tracker_changed";
     return committed !== generated && upgrade ? "rendering_changed" : "tracker_changed";
 }
+/** Exact historical matches retain their upgrade evidence beyond the last release. */
+export function diagnoseCheckDrift(committed, generated, previous, revisions, historical) {
+    const classification = classifyCheckDrift(committed, generated, previous, revisions);
+    if (classification !== "tracker_changed")
+        return { classification, changedIn: revisions.current, comparedVersion: revisions.previous };
+    if (committed !== generated) {
+        for (const profile of historical) {
+            if (profile.version !== revisions.current && committed === profile.render()) {
+                return { classification: "rendering_changed", changedIn: profile.changedIn, comparedVersion: profile.version };
+            }
+        }
+    }
+    return { classification };
+}
 /** Resolve host camel/kebab spellings through the command's actual flag registry.
  * Unknown host internals are not command flags. Canonical supplied keys win. */
 export function canonicalRegenerationOptions(options, flags) {

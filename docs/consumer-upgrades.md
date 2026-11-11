@@ -16,7 +16,11 @@ tracker's `change_facets`, alongside its release and delivery evidence.
 The 2026.11.10 release also declares distinct regeneration actions for contract
 rendering (`pmc-contract-changes`) and empty pending-window selection
 (`pmc-stable-itemless-check`). Items tagged `rendering-change` must each have a
-published operator action; the catalog regression verifies that invariant.
+published or pending operator action; the catalog regression verifies that invariant.
+The merged prepend cleanup (`pmc-no-empty-unreleased-337`) declares its distinct
+one-time regeneration action to remove legacy empty Unreleased sections. It has
+no release attribution until publication; the regression verifies that it enters
+the catalog when its delivery release is recorded.
 
 Every output-affecting generator change must declare an operator upgrade action
 in this catalog, bump `RENDERING_VERSION`, and retain the preceding rendering

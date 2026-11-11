@@ -29,6 +29,10 @@ export function buildConsumerUpgrades(options) {
     const omissions = [];
     for (const row of contracts.ledger) {
         const item = items.get(row.item);
+        // A merged, unpublished declaration has no delivery release yet. Keep it
+        // out of published obligations while still rejecting explicit invalid releases.
+        if (item.release === undefined && row.release === "Unreleased")
+            continue;
         for (const facet of item.change_facets ?? []) {
             if (facet.audience !== audience || !facet.breaking)
                 continue;

@@ -6,7 +6,7 @@
 
 ## Unreleased
 
-### Fixed
+### Changed
 
 - Verify and complete empty Unreleased suppression for issue 337 ([pmc-no-empty-unreleased-337](https://github.com/unbraind/pm-changelog/blob/main/.agents/pm/issues/pmc-no-empty-unreleased-337.toon))
 

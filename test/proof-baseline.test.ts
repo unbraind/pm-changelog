@@ -65,21 +65,21 @@ test("behavioral proof completes in a fresh clone and a source archive without o
   const root = mkdtempSync(join(tmpdir(), "pm-proof-portable-"));
   t.after(() => rmSync(root, { recursive: true, force: true }));
   const source = join(root, "source"); mkdirSync(source);
-  for (const folder of ["src", "dist", "scripts", "test"]) cpSync(resolve(folder), join(source, folder), { recursive: true });
+  for (const folder of ["src", "dist", "scripts", "test", "docs"]) cpSync(resolve(folder), join(source, folder), { recursive: true });
   for (const file of ["package.json", "manifest.json", ".gitignore"]) cpSync(resolve(file), join(source, file));
   const pmRoot = join(source, ".agents/pm");
   mkdirSync(join(pmRoot, "issues"), { recursive: true }); mkdirSync(join(pmRoot, "history"));
   cpSync(resolve(".agents/pm/settings.json"), join(pmRoot, "settings.json"));
-  for (const id of ["pmc-total-item-order", "pmc-contract-changes", "pmc-stable-itemless-check"]) {
+  for (const id of ["pmc-total-item-order", "pmc-contract-changes", "pmc-stable-itemless-check", "pmc-no-empty-unreleased-337"]) {
     for (const path of [`issues/${id}.toon`, `history/${id}.jsonl`]) cpSync(resolve(".agents/pm", path), join(pmRoot, path));
   }
   initGitFixture(source, ["-b", "feature"]);
-  execFileSync("git", ["add", "src", "dist", "scripts", "test", "package.json", "manifest.json", ".gitignore", ".agents/pm/settings.json", ".agents/pm/issues", ".agents/pm/history"], { cwd: source, env: fixtureEnvironment() });
+  execFileSync("git", ["add", "src", "dist", "scripts", "test", "docs", "package.json", "manifest.json", ".gitignore", ".agents/pm/settings.json", ".agents/pm/issues", ".agents/pm/history"], { cwd: source, env: fixtureEnvironment() });
   execFileSync("git", ["-c", "user.name=SteveBot", "-c", "user.email=1153461+unbraind@users.noreply.github.com", "commit", "-m", "Portable proof fixture"], { cwd: source, env: fixtureEnvironment(), stdio: "pipe" });
   const clone = join(root, "clone"), archive = join(root, "archive");
   cloneGitFixture(clone, ["--single-branch", source]);
   mkdirSync(archive);
-  for (const folder of ["src", "dist", "scripts", "test", ".agents"]) cpSync(join(source, folder), join(archive, folder), { recursive: true });
+  for (const folder of ["src", "dist", "scripts", "test", "docs", ".agents"]) cpSync(join(source, folder), join(archive, folder), { recursive: true });
   for (const file of ["package.json", "manifest.json"]) cpSync(join(source, file), join(archive, file));
   for (const cwd of [clone, archive]) {
     symlinkSync(resolve("node_modules"), join(cwd, "node_modules"), "junction");

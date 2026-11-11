@@ -9,14 +9,14 @@ import { listAllComplete } from "@unbrained/pm-cli/sdk";
 
 const scratch = mkdtempSync(join(tmpdir(), "pm-check-drift-revert-"));
 try {
-  for (const directory of ["src", "dist", "test"]) cpSync(resolve(directory), join(scratch, directory), { recursive: true });
+  for (const directory of ["src", "dist", "test", "docs"]) cpSync(resolve(directory), join(scratch, directory), { recursive: true });
   for (const file of ["package.json", "manifest.json"]) cpSync(resolve(file), join(scratch, file));
   symlinkSync(resolve("node_modules"), join(scratch, "node_modules"), "junction");
   const pmRoot = join(scratch, ".agents/pm");
   mkdirSync(join(pmRoot, "issues"), { recursive: true });
   mkdirSync(join(pmRoot, "history"));
   cpSync(resolve(".agents/pm/settings.json"), join(pmRoot, "settings.json"));
-  for (const id of ["pmc-total-item-order", "pmc-contract-changes", "pmc-stable-itemless-check"]) {
+  for (const id of ["pmc-total-item-order", "pmc-contract-changes", "pmc-stable-itemless-check", "pmc-no-empty-unreleased-337"]) {
     for (const file of [`issues/${id}.toon`, `history/${id}.jsonl`]) cpSync(resolve(".agents/pm", file), join(pmRoot, file));
   }
   const extension = join(pmRoot, "extensions/pm-changelog");
@@ -71,14 +71,14 @@ try {
   } finally { writeFileSync(cli, fixedCli); }
   const generator = join(scratch, "src/generator.ts"), fixedGenerator = readFileSync(generator, "utf8");
   try {
-    const from = "let next = renderingVersion === PREVIOUS_RENDERING_VERSION ? existing : omitEmptyUnreleasedSections(existing);";
+    const from = "let next = !RENDERING_PROFILES[renderingVersion].modernMarkdown ? existing : omitEmptyUnreleasedSections(existing);";
     assert.ok(fixedGenerator.includes(from));
     writeFileSync(generator, fixedGenerator.replace(from, "let next = omitEmptyUnreleasedSections(existing);"));
     fails("^same real tracker:", 1);
     console.log(JSON.stringify({ mutation: "remove-previous-rendering-profile", reverted_fail: 1 }));
   } finally { writeFileSync(generator, fixedGenerator); }
   try {
-    const from = "if (renderingVersion === PREVIOUS_RENDERING_VERSION) {";
+    const from = "if (!RENDERING_PROFILES[renderingVersion].modernMarkdown) {";
     assert.ok(fixedGenerator.includes(from));
     writeFileSync(generator, fixedGenerator.replace(from, "if (false) {"));
     fails("^previous dependency selection", 1);
@@ -121,7 +121,7 @@ try {
     console.log(JSON.stringify({ mutation: "remove-2026-11-7-upgrade-action", reverted_fail: 1 }));
   } finally { setFacets(facets); }
   const catalog = (await listAllComplete({}, { pmRoot })).items;
-  for (const id of ["pmc-contract-changes", "pmc-stable-itemless-check"]) {
+  for (const id of ["pmc-contract-changes", "pmc-stable-itemless-check", "pmc-no-empty-unreleased-337"]) {
     const originalFacets = catalog.find((item) => item.id === id)!.change_facets;
     try {
       setFacets([], id);
@@ -129,6 +129,36 @@ try {
       console.log(JSON.stringify({ mutation: `remove-catalog-action-${id}`, reverted_fail: 1 }));
     } finally { setFacets(originalFacets, id); }
   }
+  try {
+    const from = "if (!RENDERING_PROFILES[renderingVersion].completionOrder) {";
+    assert.ok(fixedGenerator.includes(from));
+    writeFileSync(generator, fixedGenerator.replace(from, "if (false) {"));
+    fails("^retained pre-2026", 1);
+    console.log(JSON.stringify({ mutation: "remove-retained-ordering-comparator", reverted_fail: 1 }));
+  } finally { writeFileSync(generator, fixedGenerator); }
+  try {
+    const from = "committed === profile.render()";
+    assert.ok(fixedDrift.includes(from));
+    writeFileSync(driftFile, fixedDrift.replace(from, "false"));
+    fails("^retained pre-2026", 1);
+    console.log(JSON.stringify({ mutation: "remove-historical-rendering-match", reverted_fail: 1 }));
+  } finally { writeFileSync(driftFile, fixedDrift); }
+  const upgrades = join(scratch, "src/consumer-upgrades.ts"), fixedUpgrades = readFileSync(upgrades, "utf8");
+  try {
+    const from = '    if (item.release === undefined && row.release === "Unreleased") continue;';
+    assert.ok(fixedUpgrades.includes(from));
+    writeFileSync(upgrades, fixedUpgrades.replace(from, ""));
+    fails("^every rendering-change item", 1);
+    console.log(JSON.stringify({ mutation: "reject-unpublished-upgrade-declarations", reverted_fail: 1 }));
+  } finally { writeFileSync(upgrades, fixedUpgrades); }
+  const usage = join(scratch, "docs/usage.md"), fixedUsage = readFileSync(usage, "utf8");
+  try {
+    const from = "File-output checks (`--check` with `--output`, including its default";
+    assert.ok(fixedUsage.includes(from));
+    writeFileSync(usage, fixedUsage.replace(from, "Every difference exits 1; (including its default"));
+    fails("^stdout checks", 1);
+    console.log(JSON.stringify({ mutation: "unqualified-exit-code-documentation", reverted_fail: 1 }));
+  } finally { writeFileSync(usage, fixedUsage); }
   mkdirSync(join(scratch, "scripts"));
   const baselineFile = join(scratch, "scripts/proof-baseline.ts");
   const fixedBaseline = readFileSync(resolve("scripts/proof-baseline.ts"), "utf8");
@@ -145,5 +175,5 @@ try {
   const restored = run();
   assert.equal(restored.status, 0, restored.stdout + restored.stderr);
   assert.match(restored.stdout, new RegExp(`# pass ${passCount}\\b`));
-  console.log(JSON.stringify({ fixed_pass: passCount, restored_pass: passCount, mutations: 15, reverted_fail: 17 }));
+  console.log(JSON.stringify({ fixed_pass: passCount, restored_pass: passCount, mutations: 20, reverted_fail: 22 }));
 } finally { rmSync(scratch, { recursive: true, force: true }); }
