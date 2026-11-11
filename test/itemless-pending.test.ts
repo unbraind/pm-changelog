@@ -34,6 +34,98 @@ function fixture(t: { after: (fn: () => void) => void }) {
   return { dir, commit, options, cli, git, env, input };
 }
 
+/** Reproduce an itemless package release with only unassigned historical items. */
+function capitalizedBumpFixture(t: { after: (fn: () => void) => void }) {
+  const context = fixture(t);
+  const { dir, git, commit, env, input } = context;
+  writeFileSync(input, JSON.stringify({ items: [{ id: "old", title: "Historical delivery", status: "closed", type: "Task", completed_at: "2026-10-31T09:00:00Z", updated_at: "2026-10-31T09:00:00Z" }] }));
+  writeFileSync(join(dir, "CHANGELOG.md"), "# Changelog\n\n## 2026.10.31 - 2026-10-31\n\n### Changed\n\n- Historical delivery (old)\n");
+  git("add", "CHANGELOG.md");
+  commit("docs: historical release notes", "2026-10-31T10:00:00Z");
+  git("tag", "--force", "v2026.10.31");
+  writeFileSync(join(dir, "package.json"), JSON.stringify({ version: "2026.11.1" }));
+  commit("Build(deps-dev): Bump the pm-toolchain group across 1 directory with 3 updates (#106)");
+  commit("chore(deps): Bump ExampleSDK from vOne to vTwo (#107)");
+  commit("CHORE(DEPS): BUMP OtherSDK from vOne to vTwo (#108)");
+  commit("fix(deps): bumped excluded-past-tense from 1 to 2");
+  commit("chore(deps): Bumps excluded-plural from 1 to 2");
+  commit("chore(dependencies): Bump excluded-scope from 1 to 2");
+  commit("Bump excluded-unscoped from 1 to 2");
+  commit("chore(deps)!: Bump excluded-breaking from 1 to 2");
+  const run = (args: string[]) => spawnSync(process.execPath, [resolve("src/cli.ts"), "--input", input,
+    "--release-version-from-package", "--respect-item-release", "--date-from-version", ...args], { cwd: dir, env, encoding: "utf8" });
+  return { ...context, run };
+}
+
+/** Verify exact description case and strict exclusions in CLI markdown. */
+function assertCapitalizedDependencies(markdown: string): void {
+  assert.match(markdown, /^## 2026\.11\.1 - 2026-11-01$/m);
+  assert.match(markdown, /### Dependencies/);
+  assert.match(markdown, /^- Bump the pm-toolchain group across 1 directory with 3 updates \(#106\)$/m);
+  assert.match(markdown, /^- Bump ExampleSDK from vOne to vTwo \(#107\)$/m);
+  assert.match(markdown, /^- BUMP OtherSDK from vOne to vTwo \(#108\)$/m);
+  assert.doesNotMatch(markdown, /excluded-|MISSING_REQUESTED_RELEASE/);
+}
+
+test("capitalized dependency-only single-window CLI release accepts historical unassigned items", (t) => {
+  const { run } = capitalizedBumpFixture(t);
+  const result = run(["--since-previous-tag", "--until-release-tag", "--stdout"]);
+  assert.equal(result.status, 0, result.stderr);
+  assertCapitalizedDependencies(result.stdout);
+  assert.doesNotMatch(result.stdout, /Historical delivery/);
+});
+
+test("capitalized dependency-only all-release-tags regeneration stays stable after tagging", (t) => {
+  const { dir, run, git, commit } = capitalizedBumpFixture(t);
+  const args = ["--all-release-tags", "--mode", "replace", "--output", "CHANGELOG.md"];
+  const pending = run(args);
+  assert.equal(pending.status, 0, pending.stderr);
+  const before = readFileSync(join(dir, "CHANGELOG.md"), "utf8");
+  assertCapitalizedDependencies(before);
+  git("add", "CHANGELOG.md", "package.json");
+  commit("Release pm-fixture v2026.11.1");
+  git("tag", "v2026.11.1");
+  const regenerated = run(args);
+  assert.equal(regenerated.status, 0, regenerated.stderr);
+  assert.equal(readFileSync(join(dir, "CHANGELOG.md"), "utf8"), before);
+  const checked = run([...args, "--check"]);
+  assert.equal(checked.status, 0, checked.stderr);
+  assert.match(checked.stderr, /Changelog is up to date/);
+});
+
+test("capitalized dependency-only CLI semver uses the same accepted single window", (t) => {
+  const { run } = capitalizedBumpFixture(t);
+  const flags = ["--since-previous-tag", "--until-release-tag"];
+  const suggestion = run([...flags, "--suggest-semver"]);
+  assert.equal(suggestion.status, 0, suggestion.stderr);
+  // Dependency notes introduce no synthetic tracker item or item-based semver bump.
+  assert.equal(JSON.parse(suggestion.stdout).bump, "none");
+  const document = run([...flags, "--changelog-json"]);
+  assert.equal(document.status, 0, document.stderr);
+  const release = JSON.parse(document.stdout).releases[0];
+  assert.equal(release.item_count, 0);
+  assert.deepEqual(release.dependencies.map((entry: { description: string }) => entry.description), [
+    "BUMP OtherSDK from vOne to vTwo", "Bump ExampleSDK from vOne to vTwo",
+    "Bump the pm-toolchain group across 1 directory with 3 updates",
+  ]);
+});
+
+test("capitalized dependency-only CLI check reports and repairs dependency note drift", (t) => {
+  const { dir, run } = capitalizedBumpFixture(t);
+  const args = ["--since-previous-tag", "--until-release-tag", "--mode", "replace", "--output", "CHANGELOG.md"];
+  const drift = run([...args, "--check"]);
+  assert.equal(drift.status, 1, drift.stderr);
+  assert.match(drift.stderr, /Changelog is out of date/);
+  assert.match(drift.stderr, /^\+### Dependencies$/m);
+  assert.match(drift.stderr, /^\+- BUMP OtherSDK from vOne to vTwo \(#108\)$/m);
+  assert.doesNotMatch(drift.stderr, /MISSING_REQUESTED_RELEASE/);
+  const generated = run(args);
+  assert.equal(generated.status, 0, generated.stderr);
+  assertCapitalizedDependencies(readFileSync(join(dir, "CHANGELOG.md"), "utf8"));
+  const checked = run([...args, "--check"]);
+  assert.equal(checked.status, 0, checked.stderr);
+});
+
 for (const subject of ["build(deps-dev): bump example from 1 to 2 (#11)", "chore(deps): bump unbraind/pm-github/.github/workflows/pm-github-sync.yml from 2026.10.19 to 2026.10.28 (#205)"]) {
   test(`itemless pending default renders its own git notes: ${subject}`, (t) => {
     const { commit, options, cli } = fixture(t);
