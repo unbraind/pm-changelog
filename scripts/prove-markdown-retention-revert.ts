@@ -20,7 +20,8 @@ try {
   assert.equal(baseline.status, 0, baseline.stdout + baseline.stderr);
   assert.match(baseline.stdout, /# pass 6\b/);
   for (const mutation of [
-    { name: "ignore-block-containers", from: 'const block = markdownContainerLine(markdown.slice(lineStart, contentEnd), containers, fence !== undefined);', to: 'const block = { content: markdown.slice(lineStart, contentEnd), containers: [], exited: false };' },
+    { name: "ignore-block-containers", from: 'const block = markdownContainerLine(markdown.slice(lineStart, contentEnd), containers, fence !== undefined, paragraph);', to: 'const block = { content: markdown.slice(lineStart, contentEnd), containers: [], exited: false };' },
+    { name: "drop-lazy-container-context", from: '!fenced && paragraph && isMarkdownParagraphLine(line.slice(cursor))', to: '!fenced && false && isMarkdownParagraphLine(line.slice(cursor))' },
     { name: "keep-fence-after-container-exit", from: 'if (block.exited) fence = undefined;', to: 'if (false) fence = undefined;' },
     { name: "ignore-code-fences", from: '!wasFenced && !fence && containers.length === 0 && markdown.startsWith(marker, lineStart)', to: 'markdown.startsWith(marker, lineStart)' },
     { name: "fenced-publication-receipt", from: 'return findMarkdownHeadings(result.stdout, "##").some(({ heading: found }) => found === version || found.startsWith(`${version} - `));', to: 'return result.stdout.split(/\\r?\\n/).some((line) => line === `## ${version}` || line.startsWith(`## ${version} - `));' },

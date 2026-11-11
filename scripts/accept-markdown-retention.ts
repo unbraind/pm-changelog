@@ -73,7 +73,7 @@ try {
         checks += 2;
       }
       for (const example of [
-        "- ```text\n  sample\n  ```", "1. outer\n   > ~~~~text\n   > sample\n   > ~~~~", "> ```text\n> sample",
+        "- ```text\n  sample\n  ```", "- paragraph\ncontinued\n\n  ```text\n  sample", "1. outer\n   > ~~~~text\n   > sample\n   > ~~~~", "> ```text\n> sample",
       ]) {
         const retained = `# Changelog\n\n## 2.0.0\n\n${example}\n\n${history}`;
         const replacement = "# Changelog\n\n## 2.0.0\n\nNo changes.\n";

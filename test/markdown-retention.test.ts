@@ -73,6 +73,10 @@ test("property: container fences never consume subsequent releases in any Markdo
 
 test("container exits, continuation fences, sibling lists and quoted literals preserve history", () => {
   for (const example of [
+    "- paragraph\n-*_*_\n\n  ```text\n  sample", "- paragraph\n  ===\n  ```text\n  sample",
+    "- paragraph\n  ___\n  ```text\n  sample", "- paragraph\n  ---\n  ```text\n  sample",
+    "- paragraph\ncontinued\n\n  ```text\n  sample", "- paragraph\ncontinued\n  ```text\n  sample\n  ```",
+    "1. paragraph\ncontinued\n\n   ~~~text\n   sample", "- outer\n  - paragraph\ncontinued\n\n    ```\n    sample",
     "-\n  ```text\n  sample", "1.\n   ~~~\n   sample", "- ```text\n  sample", "> ```text\n> sample", "- > ~~~\n  > sample",
     "- outer\n  - ```\n    sample\n  sibling", "- outer\n\n  ```text\n  sample\n  ```",
     "> quote\n> ~~~\n> sample\n> ~~~", "- ```\n  > literal quote\n  - literal list\n  ```",
@@ -84,6 +88,10 @@ test("container exits, continuation fences, sibling lists and quoted literals pr
     const existing = `# Changelog\n\n## 2.0.0\n\n${example}\n\n${history}`;
     assert.equal(mergeChangelog(existing, generated).markdown, generated + "\n" + history, example);
     assert.equal(mergeChangelog(existing, "# Changelog\n").markdown, existing, "no-op");
+  }
+  for (const prefix of ["- paragraph\n\nOutside.\n\n", "> paragraph\ncontinued\n\n"]) {
+    const existing = `# Changelog\n\n${prefix}  \`\`\`text\n${empty}${history}`;
+    assert.equal(mergeChangelog(existing, "# Changelog\n").markdown, existing, "paragraph outside a container");
   }
 });
 

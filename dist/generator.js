@@ -1322,11 +1322,22 @@ function findReleaseSeparatorStart(value) {
     }
     return undefined;
 }
+/** Recognize paragraph text eligible for Markdown's lazy list/quote
+ * continuation. Blank lines and interrupting block markers end that permission;
+ * a later indented fence can still belong to the preceding list item. */
+function isMarkdownParagraphLine(line) {
+    const text = line.trimStart();
+    return text !== "" && !/^ {4}/.test(line) &&
+        !/^(?:#{1,6}(?:\s|$)|>|(?:[-+*]|[0-9]{1,9}[.)])(?:\s|$))/.test(text) &&
+        !/^`{3,}[^`]*$/.test(text) && !/^~{3}/.test(text) &&
+        !/^(?:(?:- *){3,}|(?:_ *){3,}|(?:\* *){3,})$/.test(text) && !/^=+ *$/.test(text);
+}
 /** Strip block containers before scanning fences. Continuation indentation is
- * required on nonblank lines: leaving a list or quote also ends its code fence.
+ * required except for lazy paragraph continuation: leaving a list or quote
+ * also ends its code fence.
  * Tabs use Markdown's four-column stops. The bounded marker expressions and
  * forward-only cursor keep this scan linear even for hostile input. */
-function markdownContainerLine(line, containers, fenced) {
+function markdownContainerLine(line, containers, fenced, paragraph) {
     let padding = 0;
     line = line.replace(/\t/g, (_tab, offset) => {
         const width = 4 - (offset + padding) % 4;
@@ -1351,6 +1362,11 @@ function markdownContainerLine(line, containers, fenced) {
             cursor += spaces;
         }
         depth++;
+    }
+    // A dedented paragraph line can continue the current item, but a heading
+    // or fence cannot. Code blocks never permit lazy continuation.
+    if (depth < containers.length && !fenced && paragraph && isMarkdownParagraphLine(line.slice(cursor))) {
+        return { content: line.slice(cursor), containers, exited: false };
     }
     const exited = depth < containers.length;
     const next = containers.slice(0, depth);
@@ -1388,17 +1404,19 @@ function findMarkdownHeadings(markdown, marker) {
     const matches = [];
     let lineStart = 0;
     let containers = [];
+    let paragraph = false;
     let fence;
     while (lineStart <= markdown.length) {
         let lineEnd = lineStart;
         while (lineEnd < markdown.length && !isLineTerminator(markdown[lineEnd]))
             lineEnd++;
         const contentEnd = lineEnd;
-        const block = markdownContainerLine(markdown.slice(lineStart, contentEnd), containers, fence !== undefined);
+        const block = markdownContainerLine(markdown.slice(lineStart, contentEnd), containers, fence !== undefined, paragraph);
         containers = block.containers;
         if (block.exited)
             fence = undefined;
         const line = block.content;
+        paragraph = fence === undefined && isMarkdownParagraphLine(line);
         let fenceStart = 0;
         while (fenceStart < line.length && fenceStart < 3 && line[fenceStart] === " ")
             fenceStart++;
