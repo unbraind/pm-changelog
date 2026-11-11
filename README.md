@@ -213,6 +213,8 @@ Empty `Unreleased` sections are always omitted; `--include-empty` retains only
 versioned release sections. Callers' committed changelogs drop the legacy empty
 `Unreleased` / `No changes.` block on their next regeneration, including in
 prepend mode. Non-empty unreleased items and dependency notes are preserved.
+Prepend merging ignores release headings inside backtick or tilde code fences
+and preserves indentation and hard-break spaces in retained Markdown.
 
 With `--all-release-tags --release-version-from-package --include-empty`,
 publishing the requested release tag preserves the versioned output when the
