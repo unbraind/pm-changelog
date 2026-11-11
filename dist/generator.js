@@ -1322,6 +1322,57 @@ function findReleaseSeparatorStart(value) {
     }
     return undefined;
 }
+/** Strip block containers before scanning fences. Continuation indentation is
+ * required on nonblank lines: leaving a list or quote also ends its code fence.
+ * Tabs use Markdown's four-column stops. The bounded marker expressions and
+ * forward-only cursor keep this scan linear even for hostile input. */
+function markdownContainerLine(line, containers, fenced) {
+    let padding = 0;
+    line = line.replace(/\t/g, (_tab, offset) => {
+        const width = 4 - (offset + padding) % 4;
+        padding += width - 1;
+        return " ".repeat(width);
+    });
+    let cursor = 0;
+    let depth = 0;
+    for (const container of containers) {
+        if (container === "quote") {
+            const quote = /^ {0,3}> ?/.exec(line.slice(cursor));
+            if (!quote)
+                break;
+            cursor += quote[0].length;
+        }
+        else {
+            let spaces = 0;
+            while (spaces < container && line[cursor + spaces] === " ")
+                spaces++;
+            if (spaces < container && line.slice(cursor + spaces) !== "")
+                break;
+            cursor += spaces;
+        }
+        depth++;
+    }
+    const exited = depth < containers.length;
+    const next = containers.slice(0, depth);
+    if (!fenced || exited) {
+        while (cursor < line.length) {
+            const quote = /^ {0,3}> ?/.exec(line.slice(cursor));
+            if (quote) {
+                cursor += quote[0].length;
+                next.push("quote");
+                continue;
+            }
+            const list = /^( {0,3})(?:[-+*]|[0-9]{1,9}[.)])( +|$)/.exec(line.slice(cursor));
+            if (!list)
+                break;
+            // Five or more spaces after a marker start indented code, not a fence.
+            const width = list[2].length > 4 ? list[0].length - list[2].length + 1 : list[0].length + (list[2] === "" ? 1 : 0);
+            cursor += width;
+            next.push(width);
+        }
+    }
+    return { content: line.slice(cursor), containers: next, exited };
+}
 /** Find line-oriented Markdown headings with the requested marker. This is the
  * linear replacement for the old `^#\\s+.+$` / `^##\\s+.+$` expressions. A
  * heading must have the marker, at least one whitespace code unit, and at least
@@ -1330,35 +1381,43 @@ function findReleaseSeparatorStart(value) {
  * one break, not two, so it never creates a spurious empty line. Backtick and
  * tilde code fences (up to three leading spaces) hide headings until a matching
  * fence of at least the opening length closes them; an unclosed fence hides
- * the rest of the document. All callers share this structural boundary. */
+ * the rest of its block container. List and quote prefixes are tracked before
+ * fences, so a contained closer cannot become a document-wide opener. All
+ * callers share this structural boundary. */
 function findMarkdownHeadings(markdown, marker) {
     const matches = [];
     let lineStart = 0;
+    let containers = [];
     let fence;
     while (lineStart <= markdown.length) {
         let lineEnd = lineStart;
         while (lineEnd < markdown.length && !isLineTerminator(markdown[lineEnd]))
             lineEnd++;
         const contentEnd = lineEnd;
-        let fenceStart = lineStart;
-        while (fenceStart < contentEnd && fenceStart - lineStart < 3 && markdown[fenceStart] === " ")
+        const block = markdownContainerLine(markdown.slice(lineStart, contentEnd), containers, fence !== undefined);
+        containers = block.containers;
+        if (block.exited)
+            fence = undefined;
+        const line = block.content;
+        let fenceStart = 0;
+        while (fenceStart < line.length && fenceStart < 3 && line[fenceStart] === " ")
             fenceStart++;
-        const character = markdown[fenceStart];
+        const character = line[fenceStart];
         let fenceEnd = fenceStart;
         if (character === "`" || character === "~") {
-            while (fenceEnd < contentEnd && markdown[fenceEnd] === character)
+            while (fenceEnd < line.length && line[fenceEnd] === character)
                 fenceEnd++;
         }
         const fenceLength = fenceEnd - fenceStart;
         const wasFenced = fence !== undefined;
         if (fence) {
-            if (character === fence.character && fenceLength >= fence.length && /^[ \t]*$/.test(markdown.slice(fenceEnd, contentEnd)))
+            if (character === fence.character && fenceLength >= fence.length && /^[ \t]*$/.test(line.slice(fenceEnd)))
                 fence = undefined;
         }
-        else if (fenceLength >= 3 && (character !== "`" || !markdown.slice(fenceEnd, contentEnd).includes("`"))) {
+        else if (fenceLength >= 3 && (character !== "`" || !line.slice(fenceEnd).includes("`"))) {
             fence = { character: character, length: fenceLength };
         }
-        if (!wasFenced && !fence && markdown.startsWith(marker, lineStart)) {
+        if (!wasFenced && !fence && containers.length === 0 && markdown.startsWith(marker, lineStart)) {
             const prefixEnd = lineStart + marker.length;
             if (contentEnd - prefixEnd >= 2 && isWhitespaceCharacter(markdown[prefixEnd])) {
                 let headingStart = prefixEnd;

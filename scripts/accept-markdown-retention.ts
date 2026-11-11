@@ -72,6 +72,34 @@ try {
         run(runtime, [pm, ...(json ? ["--json"] : []), ...hosted, "--check"], cwd);
         checks += 2;
       }
+      for (const example of [
+        "- ```text\n  sample\n  ```", "1. outer\n   > ~~~~text\n   > sample\n   > ~~~~", "> ```text\n> sample",
+      ]) {
+        const retained = `# Changelog\n\n## 2.0.0\n\n${example}\n\n${history}`;
+        const replacement = "# Changelog\n\n## 2.0.0\n\nNo changes.\n";
+        const merged = replacement + "\n" + history;
+        const consumer = `import assert from "node:assert/strict";
+          import { mergeChangelog, writeChangelog } from "pm-changelog";
+          assert.equal(mergeChangelog(${JSON.stringify(retained)}, ${JSON.stringify(replacement)}).markdown, ${JSON.stringify(merged)});
+          assert.equal(writeChangelog({ items: [], version: "2.0.0", includeEmpty: true, mode: "prepend", output: "CHANGELOG.md", dependencyUpdates: false }).markdown, ${JSON.stringify(merged)});`;
+        writeFileSync(output, retained);
+        run(runtime, ["--eval", consumer], cwd);
+        checks += 2;
+        const version = ["--version", "2.0.0", "--include-empty"];
+        writeFileSync(output, retained);
+        run(runtime, [...standalone, ...version], cwd);
+        assert.equal(readFileSync(output, "utf8"), merged);
+        run(runtime, [...standalone, ...version, "--check"], cwd);
+        checks += 2;
+        for (const json of [false, true]) {
+          writeFileSync(output, retained);
+          const rendered = run(runtime, [pm, ...(json ? ["--json"] : []), ...hosted, "--release-version", "2.0.0", "--include-empty"], cwd);
+          assert.ok(json ? JSON.parse(rendered) : decode(rendered));
+          assert.equal(readFileSync(output, "utf8"), merged);
+          run(runtime, [pm, ...(json ? ["--json"] : []), ...hosted, "--release-version", "2.0.0", "--include-empty", "--check"], cwd);
+          checks += 2;
+        }
+      }
       // Structured generation is intentionally independent of retained Markdown.
       const before = readFileSync(output, "utf8");
       const document = JSON.parse(run(runtime, [...standalone, "--format", "json"], cwd)) as { releases: unknown[] };

@@ -19,7 +19,7 @@ try {
   });
   for (const mutation of [
     { name: "default-disabled", file: "generator.ts", from: "if (options.dependencyUpdates !== false && options.gitCwd)", to: "if (options.dependencyUpdates && options.gitCwd)", pattern: "itemless pending default|single pending fallback", failures: 3, tests: 3 },
-    { name: "tag-retention-removed", file: "generator.ts", from: 'return result.stdout.split(/\\r?\\n/).some((line) => line === prefix || line.startsWith(`${prefix} - `));', to: "return false;", pattern: "fleet CLI transition|tagged single and all-window|SDK committed|CLI uses custom", failures: 8, tests: 8 },
+    { name: "tag-retention-removed", file: "generator.ts", from: 'return findMarkdownHeadings(result.stdout, "##").some(({ heading: found }) => found === version || found.startsWith(`${version} - `));', to: "return false;", pattern: "fleet CLI transition|tagged single and all-window|SDK committed|CLI uses custom", failures: 8, tests: 8 },
     { name: "history-rewritten", file: "generator.ts", from: "if (!tag) return false;", to: "return true;", pattern: "tagged itemless history|tagged default rejects", failures: 5, tests: 5 },
     { name: "generic-subjects-restored", file: "generator.ts", from: "const parsed = parseDependencyCommit(line.trim());", to: "const parsed = parseDependencyCommit(line.trim()) ?? { subject: line.trim(), description: line.trim(), prNumber: undefined };", pattern: "docs, a Dependabot-shaped merge", failures: 1, tests: 1 },
     { name: "merges-restored", file: "generator.ts", from: '["log", "--format=%s", "--no-merges"]', to: '["log", "--format=%s"]', pattern: "docs, a Dependabot-shaped merge", failures: 1, tests: 1 },

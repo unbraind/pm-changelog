@@ -189,6 +189,9 @@ On the next regeneration, callers' committed changelogs drop any legacy empty
 `Unreleased` / `No changes.` block. Prepend mode also removes a pending heading
 whose body is blank or exactly `No changes.`, even if its release already exists
 or no new release sections are generated. Meaningful pending bodies are kept.
+List and quote containers (including nested and unterminated fences) end at their
+block boundaries, preserving later release history.
+
 Headings inside backtick or tilde fenced examples do not define release sections
 or count as committed release headings for dependency-only notes. Retained
 Markdown keeps its indentation and hard-break spaces during prepend merging.

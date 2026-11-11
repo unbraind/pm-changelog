@@ -18,9 +18,11 @@ try {
   });
   const baseline = run();
   assert.equal(baseline.status, 0, baseline.stdout + baseline.stderr);
-  assert.match(baseline.stdout, /# pass 4\b/);
+  assert.match(baseline.stdout, /# pass 6\b/);
   for (const mutation of [
-    { name: "ignore-code-fences", from: '!wasFenced && !fence && markdown.startsWith(marker, lineStart)', to: 'markdown.startsWith(marker, lineStart)' },
+    { name: "ignore-block-containers", from: 'const block = markdownContainerLine(markdown.slice(lineStart, contentEnd), containers, fence !== undefined);', to: 'const block = { content: markdown.slice(lineStart, contentEnd), containers: [], exited: false };' },
+    { name: "keep-fence-after-container-exit", from: 'if (block.exited) fence = undefined;', to: 'if (false) fence = undefined;' },
+    { name: "ignore-code-fences", from: '!wasFenced && !fence && containers.length === 0 && markdown.startsWith(marker, lineStart)', to: 'markdown.startsWith(marker, lineStart)' },
     { name: "fenced-publication-receipt", from: 'return findMarkdownHeadings(result.stdout, "##").some(({ heading: found }) => found === version || found.startsWith(`${version} - `));', to: 'return result.stdout.split(/\\r?\\n/).some((line) => line === `## ${version}` || line.startsWith(`## ${version} - `));' },
     { name: "trim-cleanup-slices", from: 'trimMarkdownStart(trimMarkdownEnd(part))', to: 'part.trim()' },
     { name: "trim-title-insertion", from: '${trimMarkdownStart(markdown)}', to: '${markdown.trimStart()}' },
@@ -36,11 +38,11 @@ try {
       assert.match(reverted.stdout, /ERR_ASSERTION|AssertionError/);
       const failures = [...reverted.stdout.matchAll(/^not ok \d+ - (.+)$/gm)].map((match) => match[1]);
       assert.ok(failures.length > 0);
-      console.log(JSON.stringify({ mutation: mutation.name, fixed_pass: 4, reverted_fail: failures.length, failed_tests: failures }));
+      console.log(JSON.stringify({ mutation: mutation.name, fixed_pass: 6, reverted_fail: failures.length, failed_tests: failures }));
     } finally { writeFileSync(file, fixed); }
   }
   const restored = run();
   assert.equal(restored.status, 0, restored.stdout + restored.stderr);
-  assert.match(restored.stdout, /# pass 4\b/);
-  console.log(JSON.stringify({ restored_pass: 4 }));
+  assert.match(restored.stdout, /# pass 6\b/);
+  console.log(JSON.stringify({ restored_pass: 6 }));
 } finally { rmSync(scratch, { recursive: true, force: true }); }
