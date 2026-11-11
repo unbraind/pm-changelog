@@ -1,5 +1,5 @@
 import { stringifyUnicodeOutput } from "./output-unicode.js";
-import { readFileSync, writeFileSync } from "node:fs";
+import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { defineExtension, getActiveExtensionRegistrations, listAllItemMetadata, locateItem, readLocatedItem, readSettings, resolveItemTypeRegistry, resolveRuntimeStatusRegistry, EXIT_CODE, PmCliError, } from "@unbrained/pm-cli/sdk";
 import { AGENT_CONTRACT_DRIFT_FLAGS, runAgentContractDriftCommand } from "./agent-contract-command.js";
@@ -9,7 +9,8 @@ import { CONSUMER_UPGRADE_FLAGS, runConsumerUpgradesCommand } from "./consumer-u
 import { DirectoryReleaseMilestoneStore, assertTrackerMilestoneOptions, createReleaseMilestone, readReleaseMilestones, readTrackerReleaseSnapshot, resolveTrackerReleaseHistory } from "./milestones.js";
 import { auditChangelogClaims, assertChangelogClaims, formatClaimAudit, parseClaimTestReceipts } from "./claim-audit.js";
 import { countNonChangeClosures } from "./closure-policy.js";
-import { assertRequestedRelease, requestedReleaseSuppressed, MissingRequestedReleaseError, buildChangelogDocument, createChangelog, createChangelogSummary, explainChangelogSelection, formatSummaryLine, lintChangelogEntries, parseChangelogEntryFrom, mergeChangelog, suggestSemver, writeChangelog } from "./generator.js";
+import { classifyCheckDrift, regenerationCommand } from "./check-drift.js";
+import { RENDERING_VERSION, PREVIOUS_RENDERING_VERSION, assertRequestedRelease, requestedReleaseSuppressed, MissingRequestedReleaseError, buildChangelogDocument, createChangelog, createChangelogSummary, explainChangelogSelection, formatSummaryLine, lintChangelogEntries, parseChangelogEntryFrom, mergeChangelog, suggestSemver, writeChangelog } from "./generator.js";
 import { MissingTagHistoryError, resolveGenerationReleaseWindows, resolveReleaseContext, resolveReleaseTagWindowResolution, } from "./release-context.js";
 import { resolveGitReleaseHistory } from "./release-membership.js";
 const BODY_ENRICHMENT_DEPENDENCIES = {
@@ -387,7 +388,19 @@ export default defineExtension({
                     check: Boolean(ctx.options["check"]),
                 });
                 if (result.changed && Boolean(ctx.options["check"])) {
-                    throw new PmCliError(`Changelog is out of date: ${result.output}`, EXIT_CODE.GENERIC_FAILURE);
+                    const committed = existsSync(result.output) ? readFileSync(result.output, "utf-8") : "";
+                    const classification = classifyCheckDrift(committed, result.markdown, () => writeChangelog({
+                        ...generationOptions, output, mode, check: true,
+                    }, PREVIOUS_RENDERING_VERSION).markdown);
+                    const args = Object.entries(ctx.options).flatMap(([key, value]) => value === false || value === undefined
+                        ? [] : value === true ? [`--${key}`] : [`--${key}`, String(value)]);
+                    const values = new Set(Object.entries(ctx.options).filter(([, value]) => typeof value !== "boolean").map(([key]) => `--${key}`));
+                    const command = classification === "tracker_changed" ? undefined : regenerationCommand(args, values, ["pm", "--path", ctx.pm_root, "changelog", "generate"]);
+                    const diagnosis = `Drift classification: ${classification}.${classification === "rendering_changed" ? ` The generator's rendering changed in ${RENDERING_VERSION}.` : ""}`;
+                    const remedy = command ? ` Run ${command}; this is a one-time regeneration after a pm-changelog upgrade.` : "";
+                    throw new PmCliError(`Changelog is out of date: ${result.output}\n${diagnosis}${remedy}`, EXIT_CODE.GENERIC_FAILURE, {
+                        code: classification, required: command, verification_errors: [`rendering_version=${RENDERING_VERSION}`, `previous_rendering_version=${PREVIOUS_RENDERING_VERSION}`],
+                    });
                 }
                 return {
                     file: result.output,
@@ -397,6 +410,8 @@ export default defineExtension({
                     excluded_non_change_count: result.excludedNonChangeCount,
                     bytes: result.bytes,
                     check: Boolean(ctx.options["check"]),
+                    rendering_version: RENDERING_VERSION,
+                    previous_rendering_version: PREVIOUS_RENDERING_VERSION,
                     ...(selectionReport ? { selection_report: selectionReport } : {}),
                 };
             },

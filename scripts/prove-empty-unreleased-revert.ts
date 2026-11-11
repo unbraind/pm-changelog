@@ -23,7 +23,7 @@ try {
   assert.match(baseline.stdout, /# pass 9\b/);
   for (const mutation of [
     { name: "restore-empty-Unreleased-visibility", from: "|| (options.includeEmpty && sectionVersionKey(section.heading) !== undefined)", to: "|| options.includeEmpty", failures: 8 },
-    { name: "revert-prepend-cleanup", from: "let next = omitEmptyUnreleasedSections(existing);", to: "let next = existing;", failures: 2 },
+    { name: "revert-prepend-cleanup", from: "let next = renderingVersion === PREVIOUS_RENDERING_VERSION ? existing : omitEmptyUnreleasedSections(existing);", to: "let next = existing;", failures: 2 },
     { name: "drop-nonempty-Unreleased", from: "const candidateSections = selectCandidateSections(sections, options);", to: 'const candidateSections = selectCandidateSections(sections, options).filter((section) => normalizeReleaseHeadingKey(section.heading) !== "unreleased");', failures: 2 },
     { name: "drop-dependency-only-sections", from: "|| (section.dependencyCommits?.length ?? 0) > 0", to: "|| false", failures: 2 },
   ]) {

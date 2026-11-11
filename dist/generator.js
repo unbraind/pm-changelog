@@ -9,6 +9,11 @@ import { inspectCompleteListResult, resolveCompletionTimestamp } from "@unbraine
 import { certifyCompleteListResult } from "@unbrained/pm-cli/sdk/runtime";
 import { isNonChangeClosure, needsNeutralClosure, countNonChangeClosures, isDoneStatus, normalizeChangelogStatus, defaultDoneStatuses } from "./closure-policy.js";
 import { builtinItemFolder, resolveItemFolder } from "./item-links.js";
+/** Rendering contract revision. Bump on every output-affecting change and retain
+ * the preceding rules in this shared pipeline for exact check diagnostics. */
+export const RENDERING_VERSION = "2026.11.11";
+/** Last published rendering: prepend retained empty pending placeholders. */
+export const PREVIOUS_RENDERING_VERSION = "2026.11.10";
 const DEFAULT_TITLE = "Changelog";
 const SUPPRESSED_PENDING_RELEASE = Symbol.for("pm-changelog.suppressedPendingRelease");
 const DEFAULT_PM_JSON_MAX_BUFFER = 64 * 1024 * 1024;
@@ -157,13 +162,17 @@ function formatDependencyBullets(commits, itemUrlBase) {
  * heading. Read the immutable blob, never the current working file. The path
  * defaults to CHANGELOG.md relative to gitCwd; Git failures mean no section.
  * Match the resume extractor's exact `## <version>` end or ` - ` separator. */
-function hasCommittedReleaseSection(gitCwd, tag, heading, changelogPath = "CHANGELOG.md") {
+function hasCommittedReleaseSection(gitCwd, tag, heading, changelogPath = "CHANGELOG.md", renderingVersion = RENDERING_VERSION) {
     if (!tag)
         return false;
     const path = relative(gitCwd, resolve(gitCwd, changelogPath)).split(sep).join("/");
     const result = spawnSync("git", ["show", `${tag}:./${path}`], { cwd: gitCwd, encoding: "utf8", stdio: ["ignore", "pipe", "ignore"] });
     if (result.status !== 0)
         return false;
+    if (renderingVersion === PREVIOUS_RENDERING_VERSION) {
+        const prefix = `## ${heading.split(" - ", 1)[0].trim()}`;
+        return result.stdout.split(/\r?\n/).some((line) => line === prefix || line.startsWith(`${prefix} - `));
+    }
     const version = heading.split(" - ", 1)[0].trim();
     return findMarkdownHeadings(result.stdout, "##").some(({ heading: found }) => found === version || found.startsWith(`${version} - `));
 }
@@ -182,13 +191,13 @@ function hasCommittedReleaseSection(gitCwd, tag, heading, changelogPath = "CHANG
  * @param options - The generation options that shaped those sections.
  * @param gitCwd - Repository to read commits from (the caller checked it is set).
  * @returns The sections, each carrying `dependencyCommits` when it has any. */
-function enrichSectionsWithDependencyCommits(sections, options, gitCwd) {
+function enrichSectionsWithDependencyCommits(sections, options, gitCwd, renderingVersion = RENDERING_VERSION) {
     const windows = options.releaseWindows;
     if (windows && windows.length > 0) {
         return sections.map((section, index) => {
             const window = windows[index];
             const itemlessDefault = section.items.length === 0 && Boolean(window.releaseTag) &&
-                (window.until === undefined || hasCommittedReleaseSection(gitCwd, window.releaseTag, section.heading, options.changelogPath));
+                (window.until === undefined || hasCommittedReleaseSection(gitCwd, window.releaseTag, section.heading, options.changelogPath, renderingVersion));
             if (!options.dependencyUpdates && !itemlessDefault)
                 return section;
             const commits = readDependencyCommits(gitCwd, {
@@ -205,7 +214,7 @@ function enrichSectionsWithDependencyCommits(sections, options, gitCwd) {
     if ((options.groupBy === "release" || options.groupBy === "milestone") && !options.version)
         return sections;
     const itemlessDefault = sections[0]?.items.length === 0 &&
-        (options.pendingRelease || hasCommittedReleaseSection(gitCwd, options.dependencyUntilRef, sections[0].heading, options.changelogPath));
+        (options.pendingRelease || hasCommittedReleaseSection(gitCwd, options.dependencyUntilRef, sections[0].heading, options.changelogPath, renderingVersion));
     if (!options.dependencyUpdates && !itemlessDefault)
         return sections;
     // Single window: the previous and current release tags when the release
@@ -227,9 +236,9 @@ export function generateChangelog(options) {
 /** Render a changelog, returning the markdown alongside the sections and item
  * count it was built from so a caller can report on the selection without
  * re-parsing its own output. */
-export function createChangelog(options, onClaim) {
+export function createChangelog(options, onClaim, renderingVersion = RENDERING_VERSION) {
     const title = options.title ?? DEFAULT_TITLE;
-    const { items, sections, visibleSections, sectionBy } = selectChangelogSections(options);
+    const { items, sections, visibleSections, sectionBy } = selectChangelogSections(options, renderingVersion);
     const lines = [`# ${title}`, ""];
     let scannedLines = 0;
     let physicalLines = 0;
@@ -404,9 +413,9 @@ export function assertRequestedRelease(options) {
  * shared prevents agent-facing formats from drifting when visibility rules
  * evolve.
  */
-function selectChangelogSections(options) {
+function selectChangelogSections(options, renderingVersion = RENDERING_VERSION) {
     const items = filterItems(options);
-    const sections = buildEnrichedSections(items, options);
+    const sections = buildEnrichedSections(items, options, renderingVersion);
     const candidateSections = selectCandidateSections(sections, options);
     return {
         items,
@@ -416,11 +425,11 @@ function selectChangelogSections(options) {
     };
 }
 /** Build the same dependency-aware windows for rendering, item lists and diagnostics. */
-function buildEnrichedSections(items, options) {
+function buildEnrichedSections(items, options, renderingVersion = RENDERING_VERSION) {
     const sections = buildSections(items, options);
     // The itemless default preserves sections already committed at release tags.
     if (options.dependencyUpdates !== false && options.gitCwd) {
-        return enrichSectionsWithDependencyCommits(sections, options, options.gitCwd);
+        return enrichSectionsWithDependencyCommits(sections, options, options.gitCwd, renderingVersion);
     }
     return sections;
 }
@@ -588,9 +597,9 @@ function toDocumentItem(item, options) {
  * The reported action distinguishes an unchanged file from a rewritten one,
  * which is what lets `--check` fail only on real drift.
  */
-export function mergeChangelog(existingMarkdown, generatedMarkdown, options = {}) {
-    const existing = existingMarkdown === undefined ? undefined : trimMarkdownEnd(existingMarkdown);
-    const generated = trimMarkdownEnd(generatedMarkdown);
+export function mergeChangelog(existingMarkdown, generatedMarkdown, options = {}, renderingVersion = RENDERING_VERSION) {
+    const existing = existingMarkdown === undefined ? undefined : trimMarkdownEnd(existingMarkdown, renderingVersion);
+    const generated = trimMarkdownEnd(generatedMarkdown, renderingVersion);
     if (!existing) {
         return {
             markdown: generated + "\n",
@@ -598,8 +607,8 @@ export function mergeChangelog(existingMarkdown, generatedMarkdown, options = {}
             changed: true,
         };
     }
-    const releaseSections = extractReleaseSections(generated);
-    let next = omitEmptyUnreleasedSections(existing);
+    const releaseSections = extractReleaseSections(generated, renderingVersion);
+    let next = renderingVersion === PREVIOUS_RENDERING_VERSION ? existing : omitEmptyUnreleasedSections(existing);
     let action = next === existing ? "unchanged" : "replaced";
     if (releaseSections.length === 0) {
         return {
@@ -608,7 +617,7 @@ export function mergeChangelog(existingMarkdown, generatedMarkdown, options = {}
             changed: next !== existing,
         };
     }
-    next = ensureTitle(next, options.title);
+    next = ensureTitle(next, options.title, renderingVersion);
     // Keep a Changelog semantics (issue #47): when a release is generated — i.e.
     // the generated output carries a concrete version section and no `Unreleased`
     // section of its own — any leading `## Unreleased` section already in the
@@ -619,8 +628,8 @@ export function mergeChangelog(existingMarkdown, generatedMarkdown, options = {}
     const generatedHasUnreleased = releaseSections.some((section) => normalizeReleaseHeadingKey(section.heading) === UNRELEASED_HEADING_KEY);
     const canPromoteUnreleased = !generatedHasUnreleased;
     for (const [index, releaseSection] of releaseSections.entries()) {
-        const replacement = trimMarkdownEnd(releaseSection.markdown);
-        const replaced = replaceReleaseSection(next, releaseSection.heading, replacement);
+        const replacement = trimMarkdownEnd(releaseSection.markdown, renderingVersion);
+        const replaced = replaceReleaseSection(next, releaseSection.heading, replacement, renderingVersion);
         if (replaced.replaced) {
             next = replaced.markdown;
             action = "replaced";
@@ -631,18 +640,18 @@ export function mergeChangelog(existingMarkdown, generatedMarkdown, options = {}
         // that is missing could steal the pending `## Unreleased` and overwrite it,
         // losing the pending changes (GH #48 review).
         if (canPromoteUnreleased && index === 0) {
-            const promoted = replaceReleaseSection(next, "Unreleased", replacement);
+            const promoted = replaceReleaseSection(next, "Unreleased", replacement, renderingVersion);
             if (promoted.replaced) {
                 next = promoted.markdown;
                 action = "replaced";
                 continue;
             }
         }
-        next = insertReleaseSection(next, releaseSection.heading, replacement);
+        next = insertReleaseSection(next, releaseSection.heading, replacement, renderingVersion);
         if (action !== "replaced")
             action = "inserted";
     }
-    next = trimMarkdownEnd(next) + "\n";
+    next = trimMarkdownEnd(next, renderingVersion) + "\n";
     return {
         markdown: next,
         action,
@@ -767,13 +776,13 @@ function schemaCommandPrefix(args) {
  * disk without writing. The returned `changed` flag is the drift signal CI acts
  * on; check mode never touches the file, so a failing gate leaves the committed
  * changelog intact. */
-export function writeChangelog(options) {
+export function writeChangelog(options, renderingVersion = RENDERING_VERSION) {
     const output = resolve(options.output ?? "CHANGELOG.md");
-    const generated = createChangelog(options);
+    const generated = createChangelog(options, undefined, renderingVersion);
     const mode = options.mode ?? "replace";
     const existing = existsSync(output) ? readFileSync(output, "utf-8") : undefined;
     const merged = mode === "prepend"
-        ? mergeChangelog(existing, generated.markdown, { title: options.title })
+        ? mergeChangelog(existing, generated.markdown, { title: options.title }, renderingVersion)
         : replaceChangelog(existing, generated.markdown);
     if (!options.check) {
         writeFileSync(output, merged.markdown, "utf-8");
@@ -1452,7 +1461,7 @@ function markdownContainerLine(line, containers, fenced, paragraph) {
  * the rest of its block container. List and quote prefixes are tracked before
  * fences, so a contained closer cannot become a document-wide opener. All
  * callers share this structural boundary. */
-function findMarkdownHeadings(markdown, marker) {
+function findMarkdownHeadings(markdown, marker, renderingVersion = RENDERING_VERSION) {
     const matches = [];
     let lineStart = 0;
     let containers = [];
@@ -1463,7 +1472,9 @@ function findMarkdownHeadings(markdown, marker) {
         while (lineEnd < markdown.length && !isLineTerminator(markdown[lineEnd]))
             lineEnd++;
         const contentEnd = lineEnd;
-        const block = markdownContainerLine(markdown.slice(lineStart, contentEnd), containers, fence !== undefined, paragraph);
+        const block = renderingVersion === PREVIOUS_RENDERING_VERSION
+            ? { content: markdown.slice(lineStart, contentEnd), containers: [], exited: false }
+            : markdownContainerLine(markdown.slice(lineStart, contentEnd), containers, fence !== undefined, paragraph);
         containers = block.containers;
         if (block.exited)
             fence = undefined;
@@ -1484,7 +1495,7 @@ function findMarkdownHeadings(markdown, marker) {
             if (character === fence.character && fenceLength >= fence.length && /^[ \t]*$/.test(line.slice(fenceEnd)))
                 fence = undefined;
         }
-        else if (fenceLength >= 3 && (character !== "`" || !line.slice(fenceEnd).includes("`"))) {
+        else if (renderingVersion !== PREVIOUS_RENDERING_VERSION && fenceLength >= 3 && (character !== "`" || !line.slice(fenceEnd).includes("`"))) {
             fence = { character: character, length: fenceLength };
         }
         if (!wasFenced && !fence && containers.length === 0 && markdown.startsWith(marker, lineStart)) {
@@ -1512,14 +1523,14 @@ function findMarkdownHeadings(markdown, marker) {
 }
 /** Split existing changelog markdown into its `##` release sections, each
  * spanning from its own heading to the next one. */
-function extractReleaseSections(markdown) {
-    const matches = findMarkdownHeadings(markdown, "##");
+function extractReleaseSections(markdown, renderingVersion = RENDERING_VERSION) {
+    const matches = findMarkdownHeadings(markdown, "##", renderingVersion);
     return matches.map((match, index) => {
         const next = matches[index + 1];
         const end = next?.index ?? markdown.length;
         return {
             heading: match.heading.trim(),
-            markdown: trimMarkdownEnd(markdown.slice(match.index, end)),
+            markdown: trimMarkdownEnd(markdown.slice(match.index, end), renderingVersion),
         };
     });
 }
@@ -1546,7 +1557,9 @@ function omitEmptyUnreleasedSections(markdown) {
     return parts.map((part) => trimMarkdownStart(trimMarkdownEnd(part))).filter(Boolean).join("\n\n");
 }
 /** Remove blank leading lines without consuming the indentation of content. */
-function trimMarkdownStart(markdown) {
+function trimMarkdownStart(markdown, renderingVersion = RENDERING_VERSION) {
+    if (renderingVersion === PREVIOUS_RENDERING_VERSION)
+        return markdown.trimStart();
     let start = 0;
     for (let index = 0; index < markdown.length; index++) {
         const character = markdown[index];
@@ -1559,7 +1572,9 @@ function trimMarkdownStart(markdown) {
 }
 /** Remove trailing blank lines, preserving spaces on the last content line
  * (including Markdown hard breaks). Keep the scan linear on long whitespace. */
-function trimMarkdownEnd(markdown) {
+function trimMarkdownEnd(markdown, renderingVersion = RENDERING_VERSION) {
+    if (renderingVersion === PREVIOUS_RENDERING_VERSION)
+        return markdown.trimEnd();
     let lastContent = markdown.length - 1;
     while (lastContent >= 0 && isWhitespaceCharacter(markdown[lastContent]))
         lastContent--;
@@ -1574,8 +1589,8 @@ function trimMarkdownEnd(markdown) {
  * normalized heading so a date or padding difference still finds it. Reports
  * `replaced: false` when the release is not present, leaving the input
  * untouched for the caller to insert instead. */
-function replaceReleaseSection(markdown, heading, replacement) {
-    const matches = findMarkdownHeadings(markdown, "##");
+function replaceReleaseSection(markdown, heading, replacement, renderingVersion = RENDERING_VERSION) {
+    const matches = findMarkdownHeadings(markdown, "##", renderingVersion);
     const targetHeadingKey = normalizeReleaseHeadingKey(heading);
     const matchIndex = matches.findIndex((match) => normalizeReleaseHeadingKey(match.heading.trim()) === targetHeadingKey);
     if (matchIndex === -1)
@@ -1584,8 +1599,8 @@ function replaceReleaseSection(markdown, heading, replacement) {
     const start = match.index;
     const nextMatch = matches[matchIndex + 1];
     const end = nextMatch?.index ?? markdown.length;
-    const before = trimMarkdownEnd(markdown.slice(0, start));
-    const after = trimMarkdownStart(markdown.slice(end));
+    const before = trimMarkdownEnd(markdown.slice(0, start), renderingVersion);
+    const after = trimMarkdownStart(markdown.slice(end), renderingVersion);
     const merged = after ? `${before}\n\n${replacement}\n\n${after}` : `${before}\n\n${replacement}`;
     return { markdown: merged, replaced: true };
 }
@@ -1635,10 +1650,10 @@ export function normalizeReleaseHeadingKey(heading) {
     const fallback = version ?? trimmed.slice(0, findReleaseSeparatorStart(trimmed) ?? trimmed.length);
     return normalizeReleaseKey(fallback);
 }
-function ensureTitle(markdown, title) {
-    if (findMarkdownHeadings(markdown, "#").length > 0)
+function ensureTitle(markdown, title, renderingVersion = RENDERING_VERSION) {
+    if (findMarkdownHeadings(markdown, "#", renderingVersion).length > 0)
         return markdown;
-    return `# ${title ?? DEFAULT_TITLE}\n\n${trimMarkdownStart(markdown)}`;
+    return `# ${title ?? DEFAULT_TITLE}\n\n${trimMarkdownStart(markdown, renderingVersion)}`;
 }
 /**
  * Insert a release section in chronological position (Unreleased first, then
@@ -1647,10 +1662,10 @@ function ensureTitle(markdown, title) {
  * so a backfilled older release cannot land above newer ones or the pending
  * `## Unreleased` section (GH #48 review).
  */
-function insertReleaseSection(markdown, heading, replacement) {
-    const matches = findMarkdownHeadings(markdown, "##");
+function insertReleaseSection(markdown, heading, replacement, renderingVersion = RENDERING_VERSION) {
+    const matches = findMarkdownHeadings(markdown, "##", renderingVersion);
     if (matches.length === 0)
-        return insertAfterTitle(markdown, replacement);
+        return insertAfterTitle(markdown, replacement, renderingVersion);
     const newKey = normalizeReleaseHeadingKey(heading);
     const insertBefore = matches.find((match) => {
         const key = normalizeReleaseHeadingKey(match.heading.trim());
@@ -1661,11 +1676,11 @@ function insertReleaseSection(markdown, heading, replacement) {
         return compareVersionStrings(newKey, key) > 0; // place before the first strictly-older release
     });
     if (!insertBefore) {
-        return `${trimMarkdownEnd(markdown)}\n\n${replacement}`;
+        return `${trimMarkdownEnd(markdown, renderingVersion)}\n\n${replacement}`;
     }
     const start = insertBefore.index;
-    const before = trimMarkdownEnd(markdown.slice(0, start));
-    const after = trimMarkdownStart(markdown.slice(start));
+    const before = trimMarkdownEnd(markdown.slice(0, start), renderingVersion);
+    const after = trimMarkdownStart(markdown.slice(start), renderingVersion);
     // `before` is normally the `# Changelog` title (ensureTitle runs first), but
     // guard the empty case so we never emit leading blank lines.
     return `${before}\n\n${replacement}\n\n${after}`;
@@ -1677,11 +1692,11 @@ function insertReleaseSection(markdown, heading, replacement) {
  * {@link mergeChangelog}, which runs {@link ensureTitle} first, so the heading
  * is guaranteed present rather than merely likely. Calling it on untitled
  * markdown is a programming error and throws instead of silently prepending. */
-function insertAfterTitle(markdown, releaseSection) {
-    const titleMatch = findMarkdownHeadings(markdown, "#")[0];
+function insertAfterTitle(markdown, releaseSection, renderingVersion = RENDERING_VERSION) {
+    const titleMatch = findMarkdownHeadings(markdown, "#", renderingVersion)[0];
     const titleEnd = titleMatch.end;
-    const before = trimMarkdownEnd(markdown.slice(0, titleEnd));
-    const after = trimMarkdownStart(trimMarkdownEnd(markdown.slice(titleEnd)));
+    const before = trimMarkdownEnd(markdown.slice(0, titleEnd), renderingVersion);
+    const after = (renderingVersion === PREVIOUS_RENDERING_VERSION ? markdown.slice(titleEnd).trim() : trimMarkdownStart(trimMarkdownEnd(markdown.slice(titleEnd)), renderingVersion));
     if (!after)
         return `${before}\n\n${releaseSection}`;
     return `${before}\n\n${releaseSection}\n\n${after}`;

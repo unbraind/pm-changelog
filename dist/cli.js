@@ -18,7 +18,8 @@ import { auditChangelogClaims, assertChangelogClaims, formatClaimAudit, parseCla
 import { countNonChangeClosures } from "./closure-policy.js";
 import { checkItemLinks } from "./item-links.js";
 import { createUnifiedDiff, DEFAULT_MAX_DIFF_LINES } from "./diff.js";
-import { assertRequestedRelease, requestedReleaseSuppressed, MissingRequestedReleaseError, buildChangelogDocument, buildPmListArgs, createChangelog, createChangelogSummary, explainChangelogSelection, formatInferredSources, formatSummaryLine, lintChangelogEntries, parseChangelogEntryFrom, mergeChangelog, parsePmItemsJson, readPmItems, suggestSemver, writeChangelog, } from "./generator.js";
+import { classifyCheckDrift, regenerationCommand } from "./check-drift.js";
+import { RENDERING_VERSION, PREVIOUS_RENDERING_VERSION, assertRequestedRelease, requestedReleaseSuppressed, MissingRequestedReleaseError, buildChangelogDocument, buildPmListArgs, createChangelog, createChangelogSummary, explainChangelogSelection, formatInferredSources, formatSummaryLine, lintChangelogEntries, parseChangelogEntryFrom, mergeChangelog, parsePmItemsJson, readPmItems, suggestSemver, writeChangelog, } from "./generator.js";
 import { resolveGenerationReleaseWindows, resolveReleaseContext, resolveReleaseTagWindowResolution, } from "./release-context.js";
 import { resolveGitReleaseHistory } from "./release-membership.js";
 // Compatibility aliases for value-taking options. Kept intentionally small and
@@ -254,6 +255,21 @@ async function main(args = process.argv.slice(2)) {
             check: options.check,
         });
         const summary = buildSummary(options, result, outputPath, selectionReport);
+        let driftMessage;
+        if (options.check && result.changed) {
+            const committed = existsSync(outputPath) ? readFileSync(outputPath, "utf-8") : "";
+            const classification = classifyCheckDrift(committed, result.markdown, () => writeChangelog({
+                ...generationOptions, output: outputPath, mode: options.mode, check: true,
+            }, PREVIOUS_RENDERING_VERSION).markdown);
+            summary.classification = classification;
+            driftMessage = `Drift classification: ${classification}.`;
+            if (classification !== "tracker_changed") {
+                const command = regenerationCommand(args, VALUE_OPTIONS);
+                summary.regeneration_command = command;
+                driftMessage += `${classification === "rendering_changed" ? ` The generator's rendering changed in ${RENDERING_VERSION};` : " Entry order changed within existing sections;"} run ${command}; this is a one-time regeneration after a pm-changelog upgrade.`;
+            }
+            summary.message = driftMessage;
+        }
         if (options.githubOutput)
             writeGitHubOutput(summary);
         if (options.githubStepSummary)
@@ -263,6 +279,8 @@ async function main(args = process.argv.slice(2)) {
         }
         else if (options.check) {
             console.error(result.changed ? `Changelog is out of date: ${outputPath}` : `Changelog is up to date: ${outputPath}`);
+            if (driftMessage)
+                console.error(driftMessage);
         }
         else {
             console.error(`Wrote ${outputPath}`);
@@ -843,6 +861,8 @@ function buildSummary(options, result, output = result.output, selectionReport) 
         excluded_non_change_count: result.excludedNonChangeCount ?? 0,
         bytes: result.bytes,
         check: options.check,
+        rendering_version: RENDERING_VERSION,
+        previous_rendering_version: PREVIOUS_RENDERING_VERSION,
         ...(options.entryFrom ? { entry_from: options.entryFrom } : {}),
         markdown: options.stdout ? result.markdown : undefined,
     };

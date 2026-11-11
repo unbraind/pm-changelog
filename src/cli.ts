@@ -24,7 +24,10 @@ import { countNonChangeClosures } from "./closure-policy.ts";
 
 import { checkItemLinks } from "./item-links.ts";
 import { createUnifiedDiff, DEFAULT_MAX_DIFF_LINES } from "./diff.ts";
+import { classifyCheckDrift, regenerationCommand } from "./check-drift.ts";
 import {
+  RENDERING_VERSION,
+  PREVIOUS_RENDERING_VERSION,
   assertRequestedRelease,
   requestedReleaseSuppressed,
   MissingRequestedReleaseError,
@@ -358,6 +361,21 @@ async function main(args: string[] = process.argv.slice(2)): Promise<void> {
       check: options.check,
     });
     const summary = buildSummary(options, result, outputPath, selectionReport);
+    let driftMessage: string | undefined;
+    if (options.check && result.changed) {
+      const committed = existsSync(outputPath) ? readFileSync(outputPath, "utf-8") : "";
+      const classification = classifyCheckDrift(committed, result.markdown, () => writeChangelog({
+        ...generationOptions, output: outputPath, mode: options.mode, check: true,
+      }, PREVIOUS_RENDERING_VERSION).markdown);
+      summary.classification = classification;
+      driftMessage = `Drift classification: ${classification}.`;
+      if (classification !== "tracker_changed") {
+        const command = regenerationCommand(args, VALUE_OPTIONS);
+        summary.regeneration_command = command;
+        driftMessage += `${classification === "rendering_changed" ? ` The generator's rendering changed in ${RENDERING_VERSION};` : " Entry order changed within existing sections;"} run ${command}; this is a one-time regeneration after a pm-changelog upgrade.`;
+      }
+      summary.message = driftMessage;
+    }
 
     if (options.githubOutput) writeGitHubOutput(summary);
     if (options.githubStepSummary) writeGitHubStepSummary(result.markdown);
@@ -365,6 +383,7 @@ async function main(args: string[] = process.argv.slice(2)): Promise<void> {
       process.stdout.write(stringifyUnicodeOutput(summary) + "\n");
     } else if (options.check) {
       console.error(result.changed ? `Changelog is out of date: ${outputPath}` : `Changelog is up to date: ${outputPath}`);
+      if (driftMessage) console.error(driftMessage);
     } else {
       console.error(`Wrote ${outputPath}`);
     }
@@ -978,6 +997,8 @@ function buildSummary(
     excluded_non_change_count: result.excludedNonChangeCount ?? 0,
     bytes: result.bytes,
     check: options.check,
+    rendering_version: RENDERING_VERSION,
+    previous_rendering_version: PREVIOUS_RENDERING_VERSION,
     ...(options.entryFrom ? { entry_from: options.entryFrom } : {}),
     markdown: options.stdout ? result.markdown : undefined,
   };

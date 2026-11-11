@@ -6,6 +6,17 @@ projects explicit release declarations into pending Plan step data. It adds no
 workflow engine, persisted Plan, executor, import, sync, retry journal or shared
 mutable state. Existing changelog export remains a read-only publication path.
 
+The package's own catalog records the 2026.11.7 ordering change on
+`pmc-total-item-order`: section entries use completion timestamps and no longer
+shuffle after metadata writes. Its operator action is **regenerate CHANGELOG.md
+once**. Query it with `pm-changelog upgrades --pm-root .agents/pm --audience
+operator --from 2026.11.6 --to 2026.11.7`. The declaration lives in the native
+tracker's `change_facets`, alongside its release and delivery evidence.
+
+Every output-affecting generator change must declare an operator upgrade action
+in this catalog, bump `RENDERING_VERSION`, and retain the preceding rendering
+rules in the shared pipeline. Record the item delivery release when it ships.
+
 ```ts
 import { buildConsumerUpgrades, formatConsumerUpgrades } from "pm-changelog";
 import type { ChangeFacet, PmItem, UpgradeAction } from "pm-changelog";

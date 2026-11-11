@@ -1,4 +1,6 @@
 export {
+  RENDERING_VERSION,
+  PREVIOUS_RENDERING_VERSION,
   assertRequestedRelease,
   MissingRequestedReleaseError,
   buildChangelogDocument,

@@ -1,15 +1,21 @@
 id: pmc-total-item-order
-title: Make ordinary changelog ordering total for undated items
+title: Order section entries by completion time; regenerate CHANGELOG.md once after upgrading
 description: "Audience-contract review exposed a broader existing generator ordering gap outside the audience projection fix. compareItems compares two dated items by time, but falls back to title when either item is undated; this is not a transitive ordering. Across all six permutations of closed Task A dated 2026-10-19, undated Feature B and Task C dated 2026-10-20, buildChangelogDocument yields both Task,Feature and Feature,Task section orders. The audience contract path now canonicalizes input, sections and item IDs without changing ordinary changelog presentation. Track the ordinary generator independently; related item pmc-audience-contracts and PR 271."
 type: Issue
 pm_format_version: 2
-status: in_progress
+status: closed
 priority: 2
 tags[1]: "gh:unbraind/pm-changelog#323"
 created_at: "2026-10-23T17:47:59.517Z"
-updated_at: "2026-11-06T20:45:52.061Z"
+updated_at: "2026-11-11T09:03:28.183Z"
+closed_at: "2026-11-11T08:57:03.860Z"
+completed_at: "2026-11-07T00:17:15.000Z"
 author: codex-agent
 acceptance_criteria: Use a total item order with an explicit undated policy and deterministic tie breakers; ordinary changelog projections are invariant across all six permutations of the three-item repro; preserve existing release selection and cover JSON and markdown behavior.
+release: 2026.11.7
+resolution: Changed section entry ordering to completion timestamps; regenerate CHANGELOG.md once after upgrading.
+expected_result: Completion metadata orders entries consistently.
+actual_result: Merged implementation and ten linked regressions verified by the delivery record; release tag contains the merge.
 comments[33]{created_at,author,text}:
   "2026-10-23T17:51:15.695Z",codex-agent,"Confirmed with the exact three-item synthetic case in all six permutations: ordinary buildChangelogDocument yields both Task,Feature and Feature,Task section orders. This remains outside the audience-contract canonicalization fix; item stays open for separate ordinary-generator policy and regression work."
   "2026-11-06T05:50:55.180Z",codex-sol,"Implementing #323 in the existing ordering item: retain completion-timestamp order and release-window placement; place entries without completion timestamps after completed entries, ordered by created_at newest first then id ascending. Check shared Markdown, release-note, check-diff and JSON ordering using real non-git SDK trackers, behavioral reverts and a read-only fleet comparison."
@@ -78,4 +84,13 @@ tests[3]:
     updated_at: "2026-11-06T19:20:37.491Z"
 docs[1]{path,scope}:
   docs/usage.md,project
+close_reason: "PR #324 merged at 2026-11-07 00:17 UTC (93fab7e), shipped in v2026.11.7."
+change_facets[1]:
+  - audience: operator
+    text: "Section entry ordering changed in 2026.11.7: completion timestamps govern ordering and metadata writes no longer reshuffle entries; regenerate CHANGELOG.md once after upgrading."
+    breaking: true
+    upgrade_actions[1]:
+      - id: regenerate-changelog-2026-11-7
+        title: regenerate CHANGELOG.md once
+        requires: []
 body: ""

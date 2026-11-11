@@ -4,7 +4,18 @@
 
 > Release note (issue 337): empty Unreleased sections are always omitted; --include-empty retains only versioned release sections. Callers' committed changelogs drop the legacy empty Unreleased / No changes. block on their next regeneration, including prepend mode. Non-empty unreleased items and dependency notes are preserved.
 
+## Unreleased
+
+### Fixed
+
+- Verify and complete empty Unreleased suppression for issue 337 ([pmc-no-empty-unreleased-337](https://github.com/unbraind/pm-changelog/blob/main/.agents/pm/issues/pmc-no-empty-unreleased-337.toon))
+
 ## 2026.11.10 - 2026-11-10
+
+### Fixed
+
+- Render declared contract changes with migration guidance ([pmc-contract-changes](https://github.com/unbraind/pm-changelog/blob/main/.agents/pm/issues/pmc-contract-changes.toon))
+- Keep changelog checks stable when an empty release is tagged ([pmc-stable-itemless-check](https://github.com/unbraind/pm-changelog/blob/main/.agents/pm/issues/pmc-stable-itemless-check.toon))
 
 ### Dependencies
 
@@ -12,6 +23,10 @@
 - Bump the pm-toolchain group with 2 updates ([#334](https://github.com/unbraind/pm-changelog/pull/334))
 
 ## 2026.11.7 - 2026-11-07
+
+### Fixed
+
+- Order section entries by completion time; regenerate CHANGELOG.md once after upgrading ([pmc-total-item-order](https://github.com/unbraind/pm-changelog/blob/main/.agents/pm/issues/pmc-total-item-order.toon))
 
 ### Dependencies
 
@@ -38,6 +53,13 @@
 
 - Preserve itemless Dependabot release notes across tagging ([pmc-itemless-pending](https://github.com/unbraind/pm-changelog/blob/main/.agents/pm/issues/pmc-itemless-pending.toon))
 
+### Dependencies
+
+- Bump the pm-toolchain group with 2 updates ([#318](https://github.com/unbraind/pm-changelog/pull/318))
+- Bump @unbrained/pm-cli ([#315](https://github.com/unbraind/pm-changelog/pull/315))
+- Bump the pm-toolchain group across 1 directory with 2 updates ([#312](https://github.com/unbraind/pm-changelog/pull/312))
+- Bump @types/node ([#313](https://github.com/unbraind/pm-changelog/pull/313))
+
 ## 2026.10.31 - 2026-10-31
 
 ### Added
@@ -51,17 +73,33 @@
 - Use configured done status roles for immutable milestone generation ([pmc-milestone-status-roles](https://github.com/unbraind/pm-changelog/blob/main/.agents/pm/issues/pmc-milestone-status-roles.toon))
 - Use supported lifecycle transitions in the empty-title fixture ([pmc-lifecycle-repeat-closure](https://github.com/unbraind/pm-changelog/blob/main/.agents/pm/issues/pmc-lifecycle-repeat-closure.toon))
 
+### Dependencies
+
+- Bump unbraind/pm-github/.github/workflows/pm-github-sync.yml ([#308](https://github.com/unbraind/pm-changelog/pull/308))
+- Bump unbraind/pm-github/.github/workflows/pm-github-closeout.yml ([#309](https://github.com/unbraind/pm-changelog/pull/309))
+- Bump the pm-toolchain group across 1 directory with 2 updates ([#304](https://github.com/unbraind/pm-changelog/pull/304))
+- Bump marked ([#305](https://github.com/unbraind/pm-changelog/pull/305))
+- Bump the pm-toolchain group with 2 updates ([#300](https://github.com/unbraind/pm-changelog/pull/300))
+
 ## 2026.10.28 - 2026-10-28
 
 ### Other
 
 - Stop Hound from linting generated dist/ output ([pmc-hound-generated-dist](https://github.com/unbraind/pm-changelog/blob/main/.agents/pm/chores/pmc-hound-generated-dist.toon))
 
+### Dependencies
+
+- Bump the pm-toolchain group with 2 updates ([#296](https://github.com/unbraind/pm-changelog/pull/296))
+
 ## 2026.10.27 - 2026-10-27
 
 ### Other
 
 - Use the pm SDK for whole-tracker completeness validation ([pmc-sdk-completeness-1025](https://github.com/unbraind/pm-changelog/blob/main/.agents/pm/chores/pmc-sdk-completeness-1025.toon))
+
+### Dependencies
+
+- Bump the pm-toolchain group with 2 updates ([#292](https://github.com/unbraind/pm-changelog/pull/292))
 
 ## 2026.10.26 - 2026-10-26
 
@@ -79,6 +117,10 @@
 
 - Point the npm homepage at the package catalog and link the author ([pmc-mb4e](https://github.com/unbraind/pm-changelog/blob/main/.agents/pm/chores/pmc-mb4e.toon))
 
+### Dependencies
+
+- Bump the pm-toolchain group with 2 updates ([#282](https://github.com/unbraind/pm-changelog/pull/282))
+
 ## 2026.10.25 - 2026-10-25
 
 ### Added
@@ -92,6 +134,14 @@
 - Correct tracker reconciliation review evidence ([pmc-review-266](https://github.com/unbraind/pm-changelog/blob/main/.agents/pm/chores/pmc-review-266.toon))
 - Bump @unbrained/pm-cli SDK to \>=2026.5.24 ([pmc-cfhf](https://github.com/unbraind/pm-changelog/blob/main/.agents/pm/tasks/pmc-cfhf.toon))
 - Release readiness hardening for pm-changelog ([pmc-14cx](https://github.com/unbraind/pm-changelog/blob/main/.agents/pm/tasks/pmc-14cx.toon))
+
+## 2026.10.24 - 2026-10-24
+
+### Dependencies
+
+- Bump unbraind/pm-github/.github/workflows/pm-github-sync.yml ([#273](https://github.com/unbraind/pm-changelog/pull/273))
+- Bump the codeql-action group across 1 directory with 2 updates ([#272](https://github.com/unbraind/pm-changelog/pull/272))
+- Bump unbraind/pm-github/.github/workflows/pm-github-closeout.yml ([#274](https://github.com/unbraind/pm-changelog/pull/274))
 
 ## 2026.10.23 - 2026-10-23
 
@@ -121,6 +171,17 @@
 - Record pi-land-a merge-readiness verification pass for PR 215 ([pmc-wgte](https://github.com/unbraind/pm-changelog/blob/main/.agents/pm/chores/pmc-wgte.toon))
 - Certify pm-changelog on PM CLI/SDK 2026.10.4 and consolidate pending dependency updates ([pmc-38z4](https://github.com/unbraind/pm-changelog/blob/main/.agents/pm/chores/pmc-38z4.toon))
 
+### Dependencies
+
+- Bump the pm-toolchain group with 2 updates ([#268](https://github.com/unbraind/pm-changelog/pull/268))
+- Bump pm-ops from 2026.10.16 to 2026.10.18 in the pm-toolchain group across 1 directory ([#263](https://github.com/unbraind/pm-changelog/pull/263))
+
+## 2026.10.20 - 2026-10-20
+
+### Dependencies
+
+- Bump pm-ops ([#260](https://github.com/unbraind/pm-changelog/pull/260))
+
 ## 2026.10.19-1 - 2026-10-19
 
 ### Fixed
@@ -128,11 +189,47 @@
 - Publish same-day calendar suffixes with an explicit latest dist-tag ([pmc-udb5](https://github.com/unbraind/pm-changelog/blob/main/.agents/pm/issues/pmc-udb5.toon))
 - Request the full list projection explicitly for whole-tracker changelog reads ([pmc-zfyb](https://github.com/unbraind/pm-changelog/blob/main/.agents/pm/issues/pmc-zfyb.toon))
 
+## 2026.10.19 - 2026-10-19
+
+### Dependencies
+
+- Bump the pm-toolchain group with 2 updates ([#255](https://github.com/unbraind/pm-changelog/pull/255))
+
+## 2026.10.17 - 2026-10-17
+
+### Dependencies
+
+- Bump the pm-toolchain group across 1 directory with 2 updates ([#248](https://github.com/unbraind/pm-changelog/pull/248))
+- Bump the codeql-action group with 2 updates ([#252](https://github.com/unbraind/pm-changelog/pull/252))
+
+## 2026.10.16 - 2026-10-16
+
+### Dependencies
+
+- Bump marked ([#249](https://github.com/unbraind/pm-changelog/pull/249))
+
+## 2026.10.15 - 2026-10-15
+
+### Dependencies
+
+- Bump @unbrained/pm-cli ([#245](https://github.com/unbraind/pm-changelog/pull/245))
+
 ## 2026.10.14 - 2026-10-14
 
 ### Fixed
 
 - Preserve shipped entries when completed items are reopened and closed again ([pmc-reopened-history](https://github.com/unbraind/pm-changelog/blob/main/.agents/pm/issues/pmc-reopened-history.toon))
+
+### Dependencies
+
+- Bump @unbrained/pm-cli ([#242](https://github.com/unbraind/pm-changelog/pull/242))
+
+## 2026.10.13 - 2026-10-13
+
+### Dependencies
+
+- Bump @types/node ([#238](https://github.com/unbraind/pm-changelog/pull/238))
+- Bump the pm-toolchain group with 2 updates ([#237](https://github.com/unbraind/pm-changelog/pull/237))
 
 ## 2026.10.12 - 2026-10-12
 
@@ -144,6 +241,12 @@
 
 - Refuse explicit partial-read envelopes supplied to changelog generation ([pmc-n4qu](https://github.com/unbraind/pm-changelog/blob/main/.agents/pm/issues/pmc-n4qu.toon))
 - Make node-entrypoint fixture teardown reliable ([pmc-node-teardown-226](https://github.com/unbraind/pm-changelog/blob/main/.agents/pm/tasks/pmc-node-teardown-226.toon))
+
+### Dependencies
+
+- Bump marked ([#234](https://github.com/unbraind/pm-changelog/pull/234))
+- Bump pm-ops ([#233](https://github.com/unbraind/pm-changelog/pull/233))
+- Bump @unbrained/pm-cli ([#232](https://github.com/unbraind/pm-changelog/pull/232))
 
 ## 2026.10.5 - 2026-10-05
 
@@ -195,6 +298,12 @@
 - Group the codeql-action init and analyze updates so Dependabot stops splitting a pair that must match ([pmc-fi6u](https://github.com/unbraind/pm-changelog/blob/main/.agents/pm/chores/pmc-fi6u.toon))
 - Certify pm CLI 2026.9.12 and the pm-ops 2026.9.11 auditor ([pmc-s7bi](https://github.com/unbraind/pm-changelog/blob/main/.agents/pm/chores/pmc-s7bi.toon))
 
+### Dependencies
+
+- Bump @types/node from 26.5.0 to 26.5.1 ([#197](https://github.com/unbraind/pm-changelog/pull/197))
+- Bump the codeql-action group with 2 updates ([#198](https://github.com/unbraind/pm-changelog/pull/198))
+- Bump @types/node from 26.4.1 to 26.5.0 ([#191](https://github.com/unbraind/pm-changelog/pull/191))
+
 ## 2026.9.10 - 2026-09-10
 
 ### Fixed
@@ -218,6 +327,11 @@
 ### Other
 
 - Pin pm-cli 2026.9.5 and rename extension --explain ([pmc-662o](https://github.com/unbraind/pm-changelog/blob/main/.agents/pm/chores/pmc-662o.toon))
+
+### Dependencies
+
+- Bump @types/node from 26.3.0 to 26.4.1 ([#180](https://github.com/unbraind/pm-changelog/pull/180))
+- Bump pm-ops from 2026.8.17 to 2026.8.31 ([#181](https://github.com/unbraind/pm-changelog/pull/181))
 
 ## 2026.9.2 - 2026-09-02
 
@@ -247,6 +361,10 @@
 
 - Pending release windows clamp work to the display date ([pmc-n7fl](https://github.com/unbraind/pm-changelog/blob/main/.agents/pm/issues/pmc-n7fl.toon))
 
+### Dependencies
+
+- Bump @types/node from 26.2.0 to 26.3.0 ([#165](https://github.com/unbraind/pm-changelog/pull/165))
+
 ## 2026.8.29 - 2026-08-29
 
 ### Other
@@ -274,6 +392,11 @@
 
 - Closed: Remove historical host paths and non-public Git identities before release approval ([pmc-t8tj](https://github.com/unbraind/pm-changelog/blob/main/.agents/pm/issues/pmc-t8tj.toon))
 
+### Dependencies
+
+- Bump @types/node from 26.1.2 to 26.2.0 ([#155](https://github.com/unbraind/pm-changelog/pull/155))
+- Bump pm-ops from 2026.8.10 to 2026.8.17 ([#154](https://github.com/unbraind/pm-changelog/pull/154))
+
 ## 2026.8.17 - 2026-08-17
 
 ### Fixed
@@ -285,6 +408,11 @@
 ### Fixed
 
 - pm-changelog consumes a truncated `pm list-all` answer as if it were complete ([pmc-wv37](https://github.com/unbraind/pm-changelog/blob/main/.agents/pm/issues/pmc-wv37.toon))
+
+### Dependencies
+
+- Bump pm-ops from 2026.8.8 to 2026.8.10 ([#140](https://github.com/unbraind/pm-changelog/pull/140))
+- Bump @types/node from 26.1.2 to 26.2.0 ([#141](https://github.com/unbraind/pm-changelog/pull/141))
 
 ## 2026.8.12 - 2026-08-12
 
@@ -342,6 +470,10 @@
 
 - Generate default changelog heading dates in UTC ([pmc-vdss](https://github.com/unbraind/pm-changelog/blob/main/.agents/pm/issues/pmc-vdss.toon))
 
+### Dependencies
+
+- Bump @types/node to 26.1.2 ([#114](https://github.com/unbraind/pm-changelog/pull/114))
+
 ## 2026.7.29-1 - 2026-07-29
 
 ### Added
@@ -382,6 +514,10 @@
 ### Other
 
 - Enable governance duplicate-detection advisory mode and adopt pm-cli 2026.7.25 ([pmc-zbj2](https://github.com/unbraind/pm-changelog/blob/main/.agents/pm/chores/pmc-zbj2.toon))
+
+### Dependencies
+
+- Bump @unbrained/pm-cli from 2026.7.24 to 2026.7.25 ([#96](https://github.com/unbraind/pm-changelog/pull/96))
 
 ## 2026.7.25 - 2026-07-25
 
@@ -429,6 +565,11 @@
 - Daily Release publish step runs prepublishOnly post-tag: align npm publish with --ignore-scripts ([pmc-xioo](https://github.com/unbraind/pm-changelog/blob/main/.agents/pm/tasks/pmc-xioo.toon))
 - Harden release bun-verify so registry-mirror lag cannot block the GitHub release ([pmc-pr0j](https://github.com/unbraind/pm-changelog/blob/main/.agents/pm/chores/pmc-pr0j.toon))
 
+### Dependencies
+
+- Bump actions/setup-node from 6 to 7 ([#78](https://github.com/unbraind/pm-changelog/pull/78))
+- Bump @unbrained/pm-cli from 2026.7.13 to 2026.7.18 ([#79](https://github.com/unbraind/pm-changelog/pull/79))
+
 ## 2026.7.15-1 - 2026-07-15
 
 ### Fixed
@@ -472,6 +613,12 @@
 
 - Ecosystem release readiness pass 2026-07-06 ([pmc-5z9i](https://github.com/unbraind/pm-changelog/blob/main/.agents/pm/tasks/pmc-5z9i.toon))
 
+### Dependencies
+
+- Bump @unbrained/pm-cli from 2026.7.10 to 2026.7.11
+- Bump typescript from 6.0.3 to 7.0.2
+- Bump @types/node from 26.1.0 to 26.1.1
+
 ## 2026.7.10 - 2026-07-10
 
 ### Added
@@ -488,6 +635,12 @@
 
 - Align Node engine with pm CLI runtime ([pmc-hlr7](https://github.com/unbraind/pm-changelog/blob/main/.agents/pm/tasks/pmc-hlr7.toon))
 - Refresh pm-changelog to latest pm CLI peer and dev toolchain ([pmc-pgt7](https://github.com/unbraind/pm-changelog/blob/main/.agents/pm/tasks/pmc-pgt7.toon))
+
+### Dependencies
+
+- Bump @unbrained/pm-cli from 2026.6.19 to 2026.7.4 ([#55](https://github.com/unbraind/pm-changelog/pull/55))
+- Bump @types/node from 25.9.4 to 26.1.0 ([#54](https://github.com/unbraind/pm-changelog/pull/54))
+- Bump actions/checkout from 6 to 7 ([#51](https://github.com/unbraind/pm-changelog/pull/51))
 
 ## 2026.6.30 - 2026-06-30
 
@@ -506,6 +659,10 @@
 ### Fixed
 
 - Prepend merge promotes a stale Unreleased section into the released version instead of duplicating it (GH \#47) ([pmc-8ssd](https://github.com/unbraind/pm-changelog/blob/main/.agents/pm/issues/pmc-8ssd.toon))
+
+### Dependencies
+
+- Bump @types/node from 25.9.2 to 25.9.3 ([#45](https://github.com/unbraind/pm-changelog/pull/45))
 
 ## 2026.6.13 - 2026-06-13
 
@@ -528,6 +685,11 @@
 ### Other
 
 - Align package dependencies to pm CLI/SDK 2026.6.6 ([pmc-rr5l](https://github.com/unbraind/pm-changelog/blob/main/.agents/pm/chores/pmc-rr5l.toon))
+
+### Dependencies
+
+- Bump @unbrained/pm-cli from 2026.6.5 to 2026.6.6 ([#33](https://github.com/unbraind/pm-changelog/pull/33))
+- Bump @types/node from 25.9.1 to 25.9.2 ([#32](https://github.com/unbraind/pm-changelog/pull/32))
 
 ## 2026.6.6 - 2026-06-06
 

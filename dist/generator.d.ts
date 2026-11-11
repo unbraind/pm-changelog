@@ -1,5 +1,12 @@
 import type { ChangelogClaimSource } from "./types.ts";
 import type { ChangelogStatusContext, ChangelogDocument, ChangelogEntryFrom, ChangelogSelectionReport, ChangelogSummaryEntry, DependencyCommit, GeneratedChangelog, GenerateChangelogOptions, MergeChangelogOptions, MergeChangelogResult, PmItem, ReadPmItemsOptions, SemverSuggestion, WriteChangelogOptions, WriteChangelogResult } from "./types.ts";
+/** Rendering contract revision. Bump on every output-affecting change and retain
+ * the preceding rules in this shared pipeline for exact check diagnostics. */
+export declare const RENDERING_VERSION = "2026.11.11";
+/** Last published rendering: prepend retained empty pending placeholders. */
+export declare const PREVIOUS_RENDERING_VERSION = "2026.11.10";
+/** Supported output contracts; package dependency upgrades need not bump these. */
+export type RenderingVersion = typeof RENDERING_VERSION | typeof PREVIOUS_RENDERING_VERSION;
 type PmCommand = {
     bin: string;
     argsPrefix: string[];
@@ -37,7 +44,7 @@ export declare function generateChangelog(options: GenerateChangelogOptions): st
 /** Render a changelog, returning the markdown alongside the sections and item
  * count it was built from so a caller can report on the selection without
  * re-parsing its own output. */
-export declare function createChangelog(options: GenerateChangelogOptions, onClaim?: (source: ChangelogClaimSource) => void): GeneratedChangelog;
+export declare function createChangelog(options: GenerateChangelogOptions, onClaim?: (source: ChangelogClaimSource) => void, renderingVersion?: RenderingVersion): GeneratedChangelog;
 /** A requested release must survive the same selection used by every renderer. */
 export declare class MissingRequestedReleaseError extends Error {
     /** Stable discriminator for release automation. */
@@ -96,7 +103,7 @@ export declare function formatSummaryLine(entry: ChangelogSummaryEntry): string;
  * The reported action distinguishes an unchanged file from a rewritten one,
  * which is what lets `--check` fail only on real drift.
  */
-export declare function mergeChangelog(existingMarkdown: string | undefined, generatedMarkdown: string, options?: MergeChangelogOptions): MergeChangelogResult;
+export declare function mergeChangelog(existingMarkdown: string | undefined, generatedMarkdown: string, options?: MergeChangelogOptions, renderingVersion?: RenderingVersion): MergeChangelogResult;
 /** Build the canonical, unbounded `pm list` argv used to read a workspace.
  * `--pm-path` is unshifted ahead of the caller's global arguments because pm
  * rejects it in trailing position. The host-owned output controls follow the
@@ -127,7 +134,7 @@ export declare function readPmItems(options?: ReadPmItemsOptions): PmItem[];
  * disk without writing. The returned `changed` flag is the drift signal CI acts
  * on; check mode never touches the file, so a failing gate leaves the committed
  * changelog intact. */
-export declare function writeChangelog(options: WriteChangelogOptions): WriteChangelogResult;
+export declare function writeChangelog(options: WriteChangelogOptions, renderingVersion?: RenderingVersion): WriteChangelogResult;
 /** Parse caller-supplied pm JSON, preserving receipt-free intentional subsets.
  * Envelopes with explicit read metadata are inspected by the public SDK before
  * their items can reach generation. Defaults adapt missing legacy proof fields

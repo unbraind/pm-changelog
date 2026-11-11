@@ -2,12 +2,18 @@ id: pmc-contract-changes
 title: Render declared contract changes with migration guidance
 description: "Render explicit SDK and CLI contract metadata once with before, after and migration guidance; expose structured JSON and audit missing migration text."
 type: Issue
-status: in_progress
+status: closed
 priority: 2
 tags[2]: "gh:unbraind/pm-changelog#317","gh:unbraind/pm-changelog#328"
 created_at: "2026-11-06T18:46:38.447Z"
-updated_at: "2026-11-09T16:30:16.824Z"
+updated_at: "2026-11-11T08:57:06.668Z"
+closed_at: "2026-11-11T08:57:06.608Z"
+completed_at: "2026-11-09T21:19:58.000Z"
 author: codex-sol
+release: 2026.11.10
+resolution: Rendered declared contract changes with migration guidance.
+expected_result: "Explicit SDK and CLI changes carry before, after and migration guidance."
+actual_result: Merged implementation is included in v2026.11.10.
 comments[33]{created_at,author,text}:
   "2026-11-06T18:46:41.257Z",codex-sol,"Main fc7e396 still classifies only type, title and resolution signals; no contract migration projection exists. Implement a shared metadata.contract_change projection for Markdown, JSON and audit, retaining unchanged output for undeclared items. Add real SDK non-git tracker regressions before implementation; PR 324 is excluded."
   "2026-11-06T18:50:33.381Z",codex-sol,"Baseline reproduction at fc7e396: both focused tests fail behaviorally. SDK-created declarations render under Fixed and Security with no migration line; audit reports Fixed and no migration gap. The producer uses a native object schema field and the SDK contractChange option because project fields reject --field (expected declared-flag policy). Shared projection now covers Markdown, JSON, grouping, breaking deduplication and milestone capture."
@@ -63,4 +69,5 @@ tests[5]{command,scope,provenance{author,created_at,source_kind,source_ref}}:
   node --test --test-concurrency=2 test/contract-audit-eligibility.test.ts test/contract-changes.test.ts test/contract-projections.test.ts test/stable-section-order.test.ts test/closure-evidence.test.ts test/closure-status-roles.test.ts test/claim-audit.test.ts test/entry-from.test.ts test/enhancements.test.ts test/generator-coverage.test.ts test/generator.test.ts test/extension.test.ts test/milestones.test.ts test/shipped-docs.test.ts test/identity-audit.test.ts test/package-metadata.test.ts test/verify-package.test.ts test/release-context.test.ts test/stable-itemless-check.test.ts test/git-fixture.test.ts,project,codex-agent,"2026-11-09T12:35:30.931Z",local_mutation,changed-section-for-contract-changes
 docs[1]{path,scope}:
   docs/usage.md,project
+close_reason: "PR #328 (3147676), shipped in v2026.11.10."
 body: ""
