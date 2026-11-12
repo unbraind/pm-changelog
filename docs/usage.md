@@ -111,9 +111,10 @@ empty pending-section cleanup, and the preceding published 2026.11.10 rules.
 Checks try every older rendering profile in the version table, newest first;
 exact matches report `rendering_changed` and name the matched version. The table
 retains the pre-2026.11.7 comparator and its empty-section selection after later
-revisions land. An exact match to that profile reports `rendering_changed`, names
-2026.11.7, and includes `rendering_changed_in` and `compared_rendering_version`
-in the receipt.
+revisions land. Output that only that profile reproduces reports `rendering_changed`
+with `compared_rendering_version` 2026.11.6 (the matched profile) and
+`rendering_changed_in` 2026.11.7 (the release that changed its rendering). Output
+that several profiles reproduce names the newest of them.
 Upgrade attribution needs a reproduced previous rendering; matching line sets
 alone cannot prove an upgrade. A profile match identifies compatible rendering
 rules; it does not establish which generator version produced the committed file.

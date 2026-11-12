@@ -4,19 +4,20 @@ import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import test, { type TestContext } from "node:test";
-import { listAllComplete, runCreate, runInit } from "@unbrained/pm-cli/sdk";
+import { listAllComplete, runCreate, runInit, runUpdate, schemaAddField } from "@unbrained/pm-cli/sdk";
 import { attributeRenderingRelease } from "../scripts/attribute-rendering-release.ts";
 import { canonicalRegenerationOptions } from "../src/check-drift.ts";
 import { fixtureEnvironment, initGitFixture } from "./git-fixture.ts";
 
 /** A real tracker whose closed rendering-change items are committed at one explicit whole-second release time. */
-async function releaseFixture(t: TestContext, items: readonly [string, string][]): Promise<{ cwd: string; pmRoot: string; commit: (date: string) => string; git: (...args: string[]) => string }> {
+async function releaseFixture(t: TestContext, items: readonly [string, string][], facets?: string): Promise<{ cwd: string; pmRoot: string; commit: (date: string) => string; git: (...args: string[]) => string }> {
   const cwd = mkdtempSync(join(tmpdir(), "pm-release-boundary-r9-"));
   t.after(() => rmSync(cwd, { recursive: true, force: true }));
   initGitFixture(cwd, ["-b", "main"]);
   const pmRoot = join(cwd, ".agents/pm");
   await runInit("release", { path: pmRoot }, { defaults: true, agentGuidance: "skip" });
-  for (const [id, completedAt] of items) await runCreate({ id, title: `Delivered ${id}`, type: "Task", status: "closed", tags: "rendering-change", completedAt, closeReason: "Implemented", createMode: "progressive" }, { path: pmRoot });
+  if (facets) await schemaAddField("change_facets", { type: "array" }, { pmRoot });
+  for (const [id, completedAt] of items) await runCreate({ id, title: `Delivered ${id}`, type: "Task", status: "closed", tags: "rendering-change", completedAt, closeReason: "Implemented", createMode: "progressive", ...(facets ? { changeFacets: facets } : {}) }, { path: pmRoot });
   writeFileSync(join(cwd, "package.json"), JSON.stringify({ name: "fixture", version: "2.0.0" }));
   const git = (...args: string[]): string => execFileSync("git", args, { cwd, env: fixtureEnvironment(), encoding: "utf8", stdio: ["ignore", "pipe", "pipe"] }).trim();
   const commit = (date: string): string => {
@@ -42,7 +43,9 @@ test("without gitHead an unprefixed release tag proves the boundary, and disagre
   const f = await releaseFixture(t, [["release-tagged", "2026-11-01T00:00:00Z"]]);
   const published = f.commit("2026-11-02T00:00:00Z");
   f.git("tag", "2.0.0", published);
-  assert.deepEqual(await attributeRenderingRelease(f.pmRoot, "2.0.0", { cwd: f.cwd, preparedFrom: published, publication: { state: "published" }, log: () => {} }), ["release-tagged"]);
+  // A refusal becomes a string, so an unresolved tag fails this assertion instead of throwing.
+  const attributed = await attributeRenderingRelease(f.pmRoot, "2.0.0", { cwd: f.cwd, preparedFrom: published, publication: { state: "published" }, log: () => {} }).catch((error: unknown) => String(error));
+  assert.deepEqual(attributed, ["release-tagged"]);
 
   const g = await releaseFixture(t, [["release-ambiguous", "2026-11-01T00:00:00Z"]]);
   const first = g.commit("2026-11-02T00:00:00Z"); const second = g.commit("2026-11-02T00:00:05Z");
@@ -59,4 +62,16 @@ test("regeneration options keep the plural exclude-tag aliases with the native p
   assert.deepEqual({ ...canonicalRegenerationOptions({ excludeTags: ["alias"], excludeTag: ["camel"] }, flags) }, { "exclude-tag": ["camel"] });
   assert.deepEqual({ ...canonicalRegenerationOptions({ excludeTags: ["alias"], excludeTag: ["camel"], "exclude-tag": "exact" }, flags) }, { "exclude-tag": "exact" });
   assert.deepEqual({ ...canonicalRegenerationOptions({ excludeTags: ["alias"] }, [{ long: "--output" }]) }, {});
+});
+
+test("a source-backed close reason edited after publication is refused; an unchanged one is attributed", async (t) => {
+  const facets = JSON.stringify([{ audience: "operator", source: "close_reason" }]);
+  const f = await releaseFixture(t, [["release-reason-kept", "2026-11-01T00:00:00Z"], ["release-reason-edited", "2026-11-01T00:00:00Z"]], facets);
+  const published = f.commit("2026-11-02T00:00:00Z");
+  // Another implemented reason passes every other frozen check, but the published notes carry the original text.
+  await runUpdate("release-reason-edited", { closeReason: "Implemented differently" }, { path: f.pmRoot });
+  const skipped: string[] = [];
+  assert.deepEqual(await attributeRenderingRelease(f.pmRoot, "2.0.0", { cwd: f.cwd, preparedFrom: published, publication: { state: "published", gitHead: published }, log: (id) => { skipped.push(id); } }), ["release-reason-kept"]);
+  assert.deepEqual(skipped, ["release-reason-edited"]);
+  assert.equal((await listAllComplete({}, { pmRoot: f.pmRoot })).items.find((row) => row.id === "release-reason-edited")!.release, undefined);
 });

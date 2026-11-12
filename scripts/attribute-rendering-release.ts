@@ -11,6 +11,12 @@ import { isDoneStatus, isNonChangeClosure, normalizeChangelogStatus } from "../s
 import { parseContractRelease } from "../src/contract-versions.ts";
 import { isMainInvocation } from "./main-invocation.ts";
 
+/** True when a frozen item publishes its close reason through a source-backed change facet. */
+function sourcesCloseReason(item: PmItem): boolean {
+  const facets = [item.change_facets, (item as PmItem).metadata?.change_facets];
+  return facets.some((value) => Array.isArray(value) && value.some((facet: unknown) => typeof facet === "object" && facet !== null && (facet as { source?: unknown }).source === "close_reason"));
+}
+
 /** Attribute delivered rendering declarations only once a release version is
  * explicitly selected. The release PR commits the native items and histories. */
 export async function attributeRenderingRelease(pmRoot: string, deliveryVersion: string, options: { cwd: string; preparedFrom: string; publication: PublicationState; log?: (item: string, reason: string) => void } = { cwd: process.cwd(), preparedFrom: "", publication: { state: "unknown" } }): Promise<string[]> {
@@ -41,7 +47,9 @@ export async function attributeRenderingRelease(pmRoot: string, deliveryVersion:
       || !original?.resolved || !Number.isFinite(time) || time >= boundary.timestamp + 1000 || time !== Date.parse(original.timestamp)
       || !isDeepStrictEqual(item.change_facets, frozen.change_facets) || !isDeepStrictEqual(item.contract_change, frozen.contract_change)
       || !isDeepStrictEqual(metadata?.contract_change, frozen.metadata?.contract_change)
-      || !isDeepStrictEqual(metadata?.change_facets, frozen.metadata?.change_facets)) {
+      || !isDeepStrictEqual(metadata?.change_facets, frozen.metadata?.change_facets)
+      // Facets with source "close_reason" publish the reason itself, so the published snapshot's reason must still hold.
+      || (sourcesCloseReason(frozen) && item.close_reason !== frozen.close_reason)) {
       log(item.id, boundary ? "completion_or_declaration_not_proved_before_release_commit" : boundaryReason);
       continue;
     }
