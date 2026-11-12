@@ -67,6 +67,34 @@ function closedItem(id: string, title: string, updatedAt: string): PmItem {
 // ---------------------------------------------------------------------------
 
 describe("parseDependencyCommit", () => {
+  for (const subject of [
+    "Build(deps-dev): Bump the pm-toolchain group across 1 directory with 3 updates",
+    "chore(deps): Bump ExampleSDK from vOne to vTwo",
+    "CHORE(DEPS): BUMP ExampleSDK from vOne to vTwo",
+    "bUiLd(DePs-DeV): BuMp ExampleSDK from vOne to vTwo",
+  ]) {
+    it(`recognizes dependency subject case without lowercasing: ${subject}`, () => {
+      const result = parseDependencyCommit(`${subject} (#106)`);
+      ok(result);
+      equal(result.subject, `${subject} (#106)`);
+      equal(result.description, subject.slice(subject.indexOf("): ") + 3));
+      equal(result.prNumber, 106);
+      equal(parseDependencyCommit(subject)?.description, result.description);
+    });
+  }
+
+  for (const subject of [
+    "fix(deps): bumped ExampleSDK from 1 to 2",
+    "chore(deps): Bumps ExampleSDK from 1 to 2",
+    "chore(dependencies): Bump ExampleSDK from 1 to 2",
+    "Bump ExampleSDK from 1 to 2",
+    "chore(deps)!: Bump ExampleSDK from 1 to 2",
+  ]) {
+    it(`refuses non-bump subject shape: ${subject}`, () => {
+      equal(parseDependencyCommit(subject), undefined);
+    });
+  }
+
   it("parses a build(deps-dev) subject with a PR number", () => {
     const result = parseDependencyCommit("build(deps-dev): bump jscpd from 5.2.0 to 5.3.0 (#129)");
     ok(result);

@@ -242,7 +242,12 @@ migration of changelogs generated with a different generator version.
 By default, an **itemless pending release with non-merge Dependabot-shaped commits** gets
 its own version heading and `### Dependencies` section. Only subjects accepted by
 `parseDependencyCommit` (`<type>(deps|deps-dev): bump …`) qualify, including Dependabot workflow-pin
-bumps. Docs, release subjects, merge commits and empty subjects do not create notes or a section.
+bumps. Type, scope and `bump` are case-insensitive (for example, `Build(deps-dev): Bump …`
+and `CHORE(DEPS): BUMP …`). The exact scope, separators and `bump ` verb are required;
+`bumped`, `Bumps`, `dependencies`, unscoped subjects and `deps)!:` do not qualify.
+Description text keeps its original case, with the existing first-letter capitalization
+and trailing PR-number extraction. Docs, release subjects, merge commits and empty subjects
+do not create notes or a section.
 No tracker items are invented.
 
 After tagging, an itemless window retains these notes only if the changelog committed **at that tag**
