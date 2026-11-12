@@ -49,11 +49,12 @@ const CATEGORY_ORDER = [
 ];
 /** Dependabot's squash-merged subjects: a conventional-commit type, a `deps` or
  * `deps-dev` scope, and the `bump` verb (`build(deps-dev): bump jscpd from …`,
- * `chore(deps): bump the codeql-action group with 2 updates`). Requiring the
- * verb keeps a hand-written `fix(deps): correct loader` out of the section.
+ * `chore(deps): bump the codeql-action group with 2 updates`). The type, scope
+ * and verb are case-insensitive to follow repository commit styles. Requiring
+ * the verb keeps a hand-written `fix(deps): correct loader` out of the section.
  * Linear-time: anchored start, one character-class run for the type, and a
  * fixed alternation of literals — no nested quantifiers. */
-const DEPENDABOT_SUBJECT = /^[\w-]+\((?:deps|deps-dev)\): bump /;
+const DEPENDABOT_SUBJECT = /^[\w-]+\((?:deps|deps-dev)\): bump /i;
 /** Trailing `(#NNN)` PR reference at the end of a commit subject. Linear-time:
  * a single greedy `\d+` followed by a literal `)` and end anchor. When no `)`
  * is present the quantifier backtracks one digit at a time (O(n), not
@@ -78,7 +79,7 @@ const GITHUB_URL_PREFIX = /^https:\/\/github\.com\/([^/]+)\/([^/]+)/;
 export function parseDependencyCommit(subject) {
     if (!DEPENDABOT_SUBJECT.test(subject))
         return undefined;
-    // The pattern guarantees the "): bump " separator, so the description starts after it.
+    // The matcher guarantees the "): " separator; slice the original to preserve case.
     let description = subject.slice(subject.indexOf(": ") + 2);
     let prNumber;
     const prMatch = PR_NUMBER.exec(description);
