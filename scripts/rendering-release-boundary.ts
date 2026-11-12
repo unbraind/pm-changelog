@@ -29,27 +29,32 @@ function packageVersion(cwd: string, commit: string): string | undefined {
   catch { return undefined; }
 }
 
-/** Prefer the original preparation commit, never a later recovery HEAD. A new
- * explicit base is allowed only after the registry proves the version absent. */
-export async function resolveRenderingReleaseBoundary(cwd: string, pmRoot: string, version: string, preparedFrom: string, publication: PublicationState): Promise<RenderingReleaseBoundary | undefined> {
-  if (!preparedFrom) return undefined;
+/** Use the published object reachable from main, never the first version commit
+ * or recovery HEAD. Only proved unpublished versions get a fresh base window. */
+export async function resolveRenderingReleaseBoundary(cwd: string, pmRoot: string, version: string, preparedFrom: string, publication: PublicationState, report: (reason: string) => void = () => {}): Promise<RenderingReleaseBoundary | undefined> {
+  /** Refuse incomplete publication evidence without exposing repository paths. */
+  const refuse = (reason: string): undefined => { report(reason); return undefined; };
+  if (!preparedFrom) return refuse("release_decision_base_missing");
   const base = commitId(cwd, preparedFrom);
-  if (!base) return undefined;
+  if (!base) return refuse("release_decision_base_unavailable");
   const path = relative(cwd, pmRoot).split("\\").join("/") || ".";
-  if ( path.startsWith("../") || path.startsWith("/")) return undefined;
-  const history = git(cwd, ["rev-list", "--first-parent", "--reverse", base, "--", "package.json"]);
-  let commit = history?.trim().split("\n").find((candidate) => candidate && packageVersion(cwd, candidate) === version);
-  const tag = commitId(cwd, `refs/tags/v${version}`);
-  const published = publication.gitHead ? commitId(cwd, publication.gitHead) : undefined;
-  for (const candidate of [tag, published]) {
-    if (!candidate || packageVersion(cwd, candidate) !== version || git(cwd, ["merge-base", "--is-ancestor", candidate, base]) === undefined) continue;
-    if (!commit || git(cwd, ["merge-base", "--is-ancestor", candidate, commit]) !== undefined) commit = candidate;
-  }
+  if (path.startsWith("../") || path.startsWith("/")) return refuse("tracker_outside_release_repository");
+  if (publication.state === "unknown") return refuse("publication_state_unknown");
+  let commit: string | undefined;
   if (publication.state === "unpublished") commit = base;
-  if (!commit) return undefined;
+  else {
+    // A supplied but unproved gitHead must never silently fall back to a tag.
+    if (publication.gitHead !== undefined && !/^[a-f0-9]{40}$/i.test(publication.gitHead)) return refuse("published_git_head_invalid");
+    commit = commitId(cwd, publication.gitHead ?? `refs/tags/v${version}`);
+    if (!commit) return refuse("published_commit_unavailable");
+    if (packageVersion(cwd, commit) !== version) return refuse("published_commit_version_mismatch");
+    const main = commitId(cwd, "refs/remotes/origin/main") ?? commitId(cwd, "refs/heads/main");
+    if (!main || git(cwd, ["merge-base", "--is-ancestor", commit, main]) === undefined) return refuse("published_commit_not_reachable_from_main");
+  }
+  if (!commit) return refuse("release_boundary_unavailable");
   const timestamp = Date.parse(git(cwd, ["show", "-s", "--format=%cI", commit])?.trim() ?? "");
   const files = git(cwd, ["ls-tree", "-r", "-z", "--name-only", commit, "--", path]);
-  if (!Number.isFinite(timestamp) || files === undefined) return undefined;
+  if (!Number.isFinite(timestamp) || files === undefined) return refuse("release_snapshot_unavailable");
   const items = new Map<string, PmItem>();
   const scratch = mkdtempSync(join(tmpdir(), "pm-release-snapshot-"));
   try {
@@ -79,7 +84,8 @@ export async function readPublicationState(name: string, version: string, regist
     if (!response.ok) return { state: "unknown" };
     const body: unknown = await response.json();
     if (!body || typeof body !== "object" || !("version" in body) || body.version !== release) return { state: "unknown" };
-    const gitHead = "gitHead" in body && typeof body.gitHead === "string" && /^[a-f0-9]{40}$/.test(body.gitHead) ? body.gitHead : undefined;
+    if ("gitHead" in body && (typeof body.gitHead !== "string" || !/^[a-f0-9]{40}$/i.test(body.gitHead))) return { state: "unknown" };
+    const gitHead = "gitHead" in body ? String(body.gitHead) : undefined;
     return { state: "published", gitHead };
   } catch { return { state: "unknown" }; }
 }

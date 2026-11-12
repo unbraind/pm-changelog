@@ -6,7 +6,7 @@ import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import test from "node:test";
-import { listAllComplete, runCreate, runInit, schemaAddField } from "@unbrained/pm-cli/sdk";
+import { listAllComplete, runCreate, runInit, runUpdate, schemaAddField } from "@unbrained/pm-cli/sdk";
 import { attributeRenderingRelease } from "../scripts/attribute-rendering-release.ts";
 import { createChangelog } from "../src/generator.ts";
 import { fixtureEnvironment, initGitFixture } from "./git-fixture.ts";
@@ -71,7 +71,7 @@ test("blank legacy releases remain unpublished in real tracker projections with 
 test("published recovery freezes the prepared item set and published section after later closures", async (t) => {
   const cwd = mkdtempSync(join(tmpdir(), "pm-published-recovery-"));
   t.after(() => rmSync(cwd, { recursive: true, force: true }));
-  initGitFixture(cwd);
+  initGitFixture(cwd, ["-b", "main"]);
   const pmRoot = join(cwd, ".agents/pm");
   await runInit("release", { path: pmRoot }, { defaults: true, agentGuidance: "skip" });
   await runCreate({ id: "release-original", title: "Delivered original change", type: "Task", status: "closed", release: "2.0.0", tags: "rendering-change", completedAt: "2026-11-01T00:00:00Z", closeReason: "Implemented original", createMode: "progressive" }, { path: pmRoot });
@@ -98,6 +98,44 @@ test("published recovery freezes the prepared item set and published section aft
   const after = createChangelog({ items: rows, groupBy: "release" }).markdown;
   assert.equal(after.slice(after.indexOf("## 2.0.0")), before.slice(before.indexOf("## 2.0.0")));
   assert.match(after, /## Unreleased/);
+});
+
+test("frozen delivery facts reject relabelled non-changes and later edits while allowing implemented items", async (t) => {
+  const cwd = mkdtempSync(join(tmpdir(), "pm-frozen-delivery-"));
+  t.after(() => rmSync(cwd, { recursive: true, force: true }));
+  initGitFixture(cwd, ["-b", "main"]);
+  const pmRoot = join(cwd, ".agents/pm");
+  await runInit("release", { path: pmRoot }, { defaults: true, agentGuidance: "skip" });
+  await schemaAddField("change_facets", { type: "array" }, { pmRoot });
+  await schemaAddField("contract_change", { type: "object" }, { pmRoot });
+  const ids = ["release-frozen-implemented", "release-frozen-duplicate", "release-frozen-resolution", "release-frozen-active", "release-frozen-canceled", "release-frozen-completion", "release-frozen-facets", "release-frozen-contract"];
+  for (const id of ids) {
+    const status = id === "release-frozen-active" ? "in_progress" : id === "release-frozen-canceled" ? "canceled" : "closed";
+    await runCreate({ id, title: `Delivered ${id}`, type: "Task", status, tags: "rendering-change", createMode: "progressive",
+      completedAt: status === "closed" ? "2026-11-01T00:00:00Z" : undefined,
+      closeReason: id === "release-frozen-duplicate" ? "Duplicate" : status === "closed" ? "Implemented" : undefined,
+      resolution: id === "release-frozen-resolution" ? "Not planned" : undefined,
+      changeFacets: JSON.stringify([{ audience: "operator", text: "Original action", breaking: true, upgrade_actions: [{ id: "original", title: "Original", requires: [] }] }]),
+      contractChange: JSON.stringify({ before: "Before", after: "After", migrate: "Original migration" }) }, { path: pmRoot });
+  }
+  writeFileSync(join(cwd, "package.json"), JSON.stringify({ name: "fixture", version: "2.0.0" }));
+  const env = { ...fixtureEnvironment(), GIT_AUTHOR_DATE: "2026-11-03T00:00:00Z", GIT_COMMITTER_DATE: "2026-11-03T00:00:00Z" };
+  execFileSync("git", ["add", "package.json", ".agents/pm"], { cwd, env });
+  execFileSync("git", ["-c", "user.name=SteveBot", "-c", "user.email=1153461+unbraind@users.noreply.github.com", "commit", "-m", "Frozen delivery fixture"], { cwd, env, stdio: "pipe" });
+  const published = execFileSync("git", ["rev-parse", "HEAD"], { cwd, env, encoding: "utf8" }).trim();
+  await runUpdate("release-frozen-duplicate", { closeReason: "Implemented" }, { path: pmRoot });
+  await runUpdate("release-frozen-resolution", { resolution: "Implemented" }, { path: pmRoot });
+  for (const id of ["release-frozen-active", "release-frozen-canceled"]) await runUpdate(id, { status: "closed", force: id === "release-frozen-canceled", closeReason: "Implemented", completedAt: "2026-11-01T00:00:00Z" }, { path: pmRoot });
+  await runUpdate("release-frozen-completion", { completedAt: "2026-11-02T00:00:00Z" }, { path: pmRoot });
+  await runUpdate("release-frozen-facets", { changeFacets: JSON.stringify([{ audience: "operator", text: "Later action", breaking: true, upgrade_actions: [{ id: "later", title: "Later", requires: [] }] }]) }, { path: pmRoot });
+  await runUpdate("release-frozen-contract", { contractChange: JSON.stringify({ before: "Before", after: "After", migrate: "Later migration" }) }, { path: pmRoot });
+  const skipped: string[] = [];
+  assert.deepEqual(await attributeRenderingRelease(pmRoot, "2.0.0", { cwd, preparedFrom: published, publication: { state: "published", gitHead: published }, log: (id) => { skipped.push(id); } }), ["release-frozen-implemented"]);
+  const rows = (await listAllComplete({}, { pmRoot })).items;
+  for (const id of ids) {
+    assert.equal(rows.find((row) => row.id === id)!.release, id === "release-frozen-implemented" ? "2.0.0" : undefined, id);
+    if (id !== "release-frozen-implemented") assert.ok(skipped.includes(id), `${id} must be logged`);
+  }
 });
 
 
@@ -127,6 +165,8 @@ test("registry publication proof canonicalizes versions and never treats server 
   const server = createServer((request, response) => {
     if (request.url === "/fixture/2.0.0") { response.writeHead(200, { "content-type": "application/json" }); response.end(JSON.stringify({ version: "2.0.0", gitHead: "a".repeat(40) })); }
     else if (request.url === "/fixture/3.0.0") { response.writeHead(404); response.end(); }
+    else if (request.url === "/fixture/5.0.0") { response.writeHead(200); response.end(JSON.stringify({ version: "5.0.0", gitHead: "HEAD" })); }
+    else if (request.url === "/fixture/6.0.0") { response.writeHead(200); response.end(JSON.stringify({ version: "6.0.0" })); }
     else { response.writeHead(503); response.end(); }
   });
   await new Promise<void>((resolve) => { server.listen(0, "127.0.0.1", resolve); });
@@ -137,4 +177,6 @@ test("registry publication proof canonicalizes versions and never treats server 
   assert.deepEqual(await readPublicationState("fixture", "3.0.0", registry), { state: "unpublished" });
   assert.deepEqual(await readPublicationState("fixture", "4.0.0", registry), { state: "unknown" });
   assert.deepEqual(await readPublicationState("fixture", "invalid", registry), { state: "unknown" });
+  assert.deepEqual(await readPublicationState("fixture", "5.0.0", registry), { state: "unknown" });
+  assert.deepEqual(await readPublicationState("fixture", "6.0.0", registry), { state: "published", gitHead: undefined });
 });

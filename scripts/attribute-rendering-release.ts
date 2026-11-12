@@ -7,7 +7,7 @@ import type { PmItem } from "../src/types.ts";
 import type { PublicationState } from "./rendering-release-boundary.ts";
 import { listAllComplete, resolveCompletionTimestamp, readSettings, resolveRuntimeStatusRegistry, runUpdate } from "@unbrained/pm-cli/sdk";
 import { getStringField } from "../src/generator.ts";
-import { isDoneStatus, isNonChangeClosure } from "../src/closure-policy.ts";
+import { isDoneStatus, isNonChangeClosure, normalizeChangelogStatus } from "../src/closure-policy.ts";
 import { parseContractRelease } from "../src/contract-versions.ts";
 import { isMainInvocation } from "./main-invocation.ts";
 
@@ -19,7 +19,8 @@ export async function attributeRenderingRelease(pmRoot: string, deliveryVersion:
   const items = (await listAllComplete({}, { pmRoot })).items;
   const context = { statusRegistry: resolveRuntimeStatusRegistry((await readSettings(pmRoot)).schema) };
   const changed: string[] = [];
-  const boundary = await resolveRenderingReleaseBoundary(options.cwd, pmRoot, release, options.preparedFrom, options.publication);
+  let boundaryReason = "release_boundary_unavailable";
+  const boundary = await resolveRenderingReleaseBoundary(options.cwd, pmRoot, release, options.preparedFrom, options.publication, (reason) => { boundaryReason = reason; });
   const log = options.log ?? ((item: string, reason: string) => console.error(JSON.stringify({ item, reason })));
   for (const item of items) {
     if (!item.tags?.includes("rendering-change") || !isDoneStatus(item, context) || isNonChangeClosure(item, context)
@@ -29,13 +30,14 @@ export async function attributeRenderingRelease(pmRoot: string, deliveryVersion:
     const completion = resolveCompletionTimestamp({ completed_at: item.completed_at, closed_at: item.closed_at });
     const original = frozen && resolveCompletionTimestamp({ completed_at: frozen.completed_at, closed_at: frozen.closed_at });
     const time = completion.resolved ? Date.parse(completion.timestamp) : NaN;
-    if (!boundary || !frozen || !isDoneStatus(frozen, context) || !frozen.tags?.includes("rendering-change")
+    if (!boundary || !frozen || !isDoneStatus(frozen, context) || isNonChangeClosure(frozen, context)
+      || normalizeChangelogStatus(item.status, context) !== normalizeChangelogStatus(frozen.status, context) || !frozen.tags?.includes("rendering-change")
       || (getStringField(frozen, "release") !== undefined && getStringField(frozen, "release") !== release)
       || !original?.resolved || !Number.isFinite(time) || time >= boundary.timestamp || time !== Date.parse(original.timestamp)
       || !isDeepStrictEqual(item.change_facets, frozen.change_facets) || !isDeepStrictEqual(item.contract_change, frozen.contract_change)
       || !isDeepStrictEqual(metadata?.contract_change, frozen.metadata?.contract_change)
       || !isDeepStrictEqual(metadata?.change_facets, frozen.metadata?.change_facets)) {
-      log(item.id, "completion_or_declaration_not_proved_before_release_commit");
+      log(item.id, boundary ? "completion_or_declaration_not_proved_before_release_commit" : boundaryReason);
       continue;
     }
     await runUpdate(item.id, { release }, { path: pmRoot });

@@ -10,6 +10,7 @@ import { activateExtensionForTest, runRegisteredCommandForTest } from "@unbraine
 import { buildConsumerUpgrades, readConsumerUpgrades } from "../src/consumer-upgrades.ts";
 import { HISTORICAL_RENDERING_VERSIONS, RENDERING_PROFILES, mergeChangelog, PREVIOUS_RENDERING_VERSION, RENDERING_VERSION, writeChangelog } from "../src/generator.ts";
 import { diagnoseCheckDrift, classifyCheckDrift as classify, regenerationCommand, canonicalRegenerationOptions, isEntryReorder } from "../src/check-drift.ts";
+import type { RegenerationGuidance } from "../src/check-drift.ts";
 import { cliTestSurface } from "../src/cli.ts";
 import extension from "../src/extension.ts";
 import { fixtureEnvironment, initGitFixture } from "./git-fixture.ts";
@@ -19,6 +20,24 @@ const classifyCheckDrift = (committed: string, generated: string, previous: () =
 
 const CLI = resolve("src/cli.ts");
 const PM = resolve("node_modules/.bin/pm");
+
+/** Validate copied guidance using its reported shell, including quoted host words. */
+function assertCopiedCommand(command: string, argv: string[], shell: RegenerationGuidance["shell"]): void {
+  assert.equal(command, regenerationCommand({}, argv, shell === "powershell" ? "win32" : "linux").command);
+}
+
+/** Select the actual command interpreter rather than Node's default cmd.exe on Windows. */
+function copiedCommandInvocation(command: string, shell: RegenerationGuidance["shell"]): [string, string[]] {
+  return shell === "powershell"
+    ? [process.platform === "win32" ? "powershell.exe" : "pwsh", ["-NoProfile", "-NonInteractive", "-ExecutionPolicy", "Bypass", "-Command", command]]
+    : ["sh", ["-c", command]];
+}
+
+/** Execute the advertised command in the interpreter the receipt actually reports. */
+function runCopiedCommand(command: string, shell: RegenerationGuidance["shell"], cwd: string, env = process.env) {
+  const [executable, args] = copiedCommandInvocation(command, shell);
+  return spawnSync(executable, args, { cwd, env, encoding: "utf8" });
+}
 
 /** Build a genuine plain-directory tracker and drive the production CLI. */
 async function fixture(t: TestContext) {
@@ -31,7 +50,7 @@ async function fixture(t: TestContext) {
   await add("check-alpha");
   await add("check-beta");
   const output = join(cwd, "CHANGELOG.md");
-  const args = ["--pm-root", pmRoot, "--pm-bin", PM, "--version", "1.2.0", "--date", "2026-11-01", "--output", "CHANGELOG.md"];
+  const args = ["--pm-root", pmRoot, "--version", "1.2.0", "--date", "2026-11-01", "--output", "CHANGELOG.md"];
   const run = (extra: string[] = []) => spawnSync(process.execPath, [CLI, ...args, ...extra], { cwd, encoding: "utf8" });
   assert.equal(run().status, 0);
   return { cwd, pmRoot, output, args, run, add };
@@ -65,7 +84,8 @@ test("real non-git tracker: a current-rendering reorder is tracker_changed and s
   assert.ok(guidance.regeneration_argv.includes("--version=1.2.0"));
   assert.ok(!guidance.regeneration_argv.includes("--check"));
   assert.match(guidance.message, /this is a one-time regeneration after a pm-changelog upgrade/);
-  const regenerated = spawnSync(guidance.regeneration_command, { cwd: f.cwd, shell: true, encoding: "utf8" });
+  assertCopiedCommand(guidance.regeneration_command, guidance.regeneration_argv, guidance.regeneration_shell);
+  const regenerated = runCopiedCommand(guidance.regeneration_command, guidance.regeneration_shell, f.cwd);
   assert.equal(regenerated.status, 0, regenerated.stderr);
   assert.equal(readFileSync(f.output, "utf8"), current);
   assert.equal(f.run(["--check"]).status, 0);
@@ -172,20 +192,21 @@ test("package tracker catalog publishes the 2026.11.7 one-time regeneration obli
 test("regeneration model ignores host argv, retains canonical values and quoting, and keeps pm-arg pairs", async (t) => {
   const f = await fixture(t);
   const argv = process.argv;
-  const target = "release notes' \"quoted\".md";
+  const target = "release notes' quoted.md";
   try {
     process.argv = [process.execPath, "unrelated-host.js", "pm", "--check", "--wrong"];
     const parsed = cliTestSurface.parseArgs([...f.args, "--output", target, "--title", "Notes' \"quoted\" $literal", "--check", "--pm-arg=--output-budget", "--pm-arg=unbounded"]);
     const model = cliTestSurface.cliRegenerationOptions(parsed);
-    const guidance = regenerationCommand(model, ["node", CLI], "linux");
-    assert.deepEqual(guidance.argv.slice(0, 2), ["node", CLI]);
+    const guidance = regenerationCommand(model, [process.execPath, CLI]);
+    assert.deepEqual(guidance.argv.slice(0, 2), [process.execPath, CLI]);
     assert.ok(!guidance.argv.some((arg) => arg === "--check" || arg === "--wrong" || arg === "unrelated-host.js"));
     assert.ok(guidance.argv.includes("--pm-arg=--output-budget"));
     assert.ok(guidance.argv.includes("--pm-arg=unbounded"));
     assert.ok(guidance.argv.includes(`--output=${target}`));
     assert.equal(guidance.input_required, false);
-    assert.match(guidance.command!, /'\\''/);
-    const result = spawnSync(guidance.command!, { cwd: f.cwd, shell: true, encoding: "utf8" });
+    assertCopiedCommand(guidance.command!, guidance.argv, guidance.shell);
+    assert.ok(guidance.command!.includes(guidance.shell === "powershell" ? "notes''" : "notes'\\''"));
+    const result = runCopiedCommand(guidance.command!, guidance.shell, f.cwd);
     assert.equal(result.status, 0, result.stderr);
     assert.match(readFileSync(join(f.cwd, target), "utf8"), /Notes/);
     const regenerated = cliTestSurface.parseArgs(guidance.argv.slice(2));
@@ -199,6 +220,23 @@ test("win32 regeneration gives PowerShell-safe quotes and lossless argv", () => 
   assert.equal(guidance.command, "& 'node' 'C:\\Program Files\\pm\\cli.js' '--output=release notes'' \"quoted\".md' '--title=$literal` and ''quotes'''" );
   assert.deepEqual(guidance.argv, ["node", "C:\\Program Files\\pm\\cli.js", "--output=release notes' \"quoted\".md", "--title=$literal` and 'quotes'"]);
   assert.ok(guidance.message.includes(JSON.stringify(guidance.argv)));
+});
+
+test("copied-command fixtures support reported POSIX and PowerShell shells", () => {
+  for (const platform of ["linux", "win32"] as const) {
+    const guidance = regenerationCommand({ output: "notes' quoted.md" }, ["pm", "--path", "project root", "changelog", "generate"], platform);
+    assertCopiedCommand(guidance.command!, guidance.argv, guidance.shell);
+    const [interpreter, args] = copiedCommandInvocation(guidance.command!, guidance.shell);
+    assert.equal(args.at(-1), guidance.command);
+    if (guidance.shell === "powershell") {
+      assert.ok(["powershell.exe", "pwsh"].includes(interpreter));
+      assert.ok(args.includes("-Command"));
+      assert.match(guidance.command!, /^& 'pm' '--path' /);
+    } else {
+      assert.equal(interpreter, "sh");
+      assert.deepEqual(args.slice(0, 1), ["-c"]);
+    }
+  }
 });
 
 test("stdin regeneration requires the original pipe rather than a silently different command", async (t) => {
@@ -303,18 +341,17 @@ test("registered generate checks share diagnoses, remedies and nonzero typed rec
     assert.ok(error instanceof PmCliError);
     assert.equal(error.code, "rendering_changed");
     assert.match(error.message, /this is a one-time regeneration after a pm-changelog upgrade/);
-    assert.match(error.context.required!, /^pm --path /);
-    assert.ok(error.context.required!.includes(f.pmRoot));
-    assert.ok(error.context.required!.includes("changelog generate"));
     assert.ok(error.context.required!.includes("--release-version=1.2.0"));
     assert.ok(!error.context.required!.includes("--releaseVersion"));
     assert.ok(!error.context.required!.includes("custom-extension-host.js"));
     const argv = JSON.parse(error.context.verification_errors!.find((line) => line.startsWith("regeneration_argv="))!.slice("regeneration_argv=".length));
+    const shell = regenerationCommand({}, argv).shell;
+    assertCopiedCommand(error.context.required!, argv, shell);
     assert.deepEqual(argv.slice(0, 3), ["pm", "--path", f.pmRoot]);
     assert.deepEqual(argv.slice(argv.indexOf("changelog"), argv.indexOf("changelog") + 2), ["changelog", "generate"]);
     assert.equal(argv.filter((arg: string) => arg === "pm").length, 1);
-    const copied = spawnSync(error.context.required!, { cwd: f.cwd, shell: true, encoding: "utf8",
-      env: { ...process.env, PATH: dirname(PM) + delimiter + process.env.PATH, DO_NOT_TRACK: "1", PM_AUTHOR: "codex-changelog339-1111", PM_TELEMETRY_SOURCE_CONTEXT: "automation" } });
+    const copied = runCopiedCommand(error.context.required!, shell, f.cwd,
+      { ...process.env, PATH: dirname(PM) + delimiter + process.env.PATH, DO_NOT_TRACK: "1", PM_AUTHOR: "codex-changelog339-1111", PM_TELEMETRY_SOURCE_CONTEXT: "automation" });
     assert.equal(copied.status, 0, copied.stdout + copied.stderr);
     assert.equal(readFileSync(f.output, "utf8"), current);
     return true;
@@ -373,6 +410,7 @@ test("stdout checks emit output without comparing files; usage scopes the exit g
   const usage = readFileSync(resolve("docs/usage.md"), "utf8");
   assert.match(usage, /File-output checks \(`--check` with `--output`/);
   assert.match(usage, /`--stdout` takes precedence:[\s\S]*exits \*\*0\*\*/);
+  assert.doesNotMatch(usage, /`reorder_only`/);
 });
 
 test("retained pre-2026.11.7 ordering is rendering_changed with its original upgrade evidence", async (t) => {
@@ -453,7 +491,7 @@ test("published 2026.11.6 empty-section output matches an older profile with new
   const output = join(cwd, "CHANGELOG.md");
   const committed = readFileSync(resolve("test/fixtures/changelog-2026.11.6-empty.md"), "utf8");
   writeFileSync(output, committed);
-  const result = spawnSync(process.execPath, [CLI, "--pm-root", pmRoot, "--pm-bin", PM, "--include-empty", "--output", output, "--check", "--json"], { cwd, encoding: "utf8" });
+  const result = spawnSync(process.execPath, [CLI, "--pm-root", pmRoot, "--include-empty", "--output", output, "--check", "--json"], { cwd, encoding: "utf8" });
   assert.equal(result.status, 1, result.stderr);
   const receipt = JSON.parse(result.stdout);
   assert.equal(receipt.classification, "rendering_changed");
@@ -472,10 +510,11 @@ test("local regeneration omits CI reporting flags and succeeds without their env
   const model = cliTestSurface.cliRegenerationOptions(parsed);
   assert.equal(model["github-output"], undefined);
   assert.equal(model["github-step-summary"], undefined);
-  const guidance = regenerationCommand({ ...model, "github-output": true, "github-step-summary": true }, ["node", CLI]);
+  const guidance = regenerationCommand({ ...model, "github-output": true, "github-step-summary": true }, [process.execPath, CLI]);
   assert.ok(!guidance.argv.some((arg) => arg.startsWith("--github-")));
   const environment = { ...process.env }; delete environment.GITHUB_OUTPUT; delete environment.GITHUB_STEP_SUMMARY;
-  const result = spawnSync(guidance.command!, { cwd: f.cwd, shell: true, env: environment, encoding: "utf8" });
+  assertCopiedCommand(guidance.command!, guidance.argv, guidance.shell);
+  const result = runCopiedCommand(guidance.command!, guidance.shell, f.cwd, environment);
   assert.equal(result.status, 0, result.stderr);
   assert.equal(readFileSync(f.output, "utf8"), before);
 });
@@ -521,7 +560,7 @@ test("published legacy contract formatting reproduces its own grouping and entry
   }
   assert.match(writeChangelog(options).markdown, /Changed \(SDK contract\)[\s\S]*Migrate:/);
   writeFileSync(output, readFileSync(resolve("test/fixtures/changelog-2026.11.6-contract-title.md"), "utf8"));
-  const result = spawnSync(process.execPath, [CLI, "--pm-root", pmRoot, "--pm-bin", PM, "--version", "1.2.0", "--date", "2026-11-01", "--output", output, "--check", "--json"], { cwd, encoding: "utf8" });
+  const result = spawnSync(process.execPath, [CLI, "--pm-root", pmRoot, "--version", "1.2.0", "--date", "2026-11-01", "--output", output, "--check", "--json"], { cwd, encoding: "utf8" });
   assert.equal(result.status, 1, result.stderr);
   const receipt = JSON.parse(result.stdout);
   assert.equal(receipt.classification, "rendering_changed");

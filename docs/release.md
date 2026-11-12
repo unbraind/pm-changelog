@@ -231,12 +231,16 @@ commits `.agents/pm` items and their native append-only history together with
 package files and the regenerated changelog. Retries are idempotent.
 
 
-Attribution is bounded by an immutable preparation/tag commit, not the recovery
-checkout's current HEAD. The job passes its decision base SHA. The attribution
-reader checks exact-version public registry state, prefers the original version
-preparation/tag snapshot, and allows a new base window only for a proven
-unpublished version. Unknown publication or missing Git evidence never opens a
-new window. Each candidate must already be delivered in that snapshot, have the
+Attribution is bounded by the immutable commit actually published, not the first
+commit carrying a version or the recovery checkout's HEAD. The job passes its
+decision base SHA. For a published version, the reader uses npm's `gitHead`, or
+the version tag only when `gitHead` is absent, and proves reachability from
+fetched `origin/main` (local `main` when no remote main ref exists). An invalid or
+unavailable supplied `gitHead` never falls back to the tag. Only a proven
+unpublished version receives a new base window. Unknown publication or missing
+Git evidence skips attribution and logs the reason for each candidate.
+Each candidate must prove a delivered change in the frozen snapshot: a done
+status, no non-change closure disposition, unchanged rendering facets, the
 same explicit completion timestamp strictly before the boundary commit, and
-retain its rendering declaration. Later, backdated-new, changed, or unproved
+matching normalized live/frozen status. Later, backdated-new, changed, or unproved
 items are logged and left unattributed for a subsequent release or Unreleased.

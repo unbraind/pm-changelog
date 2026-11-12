@@ -82,9 +82,8 @@ npx pm-changelog --mode prepend --version "$GITHUB_REF_NAME" --check
 
 File-output checks classify differences in both the message and the `--json`
 receipt. An exact match to any older rendering profile reports `rendering_changed`
-and names the matched profile; profiles are tried newest first. The structural
-`reorder_only` category describes reordered entry units, while historical
-rendering evidence takes precedence. Other differences are `tracker_changed`.
+and names the matched profile; profiles are tried newest first. Other differences,
+including entry-only reorders without that evidence, are `tracker_changed`.
 An unproved or same-version reorder explains that a `completed_at` edit or a
 manual reorder can cause it. Blank lines and indented details stay with their
 entry. File-output checks (`--check` with `--output`, including its default
