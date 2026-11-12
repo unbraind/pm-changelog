@@ -69,6 +69,22 @@ test("published boundary uses the version tag only when npm gitHead is absent", 
   }
 });
 
+test("an annotated version tag resolves to the published commit, not the tag object", async (t) => {
+  const f = await publicationFixture(t);
+  f.git(["tag", "-a", "v2.0.0", "-m", "Release 2.0.0", f.published]);
+  const tagObject = f.git(["rev-parse", "refs/tags/v2.0.0"]);
+  assert.notEqual(tagObject, f.published, "the fixture tag must be an annotated tag object");
+  const boundary = await resolveRenderingReleaseBoundary(f.cwd, f.pmRoot, "2.0.0", f.recovery, { state: "published" });
+  assert.equal(boundary?.commit, f.published);
+  assert.ok(boundary.items.has("release-between"));
+  // Must refuse: an annotated tag that peels to a tree names no published commit.
+  f.git(["tag", "-d", "v2.0.0"]);
+  f.git(["tag", "-a", "v2.0.0", "-m", "Release 2.0.0", `${f.published}^{tree}`]);
+  const reasons: string[] = [];
+  assert.equal(await resolveRenderingReleaseBoundary(f.cwd, f.pmRoot, "2.0.0", f.recovery, { state: "published" }, (reason) => { reasons.push(reason); }), undefined);
+  assert.equal(reasons.length, 1);
+});
+
 test("unproved publication cannot borrow the first version commit or recovery HEAD", async (t) => {
   const f = await publicationFixture(t);
   for (const publication of [{ state: "published" }, { state: "unknown" }] satisfies PublicationState[]) {

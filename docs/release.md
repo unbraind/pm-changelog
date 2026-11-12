@@ -237,8 +237,10 @@ decision base SHA. For a published version, the reader uses npm's `gitHead`, or
 the version tag only when `gitHead` is absent, and proves reachability from
 fetched `origin/main` (local `main` when no remote main ref exists). An invalid or
 unavailable supplied `gitHead` never falls back to the tag. Only a proven
-unpublished version receives a new base window. Unknown publication or missing
-Git evidence skips attribution and logs the reason for each candidate.
+unpublished version receives a new base window. When eligible items exist,
+unknown publication or missing Git evidence logs the reason for each candidate
+and then fails the release step before any write. With no eligible items, the
+release continues.
 Each candidate must prove a delivered change in the frozen snapshot: a done
 status, no non-change closure disposition, unchanged rendering facets, the
 same explicit completion timestamp strictly before the boundary commit, and

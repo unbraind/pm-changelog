@@ -190,7 +190,7 @@ test("unproved release boundary succeeds without eligible delivered actions", as
 });
 
 test("registry publication proof canonicalizes versions and never treats server errors as absence", async (t) => {
-  let packument: { status: number; body: string } = { status: 200, body: JSON.stringify({ time: {}, versions: {} }) };
+  let packument: { status: number; body: string } = { status: 200, body: JSON.stringify({ name: "fixture", time: {}, versions: {} }) };
   const accepts: (string | undefined)[] = [];
   const server = createServer((request, response) => {
     if (request.url === "/fixture") {
@@ -215,11 +215,14 @@ test("registry publication proof canonicalizes versions and never treats server 
     { status: 200, body: '{"time":[],"versions":{}}' }, { status: 200, body: '{"time":{},"versions":null}' },
     { status: 200, body: JSON.stringify({ time: { "3.0.0": "2026-11-01T00:00:00Z" }, versions: {} }) },
     { status: 200, body: JSON.stringify({ time: {}, versions: { "3.0.0": { version: "3.0.0" } } }) },
+    // Absence must come from the requested package's own packument.
+    { status: 200, body: JSON.stringify({ time: {}, versions: {} }) },
+    { status: 200, body: JSON.stringify({ name: "other-package", time: {}, versions: {} }) },
   ]) {
     packument = fixture;
     assert.deepEqual(await readPublicationState("fixture", "3.0.0", registry), { state: "unknown" }, fixture.body);
   }
-  packument = { status: 200, body: JSON.stringify({ time: { "2.0.0": "2026-11-01T00:00:00Z" }, versions: { "2.0.0": { version: "2.0.0" } } }) };
+  packument = { status: 200, body: JSON.stringify({ name: "fixture", time: { "2.0.0": "2026-11-01T00:00:00Z" }, versions: { "2.0.0": { version: "2.0.0" } } }) };
   assert.deepEqual(await readPublicationState("fixture", "3.0.0", registry), { state: "unpublished" });
   assert.ok(accepts.length > 0);
   assert.ok(accepts.every((accept) => accept === "application/json"), "full packument media type must retain publication times");

@@ -86,7 +86,9 @@ export async function readPublicationState(name: string, version: string, regist
       });
       if (packument.status !== 200) return { state: "unknown" };
       const document: unknown = await packument.json();
+      // Absence is proved only by the requested package's own packument.
       if (!document || typeof document !== "object" || Array.isArray(document)
+        || !("name" in document) || document.name !== name
         || !("time" in document) || !document.time || typeof document.time !== "object" || Array.isArray(document.time)
         || !("versions" in document) || !document.versions || typeof document.versions !== "object" || Array.isArray(document.versions)
         || Object.hasOwn(document.time, release) || Object.hasOwn(document.versions, release)) return { state: "unknown" };
