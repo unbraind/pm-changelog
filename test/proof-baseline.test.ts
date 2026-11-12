@@ -64,7 +64,7 @@ test("proof baseline uses checked-out source if the merge-base tree predates the
   assert.deepEqual(readProofBaseline(f.root), { source: "working source\n", kind: "working-tree" });
 });
 
-test("behavioral proof completes in a fresh clone and a source archive without origin/main", { timeout: 1200000 }, (t) => {
+test("proof controls complete in a fresh clone and a source archive without origin/main", { timeout: 600000 }, (t) => {
   const root = mkdtempSync(join(tmpdir(), "pm-proof-portable-"));
   t.after(() => rmSync(root, { recursive: true, force: true }));
   const source = join(root, "source"); mkdirSync(source);
@@ -86,13 +86,16 @@ test("behavioral proof completes in a fresh clone and a source archive without o
   for (const file of ["package.json", "manifest.json"]) cpSync(join(source, file), join(archive, file));
   for (const cwd of [clone, archive]) {
     symlinkSync(resolve("node_modules"), join(cwd, "node_modules"), "junction");
-    const result = spawnSync(process.execPath, ["scripts/prove-check-generator-drift-revert.ts"], {
-      cwd, encoding: "utf8", timeout: 1200000,
+    // The mutation cases run once, through the registered pm test; here only the controls run in each location.
+    const result = spawnSync(process.execPath, ["scripts/prove-check-generator-drift-revert.ts", "--baseline-only"], {
+      cwd, encoding: "utf8", timeout: 600000,
       env: { PATH: process.env.PATH, HOME: root, GIT_CONFIG_GLOBAL: "/dev/null", GIT_CONFIG_NOSYSTEM: "1", PM_AUTHOR: "codex-changelog339-1111", PM_TELEMETRY_SOURCE_CONTEXT: "automation", DO_NOT_TRACK: "1" },
     });
     assert.equal(result.status, 0, result.stdout + result.stderr);
     assert.match(result.stdout, /"baseline":"working-tree"/);
     assert.match(result.stdout, /"restored_pass":/);
-    t.diagnostic(`${cwd === clone ? "fresh clone" : "source archive"}: full behavioral proof passed`);
+    assert.doesNotMatch(result.stdout, /"mutation":/);
+    assert.match(result.stdout, /"attempted":2,"passed":2,"failed":0/);
+    t.diagnostic(`${cwd === clone ? "fresh clone" : "source archive"}: proof controls passed`);
   }
 });

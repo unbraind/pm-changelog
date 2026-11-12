@@ -33,3 +33,12 @@ test("proof reports every mutation and restored control after an early missing s
   }
   assert.throws(() => emptyUnreleasedMutation(source, "constructor"), /Unknown proof mutation/);
 });
+
+test("a case selection skips unselected cases without running them", () => {
+  const ran: string[] = [];
+  const proof = new ProofRun(/^(fixed|restored)-controls$/);
+  for (const name of ["fixed-controls", "revert-main-diagnostics", "restored-controls"]) proof.run(name, () => { ran.push(name); });
+  assert.deepEqual(ran, ["fixed-controls", "restored-controls"]);
+  assert.deepEqual(proof.results.map(({ name }) => name), ["fixed-controls", "restored-controls"]);
+  proof.finish();
+});

@@ -39,7 +39,9 @@ try {
     assert.match(result.stdout, new RegExp(`# fail ${count}\\b`));
     assert.match(result.stdout, /ERR_ASSERTION|AssertionError/);
   };
-  const proof = new ProofRun();
+  // --baseline-only runs the fixed and restored controls without the mutation cases: default test runs check portability,
+  // and the complete proof stays the registered pm test (timeout 1200 node scripts/prove-check-generator-drift-revert.ts).
+  const proof = new ProofRun(process.argv.includes("--baseline-only") ? /^(fixed|restored)-controls$/ : undefined);
   const baseline = run();
   proof.run("fixed-controls", () => assert.equal(baseline.status, 0, baseline.stdout + baseline.stderr));
   const passCount = Number(/# pass (\d+)/.exec(baseline.stdout)?.[1] ?? 0);

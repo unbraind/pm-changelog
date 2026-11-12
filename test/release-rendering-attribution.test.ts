@@ -212,9 +212,10 @@ test("registry publication proof canonicalizes versions and never treats server 
   for (const fixture of [
     { status: 404, body: "{}" }, { status: 503, body: "{}" }, { status: 201, body: '{"time":{},"versions":{}}' },
     { status: 200, body: "{" }, { status: 200, body: "null" }, { status: 200, body: "[]" }, { status: 200, body: "{}" },
-    { status: 200, body: '{"time":[],"versions":{}}' }, { status: 200, body: '{"time":{},"versions":null}' },
-    { status: 200, body: JSON.stringify({ time: { "3.0.0": "2026-11-01T00:00:00Z" }, versions: {} }) },
-    { status: 200, body: JSON.stringify({ time: {}, versions: { "3.0.0": { version: "3.0.0" } } }) },
+    // Named packuments, so the time and versions guards are what refuse these maps.
+    { status: 200, body: '{"name":"fixture","time":[],"versions":{}}' }, { status: 200, body: '{"name":"fixture","time":{},"versions":null}' },
+    { status: 200, body: JSON.stringify({ name: "fixture", time: { "3.0.0": "2026-11-01T00:00:00Z" }, versions: {} }) },
+    { status: 200, body: JSON.stringify({ name: "fixture", time: {}, versions: { "3.0.0": { version: "3.0.0" } } }) },
     // Absence must come from the requested package's own packument.
     { status: 200, body: JSON.stringify({ time: {}, versions: {} }) },
     { status: 200, body: JSON.stringify({ name: "other-package", time: {}, versions: {} }) },
