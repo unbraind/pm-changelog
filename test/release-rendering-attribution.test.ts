@@ -139,13 +139,13 @@ test("frozen delivery facts reject relabelled non-changes and later edits while 
 });
 
 
-test("unproved release boundary in a non-git tracker logs candidates without stamping", async (t) => {
+test("unproved release boundary refuses eligible candidates before any writes", async (t) => {
   const cwd = mkdtempSync(join(tmpdir(), "pm-unproved-window-"));
   t.after(() => rmSync(cwd, { recursive: true, force: true }));
   const pmRoot = join(cwd, ".agents/pm"), skipped: string[] = [];
   await runInit("release", { path: pmRoot }, { defaults: true, agentGuidance: "skip" });
   await runCreate({ id: "release-unknown", title: "Delivered unknown change", type: "Task", status: "closed", tags: "rendering-change", completedAt: "2026-11-01T00:00:00Z", closeReason: "Implemented", createMode: "progressive" }, { path: pmRoot });
-  assert.deepEqual(await attributeRenderingRelease(pmRoot, "2.0.0", { cwd, preparedFrom: "HEAD", publication: { state: "unknown" }, log: (id) => { skipped.push(id); } }), []);
+  await assert.rejects(() => attributeRenderingRelease(pmRoot, "2.0.0", { cwd, preparedFrom: "HEAD", publication: { state: "unknown" }, log: (id) => { skipped.push(id); } }), /Rendering release attribution refused: release_decision_base_unavailable/);
   assert.deepEqual(skipped, ["release-unknown"]);
   assert.equal((await listAllComplete({}, { pmRoot })).items[0].release, undefined);
   initGitFixture(cwd);
@@ -153,7 +153,16 @@ test("unproved release boundary in a non-git tracker logs candidates without sta
   execFileSync("git", ["add", "package.json", ".agents/pm"], { cwd, env: fixtureEnvironment() });
   execFileSync("git", ["-c", "user.name=SteveBot", "-c", "user.email=1153461+unbraind@users.noreply.github.com", "commit", "-m", "Unknown publication fixture"], { cwd, env: fixtureEnvironment(), stdio: "pipe" });
   skipped.length = 0;
-  assert.deepEqual(await attributeRenderingRelease(pmRoot, "2.0.0", { cwd, preparedFrom: "HEAD", publication: { state: "unknown" }, log: (id) => { skipped.push(id); } }), []);
+  const history = readFileSync(join(pmRoot, "history/release-unknown.jsonl"));
+  for (const [preparedFrom, reason] of [["HEAD", "publication_state_unknown"], ["", "release_decision_base_missing"], ["missing-ref", "release_decision_base_unavailable"]]) {
+    skipped.length = 0;
+    await assert.rejects(() => attributeRenderingRelease(pmRoot, "2.0.0", { cwd, preparedFrom, publication: { state: "unknown" }, log: (id, loggedReason) => {
+      skipped.push(id);
+      assert.equal(loggedReason, reason);
+    } }), new RegExp(`Rendering release attribution refused: ${reason}`));
+    assert.deepEqual(skipped, ["release-unknown"]);
+    assert.deepEqual(readFileSync(join(pmRoot, "history/release-unknown.jsonl")), history);
+  }
   assert.deepEqual(skipped, ["release-unknown"]);
   assert.equal((await listAllComplete({}, { pmRoot })).items[0].release, undefined);
 
@@ -161,9 +170,34 @@ test("unproved release boundary in a non-git tracker logs candidates without sta
 
 
 
+test("unproved release boundary succeeds without eligible delivered actions", async (t) => {
+  const cwd = mkdtempSync(join(tmpdir(), "pm-no-release-candidates-"));
+  t.after(() => rmSync(cwd, { recursive: true, force: true }));
+  const pmRoot = join(cwd, ".agents/pm"), logged: string[] = [];
+  await runInit("release", { path: pmRoot }, { defaults: true, agentGuidance: "skip" });
+  for (const [id, status, tags, release, closeReason] of [
+    ["release-active", "in_progress", "rendering-change", undefined, undefined],
+    ["release-untagged", "closed", "", undefined, "Implemented"],
+    ["release-assigned", "closed", "rendering-change", "1.0.0", "Implemented"],
+    ["release-nonchange", "closed", "rendering-change", undefined, "Duplicate of release-assigned"],
+  ]) {
+    await runCreate({ id, title: "No pending delivery", type: "Task", status, tags, release, closeReason, createMode: "progressive" }, { path: pmRoot });
+  }
+  await assert.doesNotReject(async () => {
+    assert.deepEqual(await attributeRenderingRelease(pmRoot, "2.0.0", { cwd, preparedFrom: "HEAD", publication: { state: "unknown" }, log: (id) => { logged.push(id); } }), []);
+  });
+  assert.deepEqual(logged, []);
+});
+
 test("registry publication proof canonicalizes versions and never treats server errors as absence", async (t) => {
+  let packument: { status: number; body: string } = { status: 200, body: JSON.stringify({ time: {}, versions: {} }) };
+  const accepts: (string | undefined)[] = [];
   const server = createServer((request, response) => {
-    if (request.url === "/fixture/2.0.0") { response.writeHead(200, { "content-type": "application/json" }); response.end(JSON.stringify({ version: "2.0.0", gitHead: "a".repeat(40) })); }
+    if (request.url === "/fixture") {
+      accepts.push(request.headers.accept);
+      response.writeHead(packument.status, { "content-type": "application/json" }); response.end(packument.body);
+    }
+    else if (request.url === "/fixture/2.0.0") { response.writeHead(200, { "content-type": "application/json" }); response.end(JSON.stringify({ version: "2.0.0", gitHead: "a".repeat(40) })); }
     else if (request.url === "/fixture/3.0.0") { response.writeHead(404); response.end(); }
     else if (request.url === "/fixture/5.0.0") { response.writeHead(200); response.end(JSON.stringify({ version: "5.0.0", gitHead: "HEAD" })); }
     else if (request.url === "/fixture/6.0.0") { response.writeHead(200); response.end(JSON.stringify({ version: "6.0.0" })); }
@@ -175,6 +209,20 @@ test("registry publication proof canonicalizes versions and never treats server 
   const registry = `http://127.0.0.1:${address.port}`;
   assert.deepEqual(await readPublicationState("fixture", "v2.0.0", registry), { state: "published", gitHead: "a".repeat(40) });
   assert.deepEqual(await readPublicationState("fixture", "3.0.0", registry), { state: "unpublished" });
+  for (const fixture of [
+    { status: 404, body: "{}" }, { status: 503, body: "{}" }, { status: 201, body: '{"time":{},"versions":{}}' },
+    { status: 200, body: "{" }, { status: 200, body: "null" }, { status: 200, body: "[]" }, { status: 200, body: "{}" },
+    { status: 200, body: '{"time":[],"versions":{}}' }, { status: 200, body: '{"time":{},"versions":null}' },
+    { status: 200, body: JSON.stringify({ time: { "3.0.0": "2026-11-01T00:00:00Z" }, versions: {} }) },
+    { status: 200, body: JSON.stringify({ time: {}, versions: { "3.0.0": { version: "3.0.0" } } }) },
+  ]) {
+    packument = fixture;
+    assert.deepEqual(await readPublicationState("fixture", "3.0.0", registry), { state: "unknown" }, fixture.body);
+  }
+  packument = { status: 200, body: JSON.stringify({ time: { "2.0.0": "2026-11-01T00:00:00Z" }, versions: { "2.0.0": { version: "2.0.0" } } }) };
+  assert.deepEqual(await readPublicationState("fixture", "3.0.0", registry), { state: "unpublished" });
+  assert.ok(accepts.length > 0);
+  assert.ok(accepts.every((accept) => accept === "application/json"), "full packument media type must retain publication times");
   assert.deepEqual(await readPublicationState("fixture", "4.0.0", registry), { state: "unknown" });
   assert.deepEqual(await readPublicationState("fixture", "invalid", registry), { state: "unknown" });
   assert.deepEqual(await readPublicationState("fixture", "5.0.0", registry), { state: "unknown" });

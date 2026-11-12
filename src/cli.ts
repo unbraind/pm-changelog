@@ -299,7 +299,7 @@ function cliRegenerationOptions(options: CliOptions): RegenerationOptions {
     if (typeof value === "string" || typeof value === "number" || typeof value === "boolean") result[flag] = value;
     else if (Array.isArray(value)) result[flag] = value.map(String);
   }
-  if (options.statuses) result.statuses = options.statuses.join(",");
+  if (options.statuses) result.statuses = options.statuses.length ? options.statuses.join(",") : ",";
   result[options.includeLinks ? "include-links" : "no-links"] = true;
   result["no-check-diff"] = !options.checkDiff;
   result["no-pending-release"] = !options.pendingRelease;

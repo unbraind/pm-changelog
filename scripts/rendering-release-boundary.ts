@@ -74,13 +74,24 @@ export async function resolveRenderingReleaseBoundary(cwd: string, pmRoot: strin
   return { commit, timestamp, items };
 }
 
-/** Query only the public exact-version registry endpoint; uncertainty is not absence. */
+/** Confirm publication from exact metadata, or absence from the full packument. */
 export async function readPublicationState(name: string, version: string, registry = "https://registry.npmjs.org"): Promise<PublicationState> {
   const release = parseContractRelease(version);
   if (!release) return { state: "unknown" };
   try {
     const response = await fetch(`${registry}/${encodeURIComponent(name)}/${encodeURIComponent(release)}`, { signal: AbortSignal.timeout(15000) });
-    if (response.status === 404) return { state: "unpublished" };
+    if (response.status === 404) {
+      const packument = await fetch(`${registry}/${encodeURIComponent(name)}`, {
+        headers: { Accept: "application/json" }, signal: AbortSignal.timeout(15000),
+      });
+      if (packument.status !== 200) return { state: "unknown" };
+      const document: unknown = await packument.json();
+      if (!document || typeof document !== "object" || Array.isArray(document)
+        || !("time" in document) || !document.time || typeof document.time !== "object" || Array.isArray(document.time)
+        || !("versions" in document) || !document.versions || typeof document.versions !== "object" || Array.isArray(document.versions)
+        || Object.hasOwn(document.time, release) || Object.hasOwn(document.versions, release)) return { state: "unknown" };
+      return { state: "unpublished" };
+    }
     if (!response.ok) return { state: "unknown" };
     const body: unknown = await response.json();
     if (!body || typeof body !== "object" || !("version" in body) || body.version !== release) return { state: "unknown" };

@@ -18,13 +18,17 @@ export async function attributeRenderingRelease(pmRoot: string, deliveryVersion:
   assert.ok(release, "A selected stable delivery version is required before tracker attribution");
   const items = (await listAllComplete({}, { pmRoot })).items;
   const context = { statusRegistry: resolveRuntimeStatusRegistry((await readSettings(pmRoot)).schema) };
+  const eligible = items.filter((item) => item.tags?.includes("rendering-change") && isDoneStatus(item, context) && !isNonChangeClosure(item, context)
+    && getStringField(item, "release") === undefined);
   const changed: string[] = [];
   let boundaryReason = "release_boundary_unavailable";
   const boundary = await resolveRenderingReleaseBoundary(options.cwd, pmRoot, release, options.preparedFrom, options.publication, (reason) => { boundaryReason = reason; });
   const log = options.log ?? ((item: string, reason: string) => console.error(JSON.stringify({ item, reason })));
-  for (const item of items) {
-    if (!item.tags?.includes("rendering-change") || !isDoneStatus(item, context) || isNonChangeClosure(item, context)
-      || getStringField(item, "release") !== undefined) continue;
+  if (eligible.length > 0 && !boundary) {
+    for (const item of eligible) log(item.id, boundaryReason);
+    throw new Error(`Rendering release attribution refused: ${boundaryReason}`);
+  }
+  for (const item of eligible) {
     const frozen = boundary?.items.get(item.id);
     const metadata = (item as PmItem).metadata;
     const completion = resolveCompletionTimestamp({ completed_at: item.completed_at, closed_at: item.closed_at });

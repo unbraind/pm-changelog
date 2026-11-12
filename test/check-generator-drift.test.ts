@@ -215,6 +215,21 @@ test("regeneration model ignores host argv, retains canonical values and quoting
   } finally { process.argv = argv; }
 });
 
+test("empty and nonempty status lists round-trip through regeneration guidance", async (t) => {
+  const f = await fixture(t);
+  for (const statuses of [",", "closed,in_progress"]) {
+    const parsed = cliTestSurface.parseArgs([...f.args, `--status=${statuses}`, "--check"]);
+    const model = cliTestSurface.cliRegenerationOptions(parsed);
+    const guidance = regenerationCommand(model, [process.execPath, CLI]);
+    assert.ok(guidance.argv.includes(`--statuses=${statuses}`));
+    assert.ok(!guidance.argv.includes("--statuses="));
+    assertCopiedCommand(guidance.command!, guidance.argv, guidance.shell);
+    const regenerated = cliTestSurface.parseArgs(guidance.argv.slice(2));
+    assert.deepEqual(regenerated.statuses, parsed.statuses);
+    assert.deepEqual(cliTestSurface.cliRegenerationOptions(regenerated), model);
+  }
+});
+
 test("win32 regeneration gives PowerShell-safe quotes and lossless argv", () => {
   const guidance = regenerationCommand({ output: "release notes' \"quoted\".md", title: "$literal` and 'quotes'", check: true }, ["node", "C:\\Program Files\\pm\\cli.js"], "win32");
   assert.equal(guidance.shell, "powershell");

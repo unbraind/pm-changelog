@@ -73,9 +73,10 @@ test("unproved publication cannot borrow the first version commit or recovery HE
   const f = await publicationFixture(t);
   for (const publication of [{ state: "published" }, { state: "unknown" }] satisfies PublicationState[]) {
     const skipped: { id: string; reason: string }[] = [];
-    assert.deepEqual(await attributeRenderingRelease(f.pmRoot, "2.0.0", { cwd: f.cwd, preparedFrom: f.recovery, publication, log: (id, reason) => { skipped.push({ id, reason }); } }), []);
+    const reason = publication.state === "unknown" ? "publication_state_unknown" : "published_commit_unavailable";
+    await assert.rejects(() => attributeRenderingRelease(f.pmRoot, "2.0.0", { cwd: f.cwd, preparedFrom: f.recovery, publication, log: (id, reason) => { skipped.push({ id, reason }); } }), new RegExp(`Rendering release attribution refused: ${reason}`));
     assert.equal(skipped.length, 2);
-    assert.ok(skipped.every(({ reason }) => reason === (publication.state === "unknown" ? "publication_state_unknown" : "published_commit_unavailable")));
+    assert.ok(skipped.every((entry) => entry.reason === reason));
   }
   assert.ok((await listAllComplete({}, { pmRoot: f.pmRoot })).items.every((row) => row.release === undefined));
 });
