@@ -4,6 +4,12 @@
 
 > Release note (issue 337): empty Unreleased sections are always omitted; --include-empty retains only versioned release sections. Callers' committed changelogs drop the legacy empty Unreleased / No changes. block on their next regeneration, including prepend mode. Non-empty unreleased items and dependency notes are preserved.
 
+## Unreleased
+
+### Fixed
+
+- Recognize capitalized Dependabot bump subjects in dependency-only releases ([pmc-dependency-bump-case](https://github.com/unbraind/pm-changelog/blob/main/.agents/pm/issues/pmc-dependency-bump-case.toon))
+
 ## 2026.11.10 - 2026-11-10
 
 ### Dependencies

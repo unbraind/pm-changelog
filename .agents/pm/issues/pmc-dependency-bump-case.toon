@@ -2,12 +2,17 @@ id: pmc-dependency-bump-case
 title: Recognize capitalized Dependabot bump subjects in dependency-only releases
 description: "Fix issue 343 in the shared dependency subject matcher, preserving strict subject shape and original description case. Verify CLI pending and tagged dependency-only release windows."
 type: Issue
-status: in_progress
+status: closed
 priority: 1
 tags[1]: "gh:unbraind/pm-changelog#343"
 created_at: "2026-11-11T23:37:37.766Z"
-updated_at: "2026-11-11T23:49:38.317Z"
+updated_at: "2026-11-12T15:01:16.213Z"
+closed_at: "2026-11-12T15:01:16.191Z"
+completed_at: "2026-11-12T15:01:16.191Z"
 author: codex-sol
+resolution: Implemented and merged in #344 (0620c50).
+expected_result: The change described by this item is on main.
+actual_result: "Merged in #344 as 0620c50; checks successful at head 2a44c24: CodeQL, codeql, lifecycle, semgrep-cloud-platform/scan, test (22), test (26)."
 comments[8]{created_at,author,text}:
   "2026-11-11T23:37:39.707Z",codex-sol,"Read issue 343 and its comment in full. No imported item matched the issue tag or title in the current tracker, so created this item. Fresh fix/dependency-bump-subject-case branch starts at origin/main; PR 341 and its branch remain untouched. Plan: change only the shared matcher and its explanatory comments; add strict parser controls and real-Git CLI release/tag stability, semver and check coverage. Preserve description case without lowercasing and retain existing first-letter capitalization and PR extraction. Regenerate through changelog:full."
   "2026-11-11T23:39:16.950Z",codex-sol,"Consumer audit: DEPENDABOT_SUBJECT is tested only by parseDependencyCommit; readDependencyCommits calls that parser. enrichSectionsWithDependencyCommits reads both single and all-tag windows; selectChangelogSections supplies createChangelog, assertRequestedRelease, structured documents, summaries, visibleChangelogItems and suggestSemver. writeChangelog and CLI check/drift render through createChangelog. No copied subject regex or separate classifier was found. Focused parser plus real-Git CLI tests pass 13/13. Existing parser rejects breaking-marker subjects, and that behavior is now explicit. No check-drift.test.ts exists on this base; test/check-diff.test.ts is the existing drift suite."
@@ -35,4 +40,5 @@ tests[7]{command,scope,provenance{author,created_at,source_kind,source_ref}}:
 docs[2]{path,scope,note}:
   CHANGELOG.md,project,"Regenerated unchanged through changelog:full; item remains in progress"
   README.md,project,Dependency subject grammar and case preservation
+close_reason: "Delivered by #344 \"Recognize capitalized Dependabot bump subjects in dependency-only releases\" (merged as 0620c50). Checks successful at the PR head 2a44c24: CodeQL, codeql, lifecycle, semgrep-cloud-platform/scan, test (22), test (26)."
 body: ""
