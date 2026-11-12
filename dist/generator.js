@@ -265,8 +265,13 @@ export function createChangelog(options, onClaim, renderingVersion = RENDERING_V
         onClaim({ ...source, category: source.kind === "item" ? classifyItem(source.items[0], options) : undefined, line: physicalLines - source.claim.split("\n").length + 1 });
     };
     if (sections.length === 0) {
-        // Empty grouping or deliberately suppressed history has no release to
-        // retain; includeEmpty must not fabricate an Unreleased placeholder.
+        if (options.includeEmpty && RENDERING_PROFILES[renderingVersion].emptyUnreleased && !isDeliberateEmptySuppression(options)) {
+            const heading = buildVersionHeading(options.version, options.date);
+            lines.push(`## ${heading}`, "", "No changes.", "");
+            emitClaim({ line: lines.length - 1, release: heading, section: "", claim: "No changes.", kind: "empty", items: [] });
+        }
+        // Current profiles suppress the placeholder; historical profiles retain
+        // their published empty-group fallback, including its suppression guard.
         return {
             markdown: lines.join("\n").trimEnd() + "\n",
             sections,

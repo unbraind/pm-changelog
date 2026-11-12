@@ -8,9 +8,10 @@ import type { TestContext } from "node:test";
 import { listAllComplete, PmClient, PmCliError, runCreate, runInit, runUpdate, schemaAddField } from "@unbrained/pm-cli/sdk";
 import { activateExtensionForTest, runRegisteredCommandForTest } from "@unbrained/pm-cli/sdk/testing";
 import { buildConsumerUpgrades, readConsumerUpgrades } from "../src/consumer-upgrades.ts";
-import { HISTORICAL_RENDERING_VERSIONS, RENDERING_PROFILES, mergeChangelog, PREVIOUS_RENDERING_VERSION, RENDERING_VERSION, writeChangelog } from "../src/generator.ts";
+import { createChangelog, HISTORICAL_RENDERING_VERSIONS, RENDERING_PROFILES, mergeChangelog, PREVIOUS_RENDERING_VERSION, RENDERING_VERSION, writeChangelog } from "../src/generator.ts";
 import { diagnoseCheckDrift, classifyCheckDrift as classify, regenerationCommand, canonicalRegenerationOptions, isEntryReorder } from "../src/check-drift.ts";
 import type { RegenerationGuidance } from "../src/check-drift.ts";
+import type { GenerateChangelogOptions } from "../src/types.ts";
 import { cliTestSurface } from "../src/cli.ts";
 import extension from "../src/extension.ts";
 import { fixtureEnvironment, initGitFixture } from "./git-fixture.ts";
@@ -499,6 +500,49 @@ test("published 2026.11.6 empty-section output matches an older profile with new
   assert.match(receipt.message, /matches rendering profile 2026\.11\.7/);
   assert.match(receipt.message, /one-time regeneration/);
   assert.equal(readFileSync(output, "utf8"), committed);
+});
+
+test("historical empty release and milestone groups retain published fallback and deliberate suppression", async (t) => {
+  const cwd = mkdtempSync(join(tmpdir(), "pm-empty-group-profile-"));
+  t.after(() => rmSync(cwd, { recursive: true, force: true }));
+  const pmRoot = join(cwd, ".agents/pm"), output = join(cwd, "CHANGELOG.md");
+  await runInit("empty", { path: pmRoot }, { defaults: true, agentGuidance: "skip" });
+  const items = (await listAllComplete({}, { pmRoot })).items;
+  assert.deepEqual(items, []);
+  const published = readFileSync(resolve("test/fixtures/changelog-2026.11.6-empty.md"), "utf8");
+  const stdout = process.stdout.write, stderr = process.stderr.write, exitCode = process.exitCode;
+  let captured = "";
+  process.stdout.write = ((chunk: string | Uint8Array) => { captured += chunk.toString(); return true; }) as typeof process.stdout.write;
+  process.stderr.write = (() => true) as typeof process.stderr.write;
+  try {
+    for (const groupBy of ["release", "milestone"] as const) {
+      const options: GenerateChangelogOptions = { items, groupBy, includeEmpty: true };
+      for (const profile of ["2026.11.6", "2026.11.7"] as const) {
+        const claims: string[] = [];
+        assert.equal(createChangelog(options, (claim) => { claims.push(claim.claim); }, profile).markdown, published);
+        assert.deepEqual(claims, ["No changes."]);
+        assert.equal(createChangelog({ ...options, includeEmpty: false }, undefined, profile).markdown, "# Changelog\n");
+        assert.equal(createChangelog({ ...options, releaseWindows: [], suppressedPendingRelease: "v1.2.0" }, undefined, profile).markdown, "# Changelog\n");
+        assert.equal(createChangelog({ ...options, version: "1.2.0", date: "2026-11-01" }, undefined, profile).markdown, published.replace("## Unreleased", "## 1.2.0 - 2026-11-01"));
+      }
+      for (const profile of ["2026.11.10", RENDERING_VERSION] as const) assert.equal(createChangelog(options, undefined, profile).markdown, "# Changelog\n");
+      writeFileSync(output, published);
+      captured = "";
+      await cliTestSurface.main(["--pm-root", pmRoot, "--group-by", groupBy, "--include-empty", "--output", output, "--check", "--json"]);
+      assert.equal(process.exitCode, 1);
+      const receipt = JSON.parse(captured);
+      assert.equal(receipt.classification, "rendering_changed");
+      assert.equal(receipt.compared_rendering_version, "2026.11.7");
+      assert.match(receipt.message, /rendering changed in 2026\.11\.10/);
+      assert.ok(receipt.regeneration_argv.includes(`--group-by=${groupBy}`));
+      assert.equal(readFileSync(output, "utf8"), published, "file check never writes");
+    }
+    rmSync(output);
+    captured = "";
+    await cliTestSurface.main(["--pm-root", pmRoot, "--output", output, "--check", "--json"]);
+    assert.equal(process.exitCode, 1);
+    assert.equal(JSON.parse(captured).classification, "tracker_changed");
+  } finally { process.stdout.write = stdout; process.stderr.write = stderr; process.exitCode = exitCode; }
 });
 
 

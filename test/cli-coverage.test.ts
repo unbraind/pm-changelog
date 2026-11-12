@@ -7,6 +7,7 @@ import { dirname, join } from "node:path";
 import { PassThrough } from "node:stream";
 import test, { type TestContext } from "node:test";
 import { fileURLToPath } from "node:url";
+import { runCreate, runInit } from "@unbrained/pm-cli/sdk";
 
 import { cliTestSurface, runCliEntry } from "../src/cli.ts";
 
@@ -206,6 +207,43 @@ test("in-process main writes files, workflow outputs, check diffs, and JSON stdo
   }
 });
 
+test("real tracker CLI preserves JSON aliases, date fallback, bounded file diffs and error exits", async (t) => {
+  const { directory } = fixture(t);
+  const pmRoot = join(directory, ".agents/pm"), output = join(directory, "CHANGELOG.md");
+  await runInit("coverage", { path: pmRoot }, { defaults: true, agentGuidance: "skip" });
+  await runCreate({ id: "coverage-output", title: "Delivered output policy", type: "Task", status: "closed", completedAt: "2026-11-01T00:00:00Z", closeReason: "Implemented", createMode: "progressive" }, { path: pmRoot });
+  const writes: string[] = [], errors: string[] = [];
+  const exitCode = process.exitCode;
+  t.mock.method(process.stdout, "write", (chunk: string | Uint8Array) => { writes.push(String(chunk)); return true; });
+  t.mock.method(process.stderr, "write", (chunk: string | Uint8Array) => { errors.push(String(chunk)); return true; });
+  t.mock.method(console, "error", (...values: unknown[]) => { errors.push(values.map(String).join(" ")); });
+  try {
+    await cliTestSurface.main(["--pm-root", pmRoot, "--pm-cwd", directory, "--version", "1.0.0", "--date-fallback", "2026-11-01", "--stdout", "--format", "json", "--explain", "--status", "closed", "--exclude-tag", "omitted", "--include-links", "--no-dependency-updates"]);
+    const document = JSON.parse(writes.join(""));
+    assert.equal(document.releases[0].heading, "1.0.0 - 2026-11-01");
+    assert.equal(document.selection_report.stage_counts.input, 1);
+    writeFileSync(output, "# Changelog\n\n" + Array.from({ length: 400 }, (_, index) => `- Old entry ${index}`).join("\n") + "\n");
+    const before = readFileSync(output, "utf8");
+    process.exitCode = undefined;
+    await cliTestSurface.main(["--pm-root", pmRoot, "--pm-cwd", directory, "--version", "1.0.0", "--output", output, "--check", "--dependency-updates"]);
+    assert.equal(process.exitCode, 1);
+    assert.match(errors.join("\n"), /diff truncated:/);
+    assert.equal(readFileSync(output, "utf8"), before);
+    writes.length = 0;
+    errors.length = 0;
+    await cliTestSurface.main(["--pm-root", pmRoot, "--pm-cwd", directory, "--stdout", "--explain"]);
+    assert.match(writes.join(""), /Delivered output policy/);
+    assert.match(errors.join("\n"), /Selection report: input=1 visible=1/);
+    await assert.rejects(cliTestSurface.main(["corrections", "--unsupported-correction-flag"]), { code: "correction_invalid" });
+    await assert.rejects(cliTestSurface.main(["drift", "--unsupported-drift-flag"]), { code: "invalid_drift_options" });
+    errors.length = 0;
+    process.exitCode = undefined;
+    assert.equal(await runCliEntry([process.execPath, fileURLToPath(new URL("../src/cli.ts", import.meta.url)), "--unknown-output-option"]), true);
+    assert.equal(process.exitCode, 1);
+    assert.match(errors.join("\n"), /Unknown option: --unknown-output-option/);
+  } finally { process.exitCode = exitCode; }
+});
+
 test("workflow writers reject absent environment targets and helper projections stay stable", () => {
   const githubOutput = process.env.GITHUB_OUTPUT;
   const githubSummary = process.env.GITHUB_STEP_SUMMARY;
@@ -320,6 +358,10 @@ test("all-release context resolves real repository tags and package version", ()
   )) as { version: string }).version;
   assert.equal(options.version, expectedVersion);
   assert.ok(options.releaseWindows && options.releaseWindows.length > 0);
+  const defaultCwd = cliTestSurface.parseArgs(["--all-release-tags", "--release-version-from-package"]);
+  cliTestSurface.applyReleaseContext(defaultCwd);
+  assert.equal(defaultCwd.version, expectedVersion);
+  assert.ok(defaultCwd.releaseWindows && defaultCwd.releaseWindows.length > 0);
 });
 
 test("entry guard rejects imports and accepts the real script path", async (t) => {

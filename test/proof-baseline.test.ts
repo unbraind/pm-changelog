@@ -25,9 +25,12 @@ function repository(t: TestContext) {
   return { root, git };
 }
 
-test("proof baseline pins the merge base when its source is available", (t) => {
+test("proof baseline is unchanged when remote main advances through HEAD ancestors", (t) => {
   const f = repository(t);
-  assert.deepEqual(readProofBaseline(f.root), { source: "base source\n", kind: "merge-base" });
+  const before = readProofBaseline(f.root);
+  f.git("update-ref", "refs/remotes/origin/main", "HEAD");
+  assert.deepEqual(readProofBaseline(f.root), before);
+  assert.deepEqual(before, { source: "working source\n", kind: "working-tree" });
 });
 
 test("proof baseline falls back in fresh single-branch clones and plain source archives", (t) => {

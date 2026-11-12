@@ -2,14 +2,15 @@ id: pmc-check-generator-drift
 title: Explain generator drift separately from tracker changes in changelog checks
 description: Classify check failures and publish the missed ordering upgrade obligation.
 type: Issue
+pm_format_version: 2
 status: in_progress
 priority: 2
 tags[1]: "gh:unbraind/pm-changelog#339"
 created_at: "2026-11-11T08:54:50.195Z"
-updated_at: "2026-11-12T00:23:17.128Z"
+updated_at: "2026-11-12T06:21:00.277Z"
 author: codex-changelog339-1111
 acceptance_criteria: "Text and JSON classify reorder_only, rendering_changed and tracker_changed; generator drift includes the configured regeneration command; all drift checks exit 1; the 2026.11.7 upgrade action is listed; historical deliveries have release evidence; behavioral reverts fail in disposable real trackers"
-comments[35]{created_at,author,text}:
+comments[41]{created_at,author,text}:
   "2026-11-11T08:54:52.636Z",codex-changelog339-1111,"Read issue 339 and queue rules. Classify section-local reorder first, exact previous-renderer equality second, remaining drift as tracker_changed. Store rendering versions in the JSON receipt without changing Markdown bytes. Audit all four prior in_progress items against merged commits and release tags; close delivered historical items as explicitly requested, keeping this issue in_progress."
   "2026-11-11T09:01:06.423Z",codex-changelog339-1111,"Tracker audit complete: pmc-total-item-order delivered by #324 in v2026.11.7; pmc-stable-itemless-check by #333 and pmc-contract-changes by #328 in v2026.11.10. Closed those with actual merge timestamps and release evidence. Also closed pmc-no-empty-unreleased-337 as merged via #338 but not yet tagged. No other prior in_progress items remain. Operator facet on pmc-total-item-order supplies the 2026.11.7 regeneration action through the existing native catalog. The pinned CLI required activating the local package field registration before writing change_facets; used an ignored local extension installation."
   "2026-11-11T09:12:34.082Z",codex-changelog339-1111,"Current regression suite passes 9/9 in the disposable revert harness before and after four independent behavioral mutations. Reverting only main diagnostics fails both reorder and new-item tests (2/2 failures); changing only the check failure exit to zero fails both exit assertions (2/2); removing only the previous rendering profile fails its test (1/1); removing only the catalog facet with pinned pm fails the upgrade action test (1/1). All failures are assertions, not setup or syntax errors. Source worktree was never mutated. Typecheck and test typecheck pass; docstring gate covers 281 declarations in 52 files. No lint script is configured. Registered host checks now share the diagnosis and preserve typed exit-1 errors. Starting the full npm suite within the 45-minute gate cap; CI retains responsibility for full release coverage and Bun release gates under this task budget."
@@ -45,7 +46,13 @@ comments[35]{created_at,author,text}:
   "2026-11-12T00:16:00.483Z",codex-changelog339-1111,"Final portability audit found three fixture-only --pm-bin overrides pointing at the POSIX npm shim. Removed those overrides so the genuine CLI tests use the existing production resolver (Node plus the installed package manifest), including on Windows. Explicit copied-command execution still uses the shell the guidance reports; the registered host command uses PowerShell's npm shim discovery on Windows. No production module changed after the prior behavior proofs. Repeat only the affected check-generator-drift and fresh-clone/source-archive proof gates on the final fixture text; all other completed scope results remain applicable. Lifecycle stress remains excluded."
   "2026-11-12T00:23:15.320Z",codex-changelog339-1111,"Round-6 final validation: eight scoped files pass, 109/109 reported tests across two suites, zero failures/skips/cancellations. This includes every static changed-script test importer, the shared proof subprocess consumer, workflow and shipped-document checks. Each file has a strict 1200-second cap and at most two active workers. After the fixture-only portable-PM resolver correction, repeated only the affected drift and clone/archive proof files: 29/29 pass; portability file 342.89 seconds, targeted rerun 386.10 seconds. Fresh single-branch clone and source archive both complete all 54 shared mutations/56 proof cases with 25 passing restored controls. Typecheck and test compilation pass on final text; docstrings pass (57 files, 289 declarations). Six boundary tests also passed through pm test --run --progress. Lifecycle stress is deliberately skipped locally for CI per round-6 instruction; no live Windows execution or full release coverage claim. No new CLI/SDK gap identified. Main is unchanged at 9b2c446 and already merged; accepted round-5 and native append-only history remain intact. Exact-head CI and remaining lifecycle certification are visible on https://github.com/unbraind/pm-changelog/pull/341/checks ."
   "2026-11-12T00:23:16.202Z",codex-changelog339-1111,"Final handoff: PRRT_kwDOSfkApc62Z7CP fixes actual published gitHead/tag boundary selection, main ancestry and refusal diagnostics; full boundary revert fails 2 assertions. PRRT_kwDOSfkApc62Z7CM validates frozen non-change disposition and symmetric status/time/declaration facts; full attribution revert fails 1 assertion and frozen implemented must-allow passes. PRRT_kwDOSfkApc62Z7CT makes command validation and execution follow the reported shell/existing helper and uses the portable installed-PM resolver; reinstating the POSIX-only assertion or default interpreter fails its regression. PRRT_kwDOSfkApc62Z7CE documents only the actual file-check receipt categories; restoring old documentation fails its contract assertion. Four full threads, four complete comments and all four AI-agent prompt sections read. No thread replies, reactions or resolutions. Commit the code, docs, tests and native PM evidence together; release the own claim, keep this item in_progress, regenerate/check after all PM writes and push the existing PR. Working tree mutations for revert proofs occurred only in disposable copies."
-files[30]{path,scope}:
+  "2026-11-12T04:43:19.691Z",codex-agent,"Closing review: pulled accepted PR head d09e238, merged main 0620c50 via a standard merge while retaining #344 case-insensitive dependency matching and this PR rendering profiles; rebuilt generated maps instead of hand-merging them. No pending merge receipts; existing legacy health warnings remain unchanged. Read every unresolved thread with all comments and latest CodeRabbit review body: two unresolved threads (four comments), one outside-diff finding. Address only branch coverage, native timeout registration, historical empty-group compatibility and the remaining proof-determinism concern associated with the existing proof thread; preserve all thresholds and native histories. Use codex-agent for this closing round. No thread replies, resolutions, mentions or PR merge."
+  "2026-11-12T04:51:34.341Z",codex-agent,"Closing fixes verified against the code: file-check diagnosis returns only rendering_changed/tracker_changed, so the old CLI reorder-only message alternative was unreachable. Removed that branch without changing thresholds or ignores and added genuine empty-tracker in-process historical-profile and missing-file receipts. Historical empty release/milestone group fallback now follows the published 2026.11.6 source, including version/date headings, empty claims and deliberate suppression; current output stays suppressed. Restored the cited native timeout_seconds=1200 and audited equivalent wrapper registrations: index 8 and three newer file registrations had the same omission and were corrected through pinned pm. Added a public SDK regression checking all declared wrapper/native budgets. Remaining old thread PRRT_kwDOSfkApc62IIZe is valid: a movable merge base made the proof source change across runs. The proof now always mutates checked-out source, with a real Git regression moving origin/main while HEAD stays fixed. All four unresolved-thread comments and the full outside-diff AI prompt were read; no replies/resolutions. Post-merge generator/dependency/pending/drift tests passed 246/246."
+  "2026-11-12T05:15:22.766Z",codex-agent,"Closing bounded coverage attempt: exact npm run coverage was capped at 1200 seconds and returned timeout 124. Node reported 919 passing tests, zero assertion failures and 18 cancellations from termination; the partial coverage report is not a full-suite verdict. The long proof/lifecycle workload did not finish on this host; no thresholds or presence checks changed. Full npm/Bun release certification remains with CI because repeating those suites would exceed the closing budget. Independent disposable regressions pass five controls, then restoring only createChangelog fails the historical empty-group test (1 assertion), restoring only the old proof baseline module fails the remote-main-advance invariant (1 assertion), and unsetting only the cited native timeout through pinned pm fails the registration test (1 assertion). All five controls pass again after restoration; native scratch history is append-only and the source worktree was never reverted. A separate strict CLI-source 100/100/100 coverage proof over all 16 in-process CLI importer files is running; it will also test reintroduction of the old unreachable branch and restored controls. Self-review covered category branches in CLI/extension, historical fallback headings/suppression, checked-out proof selection and all wrapper/native timeout pairs. No remaining linked proof lacks an explicit native timeout."
+  "2026-11-12T06:00:57.075Z",codex-agent,"Closing coverage cause confirmed: the initial unreachable-message hypothesis was not causal. Strict controls on Node 26 pass 38/38 with the original accepted d09e238 CLI implementation and measure cli.ts at 100% lines/branches/functions. Removed only the new in-process missing-output-file check in an owned clone: all 38 behavioral tests still pass but the unchanged 100% branch gate rejects 99.70%; restoring that check restores 100/100/100. Preserved the accepted CLI source and its compiled output instead of shipping the unnecessary message edit. Additional real-tracker in-process controls cover JSON aliases, fallback dates, statuses, explicit dependency/link options, bounded diffs, structured refusal routing and error exits so the CLI-only coverage measurement is complete without unrelated slow randomized SDK models. No threshold, presence requirement or ignore changed. The closing fixes therefore remain test coverage, native timeout metadata, historical comparison fallback and deterministic proof input."
+  "2026-11-12T06:20:58.528Z",codex-agent,"Closing final evidence: Node 26.13.0 and Node 22.23.4 each pass the 38 selected real/in-process CLI cases and measure all of cli.ts at 100% lines, branches and functions with unchanged 100% thresholds and no ignores. On Node 26, removing only the new missing-file check makes that strict gate reject 99.70%; restoring it restores 100/100/100 while retaining the accepted CLI implementation. Historical fallback, moving-ref determinism and timeout metadata each fail their independent reverted assertion, with five controls restored. The repaired exact native registration ran via pm test --run --match with progress and no --timeout override: passed in 145678 ms, beyond the old 120-second default, using its stored 1200-second budget. Its nine fixed/restored controls and all four empty-Unreleased mutations pass (14 expected assertion failures, six proof cases). Post-merge generator/dependency/pending/drift run: 246/246. Final CLI/registration/shipped-docs run: 18/18; direct Bun CLI/SDK smoke: 2/2 without git on PATH. Build, test compilation, typecheck, docstrings (57 files, 289 declarations), production audit (zero vulnerabilities), both pack checks and publish-attestation audit pass. No lint script exists. Self-host health passes the exact CI warning baseline in a clean HOME without ignored extension fixtures; the owned ignored fixture was restored in finally. Ambient global-extension notices are unchanged. Full npm coverage attempt was incomplete at its 20-minute cap (919 pass, zero assertion failures, 18 cancellations); full npm/Bun release certification remains with CI. No new SDK gap identified."
+  "2026-11-12T06:20:59.420Z",codex-agent,"Closing handoff: PRRT_kwDOSfkApc62IIZe now uses checked-out proof source independently of mutable Git refs; regression advances origin/main while HEAD stays fixed. PRRT_kwDOSfkApc62budF now stores timeout_seconds=1200 on the cited proof and equivalent declared wrappers; SDK registration regression and actual native run prove the budget. Latest CodeRabbit review 5867841443 outside-diff generator finding now retains historical release/milestone empty-group output, version/date headings, empty claims and deliberate suppression; current output remains unchanged. CI coverage gap is covered through the real missing-output-file in-process check, with 100/100/100 on both CI runtimes. Standard main merge 475413e preserves #344 dependency-subject matching and rendering profiles; main remains 0620c50. All two unresolved threads/four comments plus full review-body AI prompt read, and no replies or resolutions sent. Release only the own codex-agent claim, keep own item in_progress, regenerate/check after final writes, commit native PM evidence with the fixes and push the same PR. Exact-head CI remains at https://github.com/unbraind/pm-changelog/pull/341/checks ."
+files[31]{path,scope}:
   .agents/pm/issues/pmc-contract-changes.toon,project
   .agents/pm/issues/pmc-no-empty-unreleased-337.toon,project
   .agents/pm/issues/pmc-stable-itemless-check.toon,project
@@ -72,11 +79,12 @@ files[30]{path,scope}:
   test/fixtures/changelog-2026.11.6-contract.json,project
   test/fixtures/changelog-2026.11.6-empty.json,project
   test/fixtures/changelog-2026.11.6-empty.md,project
+  test/pm-registration.test.ts,project
   test/proof-baseline.test.ts,project
   test/proof-run.test.ts,project
   test/release-rendering-attribution.test.ts,project
   test/rendering-release-boundary.test.ts,project
-tests[64]:
+tests[70]:
   - command: timeout 1200 node scripts/prove-check-generator-drift-revert.ts
     scope: project
     timeout_seconds: 1200
@@ -135,18 +143,24 @@ tests[64]:
       source_ref: feat/check-explains-generator-drift
   - command: timeout --kill-after=10s 1200 node --test --test-timeout=1200000 --test-concurrency=2 --experimental-test-coverage --test-coverage-include=src/check-drift.ts --test-coverage-lines=100 --test-coverage-branches=100 --test-coverage-functions=100 test/check-generator-drift.test.ts test/check-diff.test.ts test/cli-coverage.test.ts test/cli-regression.test.ts test/cli-tracker-target.test.ts test/extension.test.ts test/generator.test.ts test/generator-coverage.test.ts test/generator-redos.test.ts test/consumer-upgrades.test.ts test/stable-section-order.test.ts test/proof-baseline.test.ts
     scope: project
+    timeout_seconds: 1200
     provenance:
       author: codex-changelog339-1111
       created_at: "2026-11-11T14:19:49.970Z"
       source_kind: local_mutation
       source_ref: feat/check-explains-generator-drift
+    updated_by: codex-agent
+    updated_at: "2026-11-12T04:49:32.108Z"
   - command: timeout 1200 node scripts/prove-empty-unreleased-revert.ts
     scope: project
+    timeout_seconds: 1200
     provenance:
       author: codex-changelog339-1111
       created_at: "2026-11-11T21:26:46.359Z"
       source_kind: local_mutation
       source_ref: feat/check-explains-generator-drift
+    updated_by: codex-agent
+    updated_at: "2026-11-12T04:44:23.787Z"
   - command: timeout 1200 node --test --test-timeout=1200000 --test-concurrency=2 --experimental-test-coverage --test-coverage-include=src/check-drift.ts --test-coverage-lines=100 --test-coverage-branches=100 --test-coverage-functions=100 test/check-generator-drift.test.ts test/check-diff.test.ts test/cli-coverage.test.ts test/cli-regression.test.ts test/cli-tracker-target.test.ts test/extension.test.ts test/generator.test.ts test/generator-coverage.test.ts test/generator-redos.test.ts test/consumer-upgrades.test.ts test/stable-section-order.test.ts test/proof-baseline.test.ts test/proof-run.test.ts test/release-rendering-attribution.test.ts test/empty-unreleased.test.ts test/release-publication.test.ts test/sync-version.test.ts
     scope: project
     timeout_seconds: 1200
@@ -565,23 +579,80 @@ tests[64]:
       source_ref: feat/check-explains-generator-drift
   - command: timeout 1200 node --test --test-reporter=tap --test-timeout=1200000 --test-concurrency=1 test/rendering-release-boundary.test.ts
     scope: project
+    timeout_seconds: 1200
     provenance:
       author: codex-changelog339-1111
       created_at: "2026-11-12T00:02:34.254Z"
       source_kind: local_mutation
       source_ref: feat/check-explains-generator-drift
+    updated_by: codex-agent
+    updated_at: "2026-11-12T04:50:42.381Z"
   - command: timeout 1200 node --test --test-reporter=tap --test-timeout=1200000 --test-concurrency=1 test/shipped-docs.test.ts
     scope: project
+    timeout_seconds: 1200
     provenance:
       author: codex-changelog339-1111
       created_at: "2026-11-12T00:02:34.254Z"
       source_kind: local_mutation
       source_ref: feat/check-explains-generator-drift
+    updated_by: codex-agent
+    updated_at: "2026-11-12T04:50:43.226Z"
   - command: timeout 1200 node --test --test-reporter=tap --test-timeout=1200000 --test-concurrency=1 test/verify-package.test.ts
     scope: project
+    timeout_seconds: 1200
     provenance:
       author: codex-changelog339-1111
       created_at: "2026-11-12T00:02:34.254Z"
+      source_kind: local_mutation
+      source_ref: feat/check-explains-generator-drift
+    updated_by: codex-agent
+    updated_at: "2026-11-12T04:50:44.091Z"
+  - command: timeout 1200 node --test --test-concurrency=1 test/pm-registration.test.ts
+    scope: project
+    timeout_seconds: 1200
+    provenance:
+      author: codex-agent
+      created_at: "2026-11-12T04:51:32.993Z"
+      source_kind: local_mutation
+      source_ref: feat/check-explains-generator-drift
+  - command: timeout 1200 npm run coverage
+    scope: project
+    timeout_seconds: 1200
+    provenance:
+      author: codex-agent
+      created_at: "2026-11-12T05:15:19.603Z"
+      source_kind: local_mutation
+      source_ref: feat/check-explains-generator-drift
+  - command: timeout 1200 node --test --test-concurrency=2 --experimental-test-coverage --test-coverage-include=src/cli.ts --test-coverage-lines=100 --test-coverage-branches=100 --test-coverage-functions=100 test/agent-contract-drift.test.ts test/audience-contracts.test.ts test/check-generator-drift.test.ts test/claim-audit.test.ts test/cli-coverage.test.ts test/consumer-upgrades.test.ts test/entry-from.test.ts test/help-parser-contract.test.ts test/item-links.test.ts test/itemless-pending.test.ts test/milestones.test.ts test/pending-version.test.ts test/release-corrections.test.ts test/release-membership.test.ts test/stable-itemless-check.test.ts test/unicode-contract-output.test.ts
+    scope: project
+    timeout_seconds: 1200
+    provenance:
+      author: codex-agent
+      created_at: "2026-11-12T05:15:19.603Z"
+      source_kind: local_mutation
+      source_ref: feat/check-explains-generator-drift
+  - command: "timeout 1200 node --test --test-concurrency=2 --experimental-test-coverage --test-coverage-include=src/cli.ts --test-coverage-lines=100 --test-coverage-branches=100 --test-coverage-functions=100 '--test-name-pattern=real\\ host,\\ standalone\\ and\\ SDK\\ agree\\ without\\ git\\ and\\ reject\\ unusable\\ guards\\ before\\ reads|malformed\\ declarations\\ and\\ ambiguous\\ identity\\ refuse\\ with\\ typed\\ remedies|SDK,\\ standalone\\ and\\ actual\\ pm\\ host\\ publish\\ core\\ facets\\ without\\ git|in\\-process\\ checks\\ expose\\ all\\ three\\ diagnoses\\ on\\ the\\ same\\ real\\ tracker|regeneration\\ model\\ ignores\\ host\\ argv,\\ retains\\ canonical\\ values\\ and\\ quoting,\\ and\\ keeps\\ pm\\-arg\\ pairs|historical\\ empty\\ release\\ and\\ milestone\\ groups\\ retain\\ published\\ fallback\\ and\\ deliberate\\ suppression|local\\ regeneration\\ omits\\ CI\\ reporting\\ flags\\ and\\ succeeds\\ without\\ their\\ environment|in\\-process\\ CLI\\ audit\\ preserves\\ reports\\ and\\ refuses\\ unsupported\\ publication|parser\\ maps\\ every\\ supported\\ option\\ family\\ without\\ subprocess\\ coverage|argument\\ helpers\\ cover\\ normalization,\\ aliases,\\ validation,\\ and\\ suggestions|\\-\\-dependency\\-updates\\ parses\\ with\\ version\\ grouping\\ and\\ is\\ refused\\ with\\ release\\ or\\ milestone\\ grouping|in\\-process\\ main\\ renders\\ summary,\\ document,\\ semver,\\ and\\ markdown\\ modes|in\\-process\\ main\\ writes\\ files,\\ workflow\\ outputs,\\ check\\ diffs,\\ and\\ JSON\\ stdout|workflow\\ writers\\ reject\\ absent\\ environment\\ targets\\ and\\ helper\\ projections\\ stay\\ stable|GitHub\\ output\\ preserves\\ supplied\\ values\\ and\\ stdout\\ prepend\\ reads\\ an\\ existing\\ file|stdin\\ readers\\ accept\\ item\\ documents\\ and\\ propagate\\ stream\\ failures|all\\-release\\ context\\ resolves\\ real\\ repository\\ tags\\ and\\ package\\ version|entry\\ guard\\ rejects\\ imports\\ and\\ accepts\\ the\\ real\\ script\\ path|missing,\\ future,\\ excluded\\-audience\\ and\\ cyclic\\ prerequisites\\ refuse\\ before\\ emitting\\ a\\ partial\\ plan|actual\\ host,\\ standalone\\ and\\ SDK\\ agree\\ without\\ git;\\ refusals\\ are\\ nonzero\\ with\\ remedies|built\\ entry\\-from\\ renders\\ resolution,\\ preserves\\ default\\ bytes\\ and\\ checks\\ the\\ same\\ choice|check\\ warns\\ without\\ drift,\\ excludes\\ hidden\\ entries,\\ and\\ recovery\\ clears\\ warning|help\\ contract\\ covers\\ every\\ standalone\\ command\\ dispatched\\ by\\ main|real\\ project\\ and\\ extension\\ type\\ links\\ use\\ registry\\ folders\\ and\\ every\\ emitted\\ path\\ exists|dependency\\ opt\\-out\\ parses\\ and\\ help\\ describes\\ immutable\\ tagged\\ defaults|real\\ plain\\ tracker\\ CLI\\ and\\ extension\\ freeze\\ and\\ generate\\ without\\ a\\ git\\ executable|milestone\\ JSON\\ counts\\ use\\ frozen\\ non\\-change\\ closures\\ across\\ CLI\\ and\\ extension\\ projections|merged\\ audit\\ commands\\ inspect\\ frozen\\ milestone\\ rows\\ after\\ reopening|all\\ CLI\\ output\\ modes\\ refuse\\ an\\ absent\\ requested\\ release\\ before\\ side\\ effects|\\-\\-no\\-pending\\-release\\ without\\ \\-\\-all\\-release\\-tags\\ still\\ refuses\\ a\\ missing\\ requested\\ release|500\\ random\\ item\\ histories\\ satisfy\\ the\\ requested\\-heading\\-or\\-command\\-failure\\ property|append/replay/chain\\ preserve\\ historical\\ bytes\\ and\\ refuse\\ cycles\\ or\\ stale\\ revisions|membership\\ preserves\\ declarations\\ and\\ explicit\\ omission\\ and\\ pending\\-window\\ intent|reopened\\ canonical\\ items\\ retain\\ each\\ shipped\\ occurrence\\ and\\ original\\ prose|Git\\-resolved\\ non\\-change\\ counts\\ survive\\ live\\ reopening\\ across\\ CLI\\ and\\ extension|CLI\\ help\\ states\\ empty\\ Unreleased\\ policy|Unicode\\ boundary:\\ dynamic\\ keys,\\ shared\\ references,\\ sparse\\ arrays\\ and\\ non\\-JSON\\ projections\\ stay\\ safe|real\\ tracker\\ CLI\\ preserves\\ JSON\\ aliases,\\ date\\ fallback,\\ bounded\\ file\\ diffs\\ and\\ error\\ exits' test/agent-contract-drift.test.ts test/audience-contracts.test.ts test/check-generator-drift.test.ts test/claim-audit.test.ts test/cli-coverage.test.ts test/consumer-upgrades.test.ts test/entry-from.test.ts test/help-parser-contract.test.ts test/item-links.test.ts test/itemless-pending.test.ts test/milestones.test.ts test/pending-version.test.ts test/release-corrections.test.ts test/release-membership.test.ts test/stable-itemless-check.test.ts test/unicode-contract-output.test.ts"
+    scope: project
+    timeout_seconds: 1200
+    provenance:
+      author: codex-agent
+      created_at: "2026-11-12T06:20:57.603Z"
+      source_kind: local_mutation
+      source_ref: feat/check-explains-generator-drift
+  - command: timeout 1200 node --test --test-concurrency=1 test/cli-coverage.test.ts test/pm-registration.test.ts test/shipped-docs.test.ts
+    scope: project
+    timeout_seconds: 1200
+    provenance:
+      author: codex-agent
+      created_at: "2026-11-12T06:20:57.603Z"
+      source_kind: local_mutation
+      source_ref: feat/check-explains-generator-drift
+  - command: timeout 1200 bun test/bun-milestones-smoke.ts
+    scope: project
+    timeout_seconds: 1200
+    provenance:
+      author: codex-agent
+      created_at: "2026-11-12T06:20:57.603Z"
       source_kind: local_mutation
       source_ref: feat/check-explains-generator-drift
 docs[3]{path,scope}:
