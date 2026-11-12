@@ -28,6 +28,7 @@ export async function attributeRenderingRelease(pmRoot: string, deliveryVersion:
     for (const item of eligible) log(item.id, boundaryReason);
     throw new Error(`Rendering release attribution refused: ${boundaryReason}`);
   }
+  // The boundary is a whole-second commit time, so a completion inside that second precedes the frozen commit.
   for (const item of eligible) {
     const frozen = boundary?.items.get(item.id);
     const metadata = (item as PmItem).metadata;
@@ -37,7 +38,7 @@ export async function attributeRenderingRelease(pmRoot: string, deliveryVersion:
     if (!boundary || !frozen || !isDoneStatus(frozen, context) || isNonChangeClosure(frozen, context)
       || normalizeChangelogStatus(item.status, context) !== normalizeChangelogStatus(frozen.status, context) || !frozen.tags?.includes("rendering-change")
       || (getStringField(frozen, "release") !== undefined && getStringField(frozen, "release") !== release)
-      || !original?.resolved || !Number.isFinite(time) || time >= boundary.timestamp || time !== Date.parse(original.timestamp)
+      || !original?.resolved || !Number.isFinite(time) || time >= boundary.timestamp + 1000 || time !== Date.parse(original.timestamp)
       || !isDeepStrictEqual(item.change_facets, frozen.change_facets) || !isDeepStrictEqual(item.contract_change, frozen.contract_change)
       || !isDeepStrictEqual(metadata?.contract_change, frozen.metadata?.contract_change)
       || !isDeepStrictEqual(metadata?.change_facets, frozen.metadata?.change_facets)) {

@@ -87,6 +87,9 @@ export interface RegenerationGuidance {
   message: string;
 }
 
+/** Option spellings the native readers accept beyond a registered flag name, keyed by normalized form (excludeTagsOption). */
+const OPTION_ALIASES: Readonly<Record<string, string>> = Object.freeze({ excludetags: "excludetag" });
+
 /** Resolve host camel/kebab spellings through the command's actual flag registry.
  * Unknown host internals are not command flags. Canonical supplied keys win. */
 export function canonicalRegenerationOptions(options: Readonly<Record<string, unknown>>, flags: readonly { long?: string }[]): RegenerationOptions {
@@ -95,9 +98,15 @@ export function canonicalRegenerationOptions(options: Readonly<Record<string, un
     return [name.replace(/[-_]/g, "").toLowerCase(), name];
   }));
   const result = Object.create(null) as Record<string, string | number | boolean | string[]>;
-  for (const [key, value] of Object.entries(options)) {
-    const name = names.get(key.replace(/^--/, "").replace(/[-_]/g, "").toLowerCase());
-    if (!name || value === undefined || (Object.hasOwn(result, name) && key !== name)) continue;
+  // Precedence matches the native readers: the registered spelling, then its camelCase form, then accepted aliases.
+  const candidates = Object.entries(options).flatMap(([key, value]) => {
+    const normalized = key.replace(/^--/, "").replace(/[-_]/g, "").toLowerCase();
+    const alias = OPTION_ALIASES[normalized];
+    const name = names.get(alias ?? normalized);
+    return name && value !== undefined ? [{ name, value, rank: key === name ? 0 : alias ? 2 : 1 }] : [];
+  }).sort((left, right) => left.rank - right.rank);
+  for (const { name, value } of candidates) {
+    if (Object.hasOwn(result, name)) continue;
     if (typeof value === "string" || typeof value === "number" || typeof value === "boolean") result[name] = value;
     else if (Array.isArray(value) && value.every((entry: unknown) => typeof entry === "string")) result[name] = value.map(String);
   }

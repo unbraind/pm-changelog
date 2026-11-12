@@ -45,7 +45,13 @@ export async function resolveRenderingReleaseBoundary(cwd: string, pmRoot: strin
   else {
     // A supplied but unproved gitHead must never silently fall back to a tag.
     if (publication.gitHead !== undefined && !/^[a-f0-9]{40}$/i.test(publication.gitHead)) return refuse("published_git_head_invalid");
-    commit = commitId(cwd, publication.gitHead ?? `refs/tags/v${version}`);
+    if (publication.gitHead !== undefined) commit = commitId(cwd, publication.gitHead);
+    else {
+      // Without gitHead, accept the v-prefixed or the unprefixed release tag, as release-context does; two tags that disagree prove nothing.
+      const prefixed = commitId(cwd, `refs/tags/v${version}`), plain = commitId(cwd, `refs/tags/${version}`);
+      if (prefixed && plain && prefixed !== plain) return refuse("published_tag_ambiguous");
+      commit = prefixed ?? plain;
+    }
     if (!commit) return refuse("published_commit_unavailable");
     if (packageVersion(cwd, commit) !== version) return refuse("published_commit_version_mismatch");
     const main = commitId(cwd, "refs/remotes/origin/main") ?? commitId(cwd, "refs/heads/main");
