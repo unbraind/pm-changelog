@@ -18,7 +18,8 @@ import { auditChangelogClaims, assertChangelogClaims, formatClaimAudit, parseCla
 import { countNonChangeClosures } from "./closure-policy.js";
 import { checkItemLinks } from "./item-links.js";
 import { createUnifiedDiff, DEFAULT_MAX_DIFF_LINES } from "./diff.js";
-import { assertRequestedRelease, requestedReleaseSuppressed, MissingRequestedReleaseError, buildChangelogDocument, buildPmListArgs, createChangelog, createChangelogSummary, explainChangelogSelection, formatInferredSources, formatSummaryLine, lintChangelogEntries, parseChangelogEntryFrom, mergeChangelog, parsePmItemsJson, readPmItems, suggestSemver, writeChangelog, } from "./generator.js";
+import { diagnoseCheckDrift, regenerationCommand, trackerReorderExplanation } from "./check-drift.js";
+import { RENDERING_VERSION, PREVIOUS_RENDERING_VERSION, HISTORICAL_RENDERING_VERSIONS, RENDERING_PROFILES, assertRequestedRelease, requestedReleaseSuppressed, MissingRequestedReleaseError, buildChangelogDocument, buildPmListArgs, createChangelog, createChangelogSummary, explainChangelogSelection, formatInferredSources, formatSummaryLine, lintChangelogEntries, parseChangelogEntryFrom, mergeChangelog, parsePmItemsJson, readPmItems, suggestSemver, writeChangelog, } from "./generator.js";
 import { resolveGenerationReleaseWindows, resolveReleaseContext, resolveReleaseTagWindowResolution, } from "./release-context.js";
 import { resolveGitReleaseHistory } from "./release-membership.js";
 // Compatibility aliases for value-taking options. Kept intentionally small and
@@ -126,6 +127,75 @@ const KNOWN_OPTIONS = [
     "--until-release-tag",
     "--version",
 ];
+/** Serialize the parsed CLI model before git/date enrichment changes derived fields. */
+function cliRegenerationOptions(options) {
+    const result = {};
+    const fields = [
+        ["milestones", "milestones"],
+        ["auditEvidence", "audit-evidence"],
+        ["auditReceipts", "audit-receipts"],
+        ["output", "output"],
+        ["stdout", "stdout"],
+        ["json", "json"],
+        ["input", "input"],
+        ["stdin", "stdin"],
+        ["pmRoot", "pm-root"],
+        ["pmBin", "pm-bin"],
+        ["pmArgs", "pm-arg"],
+        ["pmCwd", "pm-cwd"],
+        ["title", "title"],
+        ["version", "version"],
+        ["versionFromPackage", "release-version-from-package"],
+        ["date", "date"],
+        ["dateFallback", "date-fallback"],
+        ["dateFromVersion", "date-from-version"],
+        ["since", "since"],
+        ["sincePreviousTag", "since-previous-tag"],
+        ["until", "until"],
+        ["untilReleaseTag", "until-release-tag"],
+        ["allReleaseTags", "all-release-tags"],
+        ["releaseTagPattern", "release-tag-pattern"],
+        ["statuses", "statuses"],
+        ["groupBy", "group-by"],
+        ["sectionBy", "section-by"],
+        ["entryFrom", "entry-from"],
+        ["summary", "summary"],
+        ["format", "format"],
+        ["conventional", "conventional"],
+        ["contributors", "contributors"],
+        ["limit", "limit"],
+        ["sinceVersion", "since-version"],
+        ["breakingChanges", "breaking-changes"],
+        ["suggestSemver", "suggest-semver"],
+        ["bodyPreview", "body-preview"],
+        ["emojiPrefix", "emoji-prefix"],
+        ["includeMetadata", "include-metadata"],
+        ["changelogJson", "changelog-json"],
+        ["includeEmpty", "include-empty"],
+        ["itemUrlBase", "item-url-base"],
+        ["itemRefStyle", "item-ref-style"],
+        ["respectItemRelease", "respect-item-release"],
+        ["excludeTags", "exclude-tag"],
+        ["mode", "mode"],
+        ["checkLinks", "check-links"],
+        ["explain", "explain"],
+    ];
+    for (const [key, flag] of fields) {
+        const value = options[key];
+        if (typeof value === "string" || typeof value === "number" || typeof value === "boolean")
+            result[flag] = value;
+        else if (Array.isArray(value))
+            result[flag] = value.map(String);
+    }
+    if (options.statuses)
+        result.statuses = options.statuses.length ? options.statuses.join(",") : ",";
+    result[options.includeLinks ? "include-links" : "no-links"] = true;
+    result["no-check-diff"] = !options.checkDiff;
+    result["no-pending-release"] = !options.pendingRelease;
+    if (options.dependencyUpdates !== undefined)
+        result[options.dependencyUpdates ? "dependency-updates" : "no-dependency-updates"] = true;
+    return result;
+}
 /** Run one CLI invocation end to end: parse flags, resolve the release context
  * from git, load items, generate, then write or compare. */
 async function main(args = process.argv.slice(2)) {
@@ -138,6 +208,7 @@ async function main(args = process.argv.slice(2)) {
     if (args[0] === "upgrades")
         return runConsumerUpgradesCli(args.slice(1));
     const options = parseArgs(args[0] === "audit" ? ["--audit-evidence", ...args.slice(1)] : args);
+    const regenerationOptions = cliRegenerationOptions(options);
     if (options.milestones)
         assertTrackerMilestoneOptions([
             options.allReleaseTags, options.sincePreviousTag, options.untilReleaseTag, options.versionFromPackage,
@@ -254,6 +325,30 @@ async function main(args = process.argv.slice(2)) {
             check: options.check,
         });
         const summary = buildSummary(options, result, outputPath, selectionReport);
+        let driftMessage;
+        if (options.check && result.changed) {
+            const committed = existsSync(outputPath) ? readFileSync(outputPath, "utf-8") : "";
+            const diagnosis = diagnoseCheckDrift(committed, result.markdown, RENDERING_VERSION, HISTORICAL_RENDERING_VERSIONS.map((version) => ({
+                version, changedIn: RENDERING_PROFILES[version].changedIn,
+                render: () => writeChangelog({ ...generationOptions, output: outputPath, mode: options.mode, check: true }, version).markdown,
+            })));
+            const { classification } = diagnosis;
+            summary.rendering_changed_in = diagnosis.changedIn;
+            summary.compared_rendering_version = diagnosis.comparedVersion;
+            summary.classification = classification;
+            driftMessage = `Drift classification: ${classification}.`;
+            if (classification !== "tracker_changed") {
+                const guidance = regenerationCommand(regenerationOptions, ["node", fileURLToPath(import.meta.url)]);
+                summary.regeneration_command = guidance.command;
+                summary.regeneration_argv = guidance.argv;
+                summary.regeneration_input_required = guidance.input_required;
+                summary.regeneration_shell = guidance.shell;
+                driftMessage += `${classification === "rendering_changed" ? ` The generator's rendering changed in ${diagnosis.changedIn} (matches rendering profile ${diagnosis.comparedVersion});` : " Entry order changed within existing sections;"} ${guidance.message} this is a one-time regeneration after a pm-changelog upgrade.`;
+            }
+            if (classification === "tracker_changed")
+                driftMessage += trackerReorderExplanation(committed, result.markdown);
+            summary.message = driftMessage;
+        }
         if (options.githubOutput)
             writeGitHubOutput(summary);
         if (options.githubStepSummary)
@@ -263,6 +358,8 @@ async function main(args = process.argv.slice(2)) {
         }
         else if (options.check) {
             console.error(result.changed ? `Changelog is out of date: ${outputPath}` : `Changelog is up to date: ${outputPath}`);
+            if (driftMessage)
+                console.error(driftMessage);
         }
         else {
             console.error(`Wrote ${outputPath}`);
@@ -843,6 +940,8 @@ function buildSummary(options, result, output = result.output, selectionReport) 
         excluded_non_change_count: result.excludedNonChangeCount ?? 0,
         bytes: result.bytes,
         check: options.check,
+        rendering_version: RENDERING_VERSION,
+        previous_rendering_version: PREVIOUS_RENDERING_VERSION,
         ...(options.entryFrom ? { entry_from: options.entryFrom } : {}),
         markdown: options.stdout ? result.markdown : undefined,
     };
@@ -1067,6 +1166,7 @@ Value flags accept both "--flag value" and "--flag=value" forms.
 }
 /** Internal behavior surface used by in-process black-box coverage tests. */
 export const cliTestSurface = {
+    cliRegenerationOptions,
     applyReleaseContext,
     buildGenerationOptions,
     buildSummary,

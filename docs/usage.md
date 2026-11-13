@@ -80,6 +80,45 @@ Fail CI if the committed changelog is stale:
 npx pm-changelog --mode prepend --version "$GITHUB_REF_NAME" --check
 ```
 
+File-output checks classify differences in both the message and the `--json`
+receipt. An exact match to any older rendering profile reports `rendering_changed`
+and names the matched profile; profiles are tried newest first. Other differences,
+including entry-only reorders without that evidence, are `tracker_changed`.
+An unproved or same-version reorder explains that a `completed_at` edit or a
+manual reorder can cause it. Blank lines and indented details stay with their
+entry. File-output checks (`--check` with `--output`, including its default
+`CHANGELOG.md`) exit **1** for every difference. `--stdout` takes precedence:
+even with `--check`, it prints the generated output without comparing or writing
+the file and exits **0** when generation succeeds.
+
+Generator drift includes a regeneration invocation built from parsed options,
+with canonical flag names. `--check`, `--github-output` and
+`--github-step-summary` are omitted so local regeneration needs no CI output files. Repeated `--pm-arg` values use
+`--pm-arg=value` spelling so leading dashes remain values. The tool never infers
+an executable from an embedding host's argv. The JSON receipt includes
+`regeneration_argv`, `regeneration_shell` and `regeneration_input_required`.
+POSIX is the default shell; win32 guidance supplies a PowerShell form and its
+lossless JSON argv. For stdin, no standalone command is advertised: rerun the
+original input pipe without `--check`, supplying the same input to the emitted
+argv. `--no-check-diff` hides only the diff.
+
+The receipt includes `rendering_version` and `previous_rendering_version`.
+`RENDERING_VERSION` in `src/generator.ts` identifies the output contract,
+independently of dependency-only package releases. Every output-affecting change
+must bump it and preserve the immediately preceding rules in the shared
+generator. The initial revisions identify 2026.11.11's Markdown retention and
+empty pending-section cleanup, and the preceding published 2026.11.10 rules.
+Checks try every older rendering profile in the version table, newest first;
+exact matches report `rendering_changed` and name the matched version. The table
+retains the pre-2026.11.7 comparator and its empty-section selection after later
+revisions land. Output that only that profile reproduces reports `rendering_changed`
+with `compared_rendering_version` 2026.11.6 (the matched profile) and
+`rendering_changed_in` 2026.11.7 (the release that changed its rendering). Output
+that several profiles reproduce names the newest of them.
+Upgrade attribution needs a reproduced previous rendering; matching line sets
+alone cannot prove an upgrade. A profile match identifies compatible rendering
+rules; it does not establish which generator version produced the committed file.
+
 Expose summary values to later GitHub Actions steps:
 
 ```bash

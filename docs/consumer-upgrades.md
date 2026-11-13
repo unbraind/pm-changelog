@@ -6,6 +6,27 @@ projects explicit release declarations into pending Plan step data. It adds no
 workflow engine, persisted Plan, executor, import, sync, retry journal or shared
 mutable state. Existing changelog export remains a read-only publication path.
 
+The package's own catalog records the 2026.11.7 ordering change on
+[`pmc-total-item-order`](https://github.com/unbraind/pm-changelog/blob/main/.agents/pm/issues/pmc-total-item-order.toon): section entries use completion timestamps and no longer
+shuffle after metadata writes. Its operator action is **regenerate CHANGELOG.md
+once**. Obtain a checkout of [the package repository](https://github.com/unbraind/pm-changelog)
+and run this query from its root (the published npm package does not ship its tracker).
+A consumer checkout has its own `.agents/pm`, which cannot supply this catalog.
+Query the package tracker with `pm-changelog upgrades --pm-root .agents/pm --audience
+operator --from 2026.11.6 --to 2026.11.7`. The declaration lives in the native
+tracker's `change_facets`, alongside its release and delivery evidence.
+
+The 2026.11.10 release also declares distinct regeneration actions for contract
+rendering ([`pmc-contract-changes`](https://github.com/unbraind/pm-changelog/blob/main/.agents/pm/issues/pmc-contract-changes.toon)) and empty pending-window selection
+([`pmc-stable-itemless-check`](https://github.com/unbraind/pm-changelog/blob/main/.agents/pm/issues/pmc-stable-itemless-check.toon)). Items tagged `rendering-change` must each have a
+published or pending operator action; the catalog regression verifies that invariant.
+The 2026.11.11 prepend cleanup ([`pmc-no-empty-unreleased-337`](https://github.com/unbraind/pm-changelog/blob/main/.agents/pm/issues/pmc-no-empty-unreleased-337.toon)) declares its distinct
+one-time regeneration action to remove legacy empty Unreleased sections. Its action is attributed to 2026.11.11, verified against the published npm artifact. Future pending actions receive attribution when the release job selects their delivery version.
+
+Every output-affecting generator change must declare an operator upgrade action
+in this catalog, bump `RENDERING_VERSION`, and retain the preceding rendering
+rules in the shared pipeline. Record the item delivery release when it ships.
+
 ```ts
 import { buildConsumerUpgrades, formatConsumerUpgrades } from "pm-changelog";
 import type { ChangeFacet, PmItem, UpgradeAction } from "pm-changelog";
@@ -53,9 +74,10 @@ omission when its release is in range. Ordinary facets create no obligations.
 The interval is `(from,to]`. Specify stable numeric release triplets, optionally
 prefixed with `v` or suffixed with a numeric daily disambiguator, for example
 `2026.10.24-1`. Comparison reuses the package's release comparator. Unsupported
-prereleases/build metadata, ambiguous or unpublished release attribution and
-reversed/empty intervals refuse. Every selected breaking facet requires an
-explicit `release`; timestamps and milestone names do not infer a version.
+prereleases/build metadata, explicitly invalid releases, ambiguous attribution
+and reversed/empty intervals refuse. Pending declarations without a `release`
+in `Unreleased` are excluded while published obligations are returned.
+Timestamps and milestone names do not infer a published version.
 Only closed change items selected by existing closure/audience policy contribute.
 
 Repeated IDs must have identical title, body and prerequisite sets; their earliest

@@ -1,5 +1,58 @@
 import type { ChangelogClaimSource } from "./types.ts";
 import type { ChangelogStatusContext, ChangelogDocument, ChangelogEntryFrom, ChangelogSelectionReport, ChangelogSummaryEntry, DependencyCommit, GeneratedChangelog, GenerateChangelogOptions, MergeChangelogOptions, MergeChangelogResult, PmItem, ReadPmItemsOptions, SemverSuggestion, WriteChangelogOptions, WriteChangelogResult } from "./types.ts";
+/** Rendering contract revision. Bump on every output-affecting change and retain
+ * the preceding rules in this shared pipeline for exact check diagnostics. */
+export declare const RENDERING_VERSION = "2026.11.12";
+/** Previous output contract: dependency matching was case-sensitive. */
+export declare const PREVIOUS_RENDERING_VERSION = "2026.11.11";
+/** Retained output contracts in the same generator. Never remove older ordering
+ * comparisons when advancing the current/previous Markdown rendering revisions. */
+export declare const RENDERING_PROFILES: {
+    readonly "2026.11.12": {
+        readonly dependencySubject: RegExp;
+        readonly contractFormatting: true;
+        readonly modernMarkdown: true;
+        readonly completionOrder: true;
+        readonly emptyUnreleased: false;
+        readonly changedIn: "2026.11.12";
+    };
+    readonly "2026.11.11": {
+        readonly dependencySubject: RegExp;
+        readonly contractFormatting: true;
+        readonly modernMarkdown: true;
+        readonly completionOrder: true;
+        readonly emptyUnreleased: false;
+        readonly changedIn: "2026.11.12";
+    };
+    readonly "2026.11.10": {
+        readonly dependencySubject: RegExp;
+        readonly contractFormatting: true;
+        readonly modernMarkdown: false;
+        readonly completionOrder: true;
+        readonly emptyUnreleased: false;
+        readonly changedIn: "2026.11.11";
+    };
+    readonly "2026.11.7": {
+        readonly dependencySubject: RegExp;
+        readonly contractFormatting: false;
+        readonly modernMarkdown: false;
+        readonly completionOrder: true;
+        readonly emptyUnreleased: true;
+        readonly changedIn: "2026.11.10";
+    };
+    readonly "2026.11.6": {
+        readonly dependencySubject: RegExp;
+        readonly contractFormatting: false;
+        readonly modernMarkdown: false;
+        readonly completionOrder: false;
+        readonly emptyUnreleased: true;
+        readonly changedIn: "2026.11.7";
+    };
+};
+/** Supported output contracts; package dependency upgrades need not bump these. */
+export type RenderingVersion = keyof typeof RENDERING_PROFILES;
+/** Older profiles survive subsequent current/previous rendering-version bumps. */
+export declare const HISTORICAL_RENDERING_VERSIONS: ("2026.11.10" | "2026.11.11" | "2026.11.12" | "2026.11.6" | "2026.11.7")[];
 type PmCommand = {
     bin: string;
     argsPrefix: string[];
@@ -37,7 +90,7 @@ export declare function generateChangelog(options: GenerateChangelogOptions): st
 /** Render a changelog, returning the markdown alongside the sections and item
  * count it was built from so a caller can report on the selection without
  * re-parsing its own output. */
-export declare function createChangelog(options: GenerateChangelogOptions, onClaim?: (source: ChangelogClaimSource) => void): GeneratedChangelog;
+export declare function createChangelog(options: GenerateChangelogOptions, onClaim?: (source: ChangelogClaimSource) => void, renderingVersion?: RenderingVersion): GeneratedChangelog;
 /** A requested release must survive the same selection used by every renderer. */
 export declare class MissingRequestedReleaseError extends Error {
     /** Stable discriminator for release automation. */
@@ -96,7 +149,7 @@ export declare function formatSummaryLine(entry: ChangelogSummaryEntry): string;
  * The reported action distinguishes an unchanged file from a rewritten one,
  * which is what lets `--check` fail only on real drift.
  */
-export declare function mergeChangelog(existingMarkdown: string | undefined, generatedMarkdown: string, options?: MergeChangelogOptions): MergeChangelogResult;
+export declare function mergeChangelog(existingMarkdown: string | undefined, generatedMarkdown: string, options?: MergeChangelogOptions, renderingVersion?: RenderingVersion): MergeChangelogResult;
 /** Build the canonical, unbounded `pm list` argv used to read a workspace.
  * `--pm-path` is unshifted ahead of the caller's global arguments because pm
  * rejects it in trailing position. The host-owned output controls follow the
@@ -127,7 +180,7 @@ export declare function readPmItems(options?: ReadPmItemsOptions): PmItem[];
  * disk without writing. The returned `changed` flag is the drift signal CI acts
  * on; check mode never touches the file, so a failing gate leaves the committed
  * changelog intact. */
-export declare function writeChangelog(options: WriteChangelogOptions): WriteChangelogResult;
+export declare function writeChangelog(options: WriteChangelogOptions, renderingVersion?: RenderingVersion): WriteChangelogResult;
 /** Parse caller-supplied pm JSON, preserving receipt-free intentional subsets.
  * Envelopes with explicit read metadata are inspected by the public SDK before
  * their items can reach generation. Defaults adapt missing legacy proof fields
@@ -236,5 +289,8 @@ export declare function explainChangelogSelection(options: GenerateChangelogOpti
 /** Classify an explicit item set into a semver bump, excluding non-change and
  * neutral closures even when the caller has not applied option-driven filtering. */
 export declare function suggestSemverForItems(items: PmItem[], context?: ChangelogStatusContext): SemverSuggestion;
+/** Read a field from an item, falling back to the same key under `metadata`,
+ * because pm workspaces store it in either place depending on schema. */
+export declare function getStringField(item: PmItem, field: "release" | "milestone"): string | undefined;
 export {};
 //# sourceMappingURL=generator.d.ts.map

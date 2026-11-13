@@ -67,6 +67,13 @@ function closedItem(id: string, title: string, updatedAt: string): PmItem {
 // ---------------------------------------------------------------------------
 
 describe("parseDependencyCommit", () => {
+  it("keeps the public parser usable as an array callback without interpreting its index as a rendering version", () => {
+    const parsed = ["chore(deps): Bump fixture (#1)", "fix: unrelated change"].map(parseDependencyCommit);
+    equal(parsed[0]?.description, "Bump fixture");
+    equal(parsed[0]?.prNumber, 1);
+    equal(parsed[1], undefined);
+  });
+
   for (const subject of [
     "Build(deps-dev): Bump the pm-toolchain group across 1 directory with 3 updates",
     "chore(deps): Bump ExampleSDK from vOne to vTwo",

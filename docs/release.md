@@ -218,3 +218,35 @@ container contexts that omit repository metadata. This is a compatibility change
 from the former single-section fallback; the generated changelog carries a notice.
 Git's dubious-ownership refusal is reported separately. Verify ownership and trust
 before using its exact-directory `safe.directory` recovery command.
+
+
+## Rendering-action release attribution
+
+After the daily release selects its explicit delivery version, it runs
+`node scripts/attribute-rendering-release.ts "$NPM_VERSION" "$RELEASE_BASE_SHA"`. Only delivered,
+non-neutral items tagged `rendering-change` with no normalized release receive
+that version. Existing releases and active items are preserved. Before a
+version is selected, pending actions stay unattributed. The release metadata PR
+commits `.agents/pm` items and their native append-only history together with
+package files and the regenerated changelog. Retries are idempotent.
+
+
+Attribution is bounded by the immutable commit actually published, not the first
+commit carrying a version or the recovery checkout's HEAD. The job passes its
+decision base SHA. For a published version, the reader uses npm's `gitHead`, or
+the version tag only when `gitHead` is absent, and proves reachability from
+fetched `origin/main` (local `main` when no remote main ref exists). An invalid or
+unavailable supplied `gitHead` never falls back to the tag. Only a proven
+unpublished version receives a new base window. When eligible items exist,
+unknown publication or missing Git evidence logs the reason for each candidate
+and then fails the release step before any write. With no eligible items, the
+release continues.
+Each candidate must prove a delivered change in the frozen snapshot: a done
+status, no neutral or non-change closure disposition, unchanged rendering facets, the
+same explicit completion timestamp before the end of the boundary commit's
+recorded second, and delivery under both the live and captured status registries.
+Frozen checks load the release commit's tracker settings and schema documents;
+later role edits or status renames cannot reinterpret that snapshot. Unreadable
+captured settings or schema refuse attribution as `release_snapshot_unavailable`
+before any write when eligible items exist. Later, backdated-new, changed, or unproved
+items are logged and left unattributed for a subsequent release or Unreleased.

@@ -1,5 +1,5 @@
 import { stringifyUnicodeOutput } from "./output-unicode.js";
-import { readFileSync, writeFileSync } from "node:fs";
+import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { defineExtension, getActiveExtensionRegistrations, listAllItemMetadata, locateItem, readLocatedItem, readSettings, resolveItemTypeRegistry, resolveRuntimeStatusRegistry, EXIT_CODE, PmCliError, } from "@unbrained/pm-cli/sdk";
 import { AGENT_CONTRACT_DRIFT_FLAGS, runAgentContractDriftCommand } from "./agent-contract-command.js";
@@ -9,7 +9,8 @@ import { CONSUMER_UPGRADE_FLAGS, runConsumerUpgradesCommand } from "./consumer-u
 import { DirectoryReleaseMilestoneStore, assertTrackerMilestoneOptions, createReleaseMilestone, readReleaseMilestones, readTrackerReleaseSnapshot, resolveTrackerReleaseHistory } from "./milestones.js";
 import { auditChangelogClaims, assertChangelogClaims, formatClaimAudit, parseClaimTestReceipts } from "./claim-audit.js";
 import { countNonChangeClosures } from "./closure-policy.js";
-import { assertRequestedRelease, requestedReleaseSuppressed, MissingRequestedReleaseError, buildChangelogDocument, createChangelog, createChangelogSummary, explainChangelogSelection, formatSummaryLine, lintChangelogEntries, parseChangelogEntryFrom, mergeChangelog, suggestSemver, writeChangelog } from "./generator.js";
+import { diagnoseCheckDrift, regenerationCommand, canonicalRegenerationOptions, trackerReorderExplanation } from "./check-drift.js";
+import { RENDERING_VERSION, PREVIOUS_RENDERING_VERSION, HISTORICAL_RENDERING_VERSIONS, RENDERING_PROFILES, assertRequestedRelease, requestedReleaseSuppressed, MissingRequestedReleaseError, buildChangelogDocument, createChangelog, createChangelogSummary, explainChangelogSelection, formatSummaryLine, lintChangelogEntries, parseChangelogEntryFrom, mergeChangelog, suggestSemver, writeChangelog } from "./generator.js";
 import { MissingTagHistoryError, resolveGenerationReleaseWindows, resolveReleaseContext, resolveReleaseTagWindowResolution, } from "./release-context.js";
 import { resolveGitReleaseHistory } from "./release-membership.js";
 const BODY_ENRICHMENT_DEPENDENCIES = {
@@ -387,7 +388,19 @@ export default defineExtension({
                     check: Boolean(ctx.options["check"]),
                 });
                 if (result.changed && Boolean(ctx.options["check"])) {
-                    throw new PmCliError(`Changelog is out of date: ${result.output}`, EXIT_CODE.GENERIC_FAILURE);
+                    const committed = existsSync(result.output) ? readFileSync(result.output, "utf-8") : "";
+                    const drift = diagnoseCheckDrift(committed, result.markdown, RENDERING_VERSION, HISTORICAL_RENDERING_VERSIONS.map((version) => ({
+                        version, changedIn: RENDERING_PROFILES[version].changedIn,
+                        render: () => writeChangelog({ ...generationOptions, output, mode, check: true }, version).markdown,
+                    })));
+                    const { classification } = drift;
+                    const parsed = canonicalRegenerationOptions(ctx.options, generateCommand.flags ?? []);
+                    const guidance = classification === "tracker_changed" ? undefined : regenerationCommand(parsed, ["pm", "--path", ctx.pm_root, ...(ctx.global.json ? ["--json"] : []), "changelog", "generate"]);
+                    const diagnosis = `Drift classification: ${classification}.${classification === "rendering_changed" ? ` The generator's rendering changed in ${drift.changedIn} (matches rendering profile ${drift.comparedVersion}).` : ""}${classification === "tracker_changed" ? trackerReorderExplanation(committed, result.markdown) : ""}`;
+                    const remedy = guidance ? ` ${guidance.message} this is a one-time regeneration after a pm-changelog upgrade.` : "";
+                    throw new PmCliError(`Changelog is out of date: ${result.output}\n${diagnosis}${remedy}`, EXIT_CODE.GENERIC_FAILURE, {
+                        code: classification, required: guidance?.command, verification_errors: [`rendering_version=${RENDERING_VERSION}`, `previous_rendering_version=${PREVIOUS_RENDERING_VERSION}`, ...(drift.changedIn ? [`rendering_changed_in=${drift.changedIn}`, `compared_rendering_version=${drift.comparedVersion}`] : []), ...(guidance ? [`regeneration_argv=${JSON.stringify(guidance.argv)}`] : [])],
+                    });
                 }
                 return {
                     file: result.output,
@@ -397,6 +410,8 @@ export default defineExtension({
                     excluded_non_change_count: result.excludedNonChangeCount,
                     bytes: result.bytes,
                     check: Boolean(ctx.options["check"]),
+                    rendering_version: RENDERING_VERSION,
+                    previous_rendering_version: PREVIOUS_RENDERING_VERSION,
                     ...(selectionReport ? { selection_report: selectionReport } : {}),
                 };
             },

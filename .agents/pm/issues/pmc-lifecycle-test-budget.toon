@@ -6,11 +6,12 @@ status: open
 priority: 2
 tags[2]: performance,validation
 created_at: "2026-11-10T23:28:19.082Z"
-updated_at: "2026-11-10T23:48:48.567Z"
+updated_at: "2026-11-11T23:17:40.765Z"
 author: codex-changelog337
 acceptance_criteria: Measure representative native lifecycle execution and identify dominant costs without weakening existing assertions or silently reducing the 500-case corpus
-comments[1]{created_at,author,text}:
+comments[2]{created_at,author,text}:
   "2026-11-10T23:48:48.566Z",codex-changelog337,"Follow-up evidence: the subsequent timeout 2700 npm test passed all 1050 tests in 1181.6 seconds of reported runner time. The existing 500-native-lifecycle test passed in 908.3 seconds. The earlier 1200-second aggregate importer batch still canceled this file after 154 other passed tests; investigate batch composition and runtime variability rather than assuming a semantic regression. No assertions or case counts were changed."
+  "2026-11-11T23:17:40.764Z",codex-changelog339-1111,"Round-5 PR 341 bounded importer gate: test/release-lifecycles.test.ts reached its explicit 1200-second file cap (exit 124; wall 1200.05 seconds). Its first omitted/filtered repair case passed in 9.20 seconds; the native 500-lifecycle case did not complete and reported no assertion failure before termination. This is incomplete validation, not a passing gate. The 51-file gate uses at most two workers with isolated HOME/Git settings; remaining files continue. No stress scale, timeout or coverage threshold was weakened; source fixes remain scoped to the three review findings. Current-head lifecycle/full-release certification is deferred to CI under the requested cap."
 files[1]{path,scope}:
   test/release-lifecycles.test.ts,project
 body: ""

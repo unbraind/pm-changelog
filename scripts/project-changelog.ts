@@ -11,6 +11,7 @@ await cliTestSurface.main([
   "--output",
   "CHANGELOG.md",
   "--all-release-tags",
+  "--dependency-updates",
   "--release-version-from-package",
   "--date-from-version",
   "--item-url-base",

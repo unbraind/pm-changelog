@@ -2,12 +2,18 @@ id: pmc-no-empty-unreleased-337
 title: Verify and complete empty Unreleased suppression for issue 337
 description: "Track issue 337: include-empty retains versioned release sections only; never render an empty Unreleased section in replace, prepend, stdout, or check. Verify real pending-write, commit, tag, post-tag-check sequences and retain nonempty notes. Related earlier work: pmc-stable-itemless-check; this item owns the exact issue 337 regression proof and remaining mode gaps."
 type: Issue
-status: in_progress
+status: closed
 priority: 1
-tags[1]: "gh:unbraind/pm-changelog#337"
+tags[2]: "gh:unbraind/pm-changelog#337",rendering-change
 created_at: "2026-11-10T23:00:03.696Z"
-updated_at: "2026-11-11T04:33:03.753Z"
+updated_at: "2026-11-11T21:28:14.090Z"
+closed_at: "2026-11-11T08:57:07.675Z"
+completed_at: "2026-11-11T05:27:43.000Z"
 author: codex-changelog337
+release: 2026.11.11
+resolution: Omitted empty Unreleased sections and removed legacy placeholders during prepend regeneration.
+expected_result: Empty pending sections never appear after regeneration.
+actual_result: Published npm 2026.11.11 contains the prepend cleanup; the operator regeneration action is attributed to that delivery release.
 comments[45]{created_at,author,text}:
   "2026-11-10T23:00:05.874Z",codex-changelog337,"Orientation counts: context reports 216 total items, 13 active (10 open, 3 in_progress), 200 closed, 3 canceled; returned focus 10 with omissions. Open list returned all 10 open items. Exact issue tag search returned 0; keyword searches returned 10 of 65 and 10 of 58. Earlier issue 333 already merged the core visibility filter and documented the policy. This item tracks issue 337 specifically and will verify actual CLI publication sequences plus stale prepend input, without weakening existing tests."
   "2026-11-10T23:01:04.309Z",codex-changelog337,"Confirmed remaining runtime gap: prepend merges keep a legacy empty Unreleased placeholder when the versioned release already exists, and also when no releases are generated. Plan: remove only whitespace-only or literal No changes. pending bodies while merging; preserve meaningful pending prose/dependencies. Keep the merged issue 333 generation filter. Add real-Git writer/commit/tag/check cases for empty, Dependabot-only and released-item windows with both include-empty settings; add per-mode migration and later-item guards. No existing test asserting an empty block needs changing."
@@ -97,4 +103,13 @@ docs[3]{path,scope}:
   CHANGELOG.md,project
   docs/usage.md,project
   README.md,project
+close_reason: PR #338 (f231c38) merged on main; prepend cleanup verified in the published npm pm-changelog 2026.11.11 archive.
+change_facets[1]:
+  - audience: operator
+    text: Prepend regeneration removes legacy empty Unreleased sections; regenerate CHANGELOG.md once after upgrading to the release containing this cleanup.
+    breaking: true
+    upgrade_actions[1]:
+      - id: regenerate-changelog-prepend-cleanup-337
+        title: regenerate CHANGELOG.md once to remove empty Unreleased sections
+        requires: []
 body: ""

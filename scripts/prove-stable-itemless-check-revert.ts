@@ -18,7 +18,7 @@ try {
     env: { PATH: process.env.PATH, GIT_CONFIG_GLOBAL: "/dev/null", GIT_CONFIG_NOSYSTEM: "1", DO_NOT_TRACK: "1" },
   });
   for (const mutation of [
-    { name: "empty-unreleased-restored", file: "generator.ts", from: "|| (options.includeEmpty && sectionVersionKey(section.heading) !== undefined)", to: "|| options.includeEmpty", failures: 2 },
+    { name: "empty-unreleased-restored", file: "generator.ts", from: "|| (options.includeEmpty && (RENDERING_PROFILES[renderingVersion].emptyUnreleased || sectionVersionKey(section.heading) !== undefined))", to: "|| options.includeEmpty", failures: 2 },
     { name: "v-only-discovery-restored", file: "release-context.ts", from: 'pattern ?? "*"', to: 'pattern ?? "v*"', failures: 1 },
     { name: "duplicate-windows-restored", file: "release-context.ts", from: "if (seen.has(key)) return false;", to: "if (seen.has(key)) return true;", failures: 1 },
     { name: "same-instant-counter-order-removed", file: "release-context.ts", from: "return compareSameInstantTagNames(a.name, b.name);", to: "return compareTagNames(a.name, b.name);", failures: 1 },

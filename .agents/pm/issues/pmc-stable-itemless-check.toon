@@ -2,13 +2,19 @@ id: pmc-stable-itemless-check
 title: Keep changelog checks stable when an empty release is tagged
 description: Full-history checks add an empty Unreleased section after a package release tag appears.
 type: Issue
-status: in_progress
+status: closed
 priority: 1
-tags[1]: "gh:unbraind/pm-changelog#333"
+tags[2]: "gh:unbraind/pm-changelog#333",rendering-change
 created_at: "2026-11-07T22:05:29.088Z"
-updated_at: "2026-11-09T08:57:02.377Z"
+updated_at: "2026-11-11T12:03:34.046Z"
+closed_at: "2026-11-11T08:57:05.362Z"
+completed_at: "2026-11-09T12:24:46.000Z"
 author: pi-agent
 acceptance_criteria: "Empty and item-bearing releases render byte-identically across tag publication; empty Unreleased does not displace releases; Randomized tests and revert proof cover aliases, older commits, same-day versions and no-git trackers; Document include-empty; audit git-optional dependency notes and record follow-up when unsupported; Public pm-jira, pm-ops and third tracker evidence; targeted tests, typecheck and npm/Bun CI release gates"
+release: 2026.11.10
+resolution: Kept full-history changelog checks stable after empty release tags.
+expected_result: Tagging an empty release preserves committed changelog output.
+actual_result: Merged implementation is included in v2026.11.10.
 comments[24]{created_at,author,text}:
   "2026-11-07T22:05:31.520Z",pi-agent,"Closed pmc-itemless-pending covers git-derived notes, not include-empty visibility. Public pm-jira main 9ff81121748701c3f95e40e758ec28d89ac73805 reproduces the empty Unreleased diff. Current generator also differs from that consumer historical baseline in dependency notes and old item ordering; measure those separately from tag-only stability."
   "2026-11-07T22:07:05.913Z",pi-agent,"Selection fix omits empty Unreleased before limits on all item visibility paths, retaining empty versioned releases. Tag audit found default v-only discovery and duplicate calendar aliases; normalize equivalent tags into one window and accept unprefixed version tags by default. Different historical versions or changed commit boundaries are real release-history changes, so arbitrary tag-set independence is impossible; README documents that boundary and immutable milestone alternative. Git-optional merged-change receipt design is tracked in pmc-portable-change-receipts; no new git-only notes logic."
@@ -72,4 +78,13 @@ docs[3]{path,scope}:
   docs/stable-check-evidence.md,project
   docs/usage.md,project
   README.md,project
+close_reason: "PR #333 (fa8acb9), shipped in v2026.11.10."
+change_facets[1]:
+  - audience: operator
+    text: Empty Unreleased sections no longer consume an include-empty release limit; regenerate CHANGELOG.md once when upgrading to 2026.11.10.
+    breaking: true
+    upgrade_actions[1]:
+      - id: regenerate-changelog-2026-11-10-empty-pending
+        title: regenerate CHANGELOG.md once for empty pending sections
+        requires: []
 body: ""
