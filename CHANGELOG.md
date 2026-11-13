@@ -4,6 +4,12 @@
 
 > Release note (issue 337): empty Unreleased sections are always omitted; --include-empty retains only versioned release sections. Callers' committed changelogs drop the legacy empty Unreleased / No changes. block on their next regeneration, including prepend mode. Non-empty unreleased items and dependency notes are preserved.
 
+## Unreleased
+
+### Fixed
+
+- Explain generator drift separately from tracker changes in changelog checks ([pmc-check-generator-drift](https://github.com/unbraind/pm-changelog/blob/main/.agents/pm/issues/pmc-check-generator-drift.toon))
+
 ## 2026.11.13 - 2026-11-13
 
 ### Fixed

@@ -3,13 +3,18 @@ title: Explain generator drift separately from tracker changes in changelog chec
 description: Classify check failures and publish the missed ordering upgrade obligation.
 type: Issue
 pm_format_version: 2
-status: in_progress
+status: closed
 priority: 2
 tags[1]: "gh:unbraind/pm-changelog#339"
 created_at: "2026-11-11T08:54:50.195Z"
-updated_at: "2026-11-13T05:29:33.390Z"
+updated_at: "2026-11-13T23:52:02.366Z"
+closed_at: "2026-11-13T23:52:02.341Z"
+completed_at: "2026-11-13T23:52:02.341Z"
 author: codex-changelog339-1111
 acceptance_criteria: "Text and JSON classify reorder_only, rendering_changed and tracker_changed; generator drift includes the configured regeneration command; all drift checks exit 1; the 2026.11.7 upgrade action is listed; historical deliveries have release evidence; behavioral reverts fail in disposable real trackers"
+resolution: Implemented and merged in #341 (5b3c218).
+expected_result: The change described by this item is on main.
+actual_result: "Merged in #341 as 5b3c218; checks successful at head 5887df8: CodeQL, codeql, lifecycle, semgrep-cloud-platform/scan, test (22), test (26)."
 comments[65]{created_at,author,text}:
   "2026-11-11T08:54:52.636Z",codex-changelog339-1111,"Read issue 339 and queue rules. Classify section-local reorder first, exact previous-renderer equality second, remaining drift as tracker_changed. Store rendering versions in the JSON receipt without changing Markdown bytes. Audit all four prior in_progress items against merged commits and release tags; close delivered historical items as explicitly requested, keeping this issue in_progress."
   "2026-11-11T09:01:06.423Z",codex-changelog339-1111,"Tracker audit complete: pmc-total-item-order delivered by #324 in v2026.11.7; pmc-stable-itemless-check by #333 and pmc-contract-changes by #328 in v2026.11.10. Closed those with actual merge timestamps and release evidence. Also closed pmc-no-empty-unreleased-337 as merged via #338 but not yet tagged. No other prior in_progress items remain. Operator facet on pmc-total-item-order supplies the 2026.11.7 regeneration action through the existing native catalog. The pinned CLI required activating the local package field registration before writing change_facets; used an ignored local extension installation."
@@ -869,4 +874,5 @@ docs[3]{path,scope}:
   docs/consumer-upgrades.md,project
   docs/release.md,project
   docs/usage.md,project
+close_reason: "Delivered by #341 \"Explain generator upgrades separately from tracker drift in --check\" (merged as 5b3c218). Checks successful at the PR head 5887df8: CodeQL, codeql, lifecycle, semgrep-cloud-platform/scan, test (22), test (26)."
 body: "Issue 339: distinguish observable section-local reorders from exact previous-renderer output and tracker changes. Preserve check exit 1, carry rendering revisions in receipts, and emit a safe regeneration invocation for generator drift. Restore the missed 2026.11.7 operator action through the native tracker catalog and reconcile delivered historical items. The shared previous renderer controls dependency selection, Markdown heading recognition, whitespace and prepend cleanup."
