@@ -10,6 +10,10 @@
 
 - Recognize capitalized Dependabot bump subjects in dependency-only releases ([pmc-dependency-bump-case](https://github.com/unbraind/pm-changelog/blob/main/.agents/pm/issues/pmc-dependency-bump-case.toon))
 
+### Dependencies
+
+- Bump marked ([#350](https://github.com/unbraind/pm-changelog/pull/350))
+
 ## 2026.11.12 - 2026-11-12
 
 ### Dependencies
