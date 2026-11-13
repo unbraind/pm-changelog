@@ -20,7 +20,8 @@ test("selected release attributes only delivered pending rendering actions with 
   await schemaAddField("change_facets", { type: "array" }, { pmRoot });
   initGitFixture(cwd);
   writeFileSync(join(cwd, "package.json"), JSON.stringify({ name: "fixture", version: "2.0.0" }));
-  execFileSync("git", ["add", "package.json"], { cwd, env: fixtureEnvironment() });
+  // The earlier draft contains readable tracker configuration but no delivered items.
+  execFileSync("git", ["add", "package.json", ".agents/pm"], { cwd, env: fixtureEnvironment() });
   execFileSync("git", ["-c", "user.name=SteveBot", "-c", "user.email=1153461+unbraind@users.noreply.github.com", "commit", "-m", "Unpublished draft version"], { cwd, env: fixtureEnvironment(), stdio: "pipe" });
   for (const [id, status, release, tags] of [["release-pending", "closed", undefined, "rendering-change"], ["release-active", "in_progress", undefined, "rendering-change"], ["release-existing", "closed", "1.0.0", "rendering-change"], ["release-untagged", "closed", undefined, ""]]) {
     await runCreate({ id, status, release, tags, title: `Delivered ${id}`, type: "Task", createMode: "progressive", ...{ changeFacets: JSON.stringify([{ audience: "operator", text: "Regenerate once", breaking: true, upgrade_actions: [{ id: "regenerate-once", title: "Regenerate once", requires: [] }] }]) }, completedAt: status === "closed" ? "2026-11-01T00:00:00Z" : undefined, closeReason: status === "closed" ? "Implemented the change" : undefined }, { path: pmRoot });

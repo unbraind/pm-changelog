@@ -244,6 +244,9 @@ release continues.
 Each candidate must prove a delivered change in the frozen snapshot: a done
 status, no neutral or non-change closure disposition, unchanged rendering facets, the
 same explicit completion timestamp before the end of the boundary commit's
-recorded second, and
-matching normalized live/frozen status. Later, backdated-new, changed, or unproved
+recorded second, and delivery under both the live and captured status registries.
+Frozen checks load the release commit's tracker settings and schema documents;
+later role edits or status renames cannot reinterpret that snapshot. Unreadable
+captured settings or schema refuse attribution as `release_snapshot_unavailable`
+before any write when eligible items exist. Later, backdated-new, changed, or unproved
 items are logged and left unattributed for a subsequent release or Unreleased.

@@ -1,15 +1,15 @@
 import { spawnSync } from "node:child_process";
-import { relative, basename, join } from "node:path";
-import { mkdtempSync, writeFileSync, rmSync } from "node:fs";
+import { relative, basename, dirname, isAbsolute, join, resolve, sep, win32 } from "node:path";
+import { mkdirSync, mkdtempSync, writeFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
-import { readLocatedItem } from "@unbrained/pm-cli/sdk";
+import { readLocatedItem, readSettingsWithMetadata, resolveRuntimeStatusRegistry, SETTINGS_DEFAULTS } from "@unbrained/pm-cli/sdk";
 import { parseContractRelease } from "../src/contract-versions.ts";
-import type { PmItem } from "../src/types.ts";
+import type { ChangelogStatusContext, PmItem } from "../src/types.ts";
 
 /** Registry observation; unknown publication must never authorize a new window. */
 export interface PublicationState { state: "published" | "unpublished" | "unknown"; gitHead?: string }
 /** An immutable Git boundary plus the native item snapshot it contains. */
-export interface RenderingReleaseBoundary { commit: string; timestamp: number; items: Map<string, PmItem> }
+export interface RenderingReleaseBoundary { commit: string; timestamp: number; items: Map<string, PmItem>; context: ChangelogStatusContext }
 
 /** Read Git objects only in the requested repository, ignoring inherited redirects. */
 function git(cwd: string, args: string[]): string | undefined {
@@ -27,6 +27,39 @@ function commitId(cwd: string, ref: string): string | undefined {
 function packageVersion(cwd: string, commit: string): string | undefined {
   try { return parseContractRelease(JSON.parse(git(cwd, ["show", `${commit}:package.json`]) ?? "null")?.version); }
   catch { return undefined; }
+}
+
+/** Materialize and validate only the commit's settings and schema. Missing or
+ * malformed evidence must never bootstrap defaults or use the live registry. */
+async function readSnapshotContext(cwd: string, commit: string, trackerPath: string, scratch: string): Promise<{ context: ChangelogStatusContext; schema: typeof SETTINGS_DEFAULTS.schema } | undefined> {
+  try {
+    const root = resolve(scratch, trackerPath);
+    const content = git(cwd, ["show", `${commit}:${trackerPath === "." ? "" : `${trackerPath}/`}settings.json`]);
+    if (content === undefined) return undefined;
+    const raw: unknown = JSON.parse(content);
+    if (!raw || typeof raw !== "object" || Array.isArray(raw)) return undefined;
+    const schema = "schema" in raw ? raw.schema : undefined;
+    if (schema !== undefined && (!schema || typeof schema !== "object" || Array.isArray(schema))) return undefined;
+    const files = schema && "files" in schema ? schema.files : undefined;
+    if (files !== undefined && (!files || typeof files !== "object" || Array.isArray(files))) return undefined;
+    mkdirSync(root, { recursive: true });
+    writeFileSync(join(root, "settings.json"), content);
+    for (const section of ["types", "statuses", "fields", "workflows"] as const) {
+      const configured = files && section in files ? (files as Record<string, unknown>)[section] : SETTINGS_DEFAULTS.schema.files[section];
+      if (typeof configured !== "string" || !configured.trim() || isAbsolute(configured) || win32.isAbsolute(configured)) return undefined;
+      const target = resolve(root, configured), path = relative(scratch, target);
+      if (path === ".." || path.startsWith(`..${sep}`)) return undefined;
+      const document = git(cwd, ["show", `${commit}:${path.split(sep).join("/")}`]);
+      if (document === undefined) return undefined;
+      // Reject invalid JSON even if a future SDK loader chooses to fall back.
+      JSON.parse(document);
+      mkdirSync(dirname(target), { recursive: true });
+      writeFileSync(target, document);
+    }
+    const loaded = await readSettingsWithMetadata(root);
+    if (loaded.warnings.some((warning) => warning !== "settings_item_format_legacy_json_markdown_coerced_to_toon")) return undefined;
+    return { context: { statusRegistry: resolveRuntimeStatusRegistry(loaded.settings.schema) }, schema: loaded.settings.schema };
+  } catch { return undefined; }
 }
 
 /** Use the published object reachable from main, never the first version commit
@@ -63,21 +96,25 @@ export async function resolveRenderingReleaseBoundary(cwd: string, pmRoot: strin
   if (!Number.isFinite(timestamp) || files === undefined) return refuse("release_snapshot_unavailable");
   const items = new Map<string, PmItem>();
   const scratch = mkdtempSync(join(tmpdir(), "pm-release-snapshot-"));
+  let context: ChangelogStatusContext | undefined;
   try {
+    const snapshot = await readSnapshotContext(cwd, commit, path, scratch);
+    if (!snapshot) return refuse("release_snapshot_unavailable");
+    context = snapshot.context;
     for (const file of files.split("\0").filter((file) => /\.(?:toon|md)$/.test(file))) {
       const raw = git(cwd, ["show", `${commit}:${file}`]);
       if (raw === undefined) continue;
       try {
         const format = file.endsWith(".toon") ? "toon" : "md";
-        const itemPath = join(scratch, `snapshot.${format}`);
+        const itemPath = join(scratch, path, `snapshot.${format}`);
         writeFileSync(itemPath, raw);
-        const { document } = await readLocatedItem({ id: basename(file, `.${format}`), type: "Issue", itemPath, item_format: format === "toon" ? "toon" : "json_markdown" }, { extensionFieldNames: ["change_facets", "contract_change"] });
+        const { document } = await readLocatedItem({ id: basename(file, `.${format}`), type: "Issue", itemPath, item_format: format === "toon" ? "toon" : "json_markdown" }, { schema: snapshot.schema, extensionFieldNames: ["change_facets", "contract_change"] });
         const item = document.metadata;
         if (item.id) items.set(item.id, item);
       } catch { /* An unreadable legacy row supplies no completion proof. */ }
     }
   } finally { rmSync(scratch, { recursive: true, force: true }); }
-  return { commit, timestamp, items };
+  return { commit, timestamp, items, context };
 }
 
 /** Confirm publication from exact metadata, or absence from the full packument. */

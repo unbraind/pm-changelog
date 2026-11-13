@@ -74,9 +74,10 @@ omission when its release is in range. Ordinary facets create no obligations.
 The interval is `(from,to]`. Specify stable numeric release triplets, optionally
 prefixed with `v` or suffixed with a numeric daily disambiguator, for example
 `2026.10.24-1`. Comparison reuses the package's release comparator. Unsupported
-prereleases/build metadata, ambiguous or unpublished release attribution and
-reversed/empty intervals refuse. Every selected breaking facet requires an
-explicit `release`; timestamps and milestone names do not infer a version.
+prereleases/build metadata, explicitly invalid releases, ambiguous attribution
+and reversed/empty intervals refuse. Pending declarations without a `release`
+in `Unreleased` are excluded while published obligations are returned.
+Timestamps and milestone names do not infer a published version.
 Only closed change items selected by existing closure/audience policy contribute.
 
 Repeated IDs must have identical title, body and prerequisite sets; their earliest

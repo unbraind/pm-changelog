@@ -7,7 +7,7 @@ import type { PmItem } from "../src/types.ts";
 import type { PublicationState } from "./rendering-release-boundary.ts";
 import { listAllComplete, resolveCompletionTimestamp, readSettings, resolveRuntimeStatusRegistry, runUpdate } from "@unbrained/pm-cli/sdk";
 import { getStringField } from "../src/generator.ts";
-import { isDoneStatus, isNonChangeClosure, needsNeutralClosure, normalizeChangelogStatus } from "../src/closure-policy.ts";
+import { isDoneStatus, isNonChangeClosure, needsNeutralClosure } from "../src/closure-policy.ts";
 import { parseContractRelease } from "../src/contract-versions.ts";
 import { isMainInvocation } from "./main-invocation.ts";
 
@@ -41,8 +41,10 @@ export async function attributeRenderingRelease(pmRoot: string, deliveryVersion:
     const completion = resolveCompletionTimestamp({ completed_at: item.completed_at, closed_at: item.closed_at });
     const original = frozen && resolveCompletionTimestamp({ completed_at: frozen.completed_at, closed_at: frozen.closed_at });
     const time = completion.resolved ? Date.parse(completion.timestamp) : NaN;
-    if (!boundary || !frozen || !isDoneStatus(frozen, context) || isNonChangeClosure(frozen, context) || needsNeutralClosure(frozen, context)
-      || normalizeChangelogStatus(item.status, context) !== normalizeChangelogStatus(frozen.status, context) || !frozen.tags?.includes("rendering-change")
+    // Each row must prove delivery under its own registry; a status rename does
+    // not invalidate that proof or let later role changes rewrite the snapshot.
+    if (!boundary || !frozen || !isDoneStatus(frozen, boundary.context) || isNonChangeClosure(frozen, boundary.context) || needsNeutralClosure(frozen, boundary.context)
+      || !frozen.tags?.includes("rendering-change")
       || (getStringField(frozen, "release") !== undefined && getStringField(frozen, "release") !== release)
       || !original?.resolved || !Number.isFinite(time) || time >= boundary.timestamp + 1000 || time !== Date.parse(original.timestamp)
       || !isDeepStrictEqual(item.change_facets, frozen.change_facets) || !isDeepStrictEqual(item.contract_change, frozen.contract_change)
