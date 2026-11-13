@@ -5,6 +5,7 @@ import { cpSync, mkdirSync, mkdtempSync, readFileSync, rmSync, symlinkSync, writ
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import { ProofRun } from "./proof-run.ts";
+import { runProofPm } from "./proof-pm-command.ts";
 import { readProofBaseline } from "./proof-baseline.ts";
 import { listAllComplete } from "@unbrained/pm-cli/sdk";
 
@@ -97,6 +98,8 @@ try {
     } finally { writeFileSync(generator, fixedGenerator); }
   });
   const driftFile = join(scratch, "src/check-drift.ts"), fixedDrift = readFileSync(driftFile, "utf8");
+  const continuationLoop = /    while \(index \+ 1 < lines.length\) \{[\s\S]*?\n    }/.exec(fixedDrift)?.[0];
+  assert.ok(continuationLoop, "Missing entry continuation loop in generator-drift proof");
   for (const mutation of [
     { name: "host-argv-replay", from: "const argv = [...invocation, ...args];", to: "const argv = [...process.argv.slice(0, 2), ...args];", pattern: "^regeneration model" },
     { name: "stdin-input-loss", from: "if (options.stdin === true)", to: "if (false)", pattern: "^stdin regeneration" },
@@ -104,13 +107,8 @@ try {
     { name: "unnormalized-host-options", from: 'const normalized = key.replace(/^--/, "").replace(/[-_]/g, "").toLowerCase();', to: "const normalized = key;", pattern: "^canonical host option registry" },
     { name: "same-version-upgrade-attribution", from: "revisions.previous !== revisions.current && committed === previous()", to: "committed === previous()", pattern: "^same-version reorder" },
     { name: "unproved-upgrade-attribution", from: "revisions.previous !== revisions.current && committed === previous()", to: "revisions.previous !== revisions.current", pattern: "^same-version reorder" },
-    { name: "detached-multiline-details", from: `    while (index + 1 < lines.length) {
-      let next = index + 1;
-      while (next < lines.length && lines[next]!.trim() === "") next++;
-      if (next === lines.length || !/^(?: {2,}|\\t)\\S/.test(lines[next]!)) break;
-      block.push(...lines.slice(index + 1, next + 1));
-      index = next;
-    }`, to: '    while (index + 1 < lines.length && /^(?: {2,}|\\t)\\S/.test(lines[index + 1]!)) block.push(lines[++index]!);', pattern: "^blank-separated multiline" },
+    { name: "detached-multiline-details", from: continuationLoop, to: '    while (index + 1 < lines.length && /^(?: {2,}|\\t)\\S/.test(lines[index + 1]!)) block.push(lines[++index]!);', pattern: "^blank-separated multiline" },
+    { name: "detached-lazy-continuations", from: 'const lazy = next === index + 1 &&', to: 'const lazy = false &&', pattern: "^lazy paragraph continuations" },
   ]) {
     proof.run(mutation.name, () => {
       try {
@@ -124,7 +122,7 @@ try {
   const facets = (await listAllComplete({}, { pmRoot })).items.find((item) => item.id === "pmc-total-item-order")!.change_facets;
   /** Write catalog mutations with the pinned CLI, retaining append-only history. */
   const setFacets = (value: unknown, id = "pmc-total-item-order"): void => {
-    const result = spawnSync(resolve("node_modules/.bin/pm"), ["--path", pmRoot, "update", id, "--field", `change_facets=${JSON.stringify(value)}`], {
+    const result = runProofPm(["--path", pmRoot, "update", id, "--field", `change_facets=${JSON.stringify(value)}`], {
       cwd: scratch, encoding: "utf8", env: { PATH: process.env.PATH, HOME: scratch, GIT_CONFIG_GLOBAL: "/dev/null", GIT_CONFIG_NOSYSTEM: "1", PM_AUTHOR: "codex-changelog339-1111", PM_TELEMETRY_SOURCE_CONTEXT: "automation", DO_NOT_TRACK: "1" },
     });
     assert.equal(result.status, 0, result.stdout + result.stderr);
@@ -208,6 +206,11 @@ try {
     { name: "reject-blank-release", path: "src/consumer-upgrades.ts", from: 'getStringField(item, "release") === undefined', to: "item.release === undefined", pattern: "^blank legacy releases", test: "test/release-rendering-attribution.test.ts" },
     { name: "stop-proof-at-first-failure", path: "scripts/proof-run.ts", from: 'catch (error) { result =', to: 'catch (error) { throw error; result =', pattern: "^proof reports every", test: "test/proof-run.test.ts" },
     { name: "missing-source-derived-seam", path: "scripts/empty-unreleased-proof.ts", from: 'const matches = [...source.matchAll(definition.seam)];', to: 'const matches: RegExpMatchArray[] = [];', pattern: "^proof reports every", test: "test/proof-run.test.ts" },
+    { name: "attribute-live-neutral-closure", path: "scripts/attribute-rendering-release.ts", from: ' && !needsNeutralClosure(item, context)', to: '', pattern: "^neutral issue closures", test: "test/release-rendering-attribution.test.ts" },
+    { name: "attribute-frozen-neutral-closure", path: "scripts/attribute-rendering-release.ts", from: ' || needsNeutralClosure(frozen, context)', to: '', pattern: "^neutral issue closures", test: "test/release-rendering-attribution.test.ts" },
+    { name: "modern-matcher-in-historical-profiles", path: "src/generator.ts", from: 'RENDERING_PROFILES[renderingVersion].dependencySubject.test(subject)', to: 'DEPENDABOT_SUBJECT.test(subject)', pattern: "^historical dependency profiles", test: "test/check-generator-drift.test.ts" },
+    { name: "proof-entrypoint-without-node", path: "scripts/proof-pm-command.ts", from: 'spawnSync(process.execPath, [...argsPrefix, ...args], options)', to: 'spawnSync(argsPrefix[0]!, args, options)', pattern: "^proof PM mutations", test: "test/proof-pm-command.test.ts" },
+    { name: "misstate-recorded-second-boundary", path: "docs/release.md", from: "before the end of the boundary commit's\nrecorded second", to: "strictly before the boundary commit", pattern: "^release attribution docs", test: "test/release-boundary-round9.test.ts" },
     { name: "drop-release-attribution", path: "scripts/attribute-rendering-release.ts", from: 'await runUpdate(item.id, { release }, { path: pmRoot });', to: 'void release;', pattern: "^selected release attributes", test: "test/release-rendering-attribution.test.ts" },
     { name: "omit-release-tracker-staging", path: ".github/workflows/release.yml", from: "dist CHANGELOG.md .agents/pm", to: "dist CHANGELOG.md", pattern: "^selected release attributes", test: "test/release-rendering-attribution.test.ts" },
     { name: "skip-missing-release-boundary", path: "scripts/attribute-rendering-release.ts", from: 'if (eligible.length > 0 && !boundary)', to: 'if (false)', pattern: "^unproved release boundary refuses", test: "test/release-rendering-attribution.test.ts" },
@@ -254,7 +257,7 @@ try {
     const release = String(catalog.find((item) => item.id === id)!.release);
     /** Keep publication metadata mutations in native append-only history. */
     function setRelease(value: string | undefined): void {
-      const result = spawnSync(resolve("node_modules/.bin/pm"), ["--path", pmRoot, "update", id, ...(value ? ["--release", value] : ["--unset", "release"])], {
+      const result = runProofPm(["--path", pmRoot, "update", id, ...(value ? ["--release", value] : ["--unset", "release"])], {
         cwd: scratch, encoding: "utf8", env: { PATH: process.env.PATH, HOME: scratch, GIT_CONFIG_GLOBAL: "/dev/null", GIT_CONFIG_NOSYSTEM: "1", PM_AUTHOR: "codex-changelog339-1111", PM_TELEMETRY_SOURCE_CONTEXT: "automation", DO_NOT_TRACK: "1" },
       });
       assert.equal(result.status, 0, result.stdout + result.stderr);

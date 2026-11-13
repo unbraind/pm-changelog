@@ -2,20 +2,30 @@ import type { ChangelogClaimSource } from "./types.ts";
 import type { ChangelogStatusContext, ChangelogDocument, ChangelogEntryFrom, ChangelogSelectionReport, ChangelogSummaryEntry, DependencyCommit, GeneratedChangelog, GenerateChangelogOptions, MergeChangelogOptions, MergeChangelogResult, PmItem, ReadPmItemsOptions, SemverSuggestion, WriteChangelogOptions, WriteChangelogResult } from "./types.ts";
 /** Rendering contract revision. Bump on every output-affecting change and retain
  * the preceding rules in this shared pipeline for exact check diagnostics. */
-export declare const RENDERING_VERSION = "2026.11.11";
-/** Last published rendering: prepend retained empty pending placeholders. */
-export declare const PREVIOUS_RENDERING_VERSION = "2026.11.10";
+export declare const RENDERING_VERSION = "2026.11.12";
+/** Previous output contract: dependency matching was case-sensitive. */
+export declare const PREVIOUS_RENDERING_VERSION = "2026.11.11";
 /** Retained output contracts in the same generator. Never remove older ordering
  * comparisons when advancing the current/previous Markdown rendering revisions. */
 export declare const RENDERING_PROFILES: {
-    readonly "2026.11.11": {
+    readonly "2026.11.12": {
+        readonly dependencySubject: RegExp;
         readonly contractFormatting: true;
         readonly modernMarkdown: true;
         readonly completionOrder: true;
         readonly emptyUnreleased: false;
-        readonly changedIn: "2026.11.11";
+        readonly changedIn: "2026.11.12";
+    };
+    readonly "2026.11.11": {
+        readonly dependencySubject: RegExp;
+        readonly contractFormatting: true;
+        readonly modernMarkdown: true;
+        readonly completionOrder: true;
+        readonly emptyUnreleased: false;
+        readonly changedIn: "2026.11.12";
     };
     readonly "2026.11.10": {
+        readonly dependencySubject: RegExp;
         readonly contractFormatting: true;
         readonly modernMarkdown: false;
         readonly completionOrder: true;
@@ -23,6 +33,7 @@ export declare const RENDERING_PROFILES: {
         readonly changedIn: "2026.11.11";
     };
     readonly "2026.11.7": {
+        readonly dependencySubject: RegExp;
         readonly contractFormatting: false;
         readonly modernMarkdown: false;
         readonly completionOrder: true;
@@ -30,6 +41,7 @@ export declare const RENDERING_PROFILES: {
         readonly changedIn: "2026.11.10";
     };
     readonly "2026.11.6": {
+        readonly dependencySubject: RegExp;
         readonly contractFormatting: false;
         readonly modernMarkdown: false;
         readonly completionOrder: false;
@@ -40,7 +52,7 @@ export declare const RENDERING_PROFILES: {
 /** Supported output contracts; package dependency upgrades need not bump these. */
 export type RenderingVersion = keyof typeof RENDERING_PROFILES;
 /** Older profiles survive subsequent current/previous rendering-version bumps. */
-export declare const HISTORICAL_RENDERING_VERSIONS: ("2026.11.10" | "2026.11.11" | "2026.11.6" | "2026.11.7")[];
+export declare const HISTORICAL_RENDERING_VERSIONS: ("2026.11.10" | "2026.11.11" | "2026.11.12" | "2026.11.6" | "2026.11.7")[];
 type PmCommand = {
     bin: string;
     argsPrefix: string[];

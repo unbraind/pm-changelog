@@ -1,8 +1,8 @@
 import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
-import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { join, resolve } from "node:path";
 import test, { type TestContext } from "node:test";
 import { listAllComplete, runCreate, runInit, runUpdate, schemaAddField } from "@unbrained/pm-cli/sdk";
 import { attributeRenderingRelease } from "../scripts/attribute-rendering-release.ts";
@@ -74,4 +74,10 @@ test("a source-backed close reason edited after publication is refused; an uncha
   assert.deepEqual(await attributeRenderingRelease(f.pmRoot, "2.0.0", { cwd: f.cwd, preparedFrom: published, publication: { state: "published", gitHead: published }, log: (id) => { skipped.push(id); } }), ["release-reason-kept"]);
   assert.deepEqual(skipped, ["release-reason-edited"]);
   assert.equal((await listAllComplete({}, { pmRoot: f.pmRoot })).items.find((row) => row.id === "release-reason-edited")!.release, undefined);
+});
+
+test("release attribution docs describe the end of the recorded commit second", () => {
+  const docs = readFileSync(resolve("docs/release.md"), "utf8");
+  assert.match(docs, /before the end of the boundary commit's\s+recorded second/);
+  assert.doesNotMatch(docs, /completion timestamp strictly before the boundary commit/);
 });

@@ -7,7 +7,7 @@ import type { PmItem } from "../src/types.ts";
 import type { PublicationState } from "./rendering-release-boundary.ts";
 import { listAllComplete, resolveCompletionTimestamp, readSettings, resolveRuntimeStatusRegistry, runUpdate } from "@unbrained/pm-cli/sdk";
 import { getStringField } from "../src/generator.ts";
-import { isDoneStatus, isNonChangeClosure, normalizeChangelogStatus } from "../src/closure-policy.ts";
+import { isDoneStatus, isNonChangeClosure, needsNeutralClosure, normalizeChangelogStatus } from "../src/closure-policy.ts";
 import { parseContractRelease } from "../src/contract-versions.ts";
 import { isMainInvocation } from "./main-invocation.ts";
 
@@ -24,7 +24,7 @@ export async function attributeRenderingRelease(pmRoot: string, deliveryVersion:
   assert.ok(release, "A selected stable delivery version is required before tracker attribution");
   const items = (await listAllComplete({}, { pmRoot })).items;
   const context = { statusRegistry: resolveRuntimeStatusRegistry((await readSettings(pmRoot)).schema) };
-  const eligible = items.filter((item) => item.tags?.includes("rendering-change") && isDoneStatus(item, context) && !isNonChangeClosure(item, context)
+  const eligible = items.filter((item) => item.tags?.includes("rendering-change") && isDoneStatus(item, context) && !isNonChangeClosure(item, context) && !needsNeutralClosure(item, context)
     && getStringField(item, "release") === undefined);
   const changed: string[] = [];
   let boundaryReason = "release_boundary_unavailable";
@@ -34,14 +34,14 @@ export async function attributeRenderingRelease(pmRoot: string, deliveryVersion:
     for (const item of eligible) log(item.id, boundaryReason);
     throw new Error(`Rendering release attribution refused: ${boundaryReason}`);
   }
-  // The boundary is a whole-second commit time, so a completion inside that second precedes the frozen commit.
+  // The boundary is a whole-second commit time, so completions before the end of that recorded second are accepted.
   for (const item of eligible) {
     const frozen = boundary?.items.get(item.id);
     const metadata = (item as PmItem).metadata;
     const completion = resolveCompletionTimestamp({ completed_at: item.completed_at, closed_at: item.closed_at });
     const original = frozen && resolveCompletionTimestamp({ completed_at: frozen.completed_at, closed_at: frozen.closed_at });
     const time = completion.resolved ? Date.parse(completion.timestamp) : NaN;
-    if (!boundary || !frozen || !isDoneStatus(frozen, context) || isNonChangeClosure(frozen, context)
+    if (!boundary || !frozen || !isDoneStatus(frozen, context) || isNonChangeClosure(frozen, context) || needsNeutralClosure(frozen, context)
       || normalizeChangelogStatus(item.status, context) !== normalizeChangelogStatus(frozen.status, context) || !frozen.tags?.includes("rendering-change")
       || (getStringField(frozen, "release") !== undefined && getStringField(frozen, "release") !== release)
       || !original?.resolved || !Number.isFinite(time) || time >= boundary.timestamp + 1000 || time !== Date.parse(original.timestamp)

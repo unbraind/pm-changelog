@@ -36,7 +36,13 @@ function canonicalEntryOrder(markdown) {
             let next = index + 1;
             while (next < lines.length && lines[next].trim() === "")
                 next++;
-            if (next === lines.length || !/^(?: {2,}|\t)\S/.test(lines[next]))
+            if (next === lines.length)
+                break;
+            const continuation = lines[next];
+            const indented = /^(?: {2,}|\t)\S/.test(continuation);
+            // Lazy paragraph continuation cannot cross a blank line or interrupting block.
+            const lazy = next === index + 1 && !/^ {0,3}(?:[-+*]\s|1[.)]\s|#{1,6}(?:\s|$)|>|`{3,}|~{3,}|(?:[-*_]\s*){3,}$|<(?:!|\?|\/?(?:address|article|aside|blockquote|div|dl|fieldset|footer|form|h[1-6]|header|hr|main|nav|ol|p|pre|script|section|style|table|ul)\b))/i.test(continuation);
+            if (!indented && !lazy)
                 break;
             block.push(...lines.slice(index + 1, next + 1));
             index = next;

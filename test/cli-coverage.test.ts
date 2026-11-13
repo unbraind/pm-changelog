@@ -285,8 +285,8 @@ test("workflow writers reject absent environment targets and helper projections 
     excluded_non_change_count: 0,
     bytes: 8,
     check: false,
-    rendering_version: "2026.11.11",
-    previous_rendering_version: "2026.11.10",
+    rendering_version: "2026.11.12",
+    previous_rendering_version: "2026.11.11",
     markdown: undefined,
   });
   assert.equal(cliTestSurface.errorMessage(new Error("failure")), "failure");

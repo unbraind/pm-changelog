@@ -242,7 +242,8 @@ unknown publication or missing Git evidence logs the reason for each candidate
 and then fails the release step before any write. With no eligible items, the
 release continues.
 Each candidate must prove a delivered change in the frozen snapshot: a done
-status, no non-change closure disposition, unchanged rendering facets, the
-same explicit completion timestamp strictly before the boundary commit, and
+status, no neutral or non-change closure disposition, unchanged rendering facets, the
+same explicit completion timestamp before the end of the boundary commit's
+recorded second, and
 matching normalized live/frozen status. Later, backdated-new, changed, or unproved
 items are logged and left unattributed for a subsequent release or Unreleased.

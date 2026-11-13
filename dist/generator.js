@@ -11,16 +11,27 @@ import { isNonChangeClosure, needsNeutralClosure, countNonChangeClosures, isDone
 import { builtinItemFolder, resolveItemFolder } from "./item-links.js";
 /** Rendering contract revision. Bump on every output-affecting change and retain
  * the preceding rules in this shared pipeline for exact check diagnostics. */
-export const RENDERING_VERSION = "2026.11.11";
-/** Last published rendering: prepend retained empty pending placeholders. */
-export const PREVIOUS_RENDERING_VERSION = "2026.11.10";
+export const RENDERING_VERSION = "2026.11.12";
+/** Previous output contract: dependency matching was case-sensitive. */
+export const PREVIOUS_RENDERING_VERSION = "2026.11.11";
+/** Dependabot's squash-merged subjects: a conventional-commit type, a `deps` or
+ * `deps-dev` scope, and the `bump` verb (`build(deps-dev): bump jscpd from …`,
+ * `chore(deps): bump the codeql-action group with 2 updates`). The type, scope
+ * and verb are case-insensitive to follow repository commit styles. Requiring
+ * the verb keeps a hand-written `fix(deps): correct loader` out of the section.
+ * Linear-time: anchored start, one character-class run for the type, and a
+ * fixed alternation of literals — no nested quantifiers. */
+const DEPENDABOT_SUBJECT = /^[\w-]+\((?:deps|deps-dev)\): bump /i;
+/** Published dependency acceptance through 2026.11.11; keep it when advancing profiles. */
+const LEGACY_DEPENDABOT_SUBJECT = /^[\w-]+\((?:deps|deps-dev)\): bump /;
 /** Retained output contracts in the same generator. Never remove older ordering
  * comparisons when advancing the current/previous Markdown rendering revisions. */
 export const RENDERING_PROFILES = {
-    "2026.11.11": { contractFormatting: true, modernMarkdown: true, completionOrder: true, emptyUnreleased: false, changedIn: "2026.11.11" },
-    "2026.11.10": { contractFormatting: true, modernMarkdown: false, completionOrder: true, emptyUnreleased: false, changedIn: "2026.11.11" },
-    "2026.11.7": { contractFormatting: false, modernMarkdown: false, completionOrder: true, emptyUnreleased: true, changedIn: "2026.11.10" },
-    "2026.11.6": { contractFormatting: false, modernMarkdown: false, completionOrder: false, emptyUnreleased: true, changedIn: "2026.11.7" },
+    "2026.11.12": { dependencySubject: DEPENDABOT_SUBJECT, contractFormatting: true, modernMarkdown: true, completionOrder: true, emptyUnreleased: false, changedIn: "2026.11.12" },
+    "2026.11.11": { dependencySubject: LEGACY_DEPENDABOT_SUBJECT, contractFormatting: true, modernMarkdown: true, completionOrder: true, emptyUnreleased: false, changedIn: "2026.11.12" },
+    "2026.11.10": { dependencySubject: LEGACY_DEPENDABOT_SUBJECT, contractFormatting: true, modernMarkdown: false, completionOrder: true, emptyUnreleased: false, changedIn: "2026.11.11" },
+    "2026.11.7": { dependencySubject: LEGACY_DEPENDABOT_SUBJECT, contractFormatting: false, modernMarkdown: false, completionOrder: true, emptyUnreleased: true, changedIn: "2026.11.10" },
+    "2026.11.6": { dependencySubject: LEGACY_DEPENDABOT_SUBJECT, contractFormatting: false, modernMarkdown: false, completionOrder: false, emptyUnreleased: true, changedIn: "2026.11.7" },
 };
 /** Older profiles survive subsequent current/previous rendering-version bumps. */
 export const HISTORICAL_RENDERING_VERSIONS = Object.keys(RENDERING_PROFILES)
@@ -47,14 +58,6 @@ const CATEGORY_ORDER = [
     "Other",
     "Closed",
 ];
-/** Dependabot's squash-merged subjects: a conventional-commit type, a `deps` or
- * `deps-dev` scope, and the `bump` verb (`build(deps-dev): bump jscpd from …`,
- * `chore(deps): bump the codeql-action group with 2 updates`). The type, scope
- * and verb are case-insensitive to follow repository commit styles. Requiring
- * the verb keeps a hand-written `fix(deps): correct loader` out of the section.
- * Linear-time: anchored start, one character-class run for the type, and a
- * fixed alternation of literals — no nested quantifiers. */
-const DEPENDABOT_SUBJECT = /^[\w-]+\((?:deps|deps-dev)\): bump /i;
 /** Trailing `(#NNN)` PR reference at the end of a commit subject. Linear-time:
  * a single greedy `\d+` followed by a literal `)` and end anchor. When no `)`
  * is present the quantifier backtracks one digit at a time (O(n), not
@@ -77,7 +80,11 @@ const GITHUB_URL_PREFIX = /^https:\/\/github\.com\/([^/]+)\/([^/]+)/;
  * @returns The parsed commit, or `undefined` when the subject is not
  * Dependabot-shaped. */
 export function parseDependencyCommit(subject) {
-    if (!DEPENDABOT_SUBJECT.test(subject))
+    return parseDependencyCommitForRendering(subject, RENDERING_VERSION);
+}
+/** Parse one subject with a declared published matcher, sharing all extraction rules. */
+function parseDependencyCommitForRendering(subject, renderingVersion) {
+    if (!RENDERING_PROFILES[renderingVersion].dependencySubject.test(subject))
         return undefined;
     // The matcher guarantees the "): " separator; slice the original to preserve case.
     let description = subject.slice(subject.indexOf(": ") + 2);
@@ -117,7 +124,7 @@ function gitSucceeds(gitCwd, args) {
  * start at all (the oldest release, or a changelog with no since bound) reads
  * all history up to its end, as the item changelog does for items. Git
  * failures read as no commits, so generation never breaks on a missing window. */
-function readDependencyCommits(gitCwd, range) {
+function readDependencyCommits(gitCwd, range, renderingVersion) {
     const untilRef = range.untilRef !== undefined && gitSucceeds(gitCwd, ["rev-parse", "--verify", "--quiet", `${range.untilRef}^{commit}`])
         ? range.untilRef
         : "HEAD";
@@ -146,7 +153,7 @@ function readDependencyCommits(gitCwd, range) {
     for (const line of result.stdout.split("\n")) {
         if (!line.trim())
             continue;
-        const parsed = parseDependencyCommit(line.trim());
+        const parsed = parseDependencyCommitForRendering(line.trim(), renderingVersion);
         if (parsed)
             commits.push(parsed);
     }
@@ -218,7 +225,7 @@ function enrichSectionsWithDependencyCommits(sections, options, gitCwd, renderin
                 untilRef: window.releaseTag,
                 sinceTimestamp: window.since,
                 untilTimestamp: window.until,
-            });
+            }, renderingVersion);
             return commits.length > 0 ? { ...section, dependencyCommits: commits } : section;
         });
     }
@@ -238,7 +245,7 @@ function enrichSectionsWithDependencyCommits(sections, options, gitCwd, renderin
         sinceTimestamp: options.since,
         untilTimestamp: options.until,
         cutoff: options.dependencyCutoff,
-    });
+    }, renderingVersion);
     return commits.length > 0 ? sections.map((section) => ({ ...section, dependencyCommits: commits })) : sections;
 }
 /** Render a changelog and return only its markdown. Convenience wrapper over

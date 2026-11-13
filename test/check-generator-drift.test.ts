@@ -112,7 +112,7 @@ test("same real tracker: exact previous prepend rendering is rendering_changed, 
   const text = f.run(["--mode", "prepend", "--check", "--no-check-diff"]);
   assert.equal(text.status, 1);
   assert.match(text.stderr, /Drift classification: rendering_changed/);
-  assert.ok(text.stderr.includes(`rendering changed in ${RENDERING_VERSION}`));
+  assert.ok(text.stderr.includes("rendering changed in 2026.11.11"));
   assert.match(text.stderr, /--mode=prepend.*--no-check-diff/);
   assert.doesNotMatch(text.stderr, /^@@/m);
   const json = f.run(["--mode", "prepend", "--check", "--json"]);
@@ -145,7 +145,7 @@ test("reorder classification preserves section membership, duplicates, prose and
 
 test("previous rendering shares merge logic while retaining published whitespace and heading rules", () => {
   const versioned = "## 1.0.0\n\n- Delivered\n";
-  const legacy = (existing: string | undefined, generated = versioned) => mergeChangelog(existing, generated, {}, PREVIOUS_RENDERING_VERSION).markdown;
+  const legacy = (existing: string | undefined, generated = versioned) => mergeChangelog(existing, generated, {}, "2026.11.10").markdown;
   assert.equal(legacy(undefined), versioned);
   assert.equal(legacy("# Changelog\n\nIntro  \n"), "# Changelog\n\n" + versioned + "\nIntro\n");
   assert.equal(legacy("# Changelog\n\n"), "# Changelog\n\n" + versioned);
@@ -303,6 +303,48 @@ test("blank-separated multiline details remain attached to their entry during re
   assert.equal(classifyCheckDrift(before, correct, () => before), "reorder_only");
 });
 
+test("lazy paragraph continuations travel with entries rather than their old slots", () => {
+  const before = "# Changelog\n\n## 1.0.0\n\n- Alpha\ncontinued for Alpha\n- Beta\ncontinued for Beta\n";
+  const wrong = before.replace("- Alpha", "- TEMP").replace("- Beta", "- Alpha").replace("- TEMP", "- Beta");
+  const correct = "# Changelog\n\n## 1.0.0\n\n- Beta\ncontinued for Beta\n- Alpha\ncontinued for Alpha\n";
+  assert.equal(isEntryReorder(before, wrong), false);
+  assert.equal(classifyCheckDrift(before, wrong, () => "previous"), "tracker_changed");
+  assert.equal(classifyCheckDrift(before, correct, () => before), "reorder_only");
+  assert.equal(classifyCheckDrift("- Alpha\n- Beta\n", "- Beta\n- Alpha\n", () => "- Alpha\n- Beta\n"), "reorder_only");
+  for (const boundary of ["### Next", "---", "```", "~~~", "> quoted", "1. numbered", "+ other", "<div>"]) {
+    const original = `- Alpha\n${boundary}\n- Beta\n`;
+    const moved = `- Beta\n${boundary}\n- Alpha\n`;
+    assert.equal(isEntryReorder(original, moved), boundary === "---" || boundary === "> quoted" || boundary === "1. numbered" || boundary === "+ other" || boundary === "<div>", boundary);
+  }
+});
+
+test("historical dependency profiles reproduce published subject-matcher bytes in both Git window modes", async (t) => {
+  const cwd = mkdtempSync(join(tmpdir(), "pm-historical-deps-"));
+  t.after(() => rmSync(cwd, { recursive: true, force: true }));
+  const pmRoot = join(cwd, ".agents/pm");
+  await runInit("render", { path: pmRoot }, { defaults: true, agentGuidance: "skip" });
+  initGitFixture(cwd);
+  const env = { ...fixtureEnvironment(), GIT_AUTHOR_DATE: "2026-11-01T00:00:00Z", GIT_COMMITTER_DATE: "2026-11-01T00:00:00Z" };
+  for (const subject of ["CHORE(deps): bump lower fixture (#1)", "chore(deps): Bump upper fixture (#2)", "build(DePs-DeV): bump mixed fixture (#3)"]) {
+    writeFileSync(join(cwd, "fixture.txt"), subject);
+    execFileSync("git", ["add", "fixture.txt"], { cwd, env });
+    execFileSync("git", ["-c", "user.name=SteveBot", "-c", "user.email=1153461+unbraind@users.noreply.github.com", "commit", "-m", subject], { cwd, env, stdio: "pipe" });
+  }
+  execFileSync("git", ["tag", "v1.0.0"], { cwd, env });
+  const items = (await listAllComplete({}, { pmRoot })).items;
+  const published = "# Changelog\n\n## 1.0.0\n\n### Dependencies\n\n- Bump lower fixture (#1)\n";
+  const modern = published.replace("- Bump lower fixture", "- Bump mixed fixture (#3)\n- Bump upper fixture (#2)\n- Bump lower fixture");
+  for (const extra of [{}, { releaseWindows: [{ heading: "1.0.0", releaseTag: "v1.0.0" }] }]) {
+    const options = { items, gitCwd: cwd, version: "1.0.0", dependencyUpdates: true, ...extra };
+    for (const profile of HISTORICAL_RENDERING_VERSIONS) assert.equal(createChangelog(options, undefined, profile).markdown, published, profile);
+    const current = createChangelog(options).markdown;
+    assert.equal(current, modern);
+    assert.deepEqual(diagnoseCheckDrift(published, current, RENDERING_VERSION, HISTORICAL_RENDERING_VERSIONS.map((version) => ({ version,
+      changedIn: RENDERING_PROFILES[version].changedIn, render: () => createChangelog(options, undefined, version).markdown }))),
+    { classification: "rendering_changed", comparedVersion: "2026.11.11", changedIn: "2026.11.12" });
+  }
+});
+
 test("every rendering-change item has a published or pending consumer upgrade catalog action", async () => {
   const items = (await listAllComplete({}, { pmRoot: resolve(".agents/pm") })).items.filter((item) => item.tags?.includes("rendering-change"));
   assert.ok(items.length >= 4);
@@ -395,15 +437,15 @@ test("previous dependency selection uses previous heading rules on the same real
   const options = { items: (await listAllComplete({}, { pmRoot })).items, gitCwd: cwd, output, check: true,
     releaseWindows: [{ heading: "1.0.0 - 2026-11-01", releaseTag: "v1.0.0", until: "2026-11-01T23:59:59Z" }] };
   const current = writeChangelog(options).markdown;
-  const previous = writeChangelog(options, PREVIOUS_RENDERING_VERSION).markdown;
+  const previous = writeChangelog(options, "2026.11.10").markdown;
   assert.equal(current, "# Changelog\n");
   assert.match(previous, /### Dependencies\n\n- Bump fixture/);
   writeFileSync(output, previous);
-  assert.equal(classifyCheckDrift(previous, current, () => writeChangelog(options, PREVIOUS_RENDERING_VERSION).markdown), "rendering_changed");
+  assert.equal(classifyCheckDrift(previous, current, () => writeChangelog(options, "2026.11.10").markdown), "rendering_changed");
   await runCreate({ id: "render-new", title: "Delivered new item", type: "Task", status: "closed", closeReason: "Implemented new item",
     completedAt: "2026-11-01T00:00:00Z", createMode: "progressive" }, { path: pmRoot });
   options.items = (await listAllComplete({}, { pmRoot })).items;
-  assert.equal(classifyCheckDrift(previous, writeChangelog(options).markdown, () => writeChangelog(options, PREVIOUS_RENDERING_VERSION).markdown), "tracker_changed");
+  assert.equal(classifyCheckDrift(previous, writeChangelog(options).markdown, () => writeChangelog(options, "2026.11.10").markdown), "tracker_changed");
 });
 
 
@@ -489,12 +531,12 @@ test("rendering history survives later version bumps and never upgrades equal or
     { classification: "rendering_changed", changedIn: "2026.11.7", comparedVersion: "2026.11.6" });
   assert.deepEqual(diagnoseCheckDrift(current, current, "2026.11.12", [profile]), { classification: "tracker_changed" });
   assert.deepEqual(diagnoseCheckDrift(old, current, "2026.11.12", [{ ...profile, version: "2026.11.12" }]), { classification: "tracker_changed" });
-  assert.deepEqual(HISTORICAL_RENDERING_VERSIONS, ["2026.11.10", "2026.11.7", "2026.11.6"]);
+  assert.deepEqual(HISTORICAL_RENDERING_VERSIONS, ["2026.11.11", "2026.11.10", "2026.11.7", "2026.11.6"]);
   const tried: string[] = [];
   const profiles = HISTORICAL_RENDERING_VERSIONS.map((version) => ({ version, changedIn: RENDERING_PROFILES[version].changedIn,
-    render: () => { tried.push(version); return version === "2026.11.10" ? current : old; } }));
+    render: () => { tried.push(version); return version === "2026.11.11" || version === "2026.11.10" ? current : old; } }));
   assert.equal(diagnoseCheckDrift(old, current, RENDERING_VERSION, profiles).comparedVersion, "2026.11.7");
-  assert.deepEqual(tried, ["2026.11.10", "2026.11.7"]);
+  assert.deepEqual(tried, ["2026.11.11", "2026.11.10", "2026.11.7"]);
   assert.equal(diagnoseCheckDrift("different", current, RENDERING_VERSION, profiles).classification, "tracker_changed");
 });
 

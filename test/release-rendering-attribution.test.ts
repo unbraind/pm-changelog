@@ -139,6 +139,40 @@ test("frozen delivery facts reject relabelled non-changes and later edits while 
 });
 
 
+test("neutral issue closures cannot publish live or frozen upgrade obligations; repaired issues still attribute", async (t) => {
+  const cwd = mkdtempSync(join(tmpdir(), "pm-neutral-rendering-"));
+  t.after(() => rmSync(cwd, { recursive: true, force: true }));
+  initGitFixture(cwd, ["-b", "main"]);
+  const pmRoot = join(cwd, ".agents/pm");
+  await runInit("release", { path: pmRoot }, { defaults: true, agentGuidance: "skip" });
+  await schemaAddField("change_facets", { type: "array" }, { pmRoot });
+  const neutral = "Closed on GitHub as completed on 2026-11-01";
+  const repaired = "Fixed the generator output";
+  const ids = ["release-neutral-unchanged", "release-neutral-live", "release-neutral-frozen", "release-neutral-implemented"];
+  for (const id of ids) await runCreate({ id, title: `Rendering ${id}`, type: "Issue", status: "closed", tags: "rendering-change",
+    closeReason: id === "release-neutral-live" || id === "release-neutral-implemented" ? repaired : neutral,
+    completedAt: "2026-11-01T00:00:00Z", createMode: "progressive",
+    changeFacets: JSON.stringify([{ audience: "operator", text: "Regenerate once", breaking: true, upgrade_actions: [{ id: `regenerate-${id}`, title: "Regenerate once", requires: [] }] }]) }, { path: pmRoot });
+  writeFileSync(join(cwd, "package.json"), JSON.stringify({ name: "fixture", version: "2.0.0" }));
+  const env = { ...fixtureEnvironment(), GIT_AUTHOR_DATE: "2026-11-03T00:00:00Z", GIT_COMMITTER_DATE: "2026-11-03T00:00:00Z" };
+  execFileSync("git", ["add", "package.json", ".agents/pm"], { cwd, env });
+  execFileSync("git", ["-c", "user.name=SteveBot", "-c", "user.email=1153461+unbraind@users.noreply.github.com", "commit", "-m", "Frozen neutral and repaired issues"], { cwd, env, stdio: "pipe" });
+  const published = execFileSync("git", ["rev-parse", "HEAD"], { cwd, env, encoding: "utf8" }).trim();
+  await runUpdate("release-neutral-live", { closeReason: neutral }, { path: pmRoot });
+  await runUpdate("release-neutral-frozen", { closeReason: repaired }, { path: pmRoot });
+  const before = (await listAllComplete({}, { pmRoot })).items;
+  assert.match(createChangelog({ items: before, groupBy: "release" }).markdown, /### Closed/);
+  const histories = ids.slice(0, 3).map((id) => readFileSync(join(pmRoot, `history/${id}.jsonl`)));
+  assert.deepEqual(await attributeRenderingRelease(pmRoot, "2.0.0", { cwd, preparedFrom: published, publication: { state: "published", gitHead: published }, log: () => {} }), ["release-neutral-implemented"]);
+  const rows = (await listAllComplete({}, { pmRoot })).items;
+  for (const [index, id] of ids.entries()) {
+    assert.equal(rows.find((row) => row.id === id)!.release, id === "release-neutral-implemented" ? "2.0.0" : undefined, id);
+    if (index < 3) assert.deepEqual(readFileSync(join(pmRoot, `history/${id}.jsonl`)), histories[index]);
+  }
+  const report = buildConsumerUpgrades({ items: rows, audience: "operator", from: "1.0.0", to: "2.0.0" });
+  assert.deepEqual(report.steps.map((step) => step.id), ["regenerate-release-neutral-implemented"]);
+});
+
 test("unproved release boundary refuses eligible candidates before any writes", async (t) => {
   const cwd = mkdtempSync(join(tmpdir(), "pm-unproved-window-"));
   t.after(() => rmSync(cwd, { recursive: true, force: true }));
