@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { execFileSync, spawnSync } from "node:child_process";
-import { mkdirSync, mkdtempSync, readFileSync, symlinkSync, writeFileSync } from "node:fs";
+import { copyFileSync, mkdirSync, mkdtempSync, readFileSync, symlinkSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
 import test from "node:test";
@@ -62,7 +62,8 @@ for (const window of ["empty", "dependency-only", "item-bearing"]) {
         await client.comments("publication-first", { add: "Later audit evidence must not reorder completed entries" });
       }
       const run = (script: string) => {
-        const result = spawnSync("npm", ["run", script, "--", ...(includeEmpty ? ["--include-empty"] : [])], { cwd: dir, env, encoding: "utf8" });
+        // Windows resolves npm to the npm.cmd shim, which spawnSync can only run through a shell (as generator.test.ts does).
+        const result = spawnSync(process.platform === "win32" ? "npm.cmd" : "npm", ["run", script, "--", ...(includeEmpty ? ["--include-empty"] : [])], { cwd: dir, env, encoding: "utf8", shell: process.platform === "win32" });
         assert.equal(result.status, 0, result.stdout + result.stderr);
         return result;
       };
@@ -95,7 +96,8 @@ for (const populated of [false, true]) {
       }
       const noGit = join(dir, "bin");
       mkdirSync(noGit);
-      symlinkSync(process.execPath, join(noGit, "node"));
+      // Symlinks need elevated rights on Windows; a copy of the node binary gives the same git-free PATH.
+      if (process.platform === "win32") copyFileSync(process.execPath, join(noGit, "node.exe")); else symlinkSync(process.execPath, join(noGit, "node"));
       const flags = [...args, "--group-by", "release", "--no-dependency-updates", ...(includeEmpty ? ["--include-empty"] : [])];
       const run = (...extra: string[]) => {
         const result = spawnSync(process.execPath, [...flags, ...extra], { cwd: dir, env: { ...env, PATH: noGit }, encoding: "utf8" });
