@@ -76,6 +76,17 @@ version such as `2026.8.8-2` renders `2026.8.8-2 - 2026-08-08`, independently
 of the day generation runs. `test/release-backlog.test.ts` exercises these
 script arguments through the built CLI against a disposable real tracker.
 
+`test/include-empty-tracker.test.ts` runs `changelog:full`, commits, tags, and
+runs `changelog:check` in native temporary trackers for empty, dependency-only,
+and item-bearing windows, with and without `--include-empty`. It checks exact
+pre/post-tag bytes, package-version selection, and completion ordering. Outside
+Git it generates from releases recorded on native items, with no Git executable.
+The rule is stable: empty Unreleased sections are always omitted; empty
+versioned sections remain available with `--include-empty`. Run
+`node scripts/prove-include-empty-tracker-revert.ts` to verify that reverting
+only the generator's empty-section filter fails all three tagged controls with
+`--include-empty`, while the fixed and restored implementations pass.
+
 Package-version lookup fixtures use `resolveReleaseContext`'s optional
 `packageSearchBoundary` to own the whole lookup tree. It is an inclusive
 ancestor of `cwd`; metadata above it is ignored and an unrelated boundary
