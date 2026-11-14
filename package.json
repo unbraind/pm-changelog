@@ -54,8 +54,8 @@
     "build": "tsc",
     "check": "npm run typecheck",
     "build:test": "tsc -p tsconfig.test.json",
-    "changelog:full": "node scripts/project-changelog.ts",
-    "changelog:check": "npm run changelog:full -- --check --check-links",
+    "changelog:full": "node scripts/project-changelog.ts --include-empty",
+    "changelog:check": "npm run changelog:full -- --check --check-links --include-empty",
     "audit:prod": "node --input-type=module -e \"import { spawnSync } from 'node:child_process'; import { devNull } from 'node:os'; const env = { ...process.env, npm_config_userconfig: devNull, NPM_CONFIG_USERCONFIG: devNull }; for (const key of Object.keys(env)) if (key.toLowerCase() === 'npm_config_allow_scripts') delete env[key]; const win = process.platform === 'win32'; const r = spawnSync(win ? 'npm.cmd' : 'npm', ['audit', '--omit=dev', '--ignore-scripts'], { stdio: 'inherit', env, shell: win }); process.exit(r.status ?? 1);\"",
     "pack:dry-run": "node scripts/verify-package.ts --dry-run",
     "prepack": "npm run build",
@@ -63,14 +63,15 @@
     "test": "npm run build && npm run build:test && node --test --test-concurrency=2 test/*.test.ts",
     "typecheck": "tsc --noEmit",
     "prepublishOnly": "npm run release:check",
-    "release:notes": "node dist/cli.js --pm-root .agents/pm --stdout --since-previous-tag --until-release-tag --release-version-from-package --date-from-version --item-url-base https://github.com/unbraind/pm-changelog/blob/main/.agents/pm --pm-bin ./node_modules/.bin/pm --github-step-summary --respect-item-release --pm-arg=--output-budget --pm-arg=unbounded --pm-arg=--output-limit --pm-arg=unbounded",
+    "release:notes": "node dist/cli.js --pm-root .agents/pm --stdout --since-previous-tag --until-release-tag --release-version-from-package --date-from-version --item-url-base https://github.com/unbraind/pm-changelog/blob/main/.agents/pm --pm-bin ./node_modules/.bin/pm --github-step-summary --respect-item-release --pm-arg=--output-budget --pm-arg=unbounded --pm-arg=--output-limit --pm-arg=unbounded --include-empty",
     "prepare": "node scripts/prepare-merge-driver.ts",
     "merge:install": "pm merge install",
     "coverage": "npm run build && npm run build:test && node scripts/coverage-gate.ts",
     "docstring": "node scripts/docstring-gate.ts",
     "verify:release-changelog-date": "node scripts/verify-release-changelog-date.ts",
     "verify:release-publish-attestation": "node scripts/verify-release-publish-attestation.ts",
-    "pack:scan": "node scripts/verify-package.ts"
+    "pack:scan": "node scripts/verify-package.ts",
+    "release:prepare": "node scripts/sync-version.ts \"$npm_package_version\" && PM_AUTHOR=release-changelog PM_TELEMETRY_SOURCE_CONTEXT=automation node scripts/attribute-rendering-release.ts \"$npm_package_version\" \"$(git rev-parse HEAD)\""
   },
   "pm": {
     "aliases": [
@@ -115,9 +116,10 @@
     "@types/node": "26.6.6",
     "@unbrained/pm-cli": "2026.11.9",
     "marked": "18.2.0",
-    "pm-ops": "2026.11.6",
+    "pm-ops": "2026.11.14",
     "typescript": "7.0.2",
-    "typescript5": "npm:typescript@5.9.3"
+    "typescript5": "npm:typescript@5.9.3",
+    "yaml": "2.9.1"
   },
   "keywords": [
     "pm-cli",
