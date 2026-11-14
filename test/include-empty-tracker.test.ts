@@ -23,7 +23,7 @@ async function tracker(t: TestContext) {
     GIT_CEILING_DIRECTORIES: dirname(dir), GIT_AUTHOR_NAME: "Fixture", GIT_COMMITTER_NAME: "Fixture",
     GIT_AUTHOR_EMAIL: "fixture@example.invalid", GIT_COMMITTER_EMAIL: "fixture@example.invalid",
   };
-  const args = [resolve("src/cli.ts"), "--pm-root", ".agents/pm", "--pm-bin", resolve("node_modules/@unbrained/pm-cli/dist/cli.js"),
+  const args = [resolve("src/cli.ts"), "--pm-root", ".agents/pm",
     "--respect-item-release", "--mode", "replace", "--output", "CHANGELOG.md"];
   const read = () => readFileSync(join(dir, "CHANGELOG.md"), "utf8");
   /** Record completion independently from title order and later audit timestamps. */
