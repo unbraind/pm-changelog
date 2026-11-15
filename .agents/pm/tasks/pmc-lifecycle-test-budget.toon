@@ -4,12 +4,12 @@ description: "Apply Fleet CI v2 for companion pm-cli-website-dyhg. Preserve full
 type: Task
 status: in_progress
 priority: 2
-tags[3]: ci,performance,validation
+tags[4]: ci,"gh:unbraind/pm-changelog#358",performance,validation
 created_at: "2026-11-10T23:28:19.082Z"
-updated_at: "2026-11-15T14:20:02.995Z"
+updated_at: "2026-11-15T19:03:44.998Z"
 author: codex-changelog337
 acceptance_criteria: Measure representative native lifecycle execution and identify dominant costs without weakening existing assertions or silently reducing the 500-case corpus
-comments[18]{created_at,author,text}:
+comments[23]{created_at,author,text}:
   "2026-11-10T23:48:48.566Z",codex-changelog337,"Follow-up evidence: the subsequent timeout 2700 npm test passed all 1050 tests in 1181.6 seconds of reported runner time. The existing 500-native-lifecycle test passed in 908.3 seconds. The earlier 1200-second aggregate importer batch still canceled this file after 154 other passed tests; investigate batch composition and runtime variability rather than assuming a semantic regression. No assertions or case counts were changed."
   "2026-11-11T23:17:40.764Z",codex-changelog339-1111,"Round-5 PR 341 bounded importer gate: test/release-lifecycles.test.ts reached its explicit 1200-second file cap (exit 124; wall 1200.05 seconds). Its first omitted/filtered repair case passed in 9.20 seconds; the native 500-lifecycle case did not complete and reported no assertion failure before termination. This is incomplete validation, not a passing gate. The 51-file gate uses at most two workers with isolated HOME/Git settings; remaining files continue. No stress scale, timeout or coverage threshold was weakened; source fixes remain scoped to the three review findings. Current-head lifecycle/full-release certification is deferred to CI under the requested cap."
   "2026-11-15T09:42:55.641Z",codex-sol,"Reusing the existing slow-gate item for Fleet CI v2; companion pm-cli-website-dyhg. Preserve the full 500-case corpus by default, select deterministic quick prefixes on PRs, move exhaustive lifecycle proofs to deep, and retain every original gate. Required contexts verified: test (22), test (26); CodeQL is not required. Local-runner job logs show five container corpus CPU watchdog overruns, not assertion failures. Release caller workflows and verifier scripts are out of scope."
@@ -28,7 +28,12 @@ comments[18]{created_at,author,text}:
   "2026-11-15T13:23:43.634Z",codex-sol,"Exact failed-step API timing clarifies the deep budget calculation: Node 22 full npm gate ran 21:29:28-22:44:34 UTC on 2026-11-14, 75m06s; the roughly 80-minute figure includes job setup. Two gates at that measured duration would take 150m12s before other steps, exceeding 120 minutes. The four-job manager matrix removes that sequential-budget mismatch while retaining all four original full gate passes."
   "2026-11-15T14:19:34.887Z",codex-sol,"Exact-head run 43718790106 exposed one workflow compatibility regression: both quick checks passed 1145 of 1146 tests and Node 26 retained 100 percent line, branch and function coverage, but the unchanged release verifier correctly refused a dynamically expanded executable in ci-deep.yml. Replaced that command with mutually exclusive literal npm and Bun steps; all four Node/manager combinations remain. The existing verifier now passes locally without changes. Node 22 wall was 51m07s including 44m47s queue; Node 26 wall was 54m08s including 49m11s queue. Follow-up hosted queue item remains applicable. Rechecking the current workflow gate before pushing the correction."
   "2026-11-15T14:20:02.994Z",codex-sol,"Correction validation passed: registered node scripts/verify-release-publish-attestation.ts via pm test (exit 0), strict unique-key YAML parsing of all three workflows, mutually exclusive literal manager gate assertions, and git diff --check. Released the claim; the Task remains in progress for orchestrator verification. The next exact-head quick run will certify the workflow correction."
-files[28]{path,scope}:
+  "2026-11-15T18:50:01.287Z",codex-sol,"Round C: verify the supplied review findings, repair failing checks, audit CI tier boundaries and harness controls, and run focused gates. Review threads remain untouched; no merge or closure."
+  "2026-11-15T18:55:24.594Z",codex-sol,"All three findings are valid: outer cleanup owns lifecycle HOME, public-copy cleanup also covers archive/extract failure, and output overflow settles even if group termination throws. Tests cover success and every lifecycle command failure, real 65 MiB output, injected cleanup error and invalid deadlines. Persistent runners use their npm cache and installed Bun. Self-review checks documentation/privacy/identity gates, unscaled product budgets, integer timeouts, validation before spawn, platform filenames and generated-only quick thresholds."
+  "2026-11-15T18:58:25.228Z",codex-sol,"Self-review additionally restores input-sensitive docs-path gates: identity/privacy, packaging and attestation validation, plus applicable docs/tooling tests. These cheap-path requirements are in the rollout template. New failure-injection tests execute each documentation block."
+  "2026-11-15T19:01:02.863Z",codex-sol,Self-review found the same CodeQL executable-tracker exclusion as the supplied gantt finding. Inert tracker data now uses extension-specific exclusions; actual glob matching proves root and nested executable files remain eligible.
+  "2026-11-15T19:03:44.330Z",codex-sol,"Round C validation passed: typecheck, test TypeScript compilation, focused behavior and workflow/tooling suites, strict unique-key YAML parsing, and package changelog regeneration/check. Lint passed where the package provides a lint script; packages without one passed their existing docstring gate. No configured coverage source changed, so no package coverage run was added. Existing isolated coverage-tooling fixtures are part of the focused tooling suites. All supplied review findings are valid and repaired. Self-review additionally preserves executable tracker scans and all applicable docs/privacy/identity/package/attestation gates. Product budgets and coverage thresholds remain unchanged. Validation uses the local Node 24 runtime; Node 22/26, native Windows and deep runtime certification remain CI evidence. Threads untouched; no merge or item closure. Release ownership after recording this evidence."
+files[31]{path,scope}:
   .github/workflows/ci-deep.yml,project
   .github/workflows/ci.yml,project
   .github/workflows/codeql.yml,project
@@ -38,6 +43,9 @@ files[28]{path,scope}:
   scripts/run-packed-acceptance.ts,project
   test/acceptance-process.test.ts,project
   test/agent-contract-drift.test.ts,project
+  test/ci-codeql.test.ts,project
+  test/ci-deep.test.ts,project
+  test/ci-docs.test.ts,project
   test/closure-status-roles.test.ts,project
   test/consumer-upgrades.test.ts,project
   test/contract-projections.test.ts,project
@@ -57,7 +65,7 @@ files[28]{path,scope}:
   test/stable-itemless-check.test.ts,project
   test/support/depth.ts,project
   test/unicode-contract-output.test.ts,project
-tests[5]:
+tests[8]:
   - command: "npm run typecheck && npm run build:test && npm run docstring"
     scope: project
     provenance:
@@ -94,6 +102,30 @@ tests[5]:
     provenance:
       author: codex-sol
       created_at: "2026-11-15T14:19:50.104Z"
+      source_kind: local_mutation
+      source_ref: ci/quick-pr-tier-deep-local-tier
+  - command: "npm run typecheck && npm run lint --if-present && npm run build && npm run build:test && PM_TEST_DEPTH=quick node --test --test-concurrency=2 test/acceptance-process.test.ts test/ci-deep.test.ts test/depth.test.ts test/release-workflow.test.ts && node --input-type=module -e 'import {readFileSync,readdirSync} from \"node:fs\"; import {parseDocument} from \"yaml\"; for(const file of readdirSync(\".github/workflows\").filter(f=>/\\.ya?ml$/.test(f))){ const d=parseDocument(readFileSync(\".github/workflows/\"+file,\"utf8\"),{uniqueKeys:true}); if(d.errors.length) throw new Error(file+\": \"+d.errors.join(\";\")); } console.log(\"Strict workflow YAML passed\");'"
+    scope: project
+    timeout_seconds: 900
+    provenance:
+      author: codex-sol
+      created_at: "2026-11-15T18:55:34.221Z"
+      source_kind: local_mutation
+      source_ref: ci/quick-pr-tier-deep-local-tier
+  - command: "npm run typecheck && npm run build:test && node --test --test-concurrency=2 test/ci-docs.test.ts test/ci-deep.test.ts test/identity-audit.test.ts test/shipped-docs.test.ts && npm run pack:dry-run && npm run pack:scan && npm run verify:release-publish-attestation"
+    scope: project
+    timeout_seconds: 900
+    provenance:
+      author: codex-sol
+      created_at: "2026-11-15T18:58:35.743Z"
+      source_kind: local_mutation
+      source_ref: ci/quick-pr-tier-deep-local-tier
+  - command: "npm run typecheck && npm run lint --if-present && npm run build:test && node --test test/ci-codeql.test.ts"
+    scope: project
+    timeout_seconds: 900
+    provenance:
+      author: codex-sol
+      created_at: "2026-11-15T19:01:09.637Z"
       source_kind: local_mutation
       source_ref: ci/quick-pr-tier-deep-local-tier
 docs[1]{path,scope}:

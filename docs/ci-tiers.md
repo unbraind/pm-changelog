@@ -15,9 +15,10 @@ in its separate workflow; its table row lists triggers, not a matrix step.
 | Docstrings (no separate lint script exists) | — | yes | — | full release gates + lifecycle |
 | Coverage: unchanged 100% lines, branches, functions and source inventory | — | quick | — | full, npm + Bun, Node 22/26 |
 | Production audit | — | yes | — | full release gates |
-| Pack dry-run + archive contents/privacy scan | — | yes | — | full release gates |
+| Pack dry-run + archive contents/privacy scan | — | yes | yes | full release gates |
+| Commit identity + shipped Markdown contracts | suite | suite | yes | full suite |
 | Changelog consistency and link checks | — | yes | yes | full release gates + lifecycle |
-| Release date + publish attestation verification | — | yes | — | full release gates |
+| Release date + publish attestation verification | — | yes | yes | full release gates |
 | Committed dist matches fresh build, including untracked outputs | — | yes | — | Node 22/26 |
 | Direct Bun CLI + SDK milestone runtime smoke | — | yes | — | Node 22/26 |
 | Packed Bun project install + bunx CLI help | — | yes | — | full packed matrix in lifecycle |
@@ -32,8 +33,7 @@ Docs/tracker-only means every changed path matches `.agents/pm/**`, `*.md`,
 select code validation. NUL-safe PR endpoint comparison disables rename folding,
 so a source deletion disguised as a move into documentation still selects code.
 Node 22 keeps existing packaging fixtures inside its complete test suite, with
-no separate coverage, changelog or pack command. The cheap path runs only npm ci,
-tracker health and changelog consistency. Checks
+no separate coverage, changelog or pack command. The cheap path retains npm ci, tracker health, changelog consistency, commit identity auditing, shipped Markdown contracts, package allowlist and privacy scans, release date and publish attestation checks. Checks
 remain present; the required workflow itself has no path filters.
 
 Health invokes `pm health --strict-exit --require-merge-drivers`. This repository
@@ -125,3 +125,5 @@ Read-only fleet inspection found older hosted jobs running more than two hours.
 remove elapsed queue time. Other repository runs, variables and protection were
 left unchanged. These receipts refer to the implementation head above; the PR
 body records verification of the final source/evidence head separately.
+
+CodeQL ignores inert tracker data extensions while keeping executable tracker scripts eligible on PRs and main pushes.

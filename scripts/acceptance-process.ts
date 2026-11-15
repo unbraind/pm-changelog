@@ -89,6 +89,7 @@ export function taskkillError(result: { readonly error?: Error; readonly status:
  */
 export function runCommand(command: string, args: string[], options: CommandOptions): Promise<CommandResult> {
   return new Promise((resolve, reject) => {
+    scaledBudget(options.timeoutMs, "1"); // Validate the supplied deadline before spawning.
     const started = performance.now();
     const selected = selectCommand(command, args, {
       platform: process.platform, execPath: process.execPath,
@@ -168,7 +169,9 @@ export function runCommand(command: string, args: string[], options: CommandOpti
     function capture(chunk: Buffer, target: Buffer[]): void {
       bytes += chunk.length;
       if (bytes > 64 * 1024 * 1024) {
-        killTree(); finish(new Error(`${command} exceeded the 64 MiB acceptance output budget`));
+        try { killTree(); }
+        catch (error) { finish(error as Error); return; }
+        finish(new Error(`${command} exceeded the 64 MiB acceptance output budget`));
       } else target.push(chunk);
     }
     child.stdout.on("data", (chunk: Buffer) => capture(chunk, stdout));

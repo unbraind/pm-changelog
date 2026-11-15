@@ -168,3 +168,36 @@ for (const signal of ["SIGTERM", "SIGINT"] as const) test(`external ${signal} ca
     rmSync(root, { recursive: true, force: true });
   }
 });
+
+for (const failCleanup of [false, true]) test(`output overflow settles and releases listeners (cleanup error=${failCleanup})`, {
+  skip: failCleanup && process.platform === 'win32', timeout: scaledBudget(20_000),
+}, async t => {
+  const term = process.listenerCount('SIGTERM'), interrupt = process.listenerCount('SIGINT');
+  const realKill = process.kill.bind(process);
+  let pid: number | undefined;
+  if (failCleanup) t.mock.method(process, 'kill', (target: number, signal: NodeJS.Signals) => {
+    if (target < 0 && signal === 'SIGKILL') {
+      pid = -target;
+      throw Object.assign(new Error('Controlled cleanup failure'), { code: 'EPERM' });
+    }
+    return realKill(target, signal);
+  });
+  try {
+    await assert.rejects(runCommand(process.execPath, ['-e', "process.stdout.write(Buffer.alloc(65 * 1024 * 1024)); setInterval(() => {}, 1000)"], {
+      cwd, timeoutMs: scaledBudget(15_000),
+    }), failCleanup ? /Controlled cleanup failure/ : /exceeded the 64 MiB acceptance output budget/);
+    assert.equal(process.listenerCount('SIGTERM'), term);
+    assert.equal(process.listenerCount('SIGINT'), interrupt);
+  } finally {
+    if (pid !== undefined) {
+      try { realKill(-pid, 'SIGKILL'); }
+      catch (error) { if ((error as NodeJS.ErrnoException).code !== 'ESRCH') throw error; }
+    }
+  }
+});
+
+test('invalid explicit deadlines refuse before starting the command', async () => {
+  for (const timeoutMs of [0, -1, NaN, Infinity, 2_147_483_648]) {
+    await assert.rejects(runCommand('missing-executable', [], { cwd, timeoutMs }), /PM_TEST_TIME_SCALE/);
+  }
+});
