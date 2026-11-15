@@ -127,3 +127,9 @@ left unchanged. These receipts refer to the implementation head above; the PR
 body records verification of the final source/evidence head separately.
 
 CodeQL ignores inert tracker data extensions while keeping executable tracker scripts eligible on PRs and main pushes.
+
+## Review round E
+
+PRRT_kwDOSfkApc63tk2Z is valid: the docs test invoked Bash unconditionally. Guard Windows, and add executable-tracker routing regressions. Targeted CI/depth/workflow tests, typecheck, docstrings and strict YAML passed.
+
+The cheap tier excludes only inert tracker record formats; executable tracker changes keep product gates. `test/ci-routing.test.ts` executes each detector with inert and executable tracker paths. Product deadlines, full-depth cases and coverage thresholds are unchanged.
