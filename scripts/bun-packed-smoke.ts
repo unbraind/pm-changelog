@@ -7,6 +7,7 @@ import { runCommand, scaledBudget, ACCEPTANCE_CHILD_BUDGET_MS } from "./acceptan
 
 const repository = resolve(import.meta.dirname, "..");
 const scratch = mkdtempSync(join(tmpdir(), "pm-bun-smoke-"));
+const ephemeral = mkdtempSync(join(tmpdir(), "pm-bunx-smoke-"));
 const env = { ...process.env, NPM_CONFIG_USERCONFIG: devNull, npm_config_userconfig: devNull,
   DO_NOT_TRACK: "1", BUN_INSTALL_CACHE_DIR: join(scratch, "cache") };
 /** Keep every external command bounded and preserve its exit-status assertion. */
@@ -22,6 +23,9 @@ try {
   writeFileSync(join(scratch, "package.json"), JSON.stringify({ private: true, type: "module" }));
   await run("bun", ["add", "--ignore-scripts", archive, `@unbrained/pm-cli@${manifest.devDependencies["@unbrained/pm-cli"]}`]);
   assert.match(await run("bun", [join(scratch, "node_modules/pm-changelog/dist/cli.js"), "--help"]), /pm-changelog/);
-  assert.match(await run("bun", ["x", "--bun", "--package", archive, "pm-changelog", "--help"]), /pm-changelog/);
+  assert.match(await run("bun", ["x", "--bun", "--package", archive, "pm-changelog", "--help"], ephemeral), /pm-changelog/);
   console.log("Bun packed project install and bunx help passed");
-} finally { rmSync(scratch, { recursive: true, force: true }); }
+} finally {
+  rmSync(ephemeral, { recursive: true, force: true });
+  rmSync(scratch, { recursive: true, force: true });
+}

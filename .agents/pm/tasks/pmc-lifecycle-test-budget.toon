@@ -6,7 +6,7 @@ status: in_progress
 priority: 2
 tags[3]: ci,performance,validation
 created_at: "2026-11-10T23:28:19.082Z"
-updated_at: "2026-11-15T09:48:08.734Z"
+updated_at: "2026-11-15T09:49:48.113Z"
 assignee: codex-sol
 claim_principal: codex-sol
 author: codex-changelog337
@@ -16,11 +16,13 @@ comments[4]{created_at,author,text}:
   "2026-11-11T23:17:40.764Z",codex-changelog339-1111,"Round-5 PR 341 bounded importer gate: test/release-lifecycles.test.ts reached its explicit 1200-second file cap (exit 124; wall 1200.05 seconds). Its first omitted/filtered repair case passed in 9.20 seconds; the native 500-lifecycle case did not complete and reported no assertion failure before termination. This is incomplete validation, not a passing gate. The 51-file gate uses at most two workers with isolated HOME/Git settings; remaining files continue. No stress scale, timeout or coverage threshold was weakened; source fixes remain scoped to the three review findings. Current-head lifecycle/full-release certification is deferred to CI under the requested cap."
   "2026-11-15T09:42:55.641Z",codex-sol,"Reusing the existing slow-gate item for Fleet CI v2; companion pm-cli-website-dyhg. Preserve the full 500-case corpus by default, select deterministic quick prefixes on PRs, move exhaustive lifecycle proofs to deep, and retain every original gate. Required contexts verified: test (22), test (26); CodeQL is not required. Local-runner job logs show five container corpus CPU watchdog overruns, not assertion failures. Release caller workflows and verifier scripts are out of scope."
   "2026-11-15T09:48:08.731Z",codex-sol,"Static validation passed: typecheck, test typecheck, docstring gate (62 files, 299 documented declarations), strict YAML parse, git diff --check. No lint script exists. Full depth is reserved for deep CI; touched suites are running at quick depth with scaled safety budgets. Original main run 43684138283 measured lifecycle 24m45s, Node 26 27m24s, Node 22 52m21s. Direct job-log API was needed because gh run view --log returned empty content. Packed release gate itself scans contents rather than installs: add a real Bun project tarball + bunx smoke to PRs; retain the 488-check installation matrix in deep lifecycle."
-files[6]{path,scope}:
+files[8]{path,scope}:
   .github/workflows/ci-deep.yml,project
   .github/workflows/ci.yml,project
   .github/workflows/codeql.yml,project
   scripts/acceptance-process.ts,project
+  scripts/bun-packed-smoke.ts,project
+  scripts/run-packed-acceptance.ts,project
   test/release-lifecycles.test.ts,project
   test/support/depth.ts,project
 tests[2]:
