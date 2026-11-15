@@ -1,3 +1,4 @@
+import { testDepth } from "./support/depth.ts";
 /** Adversarial projection parity, including historical nulls and packed consumers. */
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
@@ -42,7 +43,7 @@ test("contract projection: nullish precedence preserves every historical absence
 test("contract projection: every presentation path shares single-line title and entry-source policy", () => {
   let seed = 0x328;
   const separators = ["\n", "\r\n", "\r", "\t", "\u2028", "\u2029", "  "];
-  for (let index = 0; index < 100; index++) {
+  for (let index = 0; index < testDepth(100); index++) {
     seed = (Math.imul(seed, 1664525) + 1013904223) >>> 0;
     const title = `  Declared${separators[seed % separators.length]}behavior${separators[(seed >>> 8) % separators.length]}changed  `;
     for (const entryFrom of ["title", "close_reason"] as const) {

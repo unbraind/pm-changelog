@@ -1,3 +1,4 @@
+import { scaledBudget } from "../scripts/acceptance-process.ts";
 import assert from "node:assert/strict";
 import { execFileSync, spawnSync } from "node:child_process";
 import { chmodSync, existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
@@ -261,7 +262,7 @@ test("link targets match the former regex exactly and stay linear on hostile mar
   for (const hostile of hostileInputs) {
     const started = performance.now();
     assert.deepEqual([...markdownLinkTargets(hostile)], []);
-    assert.ok(performance.now() - started < 1_000, "hostile destinations and titles must scan in linear time");
+    assert.ok(performance.now() - started < scaledBudget(1_000), "hostile destinations and titles must scan in linear time");
   }
 });
 

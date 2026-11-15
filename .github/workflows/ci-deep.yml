@@ -1,0 +1,169 @@
+name: CI Deep
+
+# Exhaustive validation is observational after merge; never a required PR check.
+on:
+  push:
+    branches: [main]
+  schedule:
+    # Off-peak, separate from release (03:17 / hourly :41) and CodeQL (02:37 Monday).
+    - cron: "53 1 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-deep-${{ github.ref }}
+  cancel-in-progress: true
+
+# Distinct check names prevent a manual branch run from matching required PR checks.
+jobs:
+  lifecycle:
+    runs-on: ${{ vars.PM_LOCAL_DEEP != 'off' && fromJSON('["self-hosted","pm-local"]') || 'ubuntu-latest' }}
+    timeout-minutes: 120
+    env:
+      PM_TEST_DEPTH: full
+      PM_TEST_TIME_SCALE: 3
+    steps:
+      - name: Checkout without persisted credentials
+        uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+          fetch-depth: 0
+      - name: Setup Node.js
+        uses: actions/setup-node@v7
+        with:
+          node-version: 26
+          cache: npm
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2.2.0
+      - name: Focused model and behavioral revert proofs without inherited credentials
+        run: |
+          node --input-type=module <<'NODE'
+          import { execFileSync } from "node:child_process";
+          import { chmodSync, mkdtempSync, readdirSync, rmSync } from "node:fs";
+          import { tmpdir } from "node:os";
+          import { join } from "node:path";
+          const lifecycleHome = mkdtempSync(join(tmpdir(), "pm-lifecycle-ci-"));
+          const childEnv = { PATH: process.env.PATH, HOME: lifecycleHome, NPM_CONFIG_USERCONFIG: "/dev/null", GIT_CONFIG_GLOBAL: "/dev/null", GIT_CONFIG_NOSYSTEM: "1", GIT_CEILING_DIRECTORIES: tmpdir(), PM_AUTHOR: "codex-agent", DO_NOT_TRACK: "1", PM_TEST_DEPTH: process.env.PM_TEST_DEPTH, PM_TEST_TIME_SCALE: process.env.PM_TEST_TIME_SCALE };
+          const run = (binary, args) => execFileSync(binary, args, { env: childEnv, stdio: "inherit" });
+          run("npm", ["ci", "--ignore-scripts"]);
+          run("npm", ["run", "build"]);
+          run("npm", ["run", "build:test"]);
+          run("npm", ["run", "docstring"]);
+          // https://github.com/unbraind/pm-cli/issues/1615
+          // remove when upstream trusts unchanged commands across refs
+          // Pinned CLI alias for testing.allow_untrusted_linked_tests; this checkout only.
+          run(process.execPath, ["node_modules/@unbrained/pm-cli/dist/cli.js", "--path", ".agents/pm", "config", "set", "untrusted-linked-test-execution", "enabled"]);
+          run(process.execPath, ["node_modules/@unbrained/pm-cli/dist/cli.js", "test", "pmc-release-corrections", "--run", "--only-last", "--progress", "--allow-untrusted-linked-tests", "--timeout", "1200"]);
+          run(process.execPath, ["node_modules/@unbrained/pm-cli/dist/cli.js", "test", "pmc-milestone-status-roles", "--run", "--only-last", "--progress", "--allow-untrusted-linked-tests", "--timeout", "240"]);
+          run(process.execPath, ["--test", "--test-concurrency=2", "test/cli-tracker-target.test.ts", "test/closure-status-roles.test.ts", "test/release-publication.test.ts", "test/release-ownership.test.ts"]);
+          run(process.execPath, ["scripts/verify-release-lifecycles.ts"]);
+          run(process.execPath, ["scripts/prove-agent-contract-drift-revert.ts"]);
+          run(process.execPath, ["scripts/prove-itemless-pending-revert.ts"]);
+          run(process.execPath, ["scripts/run-packed-acceptance.ts"]);
+          run("npm", ["run", "changelog:full"]);
+          run("npm", ["run", "changelog:check"]);
+          const publicCopy = mkdtempSync(join(tmpdir(), "pm-public-tracker-"));
+          const archive = execFileSync("git", ["archive", "origin/main", ".agents/pm"], { env: childEnv, maxBuffer: 64 * 1024 * 1024 });
+          execFileSync("tar", ["-xf", "-", "-C", publicCopy], { input: archive, env: childEnv });
+          const source = join(publicCopy, ".agents/pm");
+          const mode = (directory, readOnly) => {
+            chmodSync(directory, readOnly ? 0o555 : 0o700);
+            for (const entry of readdirSync(directory, { withFileTypes: true })) {
+              const path = join(directory, entry.name);
+              if (entry.isDirectory()) mode(path, readOnly);
+              else if (entry.isFile()) chmodSync(path, readOnly ? 0o444 : 0o600);
+              else throw new Error("Public tracker source must contain regular files only");
+            }
+          };
+          try {
+            mode(source, true);
+            run(process.execPath, ["scripts/validate-release-corrections.ts", source]);
+            run(process.execPath, ["scripts/validate-agent-contract-drift.ts", source]);
+          } finally { mode(source, false); rmSync(publicCopy, { recursive: true, force: true }); }
+          NODE
+
+  deep:
+    # Busy local slots must queue. Only the fleet controller disables this pool
+    # after all local hosts have been unreachable for ten minutes.
+    runs-on: ${{ vars.PM_LOCAL_DEEP != 'off' && fromJSON('["self-hosted","pm-local"]') || 'ubuntu-latest' }}
+    timeout-minutes: 120
+    strategy:
+      fail-fast: false
+      matrix:
+        node-version: [22, 26]
+    env:
+      PM_TEST_DEPTH: full
+      # Acceptance watchdogs allow slower local installs without becoming unbounded.
+      PM_TEST_TIME_SCALE: 3
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+          fetch-tags: true
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v7
+        with:
+          node-version: ${{ matrix.node-version }}
+          cache: npm
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2.2.0
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Verify tracked pm project health
+        shell: bash
+        run: |
+          set -euo pipefail
+          # Catch durable checkout-visible failures: conflict markers, parse failures,
+          # invalid or drifted history, tracked runtime caches, extension health,
+          # stale in-progress work, and any merge evidence present in this clone.
+          #
+          # This is not a lossless-merge attestation. Merge receipts are clone-local and
+          # absent from a fresh CI checkout. Some unreconciled loss shapes surface as
+          # history drift, but reconciliation or history repair can remove that signal.
+          # Keep receipt review as a local pre-push step; pm-cli#921 and pm-cli#922 track
+          # the missing durable proof.
+          #
+          # pm-cli 2026.8.11 correctly detects 32 immutable role="1" events written
+          # before its Claude role resolver was repaired, but it has no disposition
+          # path yet and classifies that known legacy aggregate as blocking. Keep an
+          # exact fail-closed baseline here: a changed count, a different provenance
+          # finding, or any other non-advisory warning still fails this gate.
+          health_status=0
+          health_json="$(./node_modules/.bin/pm health --strict-exit --json --require-merge-drivers)" || health_status=$?
+          test "$health_status" -le 1
+          printf '%s\n' "$health_json"
+          printf '%s\n' "$health_json" | jq -e '
+            def advisory:
+              startswith("telemetry_") or
+              startswith("history_stream_over_compact_threshold:") or
+              startswith("stale_in_progress_items:") or
+              startswith("provenance_resolver_zero_success:") or
+              . == "provenance_value_domain_invalid:claude-code:role:single_digit:32";
+            ([.warnings[] | select(advisory | not)] | length) == 0 and
+            ([.warnings[] | select(startswith("provenance_value_domain_invalid:"))] ==
+              ["provenance_value_domain_invalid:claude-code:role:single_digit:32"])
+          '
+
+      - name: Full npm release gate
+        run: npm run release:check
+
+      - name: Full Bun release gate
+        run: bun run release:check
+
+      - name: Verify Bun can install the package graph
+        run: bun install --no-save
+
+      - name: Committed dist matches a fresh build
+        run: |
+          stale=$(git status --porcelain --untracked-files=all -- dist)
+          if [ -n "$stale" ]; then printf '%s\n' "$stale"; exit 1; fi
+
+      - name: Direct Bun CLI and SDK runtime smoke
+        run: bun test/bun-milestones-smoke.ts

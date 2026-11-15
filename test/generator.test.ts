@@ -1,3 +1,5 @@
+import { scaledBudget } from "../scripts/acceptance-process.ts";
+import { testDepth } from "./support/depth.ts";
 import { initGitFixture, cloneGitFixture, removeGitFixture } from "./git-fixture.ts";
 import assert from "node:assert/strict";
 import { execFileSync, spawnSync } from "node:child_process";
@@ -2926,7 +2928,7 @@ if (process.env.PM_TELEMETRY_FLUSH_CHILD === "1") {
     for (const pid of pids) {
       try { process.kill(pid, "SIGTERM"); }
       catch (error) { if ((error as NodeJS.ErrnoException).code !== "ESRCH") throw error; }
-      const deadline = Date.now() + 5000;
+      const deadline = Date.now() + scaledBudget(5000);
       for (;;) {
         try { process.kill(pid, 0); }
         catch (error) {
@@ -3307,7 +3309,7 @@ test("resolveReleaseTagWindows keeps an invalid-timestamp pending release leadin
 
   // Run the sort multiple times to detect non-determinism.
   const allHeadings: string[][] = [];
-  for (let i = 0; i < 100; i++) {
+  for (let i = 0; i < testDepth(100); i++) {
     const windows = resolveReleaseTagWindows({
       cwd: dir,
       pendingVersion: "2026.7.8",

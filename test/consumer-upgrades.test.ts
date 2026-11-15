@@ -1,3 +1,4 @@
+import { testDepth } from "./support/depth.ts";
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
 import { cpSync, mkdirSync, mkdtempSync, readFileSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
@@ -186,7 +187,7 @@ test("seed 0x52c0ffee: 500 model-based SDK operation sequences, old-input replay
     }
     const baseline = (await listAllComplete({ includeBody: true }, { pmRoot })).items;
     const archives = new Map<string, typeof models extends Map<string, infer V> ? V[] : never>();
-    for (let sequence = 0; sequence < 500; sequence++) {
+    for (let sequence = 0; sequence < testDepth(500); sequence++) {
       const index = next() % 3, id = ids[index];
       const whitespace = ["plain", "  leading and trailing  ", "line one\r\nline two\t  ", 'quotes " and \\ slash\n\u0000\f'][next() % 4];
       variants.add(whitespace);

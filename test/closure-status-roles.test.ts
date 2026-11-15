@@ -1,3 +1,4 @@
+import { testDepth } from "./support/depth.ts";
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
 import { cpSync, mkdirSync, mkdtempSync, readFileSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
@@ -122,7 +123,7 @@ test("500 seeded role/alias and round-trip sequences preserve SDK-read state and
     pool.push({ registry: configured, done: kind === 0, terminal: kind === 0 || kind === 3, alias });
   }
   let seed = 0x291f3;
-  for (let sequence = 0; sequence < 500; sequence++) {
+  for (let sequence = 0; sequence < testDepth(500); sequence++) {
     seed = (Math.imul(seed, 1664525) + 1013904223) >>> 0;
     const selected = pool[(seed >>> 8) % pool.length];
     const variant = ["delivered", `  ${selected.alias.toUpperCase()}\r\n`, "constructor"][(seed >>> 16) % 3];
@@ -161,7 +162,7 @@ test("500 seeded role/alias and round-trip sequences preserve SDK-read state and
     const serialized = formatConsumerUpgrades(upgrades, format);
     assert.deepEqual(format === "json" ? JSON.parse(serialized) : decode(serialized), upgrades);
   }
-  t.diagnostic("seed=0x291f3 sequences=500; SDK registry aliases and frozen JSON/TOON captures; model closure categories, counts, semver and native SDK state");
+  t.diagnostic(`seed=0x291f3 sequences=${testDepth(500)}; SDK registry aliases and frozen JSON/TOON captures; model closure categories, counts, semver and native SDK state`);
 });
 
 /** Decode either a structured host result or the host's intentionally rendered envelope. */

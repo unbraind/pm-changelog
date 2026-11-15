@@ -1,3 +1,4 @@
+import { testDepth } from "./support/depth.ts";
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
 import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
@@ -13,7 +14,7 @@ test("seeded release histories emit the requested heading or fail before renderi
   let seed = 0x10292026;
   const random = (): number => { seed = (Math.imul(seed, 1664525) + 1013904223) >>> 0; return seed >>> 8; };
   let passed = 0, refused = 0;
-  for (let iteration = 0; iteration < 500; iteration++) {
+  for (let iteration = 0; iteration < testDepth(500); iteration++) {
     const version = `2026.10.${10 + random() % 20}`;
     const items: PmItem[] = Array.from({ length: random() % 15 }, (_, index) => ({
       id: `case-${index}`, title: `Change ${index}`, type: "Task",
@@ -154,7 +155,7 @@ test("500 random item histories satisfy the requested-heading-or-command-failure
   let seed = 0x291029, output = "", passed = 0, refused = 0;
   const random = (): number => { seed = (Math.imul(seed, 1103515245) + 12345) >>> 0; return seed >>> 8; };
   t.mock.method(process.stdout, "write", (chunk: string | Uint8Array) => { output += String(chunk); return true; });
-  for (let iteration = 0; iteration < 500; iteration++) {
+  for (let iteration = 0; iteration < testDepth(500); iteration++) {
     const version = `7.${random() % 100}.0`;
     const items = Array.from({ length: random() % 10 }, (_, index) => ({ id: `change-${index}`, title: `History ${index}`, type: "Task", status: random() % 3 === 0 ? "open" : "closed", release: random() % 2 ? version : "6.0.0" }));
     writeFileSync(input, JSON.stringify({ items })); output = "";

@@ -1,3 +1,4 @@
+import { testDepth } from "./support/depth.ts";
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
 import { cpSync, mkdirSync, mkdtempSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
@@ -114,7 +115,7 @@ test("500 seeded native lifecycles across 2-4 releases preserve published bytes,
   let seed = 0x291f4;
   const random = (): number => (seed = (Math.imul(seed, 1664525) + 1013904223) >>> 0) >>> 8;
   const models: Lifecycle[] = [];
-  for (let index = 0; index < 500; index++) {
+  for (let index = 0; index < testDepth(500); index++) {
     const length = 2 + random() % 3;
     const model: Lifecycle = { id: `life-${index}`, length, repairAt: 1 + random() % (length - 1), prelude: random() % 3, disposition: dispositions[index % dispositions.length], seed: random() };
     models.push(model);
@@ -219,14 +220,14 @@ test("500 seeded native lifecycles across 2-4 releases preserve published bytes,
   const finalRegistry = resolveRuntimeStatusRegistry((await readSettings(root)).schema);
   assert.equal(createChangelog(resolveTrackerReleaseHistory(await readReleaseMilestones(store), [], finalRegistry)).markdown, latestMarkdown);
   assert.deepEqual([...releaseCounts].sort(), [2, 3, 4]); assert.deepEqual([...seenDispositions].sort(), [...dispositions].sort());
-  assert.equal(models.filter((model) => model.owner).length, 500);
+  assert.equal(models.filter((model) => model.owner).length, testDepth(500));
   for (const model of models) {
     const notes = await client.notes(model.id, { limit: "10001", includeMeta: true, outputBudget: "unbounded", outputLimit: "unbounded" });
     assert.ok("count" in notes);
     assert.equal(notes.count, model.seed & 4 ? 2 : 1);
     assert.equal((await readReleaseCorrectionView(root, model.owner!.capture.name, model.id)).original, model.owner!.title);
   }
-  t.diagnostic("seed=0x291f4 lifecycles=500 releases=2-4; native reopen/closure/repair, SDK roles before/after publication, JSON/TOON/older replays, immutable Markdown and current correction chains");
+  t.diagnostic(`seed=0x291f4 lifecycles=${testDepth(500)} releases=2-4; native reopen/closure/repair, SDK roles before/after publication, JSON/TOON/older replays, immutable Markdown and current correction chains`);
 });
 
 

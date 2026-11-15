@@ -1,3 +1,4 @@
+import { testDepth } from "./support/depth.ts";
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
 import { cpSync, mkdirSync, mkdtempSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
@@ -59,7 +60,7 @@ test("first-release ledger is invariant across 500 catalog permutations and pres
   assert.equal(native.item.title, "Edited after publication");
   const expected = new Map([["own-early", captures[1]], ["own-custom", captures[1]], ["own-late", captures[2]]]);
   let seed = 0x291f1;
-  for (let sequence = 0; sequence < 500; sequence++) {
+  for (let sequence = 0; sequence < testDepth(500); sequence++) {
     const shuffled = [...captures];
     for (let index = shuffled.length - 1; index > 0; index--) {
       seed = (Math.imul(seed, 1664525) + 1013904223) >>> 0;
@@ -93,7 +94,7 @@ test("first-release ledger is invariant across 500 catalog permutations and pres
     }
     assert.equal((await client.notes(item)).count, 0);
   }
-  t.diagnostic("seed=0x291f1 catalog permutations=500; 3 owning claims; 4 captures; wrong-release reads and appends refuse");
+  t.diagnostic(`seed=0x291f1 catalog permutations=${testDepth(500)}; 3 owning claims; 4 captures; wrong-release reads and appends refuse`);
 });
 
 test("later snapshots and legacy mistargeted events cannot steal a first published claim", async (t) => {

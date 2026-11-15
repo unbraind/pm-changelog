@@ -1,3 +1,4 @@
+import { testDepth } from "./support/depth.ts";
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
 import { cpSync, mkdirSync, mkdtempSync, readFileSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
@@ -118,7 +119,7 @@ test("seeded model: 500 random operation sequences preserve SDK-read state, old 
     model.set(id, { inputs: [], revisions: [], nativeEvents: [] });
   }
   let operations = 0;
-  for (let sequence = 0; sequence < 500; sequence++) {
+  for (let sequence = 0; sequence < testDepth(500); sequence++) {
     const id = `fix-claim${Math.floor(rng() * 8)}`;
     const state = model.get(id)!;
     // Random ambient focus must never become a parent or scope for an annotation.
@@ -175,7 +176,7 @@ test("seeded model: 500 random operation sequences preserve SDK-read state, old 
     assert.deepEqual(decode(formatReleaseCorrectionView(view)), view);
     assert.deepEqual((await client.get(id, { fields: "title,body,status,type,priority,tags,parent,goal,objective,sprint,release,dependencies,files,docs,tests" })).item, native.get(id)); operations++;
   }
-  t.diagnostic(`seed=0x0c011ec7 sequences=500 operations=${operations} SDK annotations=${[...model.values()].reduce((sum, state) => sum + state.inputs.length, 0)}`);
+  t.diagnostic(`seed=0x0c011ec7 sequences=${testDepth(500)} operations=${operations} SDK annotations=${[...model.values()].reduce((sum, state) => sum + state.inputs.length, 0)}`);
 });
 
 test("competing writers at every commit boundary report one append and truthful peer success", async (t) => {
