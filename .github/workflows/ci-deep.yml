@@ -85,6 +85,7 @@ jobs:
           NODE
 
   deep:
+    name: deep (${{ matrix.node-version }}, ${{ matrix.package-manager }})
     # Busy local slots must queue. Only the fleet controller disables this pool
     # after all local hosts have been unreachable for ten minutes.
     runs-on: ${{ vars.PM_LOCAL_DEEP != 'off' && fromJSON('["self-hosted","pm-local"]') || 'ubuntu-latest' }}
@@ -93,6 +94,7 @@ jobs:
       fail-fast: false
       matrix:
         node-version: [22, 26]
+        package-manager: [npm, bun]
     env:
       PM_TEST_DEPTH: full
       # Acceptance watchdogs allow slower local installs without becoming unbounded.
@@ -152,13 +154,12 @@ jobs:
               ["provenance_value_domain_invalid:claude-code:role:single_digit:32"])
           '
 
-      - name: Full npm release gate
-        run: npm run release:check
-
-      - name: Full Bun release gate
-        run: bun run release:check
+      # One full gate per job: two sequential slow-pool gates exceed 120 minutes.
+      - name: Full ${{ matrix.package-manager }} release gate
+        run: ${{ matrix.package-manager }} run release:check
 
       - name: Verify Bun can install the package graph
+        if: matrix.package-manager == 'bun'
         run: bun install --no-save
 
       - name: Committed dist matches a fresh build
@@ -167,4 +168,5 @@ jobs:
           if [ -n "$stale" ]; then printf '%s\n' "$stale"; exit 1; fi
 
       - name: Direct Bun CLI and SDK runtime smoke
+        if: matrix.package-manager == 'bun'
         run: bun test/bun-milestones-smoke.ts

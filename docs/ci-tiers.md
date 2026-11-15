@@ -43,8 +43,12 @@ This is checkout health, not a lossless merge attestation or a repair of history
 
 Deep runs on main pushes, daily at 01:53 UTC, and dispatch. This avoids the daily
 release at 03:17, hourly reconciliation at :41, and weekly CodeQL at 02:37.
-`deep (22)`, `deep (26)` and `lifecycle` each have a 120-minute timeout and share
-per-ref cancellation. Each Node leg runs both npm and Bun full release gates.
+`deep (22, npm)`, `deep (22, bun)`, `deep (26, npm)`, `deep (26, bun)` and
+`lifecycle` each have a 120-minute timeout and share per-ref cancellation. Each
+Node/package-manager combination runs one full release gate. The failed wave-1
+Node 22 npm gate alone took 75m06s; two such gates in sequence would
+exceed 120 minutes. Splitting the manager axis preserves all four original
+combinations without copying the pilot's longer sequential-job exception.
 `PM_TEST_DEPTH=full` and `PM_TEST_TIME_SCALE=3` apply to deep. The `pm-local`
 self-hosted pool queues normally; only `PM_LOCAL_DEEP=off` selects hosted Ubuntu.
 Changing the variable affects newly queued jobs, not existing queued jobs.
