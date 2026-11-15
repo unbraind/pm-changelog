@@ -43,11 +43,12 @@ test("selected release attributes only delivered pending rendering actions with 
   assert.equal(rows.find((item) => item.id === "release-pending")!.release, "2.0.0");
   assert.ok(Array.isArray(rows.find((item) => item.id === "release-pending")!.change_facets));
   assert.equal(rows.find((item) => item.id === "release-active")!.release, undefined);
-  const workflow = readFileSync(resolve(".github/workflows/release.yml"), "utf8");
-  assert.match(workflow, /node scripts\/attribute-rendering-release\.ts "\$\{NPM_VERSION\}"/);
-  assert.ok(workflow.includes('node scripts/attribute-rendering-release.ts "${NPM_VERSION}" "${RELEASE_BASE_SHA}"'));
-  assert.ok(workflow.includes("RELEASE_BASE_SHA: ${{ steps.decide.outputs.base_sha }}"));
-  assert.match(workflow, /git add[^\n]+CHANGELOG\.md \.agents\/pm/);
+  const manifest = JSON.parse(readFileSync('package.json', 'utf8')) as { scripts: Record<string, string> };
+  assert.ok(manifest.scripts['release:prepare']?.includes('node scripts/attribute-rendering-release.ts'));
+  assert.ok(manifest.scripts['release:prepare']?.includes('$(git rev-parse HEAD)'));
+  const workflow = readFileSync(resolve('.github/workflows/release.yml'), 'utf8');
+  assert.match(workflow, /prepare-script: release:prepare/u);
+  assert.ok(workflow.includes('release-files: .agents/pm'));
 });
 
 test("blank legacy releases remain unpublished in real tracker projections with metadata fallback", async (t) => {

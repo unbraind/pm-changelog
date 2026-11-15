@@ -198,6 +198,10 @@
 - Bump the pm-toolchain group with 2 updates ([#268](https://github.com/unbraind/pm-changelog/pull/268))
 - Bump pm-ops from 2026.10.16 to 2026.10.18 in the pm-toolchain group across 1 directory ([#263](https://github.com/unbraind/pm-changelog/pull/263))
 
+## 2026.10.21 - 2026-10-21
+
+No changes.
+
 ## 2026.10.20 - 2026-10-20
 
 ### Dependencies
@@ -280,6 +284,10 @@
 
 - Auto-merge green Dependabot updates and group the pm toolchain into one daily PR ([pmc-y0a5](https://github.com/unbraind/pm-changelog/blob/main/.agents/pm/tasks/pmc-y0a5.toon))
 
+## 2026.10.4 - 2026-10-04
+
+No changes.
+
 ## 2026.9.25 - 2026-09-25
 
 ### Added
@@ -307,6 +315,10 @@
 
 - Certify pm CLI 2026.9.17 ([pmc-r1qu](https://github.com/unbraind/pm-changelog/blob/main/.agents/pm/chores/pmc-r1qu.toon))
 
+## 2026.9.16 - 2026-09-16
+
+No changes.
+
 ## 2026.9.15 - 2026-09-15
 
 ### Fixed
@@ -326,6 +338,10 @@
 - Bump the codeql-action group with 2 updates ([#198](https://github.com/unbraind/pm-changelog/pull/198))
 - Bump @types/node from 26.4.1 to 26.5.0 ([#191](https://github.com/unbraind/pm-changelog/pull/191))
 
+## 2026.9.11 - 2026-09-11
+
+No changes.
+
 ## 2026.9.10 - 2026-09-10
 
 ### Fixed
@@ -343,6 +359,10 @@
 ### Fixed
 
 - Measure changelog parser CPU time without counting descheduled workers ([pmc-zoqj](https://github.com/unbraind/pm-changelog/blob/main/.agents/pm/issues/pmc-zoqj.toon))
+
+## 2026.9.8 - 2026-09-08
+
+No changes.
 
 ## 2026.9.6 - 2026-09-06
 
@@ -470,6 +490,10 @@
 
 - Gate CI on strict tracked pm project health ([pmc-vm22](https://github.com/unbraind/pm-changelog/blob/main/.agents/pm/chores/pmc-vm22.toon))
 
+## 2026.8.6 - 2026-08-06
+
+No changes.
+
 ## 2026.8.4 - 2026-08-04
 
 ### Fixed
@@ -495,6 +519,10 @@
 ### Dependencies
 
 - Bump @types/node to 26.1.2 ([#114](https://github.com/unbraind/pm-changelog/pull/114))
+
+## 2026.8.1 - 2026-08-01
+
+No changes.
 
 ## 2026.7.29-1 - 2026-07-29
 
@@ -575,6 +603,10 @@
 
 - Adopt pm field-aware merge driver for multi-agent branch-merge safety ([pmc-api6](https://github.com/unbraind/pm-changelog/blob/main/.agents/pm/chores/pmc-api6.toon))
 
+## 2026.7.22 - 2026-07-22
+
+No changes.
+
 ## 2026.7.18 - 2026-07-18
 
 ### Fixed
@@ -629,6 +661,18 @@
 
 - Fix all-release-tags collapsing legacy historical sections after orphaned git tags ([pmc-emom](https://github.com/unbraind/pm-changelog/blob/main/.agents/pm/issues/pmc-emom.toon))
 
+## 2026.7.12-2 - 2026-07-12
+
+No changes.
+
+## 2026.7.12-1 - 2026-07-12
+
+No changes.
+
+## 2026.7.12 - 2026-07-12
+
+No changes.
+
 ## 2026.7.11-1 - 2026-07-11
 
 ### Other
@@ -641,11 +685,19 @@
 - Bump typescript from 6.0.3 to 7.0.2
 - Bump @types/node from 26.1.0 to 26.1.1
 
+## 2026.7.11 - 2026-07-11
+
+No changes.
+
 ## 2026.7.10 - 2026-07-10
 
 ### Added
 
 - Add --summary mode and unified --format json output for agents ([pmc-ygs2](https://github.com/unbraind/pm-changelog/blob/main/.agents/pm/features/pmc-ygs2.toon))
+
+## 2026.7.8 - 2026-07-08
+
+No changes.
 
 ## 2026.7.6 - 2026-07-06
 
@@ -670,11 +722,19 @@
 
 - Relax changelog title escaping for readable Markdown ([pmc-8t9f](https://github.com/unbraind/pm-changelog/blob/main/.agents/pm/issues/pmc-8t9f.toon))
 
+## 2026.6.27 - 2026-06-27
+
+No changes.
+
 ## 2026.6.20 - 2026-06-20
 
 ### Security
 
 - Refresh pm-changelog dev dependency lock for clean audit ([pmc-licw](https://github.com/unbraind/pm-changelog/blob/main/.agents/pm/chores/pmc-licw.toon))
+
+## 2026.6.14 - 2026-06-14
+
+No changes.
 
 ## 2026.6.13-1 - 2026-06-13
 
@@ -691,6 +751,14 @@
 ### Fixed
 
 - Stabilize calendar release headings across the zero-padded tag boundary ([pmc-sall](https://github.com/unbraind/pm-changelog/blob/main/.agents/pm/issues/pmc-sall.toon))
+
+## 2026.6.10 - 2026-06-10
+
+No changes.
+
+## 2026.6.9 - 2026-06-09
+
+No changes.
 
 ## 2026.6.8 - 2026-06-08
 
@@ -755,11 +823,19 @@
 - Zero-regression guarantee for pm-changelog enhancements ([pmc-1w1r](https://github.com/unbraind/pm-changelog/blob/main/.agents/pm/decisions/pmc-1w1r.toon))
 - Fix changelog export format validation and metadata ([pmc-55cp](https://github.com/unbraind/pm-changelog/blob/main/.agents/pm/issues/pmc-55cp.toon))
 
+## 2026.6.2 - 2026-06-02
+
+No changes.
+
 ## 2026.6.1 - 2026-06-01
 
 ### Fixed
 
 - changelog generate returned {error} (exit 0) on bad flags; plain throw on --check ([pmc-qw3g](https://github.com/unbraind/pm-changelog/blob/main/.agents/pm/issues/pmc-qw3g.toon))
+
+## 2026.5.30 - 2026-05-30
+
+No changes.
 
 ## 2026.5.29-2 - 2026-05-29
 
@@ -767,11 +843,23 @@
 
 - Hands-on functional test pass 2026-05-29 (real data) ([pmc-7rd8](https://github.com/unbraind/pm-changelog/blob/main/.agents/pm/features/pmc-7rd8.toon))
 
+## 2026.5.29-1 - 2026-05-29
+
+No changes.
+
+## 2026.5.29 - 2026-05-28
+
+No changes.
+
 ## 2026.5.27-1 - 2026-05-27
 
 ### Added
 
 - Add publish retry + provenance fallback to release workflow ([pmc-ermk](https://github.com/unbraind/pm-changelog/blob/main/.agents/pm/tasks/pmc-ermk.toon))
+
+## 2026.5.27 - 2026-05-27
+
+No changes.
 
 ## 2026.5.26 - 2026-05-25
 
@@ -812,6 +900,10 @@
 
 - Support full historical changelog generation from git release tags ([pmc-qm7s](https://github.com/unbraind/pm-changelog/blob/main/.agents/pm/issues/pmc-qm7s.toon))
 
+## 2026.5.24-12 - 2026-05-24
+
+No changes.
+
 ## 2026.5.24-11 - 2026-05-24
 
 ### Fixed
@@ -823,6 +915,10 @@
 ### Fixed
 
 - Add package-owned release context flags ([pmc-34gb](https://github.com/unbraind/pm-changelog/blob/main/.agents/pm/issues/pmc-34gb.toon))
+
+## 2026.5.24-9 - 2026-05-24
+
+No changes.
 
 ## 2026.5.24-8 - 2026-05-24
 
@@ -858,6 +954,10 @@
 
 - Run full release gate and temp install verification 2026-05-24 session 2 ([pmc-ws4p](https://github.com/unbraind/pm-changelog/blob/main/.agents/pm/chores/pmc-ws4p.toon))
 - Production readiness verification 2026-05-24 session 2 ([pmc-9tmr](https://github.com/unbraind/pm-changelog/blob/main/.agents/pm/epics/pmc-9tmr.toon))
+
+## 2026.5.24-4 - 2026-05-24
+
+No changes.
 
 ## 2026.5.24-3 - 2026-05-24
 
