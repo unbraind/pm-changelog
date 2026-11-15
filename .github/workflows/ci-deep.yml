@@ -155,8 +155,13 @@ jobs:
           '
 
       # One full gate per job: two sequential slow-pool gates exceed 120 minutes.
-      - name: Full ${{ matrix.package-manager }} release gate
-        run: ${{ matrix.package-manager }} run release:check
+      - name: Full npm release gate
+        if: matrix.package-manager == 'npm'
+        run: npm run release:check
+
+      - name: Full Bun release gate
+        if: matrix.package-manager == 'bun'
+        run: bun run release:check
 
       - name: Verify Bun can install the package graph
         if: matrix.package-manager == 'bun'

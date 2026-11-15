@@ -6,10 +6,10 @@ status: in_progress
 priority: 2
 tags[3]: ci,performance,validation
 created_at: "2026-11-10T23:28:19.082Z"
-updated_at: "2026-11-15T13:23:45.572Z"
+updated_at: "2026-11-15T14:20:02.995Z"
 author: codex-changelog337
 acceptance_criteria: Measure representative native lifecycle execution and identify dominant costs without weakening existing assertions or silently reducing the 500-case corpus
-comments[16]{created_at,author,text}:
+comments[18]{created_at,author,text}:
   "2026-11-10T23:48:48.566Z",codex-changelog337,"Follow-up evidence: the subsequent timeout 2700 npm test passed all 1050 tests in 1181.6 seconds of reported runner time. The existing 500-native-lifecycle test passed in 908.3 seconds. The earlier 1200-second aggregate importer batch still canceled this file after 154 other passed tests; investigate batch composition and runtime variability rather than assuming a semantic regression. No assertions or case counts were changed."
   "2026-11-11T23:17:40.764Z",codex-changelog339-1111,"Round-5 PR 341 bounded importer gate: test/release-lifecycles.test.ts reached its explicit 1200-second file cap (exit 124; wall 1200.05 seconds). Its first omitted/filtered repair case passed in 9.20 seconds; the native 500-lifecycle case did not complete and reported no assertion failure before termination. This is incomplete validation, not a passing gate. The 51-file gate uses at most two workers with isolated HOME/Git settings; remaining files continue. No stress scale, timeout or coverage threshold was weakened; source fixes remain scoped to the three review findings. Current-head lifecycle/full-release certification is deferred to CI under the requested cap."
   "2026-11-15T09:42:55.641Z",codex-sol,"Reusing the existing slow-gate item for Fleet CI v2; companion pm-cli-website-dyhg. Preserve the full 500-case corpus by default, select deterministic quick prefixes on PRs, move exhaustive lifecycle proofs to deep, and retain every original gate. Required contexts verified: test (22), test (26); CodeQL is not required. Local-runner job logs show five container corpus CPU watchdog overruns, not assertion failures. Release caller workflows and verifier scripts are out of scope."
@@ -26,6 +26,8 @@ comments[16]{created_at,author,text}:
   "2026-11-15T11:41:54.776Z",codex-sol,"Calibrated final PR job watchdogs to about three times observed execution: Node 22 15 minutes (observed 4m51s), Node 26 25 minutes (observed 8m18s), both below the 30-minute ceiling. Matrix contexts select the job timeout without changing the two required names. Deep remains 120 minutes and CodeQL 30. Strict YAML/timeout validation passed after the adjustment."
   "2026-11-15T13:20:53.489Z",codex-sol,"Corrected a pilot-adaptation budget mismatch before final verification: the failed wave-1 Node 22 npm gate alone took about 80 minutes, so two such full gates in sequence would exceed the requested 120-minute job ceiling. Deep now has the explicit Node 22/26 x npm/Bun matrix, one full release gate per job, unique deep check names, full depth/time scale 3, and 120-minute limits. Lifecycle stays separate. Bun install/runtime smokes still run once per Node version on the Bun legs. All four original gate combinations and every additional check remain; no release caller/verifier was changed. Strict YAML and matrix completeness checks passed."
   "2026-11-15T13:23:43.634Z",codex-sol,"Exact failed-step API timing clarifies the deep budget calculation: Node 22 full npm gate ran 21:29:28-22:44:34 UTC on 2026-11-14, 75m06s; the roughly 80-minute figure includes job setup. Two gates at that measured duration would take 150m12s before other steps, exceeding 120 minutes. The four-job manager matrix removes that sequential-budget mismatch while retaining all four original full gate passes."
+  "2026-11-15T14:19:34.887Z",codex-sol,"Exact-head run 43718790106 exposed one workflow compatibility regression: both quick checks passed 1145 of 1146 tests and Node 26 retained 100 percent line, branch and function coverage, but the unchanged release verifier correctly refused a dynamically expanded executable in ci-deep.yml. Replaced that command with mutually exclusive literal npm and Bun steps; all four Node/manager combinations remain. The existing verifier now passes locally without changes. Node 22 wall was 51m07s including 44m47s queue; Node 26 wall was 54m08s including 49m11s queue. Follow-up hosted queue item remains applicable. Rechecking the current workflow gate before pushing the correction."
+  "2026-11-15T14:20:02.994Z",codex-sol,"Correction validation passed: registered node scripts/verify-release-publish-attestation.ts via pm test (exit 0), strict unique-key YAML parsing of all three workflows, mutually exclusive literal manager gate assertions, and git diff --check. Released the claim; the Task remains in progress for orchestrator verification. The next exact-head quick run will certify the workflow correction."
 files[28]{path,scope}:
   .github/workflows/ci-deep.yml,project
   .github/workflows/ci.yml,project
@@ -55,7 +57,7 @@ files[28]{path,scope}:
   test/stable-itemless-check.test.ts,project
   test/support/depth.ts,project
   test/unicode-contract-output.test.ts,project
-tests[4]:
+tests[5]:
   - command: "npm run typecheck && npm run build:test && npm run docstring"
     scope: project
     provenance:
@@ -85,6 +87,13 @@ tests[4]:
     provenance:
       author: codex-sol
       created_at: "2026-11-15T11:13:47.714Z"
+      source_kind: local_mutation
+      source_ref: ci/quick-pr-tier-deep-local-tier
+  - command: node scripts/verify-release-publish-attestation.ts
+    scope: project
+    provenance:
+      author: codex-sol
+      created_at: "2026-11-15T14:19:50.104Z"
       source_kind: local_mutation
       source_ref: ci/quick-pr-tier-deep-local-tier
 docs[1]{path,scope}:
