@@ -1,3 +1,4 @@
+import { scaledBudget } from "../scripts/acceptance-process.ts";
 import assert from "node:assert/strict";
 import { execFileSync, spawnSync } from "node:child_process";
 import { cpSync, mkdirSync, mkdtempSync, readFileSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
@@ -64,7 +65,7 @@ test("proof baseline uses checked-out source if the merge-base tree predates the
   assert.deepEqual(readProofBaseline(f.root), { source: "working source\n", kind: "working-tree" });
 });
 
-test("proof controls complete in a fresh clone and a source archive without origin/main", { timeout: 600000 }, (t) => {
+test("proof controls complete in a fresh clone and a source archive without origin/main", { timeout: scaledBudget(600000) }, (t) => {
   const root = mkdtempSync(join(tmpdir(), "pm-proof-portable-"));
   t.after(() => rmSync(root, { recursive: true, force: true }));
   const source = join(root, "source"); mkdirSync(source);
@@ -88,7 +89,7 @@ test("proof controls complete in a fresh clone and a source archive without orig
     symlinkSync(resolve("node_modules"), join(cwd, "node_modules"), "junction");
     // The mutation cases run once, through the registered pm test; here only the controls run in each location.
     const result = spawnSync(process.execPath, ["scripts/prove-check-generator-drift-revert.ts", "--baseline-only"], {
-      cwd, encoding: "utf8", timeout: 600000,
+      cwd, encoding: "utf8", timeout: scaledBudget(600000),
       env: { PATH: process.env.PATH, HOME: root, GIT_CONFIG_GLOBAL: "/dev/null", GIT_CONFIG_NOSYSTEM: "1", PM_AUTHOR: "codex-changelog339-1111", PM_TELEMETRY_SOURCE_CONTEXT: "automation", DO_NOT_TRACK: "1" },
     });
     assert.equal(result.status, 0, result.stdout + result.stderr);

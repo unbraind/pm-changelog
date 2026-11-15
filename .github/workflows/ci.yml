@@ -1,80 +1,26 @@
 name: CI
 
 on:
-  push:
-    branches: [main]
   pull_request:
   workflow_dispatch:
 
 permissions:
   contents: read
 
-jobs:
-  lifecycle:
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout without persisted credentials
-        uses: actions/checkout@v7
-        with:
-          persist-credentials: false
-          fetch-depth: 0
-      - name: Setup Node.js
-        uses: actions/setup-node@v7
-        with:
-          node-version: 26
-          cache: npm
-      - name: Setup Bun
-        uses: oven-sh/setup-bun@v2.2.0
-      - name: Focused model and behavioral revert proofs without inherited credentials
-        run: |
-          node --input-type=module <<'NODE'
-          import { execFileSync } from "node:child_process";
-          import { chmodSync, mkdtempSync, readdirSync, rmSync } from "node:fs";
-          import { tmpdir } from "node:os";
-          import { join } from "node:path";
-          const lifecycleHome = mkdtempSync(join(tmpdir(), "pm-lifecycle-ci-"));
-          const childEnv = { PATH: process.env.PATH, HOME: lifecycleHome, NPM_CONFIG_USERCONFIG: "/dev/null", GIT_CONFIG_GLOBAL: "/dev/null", GIT_CONFIG_NOSYSTEM: "1", GIT_CEILING_DIRECTORIES: tmpdir(), PM_AUTHOR: "codex-agent", DO_NOT_TRACK: "1" };
-          const run = (binary, args) => execFileSync(binary, args, { env: childEnv, stdio: "inherit" });
-          run("npm", ["ci", "--ignore-scripts"]);
-          run("npm", ["run", "build"]);
-          run("npm", ["run", "build:test"]);
-          run("npm", ["run", "docstring"]);
-          // https://github.com/unbraind/pm-cli/issues/1615
-          // remove when upstream trusts unchanged commands across refs
-          // Pinned CLI alias for testing.allow_untrusted_linked_tests; this checkout only.
-          run(process.execPath, ["node_modules/@unbrained/pm-cli/dist/cli.js", "--path", ".agents/pm", "config", "set", "untrusted-linked-test-execution", "enabled"]);
-          run(process.execPath, ["node_modules/@unbrained/pm-cli/dist/cli.js", "test", "pmc-release-corrections", "--run", "--only-last", "--progress", "--allow-untrusted-linked-tests", "--timeout", "1200"]);
-          run(process.execPath, ["node_modules/@unbrained/pm-cli/dist/cli.js", "test", "pmc-milestone-status-roles", "--run", "--only-last", "--progress", "--allow-untrusted-linked-tests", "--timeout", "240"]);
-          run(process.execPath, ["--test", "--test-concurrency=2", "test/cli-tracker-target.test.ts", "test/closure-status-roles.test.ts", "test/release-publication.test.ts", "test/release-ownership.test.ts"]);
-          run(process.execPath, ["scripts/verify-release-lifecycles.ts"]);
-          run(process.execPath, ["scripts/prove-agent-contract-drift-revert.ts"]);
-          run(process.execPath, ["scripts/prove-itemless-pending-revert.ts"]);
-          run(process.execPath, ["scripts/accept-release-corrections.ts"]);
-          run("npm", ["run", "changelog:full"]);
-          run("npm", ["run", "changelog:check"]);
-          const publicCopy = mkdtempSync(join(tmpdir(), "pm-public-tracker-"));
-          const archive = execFileSync("git", ["archive", "origin/main", ".agents/pm"], { env: childEnv, maxBuffer: 64 * 1024 * 1024 });
-          execFileSync("tar", ["-xf", "-", "-C", publicCopy], { input: archive, env: childEnv });
-          const source = join(publicCopy, ".agents/pm");
-          const mode = (directory, readOnly) => {
-            chmodSync(directory, readOnly ? 0o555 : 0o700);
-            for (const entry of readdirSync(directory, { withFileTypes: true })) {
-              const path = join(directory, entry.name);
-              if (entry.isDirectory()) mode(path, readOnly);
-              else if (entry.isFile()) chmodSync(path, readOnly ? 0o444 : 0o600);
-              else throw new Error("Public tracker source must contain regular files only");
-            }
-          };
-          try {
-            mode(source, true);
-            run(process.execPath, ["scripts/validate-release-corrections.ts", source]);
-            run(process.execPath, ["scripts/validate-agent-contract-drift.ts", source]);
-          } finally { mode(source, false); rmSync(publicCopy, { recursive: true, force: true }); }
-          NODE
+# Same PR grouping as the local-runner pilot (#254); manual runs stay independent.
+concurrency:
+  group: ci-${{ github.event.pull_request.number && format('pr-{0}', github.event.pull_request.number) || github.run_id }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
+jobs:
   test:
-    needs: lifecycle
+    # Required checks stay on fast GitHub-hosted hardware.
     runs-on: ubuntu-latest
+    # Measured quick execution: Node 22 4m51s, Node 26 8m18s.
+    # About three times those durations; hung jobs must release hosted slots.
+    timeout-minutes: ${{ matrix.node-version == 22 && 15 || 25 }}
+    env:
+      PM_TEST_DEPTH: quick
     strategy:
       fail-fast: false
       matrix:
@@ -89,6 +35,32 @@ jobs:
           fetch-depth: 0
           fetch-tags: true
 
+      # Checkout must precede this first decision. NUL delimiters handle unusual
+      # filenames; compare the actual PR endpoints, not the synthetic merge commit.
+      # Disable rename folding so moving source into docs still counts its deletion.
+      - name: Detect code changes
+        id: changes
+        shell: bash
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: |
+          set -euo pipefail
+          code=true
+          if [[ "$GITHUB_EVENT_NAME" == pull_request ]]; then
+            code=false
+            git diff --name-only --no-renames -z "$BASE_SHA...$HEAD_SHA" > "$RUNNER_TEMP/ci-changed-paths"
+            while IFS= read -r -d '' path; do
+              case "$path" in
+                # Executable tracker files use the same code tier in every package.
+                .agents/pm/*.mjs|.agents/pm/*.cjs|.agents/pm/*.js|.agents/pm/*.ts) code=true ;;
+                .agents/pm/*.toon|.agents/pm/*.json|.agents/pm/*.jsonl|*.md|docs/*|CHANGELOG.md|LICENSE) ;;
+                *) code=true ;;
+              esac
+            done < "$RUNNER_TEMP/ci-changed-paths"
+          fi
+          echo "code=$code" >> "$GITHUB_OUTPUT"
+
       - name: Setup Node.js
         uses: actions/setup-node@v7
         with:
@@ -96,12 +68,14 @@ jobs:
           cache: npm
 
       - name: Setup Bun
+        if: steps.changes.outputs.code == 'true'
         uses: oven-sh/setup-bun@v2.2.0
 
       - name: Install dependencies
         run: npm ci
 
       - name: Verify tracked pm project health
+        if: steps.changes.outputs.code != 'true' || matrix.node-version == 26
         shell: bash
         run: |
           set -euo pipefail
@@ -120,7 +94,9 @@ jobs:
           # path yet and classifies that known legacy aggregate as blocking. Keep an
           # exact fail-closed baseline here: a changed count, a different provenance
           # finding, or any other non-advisory warning still fails this gate.
-          health_json="$(./node_modules/.bin/pm health --json --require-merge-drivers || true)"
+          health_status=0
+          health_json="$(./node_modules/.bin/pm health --strict-exit --json --require-merge-drivers)" || health_status=$?
+          test "$health_status" -le 1
           printf '%s\n' "$health_json"
           printf '%s\n' "$health_json" | jq -e '
             def advisory:
@@ -134,20 +110,36 @@ jobs:
               ["provenance_value_domain_invalid:claude-code:role:single_digit:32"])
           '
 
-      - name: Full release gate under npm
+      - name: Check documentation and tracker changes
+        if: steps.changes.outputs.code != 'true'
+        run: |
+          npm run changelog:check
+          npm run build
+          node --test test/identity-audit.test.ts test/shipped-docs.test.ts
+          npm run pack:dry-run
+          npm run pack:scan
+          npm run verify:release-changelog-date
+          npm run verify:release-publish-attestation
+
+      - name: Engines floor tests
+        if: steps.changes.outputs.code == 'true' && matrix.node-version == 22
+        run: npm test
+
+      - name: Quick npm release gate
+        if: steps.changes.outputs.code == 'true' && matrix.node-version == 26
         run: npm run release:check
 
-      # GitHub and local pm installs use the tracked dist/ without building, while the test script rebuilds first,
-      # so a source fix without a rebuilt dist/ passed every gate (pm-changelog#333, uppercase V tags).
       - name: Committed dist matches a fresh build
+        if: steps.changes.outputs.code == 'true' && matrix.node-version == 26
         run: |
-          npm run build
-          # Porcelain status also reports untracked build outputs (a new module the committed importer needs).
           stale=$(git status --porcelain --untracked-files=all -- dist)
-          if [ -n "$stale" ]; then printf '%s\n' "$stale"; echo "::error::dist/ differs from a fresh build: run npm run build and commit dist/"; exit 1; fi
+          if [ -n "$stale" ]; then printf '%s\n' "$stale"; echo "::error::dist/ differs from a fresh build"; exit 1; fi
 
-      - name: Release gate with Bun script runner
-        run: bun run release:check
+      # Full npm/Bun project/global/npx/bunx acceptance lives in deep lifecycle.
+      - name: Bun and bunx packed smoke
+        if: steps.changes.outputs.code == 'true' && matrix.node-version == 26
+        run: node scripts/bun-packed-smoke.ts
 
       - name: Direct Bun CLI and SDK runtime smoke
+        if: steps.changes.outputs.code == 'true' && matrix.node-version == 26
         run: bun test/bun-milestones-smoke.ts

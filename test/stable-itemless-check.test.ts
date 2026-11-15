@@ -1,3 +1,4 @@
+import { testDepth } from "./support/depth.ts";
 import assert from "node:assert/strict";
 import { execFileSync, spawnSync } from "node:child_process";
 import { mkdirSync, mkdtempSync, readFileSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
@@ -47,7 +48,7 @@ test("property: publishing release tags preserves empty and item-bearing random 
   const target = commit("2026-11-07T10:00:00Z");
   commit("2026-11-07T11:00:00Z"); // Tag an older commit, not HEAD.
   const spellings = ["v2026.11.07", "2026.11.7", "v2026.11.7", "2026.11.07"];
-  for (let trial = 0; trial < 48; trial++) {
+  for (let trial = 0; trial < testDepth(48); trial++) {
     const tags = git("tag", "--list").split("\n").filter(Boolean);
     if (tags.length) git("tag", "-d", ...tags);
     git("tag", "docs-snapshot", historical[0]!);

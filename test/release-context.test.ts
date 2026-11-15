@@ -1,3 +1,4 @@
+import { testDepth } from "./support/depth.ts";
 import { initGitFixture, removeGitFixture } from "./git-fixture.ts";
 /**
  * Direct tests for the release-context helpers whose defensive branches are
@@ -649,7 +650,7 @@ describe("release-context: same-instant release counters", () => {
       const canonical = (name: string) => name.replace(/^v/i, "").replace(/^(\d{4})\.(\d+)\.(\d+)/, (_, y: string, m: string, d: string) => `${y}.${Number(m)}.${Number(d)}`).toLowerCase();
       const order = (input: string[]) => [...new Set(input.slice().sort(compare).map(canonical))];
       const expected = order(names);
-      for (let trial = 0; trial < 128; trial++) {
+      for (let trial = 0; trial < testDepth(128); trial++) {
         const shuffled = names.slice();
         for (let index = shuffled.length - 1; index > 0; index--) {
           const other = next() % (index + 1);

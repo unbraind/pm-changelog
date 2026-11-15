@@ -1,7 +1,7 @@
+import { runCommand, scaledBudget } from "./acceptance-process.ts";
 /** Exercise the packed correction feature through real npm/Bun installation and launcher modes. */
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
-import { execFileSync } from "node:child_process";
 import { cpSync, existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
 import { devNull, tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
@@ -15,11 +15,13 @@ const repository = resolve(import.meta.dirname, "..");
 const pinned = (JSON.parse(readFileSync(join(repository, "package.json"), "utf8")) as { devDependencies: Record<string, string> }).devDependencies["@unbrained/pm-cli"];
 const childEnv = { PATH: process.env.PATH, HOME: process.env.HOME, NPM_CONFIG_PREFER_OFFLINE: "true", NPM_CONFIG_AUDIT: "false", NPM_CONFIG_FUND: "false", NPM_CONFIG_USERCONFIG: devNull, npm_config_userconfig: devNull, DO_NOT_TRACK: "1", GIT_CEILING_DIRECTORIES: dirname(scratch), BUN_INSTALL: join(scratch, "bun-global"), BUN_INSTALL_CACHE_DIR: join(scratch, "bun-cache") };
 /** Capture commands without publishing installer noise or scratch paths. */
-function run(binary: string, args: string[], cwd = scratch): string {
-  return execFileSync(binary, args, { cwd, env: childEnv, encoding: "utf8", stdio: ["ignore", "pipe", "pipe"], maxBuffer: 8 * 1024 * 1024, timeout: 180000 });
+async function run(binary: string, args: string[], cwd = scratch): Promise<string> {
+  const result = await runCommand(binary, args, { cwd, env: childEnv, timeoutMs: scaledBudget(180000) });
+  if (result.status !== 0) throw Object.assign(new Error(`Packed command failed with status ${result.status}`), result);
+  return result.stdout;
 }
 try {
-  const packed = JSON.parse(run("npm", ["pack", "--ignore-scripts", "--json", "--pack-destination", scratch], repository)) as { filename: string }[];
+  const packed = JSON.parse(await run("npm", ["pack", "--ignore-scripts", "--json", "--pack-destination", scratch], repository)) as { filename: string }[];
   const archive = join(scratch, packed[0].filename);
   const archiveSha512 = createHash("sha512").update(readFileSync(archive)).digest("hex");
   const root = join(scratch, "tracker/.agents/pm");
@@ -44,9 +46,9 @@ try {
     await client.update(row.id, { closeReason: row.reason, unset: ["parent", "goal", "objective", "sprint", "release"] });
     assert.equal((await client.get(row.id, { full: true })).item.close_reason, row.reason);
   }
-  const published = await createReleaseMilestone(new DirectoryReleaseMilestoneStore(root), "v1", { ...(await readTrackerReleaseSnapshot(root)), capturedAt: new Date(Date.parse(draft.capturedAt) + 1000).toISOString() });
+  const published = await createReleaseMilestone(new DirectoryReleaseMilestoneStore(root), "v1", { ...await readTrackerReleaseSnapshot(root), capturedAt: new Date(Date.parse(draft.capturedAt) + 1000).toISOString() });
   await client.update("accept-claim", { title: "Edited wording captured later", unset: ["parent", "goal", "objective", "sprint", "release"] });
-  const later = await createReleaseMilestone(new DirectoryReleaseMilestoneStore(root), "a-later", { ...(await readTrackerReleaseSnapshot(root)), capturedAt: new Date(Date.parse(published.capturedAt) + 1000).toISOString() });
+  const later = await createReleaseMilestone(new DirectoryReleaseMilestoneStore(root), "a-later", { ...await readTrackerReleaseSnapshot(root), capturedAt: new Date(Date.parse(published.capturedAt) + 1000).toISOString() });
   await appendReleaseCorrection(root, { schema: 1, release: "v1", item: "accept-claim", milestone: published.fingerprint, id: "before-role-edit", supersedes: "", expectedRevision: published.fingerprint, wording: "Correction recorded before registry edits", evidence: ["docs/release-corrections.md"] });
   await schemaAddStatus("mutable_draft", { role: ["terminal", "terminal_done"] }, { pmRoot: root });
   await schemaAddStatus("mutable_done", { role: ["blocked"] }, { pmRoot: root });
@@ -70,7 +72,7 @@ try {
   await runCreate({ id: "selected-repair", title: "Selected tracker repair", type: "Issue", status: "open", createMode: "progressive", unset: ["parent", "goal", "objective", "sprint", "release"] }, { path: selectedRoot, author: "acceptance" });
   await new PmClient({ pmRoot: selectedRoot, author: "acceptance" }).update("selected-repair", { status: "shipped_elsewhere", closeReason: "Fixed selected defect", unset: ["parent", "goal", "objective", "sprint", "release"] });
   const prefix = join(scratch, "npm-global");
-  run("npm", ["install", "--global", "--prefix", prefix, "--ignore-scripts", "--no-audit", "--no-fund", archive, `@unbrained/pm-cli@${pinned}`]);
+  await run("npm", ["install", "--global", "--prefix", prefix, "--ignore-scripts", "--no-audit", "--no-fund", archive, `@unbrained/pm-cli@${pinned}`]);
   const extension = join(root, "extensions/pm-changelog");
   cpSync(join(prefix, "lib/node_modules/pm-changelog"), extension, { recursive: true });
   mkdirSync(join(extension, "node_modules"), { recursive: true });
@@ -159,7 +161,7 @@ try {
   const paths: string[] = [];
   let checks = 0;
   // Import the captured archive's SDK, rather than source or an unrelated installed version.
-  const headingChecks = run(process.execPath, ["--input-type=module", "-e", `
+  const headingChecks = await run(process.execPath, ["--input-type=module", "-e", `
     import assert from "node:assert/strict";
     import { buildAudienceContracts, formatAudienceContracts, buildAgentContractDrift, formatAgentContractDrift, buildConsumerUpgrades, formatConsumerUpgrades } from ${JSON.stringify(join(extension, "dist/index.js"))};
     const current = { id: "current", title: "Current", status: "closed", release: "2.0.0", change_facets: [{ audience: "operator", text: "Current" }] };
@@ -215,9 +217,9 @@ try {
   `]);
   assert.equal(headingChecks.trim(), "18"); checks += 18;
   /** Check actual append, exact replay and both compact views against the SDK-read state. */
-  async function accept(name: string, raw: (args: string[]) => string, host = false): Promise<void> {
-    const launch = (args: string[]): string => raw(host ? ["--path", root, "changelog", "corrections", ...args] : ["corrections", "--pm-root", root, ...args]);
-    const generate = (args: string[]): string => raw(host ? ["--path", root, "changelog", "generate", ...args] : ["--pm-root", root, ...args]);
+  async function accept(name: string, raw: (args: string[]) => Promise<string>, host = false): Promise<void> {
+    const launch = (args: string[]): Promise<string> => raw(host ? ["--path", root, "changelog", "corrections", ...args] : ["corrections", "--pm-root", root, ...args]);
+    const generate = (args: string[]): Promise<string> => raw(host ? ["--path", root, "changelog", "generate", ...args] : ["--pm-root", root, ...args]);
     const view = await readReleaseCorrectionView(root, "v1", "accept-claim");
     assert.equal(view.original, "Published acceptance claim");
     const wrongFile = join(scratch, "later-snapshot.json");
@@ -225,7 +227,7 @@ try {
     for (const wrong of [draft, later]) {
       writeFileSync(wrongFile, JSON.stringify({ schema: 1, release: wrong.name, item: "accept-claim", milestone: wrong.fingerprint, id: `wrong-${name}`, supersedes: "", expectedRevision: wrong.fingerprint, wording: "Unpublished snapshot wording must refuse", evidence: ["docs/release-corrections.md"] }));
       for (const format of ["json", "toon"]) for (const action of [["view", "--release", wrong.name, "--item", "accept-claim"], ["append", "--input", wrongFile]]) {
-        assert.throws(() => launch([...action, "--format", format]), (error: unknown) => {
+        await assert.rejects(() => launch([...action, "--format", format]), (error: unknown) => {
           assert.ok(error && typeof error === "object" && "stderr" in error);
           assert.match(String(error.stderr), /correction_missing/); return true;
         }); checks++;
@@ -234,16 +236,16 @@ try {
     const file = join(scratch, "correction.json");
     writeFileSync(file, JSON.stringify({ schema: 1, release: "v1", item: "accept-claim", milestone: view.milestone, id: name, supersedes: view.chain.at(-1)?.id ?? "", expectedRevision: view.revision,
       wording: `  Packed ${name} acceptance\r\n `, evidence: ["docs/release-corrections.md"] }));
-    assert.equal(JSON.parse(launch(["append", "--input", file, "--json"])).changed, true); checks++;
-    assert.equal(JSON.parse(launch(["append", "--input", file, "--json"])).changed, false); checks++;
+    assert.equal(JSON.parse(await launch(["append", "--input", file, "--json"])).changed, true); checks++;
+    assert.equal(JSON.parse(await launch(["append", "--input", file, "--json"])).changed, false); checks++;
     const expected = await readReleaseCorrectionView(root, "v1", "accept-claim");
     for (const flags of [["--json"], ["--format", "toon"]]) {
-      const output = launch(["view", "--release", "v1", "--item", "accept-claim", ...flags]);
+      const output = await launch(["view", "--release", "v1", "--item", "accept-claim", ...flags]);
       assert.deepEqual(flags[0] === "--json" ? JSON.parse(output) : decode(output), expected); checks++;
-      const oldOutput = launch(["view", "--release", "legacy-v2", "--item", "old-claim", ...flags]);
+      const oldOutput = await launch(["view", "--release", "legacy-v2", "--item", "old-claim", ...flags]);
       assert.deepEqual(flags[0] === "--json" ? JSON.parse(oldOutput) : decode(oldOutput), await readReleaseCorrectionView(root, "legacy-v2", "old-claim")); checks++;
     }
-    const wireDocument = JSON.parse(generate(["--milestones", "--changelog-json", "--suggest-semver", "--breaking-changes"])) as ChangelogDocument & { document?: ChangelogDocument };
+    const wireDocument = JSON.parse(await generate(["--milestones", "--changelog-json", "--suggest-semver", "--breaking-changes"])) as ChangelogDocument & { document?: ChangelogDocument };
     const document = host ? wireDocument.document! : wireDocument;
     assert.equal(document.excluded_non_change_count, 1); assert.equal(document.suggested_semver?.bump, "minor");
     assert.doesNotMatch(JSON.stringify(document), /Packed omitted duplicate/);
@@ -251,68 +253,68 @@ try {
     assert.equal(groups.find((group) => group.items.some((item) => item.id === "accept-neutral"))!.heading, "Closed");
     assert.equal(groups.find((group) => group.items.some((item) => item.id === "accept-repair"))!.heading, "Fixed");
     assert.ok(!document.releases.some((release) => release.breaking_changes?.some((item) => item.id?.startsWith("accept-")))); checks++;
-    const summary = JSON.parse(generate(["--milestones", "--summary", "--format", "json"])) as { entries: ChangelogSummaryEntry[]; excluded_non_change_count: number };
+    const summary = JSON.parse(await generate(["--milestones", "--summary", "--format", "json"])) as { entries: ChangelogSummaryEntry[]; excluded_non_change_count: number };
     assert.equal(summary.excluded_non_change_count, 1);
     assert.equal(summary.entries.find((entry) => entry.id === "accept-neutral")!.category, "Closed");
     assert.ok(!summary.entries.some((entry) => entry.id === "accept-duplicate")); checks++;
-    const semver = JSON.parse(generate(["--milestones", "--suggest-semver", host ? "--explain-selection" : "--explain", "--json"])) as SemverSuggestion & { suggested_semver?: SemverSuggestion; excluded_non_change_count: number; selection_report: ChangelogSelectionReport };
+    const semver = JSON.parse(await generate(["--milestones", "--suggest-semver", host ? "--explain-selection" : "--explain", "--json"])) as SemverSuggestion & { suggested_semver?: SemverSuggestion; excluded_non_change_count: number; selection_report: ChangelogSelectionReport };
     assert.equal((host ? semver.suggested_semver! : semver).bump, "minor"); assert.equal(semver.excluded_non_change_count, 1); assert.equal(semver.selection_report.excluded_counts.non_change, 1); checks++;
     const omitted = join(scratch, "omitted-claim.json");
     writeFileSync(omitted, JSON.stringify({ schema: 1, release: "v1", item: "accept-duplicate", milestone: published.fingerprint, id: "unpublished", supersedes: "", expectedRevision: published.fingerprint, wording: "No published claim", evidence: ["docs/release-corrections.md"] }));
     for (const format of ["json", "toon"]) for (const action of [["view", "--release", "v1", "--item", "accept-duplicate"], ["append", "--input", omitted]]) {
-      assert.throws(() => launch([...action, "--format", format]), (error: unknown) => {
+      await assert.rejects(() => launch([...action, "--format", format]), (error: unknown) => {
         assert.ok(error && typeof error === "object" && "stderr" in error); assert.match(String(error.stderr), /correction_missing/); return true;
       }); checks++;
     }
     assert.equal((await client.notes("accept-duplicate")).count, 0);
-    const laterLaunch = (args: string[]): string => raw(host ? ["--path", lifecycleRoot, "changelog", "corrections", ...args] : ["corrections", "--pm-root", lifecycleRoot, ...args]);
-    const laterGenerate = (args: string[]): string => raw(host ? ["--path", lifecycleRoot, "changelog", "generate", ...args] : ["--pm-root", lifecycleRoot, ...args]);
+    const laterLaunch = (args: string[]): Promise<string> => raw(host ? ["--path", lifecycleRoot, "changelog", "corrections", ...args] : ["corrections", "--pm-root", lifecycleRoot, ...args]);
+    const laterGenerate = (args: string[]): Promise<string> => raw(host ? ["--path", lifecycleRoot, "changelog", "generate", ...args] : ["--pm-root", lifecycleRoot, ...args]);
     const laterView = await readReleaseCorrectionView(lifecycleRoot, "v2", "later-repair");
     const lifecycleFile = join(scratch, "lifecycle-correction.json");
     writeFileSync(lifecycleFile, JSON.stringify({ schema: 1, release: "v1", item: "later-repair", milestone: omittedCapture.fingerprint, id: name, supersedes: "", expectedRevision: omittedCapture.fingerprint, wording: "Unpublished duplicate must refuse", evidence: ["docs/release-corrections.md"] }));
     for (const format of ["json", "toon"]) for (const action of [["view", "--release", "v1", "--item", "later-repair"], ["append", "--input", lifecycleFile]]) {
-      assert.throws(() => laterLaunch([...action, "--format", format]), (error: unknown) => {
+      await assert.rejects(() => laterLaunch([...action, "--format", format]), (error: unknown) => {
         assert.ok(error && typeof error === "object" && "stderr" in error); assert.match(String(error.stderr), /correction_missing/); return true;
       }); checks++;
     }
     writeFileSync(lifecycleFile, JSON.stringify({ schema: 1, release: "v2", item: "later-repair", milestone: repairCapture.fingerprint, id: name, supersedes: laterView.chain.at(-1)?.id ?? "", expectedRevision: laterView.revision, wording: `Reviewed later repair ${name}`, evidence: ["docs/release-corrections.md"] }));
-    assert.equal(JSON.parse(laterLaunch(["append", "--input", lifecycleFile, "--json"])).changed, true); checks++;
-    assert.equal(JSON.parse(laterLaunch(["append", "--input", lifecycleFile, "--json"])).changed, false); checks++;
+    assert.equal(JSON.parse(await laterLaunch(["append", "--input", lifecycleFile, "--json"])).changed, true); checks++;
+    assert.equal(JSON.parse(await laterLaunch(["append", "--input", lifecycleFile, "--json"])).changed, false); checks++;
     for (const format of ["json", "toon"]) {
-      const output = laterLaunch(["view", "--release", "v2", "--item", "later-repair", "--format", format]);
+      const output = await laterLaunch(["view", "--release", "v2", "--item", "later-repair", "--format", format]);
       assert.deepEqual(format === "json" ? JSON.parse(output) : decode(output), await readReleaseCorrectionView(lifecycleRoot, "v2", "later-repair")); checks++;
     }
-    const laterWire = JSON.parse(laterGenerate(["--milestones", "--changelog-json", "--suggest-semver"])) as ChangelogDocument & { document?: ChangelogDocument };
+    const laterWire = JSON.parse(await laterGenerate(["--milestones", "--changelog-json", "--suggest-semver"])) as ChangelogDocument & { document?: ChangelogDocument };
     const laterDocument = host ? laterWire.document! : laterWire;
     assert.equal(laterDocument.item_count, 1); assert.equal(laterDocument.excluded_non_change_count, 1);
     assert.equal(laterDocument.releases.flatMap((release) => release.sections.flatMap((section) => section.items)).filter((item) => item.id === "later-repair").length, 1); checks++;
-    const laterSummary = JSON.parse(laterGenerate(["--milestones", "--summary", "--format", "json"])) as { entries: ChangelogSummaryEntry[] };
+    const laterSummary = JSON.parse(await laterGenerate(["--milestones", "--summary", "--format", "json"])) as { entries: ChangelogSummaryEntry[] };
     assert.equal(laterSummary.entries.length, 1); assert.equal(laterSummary.entries[0].title, "Packed later repaired claim"); checks++;
-    const laterSemver = JSON.parse(laterGenerate(["--milestones", "--suggest-semver", "--json"])) as SemverSuggestion & { suggested_semver?: SemverSuggestion };
+    const laterSemver = JSON.parse(await laterGenerate(["--milestones", "--suggest-semver", "--json"])) as SemverSuggestion & { suggested_semver?: SemverSuggestion };
     assert.equal((host ? laterSemver.suggested_semver! : laterSemver).bump, "patch"); checks++;
     assert.equal(createHash("sha512").update(readFileSync(archive)).digest("hex"), archiveSha512);
     if (!host) {
-      const selected = (args: string[]): string => raw(["--pm-arg=--path", `--pm-arg=${selectedRoot}`, ...args]);
-      assert.equal((JSON.parse(selected(["--changelog-json"])) as ChangelogDocument).item_count, 1); checks++;
-      assert.equal((JSON.parse(selected(["--summary", "--format", "json"])) as { entries: ChangelogSummaryEntry[] }).entries[0].title, "Selected tracker repair"); checks++;
-      assert.equal((JSON.parse(selected(["--suggest-semver", "--json"])) as SemverSuggestion).counts.fix, 1); checks++;
+      const selected = (args: string[]): Promise<string> => raw(["--pm-arg=--path", `--pm-arg=${selectedRoot}`, ...args]);
+      assert.equal((JSON.parse(await selected(["--changelog-json"])) as ChangelogDocument).item_count, 1); checks++;
+      assert.equal((JSON.parse(await selected(["--summary", "--format", "json"])) as { entries: ChangelogSummaryEntry[] }).entries[0].title, "Selected tracker repair"); checks++;
+      assert.equal((JSON.parse(await selected(["--suggest-semver", "--json"])) as SemverSuggestion).counts.fix, 1); checks++;
       for (const format of ["json", "toon"]) {
-        const output = selected(["--audit-evidence", ...(format === "json" ? ["--json"] : [])]);
+        const output = await selected(["--audit-evidence", ...(format === "json" ? ["--json"] : [])]);
         const audit = (format === "json" ? JSON.parse(output) : decode(output)) as { claim_count: number };
         assert.equal(audit.claim_count, 1); checks++;
       }
     }
     const driftBefore = (await listAllComplete({ includeBody: true }, { pmRoot: driftRoot })).items;
-    const drift = (args: string[]): string => raw(host ? ["--path", driftRoot, "changelog", "drift", ...args] : ["drift", "--pm-root", driftRoot, ...args]);
+    const drift = (args: string[]): Promise<string> => raw(host ? ["--path", driftRoot, "changelog", "drift", ...args] : ["drift", "--pm-root", driftRoot, ...args]);
     for (const format of ["json", "toon"]) {
-      const output = drift(["--from", "1.0.0", "--to", "5.0.0", "--format", format]);
+      const output = await drift(["--from", "1.0.0", "--to", "5.0.0", "--format", format]);
       assert.deepEqual(format === "json" ? JSON.parse(output) : decode(output), driftExpected); checks++;
     }
-    assert.throws(() => drift(["--from", "1.0.0", "--to", "5.0.0", "--format", "xml"]), (error: unknown) => {
+    await assert.rejects(() => drift(["--from", "1.0.0", "--to", "5.0.0", "--format", "xml"]), (error: unknown) => {
       assert.ok(error && typeof error === "object" && "stderr" in error); assert.match(String(error.stderr), /invalid_drift_options/); return true;
     }); checks++;
     for (const format of ["json", "toon"]) {
-      const output = raw(host ? ["--path", driftRoot, "changelog", "upgrades", "--audience", "agent-behavior", "--from", "1.0.0", "--to", "5.0.0", "--format", format]
+      const output = await raw(host ? ["--path", driftRoot, "changelog", "upgrades", "--audience", "agent-behavior", "--from", "1.0.0", "--to", "5.0.0", "--format", format]
         : ["upgrades", "--pm-root", driftRoot, "--audience", "agent-behavior", "--from", "1.0.0", "--to", "5.0.0", "--format", format]);
       assert.deepEqual(format === "json" ? JSON.parse(output) : decode(output), upgradeExpected); checks++;
     }
@@ -320,21 +322,21 @@ try {
     const calendarBefore = (await listAllComplete({ includeBody: true }, { pmRoot: calendarRoot })).items;
     for (const format of ["json", "toon"]) for (const command of ["drift", "upgrades"]) {
       const args = ["--from", calendarRange.from, "--to", calendarRange.to, "--format", format, ...(command === "upgrades" ? ["--audience", "agent-behavior"] : [])];
-      const output = raw(host ? ["--path", calendarRoot, "changelog", command, ...args] : [command, "--pm-root", calendarRoot, ...args]);
+      const output = await raw(host ? ["--path", calendarRoot, "changelog", command, ...args] : [command, "--pm-root", calendarRoot, ...args]);
       assert.deepEqual(format === "json" ? JSON.parse(output) : decode(output), command === "drift" ? calendarDrift : calendarUpgrades); checks++;
     }
     assert.deepEqual((await listAllComplete({ includeBody: true }, { pmRoot: calendarRoot })).items, calendarBefore); checks++;
     const unicodeBefore = (await listAllComplete({ includeBody: true }, { pmRoot: unicodeRoot })).items;
     for (const format of ["json", "toon"]) for (const command of ["drift", "contracts", "upgrades"]) {
       const args = command === "contracts" ? ["--group-by", "release"] : ["--from", unicodeRange.from, "--to", unicodeRange.to, ...(command === "upgrades" ? ["--audience", "agent-behavior"] : [])];
-      const output = raw(host ? ["--path", unicodeRoot, "changelog", command, ...args, "--format", format] : [command, "--pm-root", unicodeRoot, ...args, "--format", format]);
+      const output = await raw(host ? ["--path", unicodeRoot, "changelog", command, ...args, "--format", format] : [command, "--pm-root", unicodeRoot, ...args, "--format", format]);
       assert.deepEqual(format === "json" ? JSON.parse(output) : decode(output), command === "drift" ? unicodeDrift : command === "contracts" ? unicodeAudience : unicodeUpgrades); checks++;
     }
     assert.deepEqual((await listAllComplete({ includeBody: true }, { pmRoot: unicodeRoot })).items, unicodeBefore); checks++;
     const orphanBefore = (await listAllComplete({ includeBody: true }, { pmRoot: orphanRoot })).items;
     for (const { from, report } of orphanReports) for (const format of ["json", "toon"]) {
       const args = ["--from", from, "--to", "2.0.0", "--format", format];
-      const output = raw(host ? ["--path", orphanRoot, "changelog", "drift", ...args] : ["drift", "--pm-root", orphanRoot, ...args]);
+      const output = await raw(host ? ["--path", orphanRoot, "changelog", "drift", ...args] : ["drift", "--pm-root", orphanRoot, ...args]);
       assert.deepEqual(format === "json" ? JSON.parse(output) : decode(output), report); checks++;
     }
     assert.deepEqual((await listAllComplete({ includeBody: true }, { pmRoot: orphanRoot })).items, orphanBefore); checks++;
@@ -342,12 +344,12 @@ try {
   }
   await accept("npm-global", (args) => run(join(prefix, "bin/pm-changelog"), args));
   await accept("npm-global-host", (args) => run(join(prefix, "bin/pm"), args), true);
-  run("bun", ["add", "--global", "--ignore-scripts", archive, `@unbrained/pm-cli@${pinned}`]);
+  await run("bun", ["add", "--global", "--ignore-scripts", archive, `@unbrained/pm-cli@${pinned}`]);
   await accept("bun-global", (args) => run(join(childEnv.BUN_INSTALL, "bin/pm-changelog"), args));
   await accept("bun-global-host", (args) => run(join(childEnv.BUN_INSTALL, "bin/pm"), args), true);
   for (const manager of ["npm", "bun"]) {
     const cwd = join(scratch, `${manager}-local`); mkdirSync(cwd); writeFileSync(join(cwd, "package.json"), JSON.stringify({ private: true, type: "module" }));
-    run(manager, [manager === "npm" ? "install" : "add", "--ignore-scripts", archive, `@unbrained/pm-cli@${pinned}`], cwd);
+    await run(manager, [manager === "npm" ? "install" : "add", "--ignore-scripts", archive, `@unbrained/pm-cli@${pinned}`], cwd);
     await accept(`${manager}-local`, (args) => run(join(cwd, "node_modules/.bin/pm-changelog"), args, cwd));
   }
   await accept("npx", (args) => run("npx", ["--yes", "--package", archive, "--package", `@unbrained/pm-cli@${pinned}`, "pm-changelog", ...args]));

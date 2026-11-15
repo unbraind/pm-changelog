@@ -1,3 +1,4 @@
+import { testDepth } from "./support/depth.ts";
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
 import { cpSync, mkdirSync, mkdtempSync, readFileSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
@@ -67,7 +68,7 @@ test("500 registry and round-trip sequences cannot reinterpret captured publicat
     await assert.rejects(readReleaseCorrectionView(root, "v1", "freeze-claim"), { code: "correction_missing" });
   }
   let seed = 0x291f2;
-  for (let sequence = 0; sequence < 500; sequence++) {
+  for (let sequence = 0; sequence < testDepth(500); sequence++) {
     seed = (Math.imul(seed, 1664525) + 1013904223) >>> 0;
     const registry = pool[seed % pool.length];
     const captures = seed & 16 ? [draft, released] : [released, draft];
@@ -92,7 +93,7 @@ test("500 registry and round-trip sequences cannot reinterpret captured publicat
   assert.deepEqual(future.doneItemIds, []);
   assert.equal(resolveTrackerReleaseLedger(await readReleaseMilestones(store)).claims.get("freeze-claim")!.milestone.name, "v2");
   assert.deepEqual(await readReleaseCorrectionView(root, "v2", "freeze-claim"), original);
-  t.diagnostic("seed=0x291f2 sequences=500; SDK role/alias changes, older-input round trips, frozen history and SDK-read correction state");
+  t.diagnostic(`seed=0x291f2 sequences=${testDepth(500)}; SDK role/alias changes, older-input round trips, frozen history and SDK-read correction state`);
 });
 
 test("publication eligibility is validated and fingerprint-bound; released schema-1 fixtures stay unchanged", async (t) => {

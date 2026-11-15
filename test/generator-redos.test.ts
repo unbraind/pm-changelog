@@ -1,3 +1,4 @@
+import { scaledBudget } from "../scripts/acceptance-process.ts";
 import assert from "node:assert/strict";
 import { spawn } from "node:child_process";
 import { dirname, join } from "node:path";
@@ -6,13 +7,13 @@ import test from "node:test";
 
 const WORKER = join(dirname(fileURLToPath(import.meta.url)), "generator-redos-worker.ts");
 const PATHOLOGICAL_SIZE = 50_000;
-const STARTUP_BUDGET_MS = 5_000;
-const OPERATION_BUDGET_MS = 250;
-const OPERATION_WATCHDOG_MS = 5_000;
+const STARTUP_BUDGET_MS = scaledBudget(5_000);
+const OPERATION_BUDGET_MS = scaledBudget(250);
+const OPERATION_WATCHDOG_MS = scaledBudget(5_000);
 
 /** Run one synchronous generator path in an already-loaded child process so a
  * pre-fix backtracking hang can be terminated and the budget excludes module
- * startup. CPU usage retains the 250ms algorithm budget when the OS deschedules
+ * startup. CPU usage retains a scaled algorithm budget when the OS deschedules
  * a worker; a separate wall watchdog still terminates a backtracking hang. */
 function assertCompletesWithinBudget(operation: string, budgetMs = OPERATION_BUDGET_MS): Promise<void> {
   return new Promise((resolve, reject) => {
@@ -115,6 +116,6 @@ test("GitHub URL rejection completes for a long non-GitHub URL", async () => {
 
 for (const operation of ["container-lists", "container-quotes", "container-mixed", "container-separator", "container-near-separator"]) {
   test(`hostile ${operation} remains bounded across blank continuations and all Markdown splices`, async () => {
-    await assertCompletesWithinBudget(operation, 1000);
+    await assertCompletesWithinBudget(operation, scaledBudget(1000));
   });
 }

@@ -1,3 +1,4 @@
+import { testDepth } from "./support/depth.ts";
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
 import { cpSync, mkdirSync, mkdtempSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
@@ -123,7 +124,7 @@ test("baseline replay: 500 seeded histories match one reference model across int
   const next = random(0x298ba5e);
   type Event = { day: number; id: string; definition: { id: string; assumption: string; commands: string[] } | null;
     items: string[]; evidence: string[]; sources: { item: string; facet: number; obligation: number; reason: "orphan_removal" }[] };
-  for (let sequence = 0; sequence < 500; sequence++) {
+  for (let sequence = 0; sequence < testDepth(500); sequence++) {
     const events: Event[] = [], items: PmItem[] = [];
     for (let day = 1; day <= 13; day++) for (const id of ["alpha", "beta", "constructor"]) {
       if (next() % 4 === 0) continue;
@@ -234,7 +235,7 @@ test("release scope: 500 future-metadata variants cannot change reports, errors,
     [{ audience: "agent-behavior", obligations: "bad" }],
     [{ audience: "operator", text: "Future", breaking: true, upgrade_actions: [{ id: "upgrade", title: "Conflicting future assumption", requires: [] }] }]];
   const next = random(0x298b0a), seen = new Set<number>();
-  for (let index = 0; index < 500; index++) {
+  for (let index = 0; index < testDepth(500); index++) {
     const release = ["v3.0.0", "2.0.0-1", "2026.10.28-1"][next() % 3], variant = next() % malformed.length;
     seen.add(variant);
     const future = change(`future-${index}`, release, malformed[variant]);
@@ -270,7 +271,7 @@ test("release headings: 500 generated window and persisted heading variants shar
   const decorate = (version: string, variant: number): string => [version, `${version} - 2026-10-29`,
     `v${version} - 2026-10-29`, ` [v${version}] - 2026-10-29 `,
     `[${version}](https://example.invalid/release) - 2026-10-29`, ` V${version}  -  2026-10-29 `][variant];
-  for (let index = 0; index < 500; index++) {
+  for (let index = 0; index < testDepth(500); index++) {
     const variant = next() % 6; seen.add(variant);
     const heading = decorate("3.0.0", variant), present = decorate("2.0.0", next() % 6);
     const bad = [null, [null], { invalid: true }, [{ audience: "operator", text: "Future published prose" }], facet][next() % 5];
@@ -328,7 +329,7 @@ test("release padding: 500 canonical models preserve padded obligations, bounds,
   const old = facets("Read revision", "baseline", []), current = facets("Read revision and history", "upgrade", ["baseline"]);
   const example = buildAgentContractDrift({ from: "2026.6.1", to: "2026.6.8", items: [change("example", "v2026.06.07", current)] });
   assert.equal(example.changes.length, 1); assert.equal(example.changes[0].release, "2026.6.7"); assert.equal(example.complete, true);
-  for (let index = 0; index < 500; index++) {
+  for (let index = 0; index < testDepth(500); index++) {
     const year = index % 2 ? 2020 + next() % 100 : 1 + next() % 20, month = 1 + next() % 12, day = 2 + next() % 26;
     const suffix = ["", "-1", "-2"][next() % 3], variant = next() % 6; seen.add(variant);
     const canonical = (value: number) => `${year}.${month}.${value}${suffix}`;

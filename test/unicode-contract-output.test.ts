@@ -1,3 +1,4 @@
+import { testDepth } from "./support/depth.ts";
 import { formatLocalTimestampDate } from "../src/release-context.ts";
 import { cpSync, mkdirSync, mkdtempSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
 import { join, resolve, dirname } from "node:path";
@@ -41,7 +42,7 @@ function strings(): string[] {
   let state = 0x298f16;
   const next = () => { state = (Math.imul(state, 1664525) + 1013904223) >>> 0; return state; };
   const edge = ["\ud800", "\udfff", "\ud800X\udc00", "\ud83d\ude00", "\u0000\f\b\r\n\t", "é漢字", '"\\', "plain"];
-  return Array.from({ length: 500 }, (_, index) => `text ${edge[index % edge.length]} ${Array.from({ length: next() % 16 }, () => String.fromCharCode(next() & 0xffff)).join("")}`);
+  return Array.from({ length: testDepth(500) }, (_, index) => `text ${edge[index % edge.length]} ${Array.from({ length: next() % 16 }, () => String.fromCharCode(next() & 0xffff)).join("")}`);
 }
 /** Decode the audit format's documented JSON scalar cells through the real TOON codec. */
 function decodeAudit(output: string): unknown {
@@ -127,8 +128,10 @@ test("Unicode boundary: 500 random strings in every declaration and report text 
     }
   }
   });
-  assert.ok(attempted > 30000);
-  t.diagnostic(`seed=0x298f16 strings=500 text_field_cases=${attempted}; JSON/TOON producer/refusal parity`);
+  const fieldsPerString = reports.reduce((count, report) => count + fields(report.value).length, 0);
+  assert.ok(fieldsPerString > 60);
+  assert.equal(attempted, fieldsPerString * testDepth(500));
+  t.diagnostic(`seed=0x298f16 strings=${testDepth(500)} text_field_cases=${attempted}; JSON/TOON producer/refusal parity`);
 });
 
 test("Unicode boundary: dynamic keys, shared references, sparse arrays and non-JSON projections stay safe", () => {

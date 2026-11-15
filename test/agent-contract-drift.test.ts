@@ -1,3 +1,4 @@
+import { testDepth } from "./support/depth.ts";
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
 import { cpSync, mkdirSync, mkdtempSync, readFileSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
@@ -226,7 +227,7 @@ function random(seed: number): () => number {
 test("500 random custom status registries publish only SDK done roles irrespective of names or aliases", () => {
   const next = random(0x9a71c);
   const roles = [["active"], ["blocked"], ["terminal", "terminal_canceled"], ["terminal", "terminal_done"]] as const;
-  for (let sequence = 0; sequence < 500; sequence++) {
+  for (let sequence = 0; sequence < testDepth(500); sequence++) {
     const statuses = Array.from({ length: 4 }, (_, index) => {
       const kind = next() % roles.length;
       return { id: `state_${next().toString(36)}_${index}`, aliases: [`alias_${next().toString(36)}`], roles: [...roles[kind]], kind };
@@ -255,7 +256,7 @@ test("500 seeded SDK-read model sequences cover old replays, whitespace, relatio
       file: ["path=fixture.ts"], doc: ["path=fixture.md"], test: ["command=node --version"], comment: ["text=fixture comment"], note: ["text=fixture note"], learning: ["text=fixture learning"],
       unset: ["parent", "goal", "objective", "sprint", "assignee", "reviewer"] }, { path: root, author: "fixture" });
     const baseline = (await listAllComplete({ includeBody: true }, { pmRoot: root })).items.find((item) => item.id === "fixture-target")!;
-    for (let sequence = 0; sequence < 500; sequence++) {
+    for (let sequence = 0; sequence < testDepth(500); sequence++) {
       const variant = variants[next() % variants.length];
       const state = { body: variant, release: `${2 + next() % 9}.0.0`, priority: next() % 5, tags: ["native", `variant-${next() % 4}`], dep: next() % 2 ? "fixture-parent" : "fixture-related",
         status: `custom_${next() % 4}`, facets: [{ audience: "agent-behavior" as const, text: variant,
@@ -285,5 +286,5 @@ test("500 seeded SDK-read model sequences cover old replays, whitespace, relatio
       }
     }
   });
-  t.diagnostic("seed=0x6dc1f7 sequences=500; each applies current, older replay and current input; SDK-read native state, relationships, roles and both encodings");
+  t.diagnostic(`seed=0x6dc1f7 sequences=${testDepth(500)}; each applies current, older replay and current input; SDK-read native state, relationships, roles and both encodings`);
 });
