@@ -6,16 +6,18 @@ status: in_progress
 priority: 2
 tags[3]: ci,performance,validation
 created_at: "2026-11-10T23:28:19.082Z"
-updated_at: "2026-11-15T09:49:48.113Z"
+updated_at: "2026-11-15T10:05:47.765Z"
 assignee: codex-sol
 claim_principal: codex-sol
 author: codex-changelog337
 acceptance_criteria: Measure representative native lifecycle execution and identify dominant costs without weakening existing assertions or silently reducing the 500-case corpus
-comments[4]{created_at,author,text}:
+comments[6]{created_at,author,text}:
   "2026-11-10T23:48:48.566Z",codex-changelog337,"Follow-up evidence: the subsequent timeout 2700 npm test passed all 1050 tests in 1181.6 seconds of reported runner time. The existing 500-native-lifecycle test passed in 908.3 seconds. The earlier 1200-second aggregate importer batch still canceled this file after 154 other passed tests; investigate batch composition and runtime variability rather than assuming a semantic regression. No assertions or case counts were changed."
   "2026-11-11T23:17:40.764Z",codex-changelog339-1111,"Round-5 PR 341 bounded importer gate: test/release-lifecycles.test.ts reached its explicit 1200-second file cap (exit 124; wall 1200.05 seconds). Its first omitted/filtered repair case passed in 9.20 seconds; the native 500-lifecycle case did not complete and reported no assertion failure before termination. This is incomplete validation, not a passing gate. The 51-file gate uses at most two workers with isolated HOME/Git settings; remaining files continue. No stress scale, timeout or coverage threshold was weakened; source fixes remain scoped to the three review findings. Current-head lifecycle/full-release certification is deferred to CI under the requested cap."
   "2026-11-15T09:42:55.641Z",codex-sol,"Reusing the existing slow-gate item for Fleet CI v2; companion pm-cli-website-dyhg. Preserve the full 500-case corpus by default, select deterministic quick prefixes on PRs, move exhaustive lifecycle proofs to deep, and retain every original gate. Required contexts verified: test (22), test (26); CodeQL is not required. Local-runner job logs show five container corpus CPU watchdog overruns, not assertion failures. Release caller workflows and verifier scripts are out of scope."
   "2026-11-15T09:48:08.731Z",codex-sol,"Static validation passed: typecheck, test typecheck, docstring gate (62 files, 299 documented declarations), strict YAML parse, git diff --check. No lint script exists. Full depth is reserved for deep CI; touched suites are running at quick depth with scaled safety budgets. Original main run 43684138283 measured lifecycle 24m45s, Node 26 27m24s, Node 22 52m21s. Direct job-log API was needed because gh run view --log returned empty content. Packed release gate itself scans contents rather than installs: add a real Bun project tarball + bunx smoke to PRs; retain the 488-check installation matrix in deep lifecycle."
+  "2026-11-15T10:04:34.788Z",codex-sol,"Local touched-suite run completed in 911.4s: 305 passed, one failed, zero skipped/canceled. All five hostile container tests passed at time scale 3; the portable fresh-clone/archive proof controls passed in 516.3s, and the quick native lifecycle corpus passed in 163.8s. Only failure: the Unicode field-count summary still expected the full 500-string count. Replace it with an exact count of report fields times selected corpus depth, retaining more than 60 fields per string and every per-case assertion. Rerun only the changed Unicode file; hosted PR checks remain queued before any execution."
+  "2026-11-15T10:05:47.760Z",codex-sol,Unicode-only rerun passed all three tests at quick depth and time scale 3 after the exact field-count fix. The previous 305 passing tests are unchanged. No full-depth run or duplicate aggregate run was started locally. Coverage certification remains the PR quick gate at the original thresholds.
 files[8]{path,scope}:
   .github/workflows/ci-deep.yml,project
   .github/workflows/ci.yml,project
@@ -25,7 +27,7 @@ files[8]{path,scope}:
   scripts/run-packed-acceptance.ts,project
   test/release-lifecycles.test.ts,project
   test/support/depth.ts,project
-tests[2]:
+tests[3]:
   - command: "npm run typecheck && npm run build:test && npm run docstring"
     scope: project
     provenance:
@@ -39,6 +41,14 @@ tests[2]:
     provenance:
       author: codex-sol
       created_at: "2026-11-15T09:47:25.116Z"
+      source_kind: local_mutation
+      source_ref: ci/quick-pr-tier-deep-local-tier
+  - command: env PM_TEST_DEPTH=quick PM_TEST_TIME_SCALE=3 node --test test/unicode-contract-output.test.ts
+    scope: project
+    timeout_seconds: 240
+    provenance:
+      author: codex-sol
+      created_at: "2026-11-15T10:04:36.763Z"
       source_kind: local_mutation
       source_ref: ci/quick-pr-tier-deep-local-tier
 docs[1]{path,scope}:

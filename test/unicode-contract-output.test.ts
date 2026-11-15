@@ -128,7 +128,9 @@ test("Unicode boundary: 500 random strings in every declaration and report text 
     }
   }
   });
-  assert.ok(attempted > 30000);
+  const fieldsPerString = reports.reduce((count, report) => count + fields(report.value).length, 0);
+  assert.ok(fieldsPerString > 60);
+  assert.equal(attempted, fieldsPerString * testDepth(500));
   t.diagnostic(`seed=0x298f16 strings=${testDepth(500)} text_field_cases=${attempted}; JSON/TOON producer/refusal parity`);
 });
 
