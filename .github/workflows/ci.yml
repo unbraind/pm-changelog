@@ -16,9 +16,9 @@ jobs:
   test:
     # Required checks stay on fast GitHub-hosted hardware.
     runs-on: ubuntu-latest
-    # Quick tier executes in about 6-7 min. A hung step must not hold a hosted slot for the default 6 h:
-    # on 2026-11-15 three fleet release-gate jobs hung for 90+ min until another session cancelled them.
-    timeout-minutes: 30
+    # Measured quick execution: Node 22 4m51s, Node 26 8m18s.
+    # About three times those durations; hung jobs must release hosted slots.
+    timeout-minutes: ${{ matrix.node-version == 22 && 15 || 25 }}
     env:
       PM_TEST_DEPTH: quick
     strategy:

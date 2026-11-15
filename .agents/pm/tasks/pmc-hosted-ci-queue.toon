@@ -1,0 +1,15 @@
+id: pmc-hosted-ci-queue
+title: Investigate hosted runner queue latency after Fleet CI v2
+description: "Operational follow-up from pmc-lifecycle-test-budget and companion pm-cli-website-dyhg. PR 358 required hosted checks have waited without an executing job. A read-only fleet sample at 10:07 UTC on 2026-11-15 found older hosted jobs running for more than two hours. Coordinate fleet-wide queue recovery and measure queue-inclusive latency after rollout. Do not change this package to self-hosted PR checks, edit protection/variables, or cancel unrelated jobs within the CI v2 package task."
+type: Task
+status: open
+priority: 2
+tags[2]: ci,performance
+created_at: "2026-11-15T10:18:23.606Z"
+updated_at: "2026-11-15T11:40:30.212Z"
+author: codex-sol
+acceptance_criteria: Separate created-to-start queue time from execution time for both required checks; identify capacity owners and confirm the account-wide recovery plan; remeasure the less-than-15-minute PR target after queue recovery
+comments[2]{created_at,author,text}:
+  "2026-11-15T10:18:25.270Z",codex-sol,"Read-only investigation only. Keep operational ownership with the fleet orchestrator. The package CI v2 task already removes the serial PR lifecycle job, removes duplicate full release gates from PRs, cancels superseded runs, and bounds every hosted job. Other repositories and active runs have not been changed."
+  "2026-11-15T11:40:30.211Z",codex-sol,"Confirmed implementation-run queue-inclusive target miss: Node 26 waited 70m37s and executed 8m18s; Node 22 waited 88m20s and executed 4m51s. Both checks passed in run 43702407084 at fe5452d. Package execution is below 15 minutes; hosted waiting dominates. No unrelated run or repository setting was changed. Owner coordination is required for capacity recovery."
+body: ""

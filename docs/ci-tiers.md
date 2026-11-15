@@ -1,13 +1,14 @@
 # Fleet CI v2
 
 The required contexts are exactly `test (22)` and `test (26)`. PRs and manual
-dispatch use GitHub-hosted Ubuntu with quick deterministic seed prefixes and a
-30-minute job timeout. Superseded PR runs cancel. There is no push trigger on
-this tier and no dependency on the exhaustive lifecycle job.
+dispatch use GitHub-hosted Ubuntu with quick deterministic seed prefixes. Node 22 jobs have a 15-minute limit
+and Node 26 jobs a 25-minute limit, each about three times measured execution. Superseded PR runs cancel. There is no push trigger on
+this tier and no dependency on the exhaustive lifecycle job. CodeQL runs once
+in its separate workflow; its table row lists triggers, not a matrix step.
 
 | Check / contract | PR Node 22 | PR Node 26 | Docs/tracker-only PR (both) | Deep |
 | --- | --- | --- | --- | --- |
-| npm ci / merge driver preparation | yes | yes | yes | both Node versions + lifecycle |
+| npm ci / merge driver preparation | yes | yes | yes | npm ci all jobs; prepare on matrix |
 | Strict tracker health with exact legacy provenance baseline | — | yes | yes | both Node versions |
 | Build + complete test suite | quick | quick via coverage | — | full, npm + Bun, Node 22/26 |
 | Typecheck + test typecheck | via tests | yes | — | full release gates |
@@ -20,7 +21,7 @@ this tier and no dependency on the exhaustive lifecycle job.
 | Committed dist matches fresh build, including untracked outputs | — | yes | — | Node 22/26 |
 | Direct Bun CLI + SDK milestone runtime smoke | — | yes | — | Node 22/26 |
 | Packed Bun project install + bunx CLI help | — | yes | — | full packed matrix in lifecycle |
-| Registered correction + milestone proofs; focused tracker/closure/publication/ownership suites | — | via applicable tests | — | exhaustive credential-isolated lifecycle |
+| Registered correction + milestone pm test commands; credential-isolated focused suites | — | — | — | exhaustive lifecycle |
 | Lifecycle behavioral reverts, agent-contract and itemless-pending reverts | — | — | — | exhaustive lifecycle |
 | Packed correction acceptance: npm/Bun global + project, npx/bunx, 488 checks / 8 launchers | — | — | — | lifecycle |
 | Public read-only tracker correction + agent-contract validation | — | — | — | lifecycle |
@@ -30,7 +31,9 @@ Docs/tracker-only means every changed path matches `.agents/pm/**`, `*.md`,
 `docs/**`, `CHANGELOG.md`, or `LICENSE`. Executable JS/TS files under the tracker
 select code validation. NUL-safe PR endpoint comparison disables rename folding,
 so a source deletion disguised as a move into documentation still selects code.
-The cheap path runs only npm ci, tracker health and changelog consistency. Checks
+Node 22 keeps existing packaging fixtures inside its complete test suite, with
+no separate coverage, changelog or pack command. The cheap path runs only npm ci,
+tracker health and changelog consistency. Checks
 remain present; the required workflow itself has no path filters.
 
 Health invokes `pm health --strict-exit --require-merge-drivers`. This repository
@@ -61,13 +64,17 @@ project installation + bunx smoke and retains the direct Bun runtime smoke.
 The exhaustive packed acceptance in lifecycle already proves npm/Bun global and
 project installs, npx/bunx, SDK and host-extension behavior. Its outer process-tree
 watchdog uses the pilot's tested async helper, with a 30-minute total budget
-scaled by PM_TEST_TIME_SCALE; individual synchronous command budgets scale from
-three minutes. All their children inherit the outer group, so expiration kills
-the whole packed invocation. POSIX uses process-group termination and Windows
+scaled by PM_TEST_TIME_SCALE; each individual command also uses the async
+process-tree runner with a scaled three-minute budget. Expected CLI refusals
+retain their captured stderr and use awaited rejection assertions. Each command
+owns its process group; the outer watchdog gives the acceptance supervisor one
+second to forward cancellation before hard termination. POSIX uses process-group termination and Windows
 uses taskkill /T /F. Small process-tree fixtures verify deadline and cancellation.
 
 Run 43623024195 failed five hostile container tests on CPU budgets of 1000ms:
-measured 1022–1345ms CPU despite only about 3 seconds elapsed per case. CPU speed,
+Node 22 failed all five (1022–1345ms CPU); Node 26 failed four of them
+(1035–1307ms CPU), with zero cancellations on either leg. Each case took about
+3 seconds elapsed. CPU speed,
 coverage instrumentation and contention made the fixed budget unreliable. Keep
 the 50,000-element hostile inputs and every output assertion; scale CPU limits,
 startup and operation watchdogs by PM_TEST_TIME_SCALE (default 1, deep 3).
@@ -82,3 +89,35 @@ successful corpus was native lifecycles at 442.6s, then correction sequences at
 Quick PR measurements and local validation receipts are recorded in the linked
 Task and PR after the first run. Full depth is intentionally not run locally;
 post-merge deep CI must certify the exhaustive gates on the chosen pool.
+
+## Measured validation
+
+Implementation head `fe5452d`, PR 358, CI run 43702407084:
+
+| Required check | Created UTC | Started UTC | Completed UTC | Queue | Execution | Created to completed |
+| --- | --- | --- | --- | --- | --- | --- |
+| test (26) | 10:05:56 | 11:16:33 | 11:24:51 | 70m37s | 8m18s | 78m55s |
+| test (22) | 10:05:56 | 11:34:16 | 11:39:07 | 88m20s | 4m51s | 93m11s |
+
+All timestamps above are 2026-11-15. Both required checks passed. Node 22
+build/tests took 4m40s; CodeQL passed in 55s of execution. Node 26 passed 1,146 tests, zero skipped
+or canceled; coverage was 100% lines/branches/functions across the unchanged
+30-source inventory. Its quick npm release gate took 7m51s, versus 13m36s for
+one full npm gate in the historical main run. The native lifecycle corpus took
+26.4s at quick depth, versus 442.6s at full depth in that historical run. Hardware
+and host contention differ between observations; these are measured runs, not
+a controlled benchmark. Real Bun project/bunx smoke passed in 3s.
+
+Local static checks passed. The touched-suite run passed 305 tests and failed
+one stale full-depth Unicode count assertion in 15m11s; exact per-string field
+accounting then passed all three Unicode tests in 20.7s. The unchanged passing
+tests were not repeated. Process-tree regressions passed 9/9 in 22.4s after
+converting packed acceptance to async per-command deadlines. No full-depth
+local run or extra local coverage run was started on the loaded host.
+
+The fifteen-minute queue-inclusive target was missed before execution began.
+Read-only fleet inspection found older hosted jobs running more than two hours.
+`pmc-hosted-ci-queue` records the operational follow-up; package changes cannot
+remove elapsed queue time. Other repository runs, variables and protection were
+left unchanged. These receipts refer to the implementation head above; the PR
+body records verification of the final source/evidence head separately.
