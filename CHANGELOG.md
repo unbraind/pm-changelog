@@ -4,6 +4,13 @@
 
 > Release note (issue 337): empty Unreleased sections are always omitted; --include-empty retains only versioned release sections. Callers' committed changelogs drop the legacy empty Unreleased / No changes. block on their next regeneration, including prepend mode. Non-empty unreleased items and dependency notes are preserved.
 
+## Unreleased
+
+### Other
+
+- Apply Fleet CI v2 and bound lifecycle validation ([pmc-lifecycle-test-budget](https://github.com/unbraind/pm-changelog/blob/main/.agents/pm/tasks/pmc-lifecycle-test-budget.toon))
+- Verify native tracker publication stability for issue 337 ([pmc-native-tag-stability-337](https://github.com/unbraind/pm-changelog/blob/main/.agents/pm/tasks/pmc-native-tag-stability-337.toon))
+
 ## 2026.11.16 - 2026-11-16
 
 No changes.

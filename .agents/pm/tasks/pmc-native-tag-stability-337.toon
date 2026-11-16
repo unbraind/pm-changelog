@@ -2,12 +2,17 @@ id: pmc-native-tag-stability-337
 title: Verify native tracker publication stability for issue 337
 description: "Verification follow-up for the already delivered generator fix in PR #338. Keep the original issue delivery closed with its published upgrade action. Add real native tracker full/commit/tag/check regressions, dependency-only and item-bearing controls, no-git recorded-release generation, a disposable behavioral revert proof, and developer documentation. Original delivery: pmc-no-empty-unreleased-337."
 type: Task
-status: in_progress
+status: closed
 priority: 2
 tags[2]: "gh:unbraind/pm-changelog#337",verification
 created_at: "2026-11-14T16:40:28.320Z"
-updated_at: "2026-11-14T20:24:51.179Z"
+updated_at: "2026-11-16T20:25:08.595Z"
+closed_at: "2026-11-16T20:25:08.579Z"
+completed_at: "2026-11-16T20:25:08.579Z"
 author: codex-changelog337-1114
+resolution: Implemented and merged in #354 (bafd701).
+expected_result: The change described by this item is on main.
+actual_result: "Merged in #354 as bafd701; checks successful at head 9004c84: CodeQL, codeql, lifecycle, semgrep-cloud-platform/scan, test (22), test (26)."
 comments[8]{created_at,author,text}:
   "2026-11-14T16:40:55.790Z",codex-changelog337-1114,"Main already contains the stable issue 337 generator rule from PR #338: omit every empty Unreleased section; include-empty retains versioned sections only. Added native temporary tracker publication matrix: 10/10 pass (empty, dependency-only, item-bearing git windows, each with both flags, and four no-git recorded-release cases). These assert pre/post-tag byte identity, package-version selection, dependency notes and completed_at ordering after a later comment. Disposable single-function revert proof passes: fixed 10/10, reverted 7 pass plus exactly 3 post-tag check failures, restored 10/10. Typecheck, build:test, build, docstring lint (59 files / 294 declarations), and diff whitespace checks pass. No runtime source, dist, pins, profiles or thresholds changed."
   "2026-11-14T16:40:56.906Z",codex-changelog337-1114,"Validation receipts retained in original item history: first broad coverage run timed out at 1200 seconds in existing lifecycle stress (pmc-lifecycle-test-budget). A narrower run passed 759/759 but missed two existing helper paths (99.73/99.57/100). Adding existing release-membership and renderer-drift suites measured generator coverage 100/100/100; 798/801 tests passed, with two catalog failures caused by the verification-only reopening of the delivered item, and one npm registry ETIMEDOUT installing @toon-format/toon. Restored the original published item through pinned pm restore; its prior completion timestamps, close reason, resolution and upgrade action are restored, with appended audit history retained. This follow-up stays active until orchestrator verification. Recheck the two catalog controls and package-install acceptance, then repeat the unchanged coverage command on the corrected tracker state."
@@ -26,4 +31,5 @@ tests[3]{command,scope,timeout_seconds,provenance{author,created_at,source_kind,
   node --test --test-concurrency=2 --experimental-test-coverage --test-coverage-include=src/generator.ts --test-coverage-lines=100 --test-coverage-branches=100 --test-coverage-functions=100 test/generator.test.ts test/generator-coverage.test.ts test/generator-redos.test.ts test/markdown-retention.test.ts test/empty-unreleased.test.ts test/include-empty-tracker.test.ts test/stable-itemless-check.test.ts test/itemless-pending.test.ts test/pending-version.test.ts test/dependency-updates.test.ts test/release-context.test.ts test/full-projection.test.ts test/sdk-completeness.test.ts test/closure-evidence.test.ts test/input-completeness.test.ts test/milestones.test.ts test/entry-from.test.ts test/item-links.test.ts test/enhancements.test.ts test/cli-coverage.test.ts test/contract-projections.test.ts test/contract-changes.test.ts test/unicode-contract-output.test.ts test/rendering-release-registry.test.ts test/custom-types.test.ts test/release-membership.test.ts test/check-generator-drift.test.ts,project,1200,codex-changelog337-1114,"2026-11-14T16:41:01.197Z",local_mutation,fix/include-empty-tag-stable
 docs[1]{path,scope}:
   docs/development.md,project
+close_reason: "Delivered by #354 \"test: prove include-empty tag stability with native trackers\" (merged as bafd701). Checks successful at the PR head 9004c84: CodeQL, codeql, lifecycle, semgrep-cloud-platform/scan, test (22), test (26)."
 body: ""

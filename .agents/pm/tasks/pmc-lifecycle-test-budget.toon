@@ -2,13 +2,18 @@ id: pmc-lifecycle-test-budget
 title: Apply Fleet CI v2 and bound lifecycle validation
 description: "Apply Fleet CI v2 for companion pm-cli-website-dyhg. Preserve full seeded corpora and every existing gate in deep CI, keep required hosted PR checks fast with deterministic quick prefixes, and scale hardware-sensitive watchdogs. Reuses the existing lifecycle budget investigation and its historical evidence."
 type: Task
-status: in_progress
+status: closed
 priority: 2
 tags[4]: ci,"gh:unbraind/pm-changelog#358",performance,validation
 created_at: "2026-11-10T23:28:19.082Z"
-updated_at: "2026-11-15T22:49:48.249Z"
+updated_at: "2026-11-16T20:25:16.002Z"
+closed_at: "2026-11-16T20:25:15.952Z"
+completed_at: "2026-11-16T20:25:15.952Z"
 author: codex-changelog337
 acceptance_criteria: Measure representative native lifecycle execution and identify dominant costs without weakening existing assertions or silently reducing the 500-case corpus
+resolution: Implemented and merged in #358 (18e1170).
+expected_result: The change described by this item is on main.
+actual_result: "Merged in #358 as 18e1170; checks successful at head 562ba76: CodeQL, codeql, semgrep-cloud-platform/scan, test (22), test (26)."
 comments[26]{created_at,author,text}:
   "2026-11-10T23:48:48.566Z",codex-changelog337,"Follow-up evidence: the subsequent timeout 2700 npm test passed all 1050 tests in 1181.6 seconds of reported runner time. The existing 500-native-lifecycle test passed in 908.3 seconds. The earlier 1200-second aggregate importer batch still canceled this file after 154 other passed tests; investigate batch composition and runtime variability rather than assuming a semantic regression. No assertions or case counts were changed."
   "2026-11-11T23:17:40.764Z",codex-changelog339-1111,"Round-5 PR 341 bounded importer gate: test/release-lifecycles.test.ts reached its explicit 1200-second file cap (exit 124; wall 1200.05 seconds). Its first omitted/filtered repair case passed in 9.20 seconds; the native 500-lifecycle case did not complete and reported no assertion failure before termination. This is incomplete validation, not a passing gate. The 51-file gate uses at most two workers with isolated HOME/Git settings; remaining files continue. No stress scale, timeout or coverage threshold was weakened; source fixes remain scoped to the three review findings. Current-head lifecycle/full-release certification is deferred to CI under the requested cap."
@@ -152,4 +157,5 @@ tests[10]:
       source_ref: ci/quick-pr-tier-deep-local-tier
 docs[1]{path,scope}:
   docs/ci-tiers.md,project
+close_reason: "Delivered by #358 \"ci: speed PR checks with quick tests and a separate deep tier\" (merged as 18e1170). Checks successful at the PR head 562ba76: CodeQL, codeql, semgrep-cloud-platform/scan, test (22), test (26)."
 body: ""
