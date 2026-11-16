@@ -46,7 +46,7 @@ function renderCommandResult(context) {
 }
 export default defineExtension({
     name: "pm-changelog",
-    version: "2026.11.14",
+    version: "2026.11.16",
     activate(api) {
         api.registerItemFields([{ name: "change_facets", type: "array", optional: true }, { name: "contract_change", type: "object", optional: true }]);
         api.registerCommand({
