@@ -7,9 +7,9 @@ status: in_progress
 priority: 2
 tags[1]: "gh:unbraind/pm-changelog#349"
 created_at: "2026-11-16T21:21:20.365Z"
-updated_at: "2026-11-17T03:45:29.739Z"
+updated_at: "2026-11-17T04:22:32.918Z"
 author: pi-glm
-comments[10]{created_at,author,text}:
+comments[14]{created_at,author,text}:
   "2026-11-16T21:21:28.949Z",pi-glm,"Facet 1 verified on current main: a package.json version that is already tagged no longer fabricates a second section for the pending window. Reproduced the issue acceptance fixture (tag v2.0.0 with one dependency commit, package.json 2.0.0, one item closed after the tag): --all-release-tags --release-version-from-package --date-from-version --respect-item-release renders ## Unreleased with the item, ## 2.0.0 keeps only its dependency line, and --check is stable. Root cause: resolvePendingReleaseTag (src/release-context.ts) returns undefined once any spelling of the version is tagged, so the leading window is Unreleased. That guard has existed since v2026.5.25 (commit 9a4eef5, May 2026); tag-spelling/case-insensitive matching since v2026.11.10 (#333, fa8acb9); the end-to-end CLI regression tests live in test/empty-unreleased.test.ts (later unreleased item / Dependabot entry tests, since v2026.11.11, #338, f231c38) and test/generator.test.ts (pending all-release-tags output is byte-identical after tagging the release commit). Facet 2 is the real gap: enrichSectionsWithDependencyCommits drops a tagged section's dependency bullets as soon as any item renders there, including items closed after the tag and placed only via --respect-item-release. Fix in progress."
   "2026-11-16T22:30:45.276Z",pi-glm,"Root cause (facet 2): enrichSectionsWithDependencyCommits computed a tagged section's dependency default from section.items.length === 0. An item closed after the tag but rendered in the section through its release assignment (or verified release membership) makes the section item-bearing, so the published Dependencies list is dropped on regeneration; changelog:check then demands the rewrite.\n\nRule as implemented (src/generator.ts, itemsClosedAtOrBeforeTag): for a tagged window, an item counts against the Dependencies list only when its recorded closure — closed_at, falling back to the completion timestamp the generator already uses for windowing — falls at or before the window's tag timestamp (whole-second granularity, same inclusive semantics filterItemsByTime applies to until bounds). Items closed after the tag are listed but never drop the Dependencies list. Untagged windows and pending windows (until undefined) keep today's every-item-counts behaviour, as does the single-window (non --all-release-tags) path. Facet 1 needed no change: resolvePendingReleaseTag has refused an already-tagged package version since v2026.5.25, so the window after the tag renders as Unreleased; end-to-end regression tests shipped with #338 (v2026.11.11)."
   "2026-11-16T22:30:46.062Z",pi-glm,"Evidence, no churn: ran the fixed generator against read-only detached checkouts of pm-linear, pm-todos and pm-ops at their origin/main, each with that repository's own changelog:full flags, and compared byte-for-byte with the same run of the origin/main generator. pm-linear: byte-identical. pm-todos: byte-identical. pm-ops: byte-identical except the 2026.10.29 section, which is an already-committed instance of this bug, not churn: ops-reverification and ops-release-1020-recovery were closed 2026-10-30, after the v2026.10.29 tag, and their release assignment stripped the published #227 dependency bullet from that section — the fixed generator restores it, which is the repair this issue asks for. changelog:check verdicts are unchanged on all three checkouts (out of date / tracker_changed before and after, from pre-existing generator drift on their committed changelogs, unrelated to this change). The pm-linear#223 branch proof (chore/in-progress-sweep-2026-11-14): the 2026.11.11 section keeps its five dependency bullets (#216, #214, #210, #211, #212) and gains only the item bullet for pm-linear-toolchain-1104, whose completed_at was re-attributed to the merge time inside the window but whose closed_at (2026-11-14) is after the tag — the old generator had dropped all five bullets. The scratch checkouts were removed afterwards."
@@ -20,13 +20,17 @@ comments[10]{created_at,author,text}:
   "2026-11-17T02:41:39.829Z",codex-sol,"The linked changelog:check rerun passes in tracker context with an explicit 300-second watchdog. The unrelated acceptance-process timing suite passes with the existing PM_TEST_TIME_SCALE=3 setting; rerunning complete CI-depth coverage with that setting. No production or test deadline code was changed."
   "2026-11-17T02:58:58.378Z",codex-sol,"Additional verified gate requirement: .github/workflows/ci.yml requires committed dist to match a fresh build after the release gate. npm run build updates only dist/generator.js, dist/generator.js.map and dist/generator.d.ts.map from the already-reviewed source; the submitted branch had omitted those generated text outputs. Including them prevents the next CI step failing after the coverage repair. No coverage threshold changed."
   "2026-11-17T03:45:28.480Z",codex-sol,"Round AD final gates: Node 26, PM_TEST_DEPTH=quick PM_TEST_TIME_SCALE=3 npm run coverage passes all 1160 tests with 0 failures, 0 skips and 100% lines/branches/functions across all 30 required source files. generator.ts is now 100%; baseline had only its two missing branch arms. Typecheck, docstring and changelog:check pass, including the linked tracker-context check. Both requested tagged-release timestamp cases pass. Fresh generated text outputs are included for the CI dist parity gate. Thresholds remain unchanged."
+  "2026-11-17T04:07:08.724Z",codex-sol,"PR #362 remains open at 5722cd3. The closure predicate already uses timestampSecond with an inclusive comparison against the tag second. Add three regression cases at 2026-11-11T18:00:00Z, .999 in that second, and 18:00:01Z, holding completed_at inside the window. No production change is needed; first two must drop dependency notes and the next second must retain them. Run focused tests, full coverage with unchanged thresholds, typecheck, available lint gate, dist parity and changelog:check."
+  "2026-11-17T04:08:19.393Z",codex-sol,"The existing helper is named toSecond (Math.floor(ms / 1000)); both sides are compared inclusively. Three boundary tests now assert the tag time, keep identical in-window completed_at/updated_at values, assert the item renders, and check every dependency bullet is dropped for the tag second and .999 but retained for the next second. An initial fixture assertion assumed the +00:00 spelling; this Git emits Z, so normalize the timestamp before asserting it. The repository defines no lint script and disables Hound JSHint; its configured docstring gate passes. Typecheck, test compilation and fresh-build dist parity also pass."
+  "2026-11-17T04:09:04.071Z",codex-sol,"Focused regression file now passes all 10 tests, including the three requested closure boundaries. npm run changelog:check passes through the linked PM runner. Coverage is running on Node 26 with PM_TEST_DEPTH=quick (the required CI tier) and PM_TEST_TIME_SCALE=3 for timer tolerance; coverage source scope and thresholds are unchanged. Only the regression file and this item plus its history are modified."
+  "2026-11-17T04:22:32.226Z",codex-sol,"Final boundary-regression evidence for PR #362: node --test test/published-section-stability.test.ts passes 10/10 with no skips. PM_TEST_DEPTH=quick PM_TEST_TIME_SCALE=3 npm run coverage passes with 100% lines, branches and functions across all 30 required source files; thresholds and measured source scope are unchanged. npm run typecheck, npm run build:test and npm run docstring pass; no separate lint script is configured and Hound JSHint is explicitly disabled. npm run changelog:check passes, and committed dist remains identical after the fresh coverage build. Source semantics already include the entire tag second via toSecond(value) <= untilSecond, so this change adds tests only. Only pmc-mzyt and its history are updated; protected timestamps remain unchanged. Releasing the claim with the item still in progress for orchestrator verification."
 files[5]{path,scope}:
   dist/generator.d.ts.map,project
   dist/generator.js,project
   dist/generator.js.map,project
   src/generator.ts,project
   test/published-section-stability.test.ts,project
-tests[5]:
+tests[7]:
   - command: npx tsc --noEmit
     scope: project
     provenance:
@@ -68,4 +72,20 @@ tests[5]:
       source_ref: fix/published-section-stability
     updated_by: codex-sol
     updated_at: "2026-11-17T03:44:38.869Z"
+  - command: npm run typecheck
+    scope: project
+    provenance:
+      author: codex-sol
+      created_at: "2026-11-17T04:07:50.760Z"
+      source_kind: local_mutation
+      source_ref: fix/published-section-stability
+  - command: "npm run build:test"
+    scope: project
+    provenance:
+      author: codex-sol
+      created_at: "2026-11-17T04:07:51.513Z"
+      source_kind: local_mutation
+      source_ref: fix/published-section-stability
+docs[1]{path,scope}:
+  docs/development.md,project
 body: ""

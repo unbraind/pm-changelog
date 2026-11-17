@@ -138,6 +138,32 @@ test("an item closed inside the tag window keeps today's dependency behaviour", 
   assert.doesNotMatch(section, /### Dependencies/);
 });
 
+for (const { closedAt, insideTagWindow } of [
+  { closedAt: "2026-11-11T18:00:00Z", insideTagWindow: true },
+  { closedAt: "2026-11-11T18:00:00.999Z", insideTagWindow: true },
+  { closedAt: "2026-11-11T18:00:01Z", insideTagWindow: false },
+]) {
+  test(`closure at ${closedAt} is ${insideTagWindow ? "inside" : "outside"} the whole-second tag boundary`, (t) => {
+    const f = publishedFixture(t);
+    assert.equal(new Date(f.git("log", "-1", "--format=%cI", "v2026.11.11")).toISOString(), "2026-11-11T18:00:00.000Z");
+    f.withItems([{
+      id: "boundary-closure", title: "Closure at the tag boundary", type: "Task",
+      status: "closed", release: "2026.11.11", closed_at: closedAt,
+      completed_at: "2026-11-11T11:00:00Z", updated_at: "2026-11-11T11:00:00Z",
+    }]);
+    const generated = f.cli("--mode", "replace", "--output", "CHANGELOG.md");
+    assert.equal(generated.status, 0, generated.stderr);
+    const section = sectionOf(f.read(), "2026.11.11 - 2026-11-11");
+    assert.match(section, /- Closure at the tag boundary \(boundary-closure\)/);
+    // Git records only whole seconds: even .999 belongs to the tag's second.
+    // Completion stays inside the window in every case, isolating closed_at.
+    assert.equal(section.includes("### Dependencies"), !insideTagWindow);
+    for (const bullet of DEPENDENCY_BULLETS) {
+      assert.equal(section.includes(bullet), !insideTagWindow, bullet);
+    }
+  });
+}
+
 test("the closure timestamp, not a re-attributed completion, protects a published section", (t) => {
   const f = publishedFixture(t);
   // The pm-linear#223 shape: work delivered and merged during the release,
