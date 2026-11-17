@@ -4,6 +4,7 @@ import { spawnSync } from "node:child_process";
 import { cpSync, mkdirSync, mkdtempSync, readFileSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
+import { fixedRunFailureSummary } from "./fixed-run-diagnostic.ts";
 
 // CI passes no arguments and proves every case. Exact local rule filters save CPU; unknown rules refuse.
 const selectedRules = process.argv.slice(2);
@@ -14,21 +15,24 @@ try {
   cpSync(resolve("package.json"), join(scratch, "package.json"));
   symlinkSync(resolve("node_modules"), join(scratch, "node_modules"), "junction");
   mkdirSync(join(scratch, "test"));
+  cpSync(resolve("test", "support"), join(scratch, "test", "support"), { recursive: true });
   for (const testFile of ["agent-contract-drift.test.ts", "contract-report-closure.test.ts", "help-parser-contract.test.ts", "unicode-contract-output.test.ts"]) cpSync(resolve("test", testFile), join(scratch, "test", testFile));
   if (!selectedRules.length) {
   const source = join(scratch, "src/agent-contract-drift.ts"), original = readFileSync(source, "utf8");
   const pattern = /export function buildAgentContractDrift\(options: AgentContractDriftOptions\): AgentContractDriftReport \{[\s\S]*?\n\}\n\n\/\*\* Certified/;
   assert.match(original, pattern);
-  /** Capture only pass/fail: no scratch paths or private child environment are emitted. */
+  /** Capture child output for the redacted failure summary. */
   const run = () => spawnSync(process.execPath, ["--test", "--test-concurrency=2", "--test-name-pattern=ten releases", "test/agent-contract-drift.test.ts"], {
     cwd: scratch, encoding: "utf8", env: { PATH: process.env.PATH, DO_NOT_TRACK: "1" }, timeout: 120000,
   });
-  assert.equal(run().status, 0);
+  const fixedRun = run();
+  assert.equal(fixedRun.status, 0, fixedRunFailureSummary(fixedRun.stdout + fixedRun.stderr));
   try {
     writeFileSync(source, original.replace(pattern, 'export function buildAgentContractDrift(options: AgentContractDriftOptions): AgentContractDriftReport {\n  return { schema_version: 1, from: options.from, to: options.to, complete: true, definitions: [], baseline: [], changes: [], unchanged: [], omissions: [] };\n}\n\n/** Certified'));
     const reverted = run(); assert.notEqual(reverted.status, 0); assert.match(reverted.stdout + reverted.stderr, /AssertionError|ERR_ASSERTION/);
   } finally { writeFileSync(source, original); }
-  assert.equal(run().status, 0);
+  const restoredRun = run();
+  assert.equal(restoredRun.status, 0, fixedRunFailureSummary(restoredRun.stdout + restoredRun.stderr));
   console.log(JSON.stringify({ fixed_pass: 1, behavioral_revert_fail: 1, restored_pass: 1, disposable_copy: true }));
   }
   /** Replace exactly one named function; all other fixed functions and schemas remain unchanged. */
@@ -110,7 +114,7 @@ try {
     const args = ["--test", "--test-concurrency=2", `--test-name-pattern=${mutant.match}`, `test/${mutant.testFile ?? "contract-report-closure.test.ts"}`];
     const options = { cwd: scratch, encoding: "utf8" as const, env: { PATH: process.env.PATH, DO_NOT_TRACK: "1" }, timeout: 180000 };
     const fixedResult = spawnSync(process.execPath, args, options);
-    assert.equal(fixedResult.status, 0, fixedResult.stdout + fixedResult.stderr);
+    assert.equal(fixedResult.status, 0, fixedRunFailureSummary(fixedResult.stdout + fixedResult.stderr));
     assert.match(fixedResult.stdout, /tests [1-9]/);
     try {
       writeFileSync(path, fixed.replace(fixedFunction, revertedFunction));
@@ -119,7 +123,7 @@ try {
       assert.match(reverted.stdout + reverted.stderr, /AssertionError|ERR_ASSERTION/);
     } finally { writeFileSync(path, fixed); }
     const restoredResult = spawnSync(process.execPath, args, options);
-    assert.equal(restoredResult.status, 0, restoredResult.stdout + restoredResult.stderr);
+    assert.equal(restoredResult.status, 0, fixedRunFailureSummary(restoredResult.stdout + restoredResult.stderr));
     assert.match(restoredResult.stdout, /tests [1-9]/);
     console.log(JSON.stringify({ function: mutant.name, rule: mutant.rule, fixed_pass: true, behavioral_revert_fail: true, restored_pass: true, pure_source_tests: true }));
   }
