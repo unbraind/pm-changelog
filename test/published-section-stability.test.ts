@@ -95,6 +95,33 @@ test("a late-closed item in a published itemless section keeps its dependency bu
   assert.match(checked.stderr, /Changelog is up to date/);
 });
 
+test("a tagged-release item without any timestamp keeps the published dependency bullets", (t) => {
+  const f = publishedFixture(t);
+  f.withItems([{
+    id: "missing-closure", title: "Release assignment without timestamp evidence", type: "Task",
+    status: "closed", release: "2026.11.11",
+  }]);
+  const generated = f.cli("--mode", "replace", "--output", "CHANGELOG.md");
+  assert.equal(generated.status, 0, generated.stderr);
+  const section = sectionOf(f.read(), "2026.11.11 - 2026-11-11");
+  assert.match(section, /- Release assignment without timestamp evidence \(missing-closure\)/);
+  for (const bullet of DEPENDENCY_BULLETS) assert.ok(section.includes(bullet), `kept ${bullet}`);
+});
+
+test("a tagged-release item with an unparseable closure keeps the published dependency bullets", (t) => {
+  const f = publishedFixture(t);
+  f.withItems([{
+    id: "invalid-closure", title: "Release assignment with invalid closure evidence", type: "Task",
+    status: "closed", release: "2026.11.11", closed_at: "not-a-timestamp",
+    completed_at: "2026-11-11T11:00:00Z",
+  }]);
+  const generated = f.cli("--mode", "replace", "--output", "CHANGELOG.md");
+  assert.equal(generated.status, 0, generated.stderr);
+  const section = sectionOf(f.read(), "2026.11.11 - 2026-11-11");
+  assert.match(section, /- Release assignment with invalid closure evidence \(invalid-closure\)/);
+  for (const bullet of DEPENDENCY_BULLETS) assert.ok(section.includes(bullet), `kept ${bullet}`);
+});
+
 test("an item closed inside the tag window keeps today's dependency behaviour", (t) => {
   const f = publishedFixture(t);
   f.withItems([{

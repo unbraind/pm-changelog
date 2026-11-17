@@ -2,23 +2,70 @@ id: pmc-mzyt
 title: Late-closed items must not rewrite a published release section (GH #349)
 description: "Published release sections must stay stable when items closed after the tag land in them via their release assignment, and the pending window after a tagged package.json version must render as Unreleased. Tracks unbraind/pm-changelog#349."
 type: Issue
-status: open
+pm_format_version: 2
+status: in_progress
 priority: 2
 tags[1]: "gh:unbraind/pm-changelog#349"
 created_at: "2026-11-16T21:21:20.365Z"
-updated_at: "2026-11-16T22:33:30.642Z"
+updated_at: "2026-11-17T03:45:29.739Z"
 author: pi-glm
-comments[4]{created_at,author,text}:
+comments[10]{created_at,author,text}:
   "2026-11-16T21:21:28.949Z",pi-glm,"Facet 1 verified on current main: a package.json version that is already tagged no longer fabricates a second section for the pending window. Reproduced the issue acceptance fixture (tag v2.0.0 with one dependency commit, package.json 2.0.0, one item closed after the tag): --all-release-tags --release-version-from-package --date-from-version --respect-item-release renders ## Unreleased with the item, ## 2.0.0 keeps only its dependency line, and --check is stable. Root cause: resolvePendingReleaseTag (src/release-context.ts) returns undefined once any spelling of the version is tagged, so the leading window is Unreleased. That guard has existed since v2026.5.25 (commit 9a4eef5, May 2026); tag-spelling/case-insensitive matching since v2026.11.10 (#333, fa8acb9); the end-to-end CLI regression tests live in test/empty-unreleased.test.ts (later unreleased item / Dependabot entry tests, since v2026.11.11, #338, f231c38) and test/generator.test.ts (pending all-release-tags output is byte-identical after tagging the release commit). Facet 2 is the real gap: enrichSectionsWithDependencyCommits drops a tagged section's dependency bullets as soon as any item renders there, including items closed after the tag and placed only via --respect-item-release. Fix in progress."
   "2026-11-16T22:30:45.276Z",pi-glm,"Root cause (facet 2): enrichSectionsWithDependencyCommits computed a tagged section's dependency default from section.items.length === 0. An item closed after the tag but rendered in the section through its release assignment (or verified release membership) makes the section item-bearing, so the published Dependencies list is dropped on regeneration; changelog:check then demands the rewrite.\n\nRule as implemented (src/generator.ts, itemsClosedAtOrBeforeTag): for a tagged window, an item counts against the Dependencies list only when its recorded closure — closed_at, falling back to the completion timestamp the generator already uses for windowing — falls at or before the window's tag timestamp (whole-second granularity, same inclusive semantics filterItemsByTime applies to until bounds). Items closed after the tag are listed but never drop the Dependencies list. Untagged windows and pending windows (until undefined) keep today's every-item-counts behaviour, as does the single-window (non --all-release-tags) path. Facet 1 needed no change: resolvePendingReleaseTag has refused an already-tagged package version since v2026.5.25, so the window after the tag renders as Unreleased; end-to-end regression tests shipped with #338 (v2026.11.11)."
   "2026-11-16T22:30:46.062Z",pi-glm,"Evidence, no churn: ran the fixed generator against read-only detached checkouts of pm-linear, pm-todos and pm-ops at their origin/main, each with that repository's own changelog:full flags, and compared byte-for-byte with the same run of the origin/main generator. pm-linear: byte-identical. pm-todos: byte-identical. pm-ops: byte-identical except the 2026.10.29 section, which is an already-committed instance of this bug, not churn: ops-reverification and ops-release-1020-recovery were closed 2026-10-30, after the v2026.10.29 tag, and their release assignment stripped the published #227 dependency bullet from that section — the fixed generator restores it, which is the repair this issue asks for. changelog:check verdicts are unchanged on all three checkouts (out of date / tracker_changed before and after, from pre-existing generator drift on their committed changelogs, unrelated to this change). The pm-linear#223 branch proof (chore/in-progress-sweep-2026-11-14): the 2026.11.11 section keeps its five dependency bullets (#216, #214, #210, #211, #212) and gains only the item bullet for pm-linear-toolchain-1104, whose completed_at was re-attributed to the merge time inside the window but whose closed_at (2026-11-14) is after the tag — the old generator had dropped all five bullets. The scratch checkouts were removed afterwards."
   "2026-11-16T22:33:30.640Z",pi-glm,"Delivered as https://github.com/unbraind/pm-changelog/pull/362 (Fixes #349) on branch fix/published-section-stability, head 5043ad6. Gates at push: tsc --noEmit, docstring gate, node --test test/published-section-stability.test.ts (5 pass), the generator/release/check/cli regression suites (403 tests pass), and changelog:check all green. Item paused to open for orchestrator verification; not closed."
-files[2]{path,scope}:
+  "2026-11-17T02:10:58.090Z",codex-sol,"Round AD: verified both untested early-return guards in itemsClosedAtOrBeforeTag. First measuring baseline file-level coverage, then adding tagged-release fixtures for absent and invalid closure timestamps without changing thresholds."
+  "2026-11-17T02:14:06.851Z",codex-sol,"Baseline CI test (26), job 133663700163: generator.ts is the only source below 100% branches (99.92%); aggregate 99.97%, all other files and measured dimensions 100%. Reused that complete file-level report and stopped the redundant local baseline run. Added both missing timestamp regression cases, including a valid completion with an invalid closed_at to prove closure precedence."
+  "2026-11-17T02:31:03.518Z",codex-sol,"Focused published-section stability suite passes all 7 cases. Typecheck, docstring and direct changelog:check pass. The linked changelog check hit its schema-context timeout; an attempted context-none rerun was refused by PM policy, so no success is claimed for that wrapper invocation. Coverage now runs on Node 26 with PM_TEST_DEPTH=quick, matching the failing CI job; the default exhaustive-depth attempt was stopped incomplete. Thresholds are unchanged."
+  "2026-11-17T02:41:39.829Z",codex-sol,"The linked changelog:check rerun passes in tracker context with an explicit 300-second watchdog. The unrelated acceptance-process timing suite passes with the existing PM_TEST_TIME_SCALE=3 setting; rerunning complete CI-depth coverage with that setting. No production or test deadline code was changed."
+  "2026-11-17T02:58:58.378Z",codex-sol,"Additional verified gate requirement: .github/workflows/ci.yml requires committed dist to match a fresh build after the release gate. npm run build updates only dist/generator.js, dist/generator.js.map and dist/generator.d.ts.map from the already-reviewed source; the submitted branch had omitted those generated text outputs. Including them prevents the next CI step failing after the coverage repair. No coverage threshold changed."
+  "2026-11-17T03:45:28.480Z",codex-sol,"Round AD final gates: Node 26, PM_TEST_DEPTH=quick PM_TEST_TIME_SCALE=3 npm run coverage passes all 1160 tests with 0 failures, 0 skips and 100% lines/branches/functions across all 30 required source files. generator.ts is now 100%; baseline had only its two missing branch arms. Typecheck, docstring and changelog:check pass, including the linked tracker-context check. Both requested tagged-release timestamp cases pass. Fresh generated text outputs are included for the CI dist parity gate. Thresholds remain unchanged."
+files[5]{path,scope}:
+  dist/generator.d.ts.map,project
+  dist/generator.js,project
+  dist/generator.js.map,project
   src/generator.ts,project
   test/published-section-stability.test.ts,project
-tests[4]{command,scope,provenance{author,created_at,source_kind,source_ref}}:
-  npx tsc --noEmit,project,pi-glm,"2026-11-16T22:30:51.922Z",local_mutation,fix/published-section-stability
-  node --test test/published-section-stability.test.ts,project,pi-glm,"2026-11-16T22:30:53.112Z",local_mutation,fix/published-section-stability
-  npm run docstring,project,pi-glm,"2026-11-16T22:30:53.918Z",local_mutation,fix/published-section-stability
-  "npm run changelog:check",project,pi-glm,"2026-11-16T22:30:54.654Z",local_mutation,fix/published-section-stability
+tests[5]:
+  - command: npx tsc --noEmit
+    scope: project
+    provenance:
+      author: pi-glm
+      created_at: "2026-11-16T22:30:51.922Z"
+      source_kind: local_mutation
+      source_ref: fix/published-section-stability
+  - command: node --test test/published-section-stability.test.ts
+    scope: project
+    provenance:
+      author: pi-glm
+      created_at: "2026-11-16T22:30:53.112Z"
+      source_kind: local_mutation
+      source_ref: fix/published-section-stability
+  - command: npm run docstring
+    scope: project
+    provenance:
+      author: pi-glm
+      created_at: "2026-11-16T22:30:53.918Z"
+      source_kind: local_mutation
+      source_ref: fix/published-section-stability
+  - command: "npm run changelog:check"
+    scope: project
+    timeout_seconds: 300
+    provenance:
+      author: pi-glm
+      created_at: "2026-11-16T22:30:54.654Z"
+      source_kind: local_mutation
+      source_ref: fix/published-section-stability
+    updated_by: codex-sol
+    updated_at: "2026-11-17T03:44:40.032Z"
+  - command: npm run coverage
+    scope: project
+    timeout_seconds: 5400
+    provenance:
+      author: codex-sol
+      created_at: "2026-11-17T02:30:51.093Z"
+      source_kind: local_mutation
+      source_ref: fix/published-section-stability
+    updated_by: codex-sol
+    updated_at: "2026-11-17T03:44:38.869Z"
 body: ""
