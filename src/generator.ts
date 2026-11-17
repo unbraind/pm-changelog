@@ -263,8 +263,35 @@ function hasCommittedReleaseSection(gitCwd: string, tag: string | undefined, hea
   return findMarkdownHeadings(result.stdout, "##").some(({ heading: found }) => found === version || found.startsWith(`${version} - `));
 }
 
-/** Attach Dependabot commits on opt-in, or to itemless pending releases and
- * tagged releases whose committed changelog already contains their heading.
+/** Items whose recorded closure falls at or before a tagged window's tag
+ * (issue #349).
+ *
+ * The deciding timestamp is the tracker's `closed_at` — the moment the item
+ * was actually closed — falling back to the completion timestamp the generator
+ * already uses for windowing when no closure was recorded. Only the window's
+ * upper bound decides: an item closed after the tag but rendered in the
+ * section through its `release` assignment (or verified release membership) is
+ * deliberately absent, because it must add its own bullet without ever
+ * dropping the published `Dependencies` list, while items closed before or
+ * during the window keep today's every-item-counts behaviour. Untagged and
+ * pending windows keep today's treatment entirely, and an item with no
+ * timestamp of any kind cannot prove it was closed at or before the tag, so
+ * it stays protected rather than silently stripping a published section. */
+function itemsClosedAtOrBeforeTag(items: PmItem[], window: ChangelogReleaseWindow): PmItem[] {
+  if (window.until === undefined) return items;
+  const untilSecond = toSecond(Date.parse(window.until));
+  return items.filter((item) => {
+    const closure = item.closed_at ?? itemTimestamp(item);
+    if (!closure) return false;
+    const value = Date.parse(closure);
+    if (Number.isNaN(value)) return false;
+    return toSecond(value) <= untilSecond;
+  });
+}
+
+/** Attach Dependabot commits on opt-in, or to pending releases and tagged
+ * releases without in-window closures whose committed changelog already
+ * contains their heading.
  *
  * With release windows (`--all-release-tags`, newest first, one section per
  * window), section `i` reads the commits between window `i + 1`'s tag and
@@ -288,7 +315,14 @@ function enrichSectionsWithDependencyCommits(
   if (windows && windows.length > 0) {
     return sections.map((section, index) => {
       const window = windows[index]!;
-      const itemlessDefault = section.items.length === 0 && Boolean(window.releaseTag) &&
+      // A tagged release keeps its dependency notes unless an item was closed
+      // at or before its tag. A late closure placed only through its `release`
+      // assignment must not retroactively strip the published `Dependencies`
+      // list (issue #349); pending windows (a release being cut, no tag
+      // timestamp yet) and the untagged `Unreleased` window keep today's
+      // every-item-counts behaviour.
+      const sectionItems = window.releaseTag ? itemsClosedAtOrBeforeTag(section.items, window) : section.items;
+      const itemlessDefault = sectionItems.length === 0 && Boolean(window.releaseTag) &&
         (window.until === undefined || hasCommittedReleaseSection(gitCwd, window.releaseTag, section.heading, options.changelogPath, renderingVersion));
       if (!options.dependencyUpdates && !itemlessDefault) return section;
       const commits = readDependencyCommits(gitCwd, {
@@ -1413,6 +1447,27 @@ function normalizeReleaseKey(value: string): string {
 // timestamps carry milliseconds (see filterItemsByTime).
 const toSecond = (ms: number): number => Math.floor(ms / 1000);
 
+/** Whether a completion timestamp falls inside a window, at the
+ * whole-second granularity release-tag boundaries use. Comparing the raw
+ * values pushes an item closed at 12:34:56.789 outside a window ending at
+ * 12:34:56(.000), so it resurfaces under Unreleased (issue #41): an inclusive
+ * `until` covers the whole boundary second, and an exclusive `since` excludes
+ * the entire boundary second. */
+function timestampFallsInWindow(
+  value: number,
+  window: { since?: string; sinceExclusive?: boolean; until?: string }
+): boolean {
+  const since = window.since ? Date.parse(window.since) : undefined;
+  const until = window.until ? Date.parse(window.until) : undefined;
+  if (since !== undefined) {
+    const sinceSecond = toSecond(since);
+    const valueSecond = toSecond(value);
+    if (window.sinceExclusive ? valueSecond <= sinceSecond : valueSecond < sinceSecond) return false;
+  }
+  if (until !== undefined && toSecond(value) > toSecond(until)) return false;
+  return true;
+}
+
 /** Keep items whose completion timestamp falls inside a window. Items with no
  * usable timestamp survive only an entirely unbounded window, so an undated
  * item is never silently attributed to a release. */
@@ -1420,33 +1475,17 @@ function filterItemsByTime(
   items: PmItem[],
   window: { since?: string; sinceExclusive?: boolean; until?: string }
 ): PmItem[] {
-  const since = window.since ? Date.parse(window.since) : undefined;
-  const until = window.until ? Date.parse(window.until) : undefined;
-
-  // Compare window boundaries at second granularity. Comparing the raw values
-  // pushes an item closed at 12:34:56.789 outside a window ending at
-  // 12:34:56(.000), so it resurfaces under Unreleased (issue #41). An inclusive
-  // `until` covers the whole boundary second, and an exclusive `since` excludes
-  // the entire boundary second.
-  //
-  // Consequence for sub-second `since` inputs (non-exclusive `--since` flag): a
-  // boundary like `--since 13:00:00.500Z` now also admits items closed earlier
-  // in that same second (e.g. 13:00:00.000Z), where the previous millisecond
-  // comparison would have excluded them. This is intentional: release-tag
-  // boundaries are always second-precision, so the millisecond tail carried no
-  // reliable signal.
+  const entirelyUnbounded = window.since === undefined && window.until === undefined;
+  // Sub-second `since` inputs (the non-exclusive `--since` flag) also admit
+  // items closed earlier in that same second; release-tag boundaries are
+  // always second-precision, so the millisecond tail carried no reliable
+  // signal. See timestampFallsInWindow for the boundary-second contract.
   return items.filter((item) => {
     const timestamp = itemTimestamp(item);
-    if (!timestamp) return since === undefined && until === undefined;
+    if (!timestamp) return entirelyUnbounded;
     const value = Date.parse(timestamp);
     if (Number.isNaN(value)) return false;
-    if (since !== undefined) {
-      const sinceSecond = toSecond(since);
-      const valueSecond = toSecond(value);
-      if (window.sinceExclusive ? valueSecond <= sinceSecond : valueSecond < sinceSecond) return false;
-    }
-    if (until !== undefined && toSecond(value) > toSecond(until)) return false;
-    return true;
+    return timestampFallsInWindow(value, window);
   });
 }
 
