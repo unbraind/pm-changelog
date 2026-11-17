@@ -1,0 +1,27 @@
+id: pmc-wh9g
+title: Descendant release tags must not retitle an older checkout
+description: "A release tag that contains HEAD but is not merged into HEAD is a later publication, not an orphaned tag. --all-release-tags still lists it because includeOrphaned drops the merged-HEAD filter, so changelog:check at an older commit rewrites the committed heading to that later release after the tag is published."
+type: Issue
+status: in_progress
+priority: 1
+tags[2]: changelog,ci
+created_at: "2026-11-17T18:28:24.638Z"
+updated_at: "2026-11-17T22:22:41.107Z"
+author: pi-glm
+repro_steps: "Check out a commit that predates a published release tag, fetch tags, and run changelog:check with --all-release-tags."
+expected_result: A release whose tag is not reachable from HEAD never changes that checkout. --check at the older commit stays stable after the later release is published. Rebase-orphaned tags still remain available.
+actual_result: "Scheduled CI Deep at a pre-release commit failed changelog:check as tracker_changed, replacing the committed heading with the later release heading once that tag existed."
+comments[4]{created_at,author,text}:
+  "2026-11-17T18:28:43.196Z",pi-glm,"Reproduced on current main against the pre-release pm-changelog commit and the pm-beads commit after fetching tags. includeOrphaned omits --merged HEAD, so the descendant v2026.11.17 tag becomes the leading window and the check rewrites the committed heading to 2026.11.17. Reachable-only windows keep Unreleased. Orphaned rebase tags are a separate set and must stay."
+  "2026-11-17T22:13:29.786Z",codex-sol,Confirmed the scheduled pm-beads checkout has v2026.11.17 in git tag --contains HEAD and absent from git tag --merged HEAD. Comparing the baseline and rebuilt CLI on the same checkout.
+  "2026-11-17T22:20:34.439Z",codex-sol,Baseline CLI from b056e79 used the descendant v2026.11.17 tag on pm-beads 75b9a04. The fixed CLI emitted byte-identical check diagnostics with and without the tag and kept both later closures under Unreleased. This historical commit already differs from the current generator before the tag because its committed changelog places those closures under v2026.11.16. Compatibility fixtures exercise a clean checkout with a published descendant section and preserve rebase-orphaned history.
+  "2026-11-17T22:22:37.135Z",codex-sol,"The historical pm-changelog 3ec4845 check failed at baseline with the Unreleased heading replaced by 2026.11.17. The fixed source checks cleanly at that commit with the later tag present. Node 26 typecheck, test compilation, docstring lint (302 declarations), build, linked generator and published-section tests (158 passed), and changelog full/check passed. Commit: Keep descendant releases out of older changelog windows."
+files[3]{path,scope}:
+  src/release-context.ts,project
+  test/generator.test.ts,project
+  test/published-section-stability.test.ts,project
+tests[1]{command,scope,timeout_seconds,provenance{author,created_at,source_kind,source_ref}}:
+  node --test --test-concurrency=2 test/generator.test.ts test/published-section-stability.test.ts,project,600,codex-sol,"2026-11-17T22:16:42.597Z",local_mutation,fix/check-ignores-unreachable-releases
+docs[1]{path,scope}:
+  docs/stable-check-evidence.md,project
+body: "Root cause is in release-tag window discovery. The CLI sets includeOrphaned, which omits git tag --merged HEAD. That correctly keeps rebase-orphaned tags, but it also admits descendant tags. The newest descendant becomes the leading window and claims work closed after the previous reachable tag."

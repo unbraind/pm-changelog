@@ -419,26 +419,35 @@ function findPreviousTag(cwd, releaseTag) {
     const ref = releaseTag ? `${releaseTag}^` : "HEAD";
     return runGit(cwd, ["describe", "--tags", "--abbrev=0", ref]);
 }
+/** List tags that point strictly past HEAD using the release listing's name format. */
+function listDescendantTagNames(cwd, pattern) {
+    const output = runGit(cwd, ["tag", "--list", pattern, "--contains", "HEAD", "--no-merged", "HEAD", "--format=%(refname:short)"]);
+    return new Set(output ? output.split("\n") : []);
+}
 /** Read matching release tags with their commit timestamps, newest first.
  * Annotated tags are dated by the commit they point at rather than by when the
- * tag object was written, so a retagged release keeps its original date. */
+ * tag object was written, so a retagged release keeps its original date.
+ * Orphan recovery adds diverged tags, then drops descendant releases so a
+ * later publication cannot become this checkout's leading window. */
 function listReleaseTags(cwd, pattern, includeOrphaned = false) {
-    const args = ["tag", "--list", pattern ?? "*"];
+    const tagPattern = pattern ?? "*";
+    const args = ["tag", "--list", tagPattern];
     // Default to reachable tags only. When includeOrphaned is set the `--merged
     // HEAD` filter is dropped so tags orphaned by rebases/history rewrites are
-    // still discovered; the chronological sort and item-to-window assignment
-    // below place every item in the correct release bucket regardless of
-    // reachability.
+    // still discovered. Descendant tags are removed afterwards: they contain
+    // HEAD, so they are later releases, not orphans.
     if (!includeOrphaned)
         args.push("--merged", "HEAD");
     args.push("--format=%(refname:short)%09%(*committerdate:iso-strict)%09%(committerdate:iso-strict)");
     const output = runGit(cwd, args);
     if (!output)
         return [];
+    const later = includeOrphaned ? listDescendantTagNames(cwd, tagPattern) : new Set();
     const tags = output
         .split("\n")
         .map(parseTagLine)
         .filter((tag) => Boolean(tag))
+        .filter((tag) => !later.has(tag.name))
         .filter((tag) => pattern !== undefined || /^v/i.test(tag.name) || /^\d+\.\d+\.\d+(?:[-+].+)?$/.test(tag.name))
         .sort(compareReleaseTags);
     const seen = new Set();
