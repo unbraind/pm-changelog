@@ -7,7 +7,9 @@ status: in_progress
 priority: 1
 tags[2]: ci,tests
 created_at: "2026-11-17T18:28:29.971Z"
-updated_at: "2026-11-17T22:45:19.752Z"
+updated_at: "2026-11-18T02:01:55.947Z"
+assignee: codex-sol
+claim_principal: codex-sol
 author: pi-glm
 repro_steps: Run node scripts/prove-agent-contract-drift-revert.ts with no arguments.
 expected_result: The unmodified ten-releases test passes in the disposable copy. A failing fixed run prints child test names and no scratch paths or environment.
@@ -18,12 +20,18 @@ comments[5]{created_at,author,text}:
   "2026-11-17T22:20:39.679Z",codex-sol,"The baseline scratch proof exits 1 with ERR_MODULE_NOT_FOUND before the ten-releases test. Copying test/support restores the missing depth import. The Node 22 ten-release fixed, behavioral revert, and restored controls pass with the existing stripped environment and timeouts."
   "2026-11-17T22:30:15.943Z",codex-sol,The full proof was still processing the Unicode corpus after more than 13 minutes of shared-host execution. The linked PM run now has a 30-minute aggregate budget. The proof's child timeouts and behavioral assertions are unchanged.
   "2026-11-17T22:45:18.840Z",codex-sol,"The full Node 26 linked proof passed in 841 seconds with the ten-release control and all 26 function reverts. The initial run reached 17 function reverts before its 900-second linked-runner budget expired. Diagnostic fixtures passed on Node 22 and 26. A deliberate scratch test failure printed the child test name on both majors without disclosing its error contents or disposable directory. Typecheck, test compilation, docstring lint, build and changelog full/check passed. Commit: Restore drift-proof fixture support and report child failures."
-files[4]{path,scope}:
-  scripts/fixed-run-diagnostic.ts,project
-  scripts/prove-agent-contract-drift-revert.ts,project
-  test/fixed-run-diagnostic.test.ts,project
-  test/support/depth.ts,project
-tests[2]:
+files[4]:
+  - path: scripts/fixed-run-diagnostic.ts
+    scope: project
+    note: Sanitizes TAP and spec titles before proof diagnostics are emitted
+  - path: scripts/prove-agent-contract-drift-revert.ts
+    scope: project
+  - path: test/fixed-run-diagnostic.test.ts
+    scope: project
+    note: Regression coverage for assignment and credential redaction
+  - path: test/support/depth.ts
+    scope: project
+tests[3]:
   - command: node --test test/fixed-run-diagnostic.test.ts
     scope: project
     provenance:
@@ -41,6 +49,13 @@ tests[2]:
       source_ref: fix/check-ignores-unreachable-releases
     updated_by: codex-sol
     updated_at: "2026-11-17T22:29:49.892Z"
+  - command: "node scripts/prove-agent-contract-drift-revert.ts \"scope before validation\""
+    scope: project
+    provenance:
+      author: codex-sol
+      created_at: "2026-11-18T02:01:55.744Z"
+      source_kind: local_mutation
+      source_ref: fix/check-ignores-unreachable-releases
 docs[1]{path,scope}:
   docs/agent-contract-drift.md,project
 body: The proof copies four test files and not the support module they import. Node then fails the file before the ten-releases test runs. The fixed-run assertion does not print the child test name.
