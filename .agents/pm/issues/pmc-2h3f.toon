@@ -7,19 +7,18 @@ status: in_progress
 priority: 1
 tags[2]: ci,tests
 created_at: "2026-11-17T18:28:29.971Z"
-updated_at: "2026-11-18T02:01:55.947Z"
-assignee: codex-sol
-claim_principal: codex-sol
+updated_at: "2026-11-18T02:03:10.749Z"
 author: pi-glm
 repro_steps: Run node scripts/prove-agent-contract-drift-revert.ts with no arguments.
 expected_result: The unmodified ten-releases test passes in the disposable copy. A failing fixed run prints child test names and no scratch paths or environment.
 actual_result: The fixed run exits 1 because the copied test cannot resolve its support import. The proof assertion only shows 1 !== 0.
-comments[5]{created_at,author,text}:
+comments[6]{created_at,author,text}:
   "2026-11-17T18:28:44.586Z",pi-glm,"Reproduced the fixed-model failure. The disposable copy omits test/support/depth.ts. The ten-releases file imports it, so the child exits with ERR_MODULE_NOT_FOUND before the test body runs. The proof assertion discards that output."
   "2026-11-17T22:13:30.760Z",codex-sol,Confirmed three copied test files import test/support/depth.ts. Comparing the scratch proof with and without that dependency before running the full proof.
   "2026-11-17T22:20:39.679Z",codex-sol,"The baseline scratch proof exits 1 with ERR_MODULE_NOT_FOUND before the ten-releases test. Copying test/support restores the missing depth import. The Node 22 ten-release fixed, behavioral revert, and restored controls pass with the existing stripped environment and timeouts."
   "2026-11-17T22:30:15.943Z",codex-sol,The full proof was still processing the Unicode corpus after more than 13 minutes of shared-host execution. The linked PM run now has a 30-minute aggregate budget. The proof's child timeouts and behavioral assertions are unchanged.
   "2026-11-17T22:45:18.840Z",codex-sol,"The full Node 26 linked proof passed in 841 seconds with the ten-release control and all 26 function reverts. The initial run reached 17 function reverts before its 900-second linked-runner budget expired. Diagnostic fixtures passed on Node 22 and 26. A deliberate scratch test failure printed the child test name on both majors without disclosing its error contents or disposable directory. Typecheck, test compilation, docstring lint, build and changelog full/check passed. Commit: Restore drift-proof fixture support and report child failures."
+  "2026-11-18T02:03:08.553Z",codex-sol,"Round BO: CodeRabbit thread PRRT_kwDOSfkApc64u-0T maps to commit 4e137d6ab38d786231812b8751c89bc3f6f8564e. Both new regression cases failed on the original diagnostic and all four tests passed with assignment redaction and SDK credential detection. The existing path filter and ordinary quoted prose still pass. Direct checks passed: node --test test/fixed-run-diagnostic.test.ts, the scoped drift revert proof, npm run typecheck, npm run docstring, npm run build, npm run build:test, and npm run changelog:check after fetching tags and regenerating the changelog."
 files[4]:
   - path: scripts/fixed-run-diagnostic.ts
     scope: project
