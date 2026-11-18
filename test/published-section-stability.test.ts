@@ -253,3 +253,57 @@ test("--check stays stable across a release", (t) => {
   assert.equal(checked.status, 0, checked.stderr);
   assert.match(checked.stderr, /Changelog is up to date/);
 });
+
+test("a descendant tag for the pending version does not change its derived date", (t) => {
+  const f = publishedFixture(t);
+  f.withItems([{
+    id: "pending-release", title: "Delivered for the pending release", type: "Task",
+    status: "closed", completed_at: "2026-11-12T09:00:00Z",
+  }]);
+  f.writePackage("2026.11.12");
+  f.git("add", "items.json", "package.json");
+  f.commit("Prepare fixture v2026.11.12", "2026-11-12T10:00:00Z");
+  const older = f.git("rev-parse", "HEAD");
+  // Make the later commit before collecting either output on the older checkout.
+  f.commit("Release fixture v2026.11.12 the next day", "2026-11-13T10:00:00Z");
+  const later = f.git("rev-parse", "HEAD");
+  f.git("checkout", "--detach", older);
+
+  const before = f.cli("--stdout");
+  assert.equal(before.status, 0, before.stderr);
+  assert.match(before.stdout, /## 2026\.11\.12 - 2026-11-12/);
+  f.git("tag", "v2026.11.12", later);
+  const after = f.cli("--stdout");
+  assert.equal(after.status, 0, after.stderr);
+  assert.equal(after.stdout, before.stdout);
+});
+
+test("a descendant release tag and its published section do not retitle the older checkout", (t) => {
+  const f = publishedFixture(t);
+  f.withItems([{
+    id: "after-release", title: "Closed after the published release", type: "Task",
+    status: "closed", completed_at: "2026-11-14T12:00:00Z", updated_at: "2026-11-14T12:00:00Z",
+  }]);
+  const generated = f.cli("--mode", "replace", "--output", "CHANGELOG.md");
+  assert.equal(generated.status, 0, generated.stderr);
+  const before = f.read();
+  assert.match(before, /## Unreleased\n\n### Other\n\n- Closed after the published release \(after-release\)/);
+  assert.doesNotMatch(before, /2026\.11\.12/);
+  f.git("add", "CHANGELOG.md", "items.json");
+  f.commit("Record the older checkout changelog", "2026-11-14T13:00:00Z");
+  const older = f.git("rev-parse", "HEAD");
+
+  f.writePackage("2026.11.12");
+  writeFileSync(join(f.dir, "CHANGELOG.md"), `${before.trimEnd()}\n\n## 2026.11.12 - 2026-11-12\n\n### Other\n\n- Published only on the descendant\n`);
+  f.git("add", "CHANGELOG.md", "package.json");
+  f.commit("Release fixture v2026.11.12", "2026-11-15T12:00:00Z");
+  f.git("tag", "v2026.11.12");
+  assert.match(f.git("show", "v2026.11.12:CHANGELOG.md"), /## 2026\.11\.12 - 2026-11-12\n\n### Other\n\n- Published only on the descendant/);
+  f.git("checkout", "--detach", older);
+
+  const checked = f.cli("--mode", "replace", "--output", "CHANGELOG.md", "--check");
+  assert.equal(checked.status, 0, checked.stderr);
+  assert.match(checked.stderr, /Changelog is up to date/);
+  assert.equal(f.read(), before);
+  assert.doesNotMatch(f.read(), /2026\.11\.12/);
+});

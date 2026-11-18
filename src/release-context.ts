@@ -46,12 +46,13 @@ export interface ReleaseTagHistoryOptions {
   /** Optional Git glob; the default accepts version tags with or without v. */
   tagPattern?: string;
   /**
-   * Include release tags that are not reachable from HEAD. Rebases and history
-   * rewrites orphan release tags; excluding them collapses their items into the
-   * oldest reachable window, silently losing legacy changelog sections. The pm
-   * changelog CLI/extension set this to `true` so a full release history is
-   * preserved. Defaults to `false` so the exported helper keeps the safe,
-   * reachable-only `git tag --merged HEAD` semantics for external callers.
+   * Include release tags that a rebase or history rewrite orphaned. Those tags
+   * are reachable from neither direction; excluding them collapses their items
+   * into the oldest reachable window and drops legacy sections. A tag that
+   * contains HEAD but is not merged into HEAD is a later publication, not an
+   * orphan, and is never included: it must not retitle this checkout. The pm
+   * changelog CLI/extension set this to `true` so orphaned history is preserved.
+   * Defaults to `false`, which keeps reachable-only `git tag --merged HEAD`.
    */
   includeOrphaned?: boolean;
   includeUnreleased?: boolean;
@@ -533,10 +534,11 @@ function findPackageJson(start: string, stopBoundary: string | undefined): strin
   }
 }
 
-/** Return the first candidate spelling that exists as a real tag ref, letting
- * a version resolve whether it was tagged padded, unpadded, or `v`-prefixed. */
+/** Resolve the first real tag spelling that can contribute to this checkout. */
 function findExistingTag(cwd: string, candidates: string[]): string | undefined {
+  const later = listDescendantTagNames(cwd, candidates);
   for (const candidate of candidates) {
+    if (later.has(candidate)) continue;
     const result = runGit(cwd, ["rev-parse", "--verify", "--quiet", `refs/tags/${candidate}`]);
     if (result) return candidate;
   }
@@ -565,28 +567,38 @@ function releaseTagCandidates(version: string): string[] {
 }
 
 function findPreviousTag(cwd: string, releaseTag: string | undefined): string | undefined {
-  const ref = releaseTag ? `${releaseTag}^` : "HEAD";
+  const ref = releaseTag ? `refs/tags/${releaseTag}^` : "HEAD";
   return runGit(cwd, ["describe", "--tags", "--abbrev=0", ref]);
+}
+
+/** List tags that point strictly past HEAD using the release listing's name format. */
+function listDescendantTagNames(cwd: string, patterns: readonly string[]): Set<string> {
+  const output = runGit(cwd, ["tag", "--list", "--contains", "HEAD", "--no-merged", "HEAD", "--format=%(refname:lstrip=2)", "--", ...patterns]);
+  return new Set(output ? output.split("\n") : []);
 }
 
 /** Read matching release tags with their commit timestamps, newest first.
  * Annotated tags are dated by the commit they point at rather than by when the
- * tag object was written, so a retagged release keeps its original date. */
+ * tag object was written, so a retagged release keeps its original date.
+ * Orphan recovery adds diverged tags, then drops descendant releases so a
+ * later publication cannot become this checkout's leading window. */
 function listReleaseTags(cwd: string, pattern: string | undefined, includeOrphaned = false): ReleaseTag[] {
-  const args = ["tag", "--list", pattern ?? "*"];
+  const tagPattern = pattern ?? "*";
+  const args = ["tag", "--list", tagPattern];
   // Default to reachable tags only. When includeOrphaned is set the `--merged
   // HEAD` filter is dropped so tags orphaned by rebases/history rewrites are
-  // still discovered; the chronological sort and item-to-window assignment
-  // below place every item in the correct release bucket regardless of
-  // reachability.
+  // still discovered. Descendant tags are removed afterwards: they contain
+  // HEAD, so they are later releases, not orphans.
   if (!includeOrphaned) args.push("--merged", "HEAD");
-  args.push("--format=%(refname:short)%09%(*committerdate:iso-strict)%09%(committerdate:iso-strict)");
+  args.push("--format=%(refname:lstrip=2)%09%(*committerdate:iso-strict)%09%(committerdate:iso-strict)");
   const output = runGit(cwd, args);
   if (!output) return [];
+  const later = includeOrphaned ? listDescendantTagNames(cwd, [tagPattern]) : new Set<string>();
   const tags = output
     .split("\n")
     .map(parseTagLine)
     .filter((tag): tag is ReleaseTag => Boolean(tag))
+    .filter((tag) => !later.has(tag.name))
     .filter((tag) => pattern !== undefined || /^v/i.test(tag.name) || /^\d+\.\d+\.\d+(?:[-+].+)?$/.test(tag.name))
     .sort(compareReleaseTags);
   const seen = new Set<string>();
@@ -694,7 +706,7 @@ export function parseTagLine(line: string): ReleaseTag | undefined {
 }
 
 function tryGitCommitTimestamp(cwd: string, ref: string): string | undefined {
-  return runGit(cwd, ["log", "-1", "--format=%cI", ref]);
+  return runGit(cwd, ["log", "-1", "--format=%cI", `refs/tags/${ref}`]);
 }
 
 /** Run a git command and return trimmed stdout, or `undefined` on any failure

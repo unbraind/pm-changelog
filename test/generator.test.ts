@@ -619,6 +619,81 @@ test("resolveReleaseTagWindows includes orphaned tags only when opted in", (t) =
   assert.equal(windows[2].heading, "2026.5.15 - 2026-05-15");
 });
 
+test("resolveReleaseTagWindows keeps a merged tag when no tag contains HEAD", (t) => {
+  const dir = mkdtempSync(join(tmpdir(), "pm-changelog-ancestor-only-"));
+  t.after(() => removeGitFixture(dir));
+  initGitFixture(dir);
+  execFileSync("git", ["config", "user.name", "pm changelog test"], { cwd: dir, encoding: "utf-8" });
+  execFileSync("git", ["config", "user.email", "pm-changelog@example.com"], { cwd: dir, encoding: "utf-8" });
+  writeFileSync(join(dir, "file.txt"), "tagged\n");
+  execFileSync("git", ["add", "file.txt"], { cwd: dir, encoding: "utf-8" });
+  execFileSync("git", ["commit", "-m", "tagged"], {
+    cwd: dir,
+    encoding: "utf-8",
+    env: { ...process.env, GIT_AUTHOR_DATE: "2026-06-01T12:00:00Z", GIT_COMMITTER_DATE: "2026-06-01T12:00:00Z" },
+  });
+  execFileSync("git", ["tag", "v2026.6.1"], { cwd: dir, encoding: "utf-8" });
+  writeFileSync(join(dir, "file.txt"), "later\n");
+  execFileSync("git", ["add", "file.txt"], { cwd: dir, encoding: "utf-8" });
+  execFileSync("git", ["commit", "-m", "later"], {
+    cwd: dir,
+    encoding: "utf-8",
+    env: { ...process.env, GIT_AUTHOR_DATE: "2026-06-02T12:00:00Z", GIT_COMMITTER_DATE: "2026-06-02T12:00:00Z" },
+  });
+
+  const windows = resolveReleaseTagWindows({ cwd: dir, includeOrphaned: true });
+  assert.deepEqual(windows.map((window) => window.heading), ["Unreleased", "2026.6.1 - 2026-06-01"]);
+});
+
+test("resolveReleaseTagWindows ignores a descendant release when recovering orphans", (t) => {
+  const dir = mkdtempSync(join(tmpdir(), "pm-changelog-descendant-"));
+  t.after(() => removeGitFixture(dir));
+  initGitFixture(dir);
+  execFileSync("git", ["config", "user.name", "pm changelog test"], { cwd: dir, encoding: "utf-8" });
+  execFileSync("git", ["config", "user.email", "pm-changelog@example.com"], { cwd: dir, encoding: "utf-8" });
+  const defaultBranch = execFileSync("git", ["branch", "--show-current"], { cwd: dir, encoding: "utf-8" }).trim();
+
+  writeFileSync(join(dir, "file.txt"), "reachable\n");
+  execFileSync("git", ["add", "file.txt"], { cwd: dir, encoding: "utf-8" });
+  execFileSync("git", ["commit", "-m", "reachable"], {
+    cwd: dir,
+    encoding: "utf-8",
+    env: { ...process.env, GIT_AUTHOR_DATE: "2026-06-01T12:00:00Z", GIT_COMMITTER_DATE: "2026-06-01T12:00:00Z" },
+  });
+  execFileSync("git", ["tag", "v2026.6.1"], { cwd: dir, encoding: "utf-8" });
+  const older = execFileSync("git", ["rev-parse", "HEAD"], { cwd: dir, encoding: "utf-8" }).trim();
+
+  execFileSync("git", ["switch", "--orphan", "old-history"], { cwd: dir, encoding: "utf-8" });
+  writeFileSync(join(dir, "old.txt"), "old\n");
+  execFileSync("git", ["add", "old.txt"], { cwd: dir, encoding: "utf-8" });
+  execFileSync("git", ["commit", "-m", "old"], {
+    cwd: dir,
+    encoding: "utf-8",
+    env: { ...process.env, GIT_AUTHOR_DATE: "2026-05-15T12:00:00Z", GIT_COMMITTER_DATE: "2026-05-15T12:00:00Z" },
+  });
+  execFileSync("git", ["tag", "v2026.5.15"], { cwd: dir, encoding: "utf-8" });
+  execFileSync("git", ["switch", defaultBranch], { cwd: dir, encoding: "utf-8" });
+
+  writeFileSync(join(dir, "CHANGELOG.md"), "# Changelog\n\n## 2026.6.2 - 2026-06-02\n\nPublished only on the descendant.\n");
+  execFileSync("git", ["add", "CHANGELOG.md"], { cwd: dir, encoding: "utf-8" });
+  execFileSync("git", ["commit", "-m", "later release"], {
+    cwd: dir,
+    encoding: "utf-8",
+    env: { ...process.env, GIT_AUTHOR_DATE: "2026-06-02T12:00:00Z", GIT_COMMITTER_DATE: "2026-06-02T12:00:00Z" },
+  });
+  execFileSync("git", ["tag", "v2026.6.2"], { cwd: dir, encoding: "utf-8" });
+  execFileSync("git", ["checkout", "--detach", older], { cwd: dir, encoding: "utf-8" });
+
+  const windows = resolveReleaseTagWindows({ cwd: dir, includeOrphaned: true });
+  assert.deepEqual(windows.map((window) => window.heading), [
+    "Unreleased",
+    "2026.6.1 - 2026-06-01",
+    "2026.5.15 - 2026-05-15",
+  ]);
+  assert.ok(windows.every((window) => window.releaseTag !== "v2026.6.2"));
+  assert.match(execFileSync("git", ["show", "v2026.6.2:CHANGELOG.md"], { cwd: dir, encoding: "utf-8" }), /## 2026\.6\.2 - 2026-06-02/);
+});
+
 test("resolveReleaseTagWindows keeps unpadded calendar pending headings", (t) => {
   const dir = mkdtempSync(join(tmpdir(), "pm-changelog-calver-"));
   t.after(() => removeGitFixture(dir));

@@ -37,12 +37,13 @@ export interface ReleaseTagHistoryOptions {
     /** Optional Git glob; the default accepts version tags with or without v. */
     tagPattern?: string;
     /**
-     * Include release tags that are not reachable from HEAD. Rebases and history
-     * rewrites orphan release tags; excluding them collapses their items into the
-     * oldest reachable window, silently losing legacy changelog sections. The pm
-     * changelog CLI/extension set this to `true` so a full release history is
-     * preserved. Defaults to `false` so the exported helper keeps the safe,
-     * reachable-only `git tag --merged HEAD` semantics for external callers.
+     * Include release tags that a rebase or history rewrite orphaned. Those tags
+     * are reachable from neither direction; excluding them collapses their items
+     * into the oldest reachable window and drops legacy sections. A tag that
+     * contains HEAD but is not merged into HEAD is a later publication, not an
+     * orphan, and is never included: it must not retitle this checkout. The pm
+     * changelog CLI/extension set this to `true` so orphaned history is preserved.
+     * Defaults to `false`, which keeps reachable-only `git tag --merged HEAD`.
      */
     includeOrphaned?: boolean;
     includeUnreleased?: boolean;
