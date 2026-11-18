@@ -383,10 +383,12 @@ function findPackageJson(start, stopBoundary) {
         current = dirname(current);
     }
 }
-/** Return the first candidate spelling that exists as a real tag ref, letting
- * a version resolve whether it was tagged padded, unpadded, or `v`-prefixed. */
+/** Resolve the first real tag spelling that can contribute to this checkout. */
 function findExistingTag(cwd, candidates) {
+    const later = listDescendantTagNames(cwd, candidates);
     for (const candidate of candidates) {
+        if (later.has(candidate))
+            continue;
         const result = runGit(cwd, ["rev-parse", "--verify", "--quiet", `refs/tags/${candidate}`]);
         if (result)
             return candidate;
@@ -416,12 +418,12 @@ function releaseTagCandidates(version) {
     return Array.from(new Set(candidates));
 }
 function findPreviousTag(cwd, releaseTag) {
-    const ref = releaseTag ? `${releaseTag}^` : "HEAD";
+    const ref = releaseTag ? `refs/tags/${releaseTag}^` : "HEAD";
     return runGit(cwd, ["describe", "--tags", "--abbrev=0", ref]);
 }
 /** List tags that point strictly past HEAD using the release listing's name format. */
-function listDescendantTagNames(cwd, pattern) {
-    const output = runGit(cwd, ["tag", "--list", pattern, "--contains", "HEAD", "--no-merged", "HEAD", "--format=%(refname:short)"]);
+function listDescendantTagNames(cwd, patterns) {
+    const output = runGit(cwd, ["tag", "--list", "--contains", "HEAD", "--no-merged", "HEAD", "--format=%(refname:lstrip=2)", "--", ...patterns]);
     return new Set(output ? output.split("\n") : []);
 }
 /** Read matching release tags with their commit timestamps, newest first.
@@ -438,11 +440,11 @@ function listReleaseTags(cwd, pattern, includeOrphaned = false) {
     // HEAD, so they are later releases, not orphans.
     if (!includeOrphaned)
         args.push("--merged", "HEAD");
-    args.push("--format=%(refname:short)%09%(*committerdate:iso-strict)%09%(committerdate:iso-strict)");
+    args.push("--format=%(refname:lstrip=2)%09%(*committerdate:iso-strict)%09%(committerdate:iso-strict)");
     const output = runGit(cwd, args);
     if (!output)
         return [];
-    const later = includeOrphaned ? listDescendantTagNames(cwd, tagPattern) : new Set();
+    const later = includeOrphaned ? listDescendantTagNames(cwd, [tagPattern]) : new Set();
     const tags = output
         .split("\n")
         .map(parseTagLine)
@@ -555,7 +557,7 @@ export function parseTagLine(line) {
     return { name: tagName, timestamp };
 }
 function tryGitCommitTimestamp(cwd, ref) {
-    return runGit(cwd, ["log", "-1", "--format=%cI", ref]);
+    return runGit(cwd, ["log", "-1", "--format=%cI", `refs/tags/${ref}`]);
 }
 /** Run a git command and return trimmed stdout, or `undefined` on any failure
  * or empty output. Failing soft is deliberate: every caller has a defined

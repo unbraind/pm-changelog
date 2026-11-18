@@ -254,6 +254,30 @@ test("--check stays stable across a release", (t) => {
   assert.match(checked.stderr, /Changelog is up to date/);
 });
 
+test("a descendant tag for the pending version does not change its derived date", (t) => {
+  const f = publishedFixture(t);
+  f.withItems([{
+    id: "pending-release", title: "Delivered for the pending release", type: "Task",
+    status: "closed", completed_at: "2026-11-12T09:00:00Z",
+  }]);
+  f.writePackage("2026.11.12");
+  f.git("add", "items.json", "package.json");
+  f.commit("Prepare fixture v2026.11.12", "2026-11-12T10:00:00Z");
+  const older = f.git("rev-parse", "HEAD");
+  // Make the later commit before collecting either output on the older checkout.
+  f.commit("Release fixture v2026.11.12 the next day", "2026-11-13T10:00:00Z");
+  const later = f.git("rev-parse", "HEAD");
+  f.git("checkout", "--detach", older);
+
+  const before = f.cli("--stdout");
+  assert.equal(before.status, 0, before.stderr);
+  assert.match(before.stdout, /## 2026\.11\.12 - 2026-11-12/);
+  f.git("tag", "v2026.11.12", later);
+  const after = f.cli("--stdout");
+  assert.equal(after.status, 0, after.stderr);
+  assert.equal(after.stdout, before.stdout);
+});
+
 test("a descendant release tag and its published section do not retitle the older checkout", (t) => {
   const f = publishedFixture(t);
   f.withItems([{
