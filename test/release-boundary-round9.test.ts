@@ -23,7 +23,7 @@ async function releaseFixture(t: TestContext, items: readonly [string, string][]
   const commit = (date: string): string => {
     const env = { ...fixtureEnvironment(), GIT_AUTHOR_DATE: date, GIT_COMMITTER_DATE: date };
     execFileSync("git", ["add", "package.json", ".agents/pm"], { cwd, env });
-    execFileSync("git", ["-c", "user.name=SteveBot", "-c", "user.email=1153461+unbraind@users.noreply.github.com", "commit", "--allow-empty", "-m", `Release fixture ${date}`], { cwd, env, stdio: "pipe" });
+    execFileSync("git", ["-c", "user.name=unbrained", "-c", "user.email=1153461+unbraind@users.noreply.github.com", "commit", "--allow-empty", "-m", `Release fixture ${date}`], { cwd, env, stdio: "pipe" });
     return git("rev-parse", "HEAD");
   };
   return { cwd, pmRoot, commit, git };

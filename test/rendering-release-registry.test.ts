@@ -22,7 +22,7 @@ async function registryFixture(t: TestContext) {
   const commit = () => {
     const options = { cwd, env: { ...fixtureEnvironment(), GIT_AUTHOR_DATE: "2026-11-03T00:00:00Z", GIT_COMMITTER_DATE: "2026-11-03T00:00:00Z" }, encoding: "utf8" as const, stdio: "pipe" as const };
     execFileSync("git", ["add", "package.json", ".agents"], options);
-    execFileSync("git", ["-c", "user.name=SteveBot", "-c", "user.email=1153461+unbraind@users.noreply.github.com", "commit", "--allow-empty", "-m", "Capture publication registry"], options);
+    execFileSync("git", ["-c", "user.name=unbrained", "-c", "user.email=1153461+unbraind@users.noreply.github.com", "commit", "--allow-empty", "-m", "Capture publication registry"], options);
     return execFileSync("git", ["rev-parse", "HEAD"], options).trim();
   };
   /** Create completed metadata through the supported native writer. */

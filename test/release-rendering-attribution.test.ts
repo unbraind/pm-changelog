@@ -22,12 +22,12 @@ test("selected release attributes only delivered pending rendering actions with 
   writeFileSync(join(cwd, "package.json"), JSON.stringify({ name: "fixture", version: "2.0.0" }));
   // The earlier draft contains readable tracker configuration but no delivered items.
   execFileSync("git", ["add", "package.json", ".agents/pm"], { cwd, env: fixtureEnvironment() });
-  execFileSync("git", ["-c", "user.name=SteveBot", "-c", "user.email=1153461+unbraind@users.noreply.github.com", "commit", "-m", "Unpublished draft version"], { cwd, env: fixtureEnvironment(), stdio: "pipe" });
+  execFileSync("git", ["-c", "user.name=unbrained", "-c", "user.email=1153461+unbraind@users.noreply.github.com", "commit", "-m", "Unpublished draft version"], { cwd, env: fixtureEnvironment(), stdio: "pipe" });
   for (const [id, status, release, tags] of [["release-pending", "closed", undefined, "rendering-change"], ["release-active", "in_progress", undefined, "rendering-change"], ["release-existing", "closed", "1.0.0", "rendering-change"], ["release-untagged", "closed", undefined, ""]]) {
     await runCreate({ id, status, release, tags, title: `Delivered ${id}`, type: "Task", createMode: "progressive", ...{ changeFacets: JSON.stringify([{ audience: "operator", text: "Regenerate once", breaking: true, upgrade_actions: [{ id: "regenerate-once", title: "Regenerate once", requires: [] }] }]) }, completedAt: status === "closed" ? "2026-11-01T00:00:00Z" : undefined, closeReason: status === "closed" ? "Implemented the change" : undefined }, { path: pmRoot });
   }
   execFileSync("git", ["add", "package.json", ".agents/pm"], { cwd, env: fixtureEnvironment() });
-  execFileSync("git", ["-c", "user.name=SteveBot", "-c", "user.email=1153461+unbraind@users.noreply.github.com", "commit", "-m", "Prepare pending window"], { cwd, env: fixtureEnvironment(), stdio: "pipe" });
+  execFileSync("git", ["-c", "user.name=unbrained", "-c", "user.email=1153461+unbraind@users.noreply.github.com", "commit", "-m", "Prepare pending window"], { cwd, env: fixtureEnvironment(), stdio: "pipe" });
   const preparedFrom = execFileSync("git", ["rev-parse", "HEAD"], { cwd, env: fixtureEnvironment(), encoding: "utf8" }).trim();
   const options = { cwd, preparedFrom, publication: { state: "unpublished" as const } };
   const history = join(pmRoot, "history/release-pending.jsonl");
@@ -82,7 +82,7 @@ test("published recovery freezes the prepared item set and published section aft
   const commit = (date: string): string => {
     const env = { ...fixtureEnvironment(), GIT_AUTHOR_DATE: date, GIT_COMMITTER_DATE: date };
     execFileSync("git", ["add", "package.json", ".agents/pm"], { cwd, env });
-    execFileSync("git", ["-c", "user.name=SteveBot", "-c", "user.email=1153461+unbraind@users.noreply.github.com", "commit", "-m", "Release fixture state"], { cwd, env, stdio: "pipe" });
+    execFileSync("git", ["-c", "user.name=unbrained", "-c", "user.email=1153461+unbraind@users.noreply.github.com", "commit", "-m", "Release fixture state"], { cwd, env, stdio: "pipe" });
     return execFileSync("git", ["rev-parse", "HEAD"], { cwd, env, encoding: "utf8" }).trim();
   };
   const prepared = commit("2026-11-02T00:00:00Z");
@@ -123,7 +123,7 @@ test("frozen delivery facts reject relabelled non-changes and later edits while 
   writeFileSync(join(cwd, "package.json"), JSON.stringify({ name: "fixture", version: "2.0.0" }));
   const env = { ...fixtureEnvironment(), GIT_AUTHOR_DATE: "2026-11-03T00:00:00Z", GIT_COMMITTER_DATE: "2026-11-03T00:00:00Z" };
   execFileSync("git", ["add", "package.json", ".agents/pm"], { cwd, env });
-  execFileSync("git", ["-c", "user.name=SteveBot", "-c", "user.email=1153461+unbraind@users.noreply.github.com", "commit", "-m", "Frozen delivery fixture"], { cwd, env, stdio: "pipe" });
+  execFileSync("git", ["-c", "user.name=unbrained", "-c", "user.email=1153461+unbraind@users.noreply.github.com", "commit", "-m", "Frozen delivery fixture"], { cwd, env, stdio: "pipe" });
   const published = execFileSync("git", ["rev-parse", "HEAD"], { cwd, env, encoding: "utf8" }).trim();
   await runUpdate("release-frozen-duplicate", { closeReason: "Implemented" }, { path: pmRoot });
   await runUpdate("release-frozen-resolution", { resolution: "Implemented" }, { path: pmRoot });
@@ -158,7 +158,7 @@ test("neutral issue closures cannot publish live or frozen upgrade obligations; 
   writeFileSync(join(cwd, "package.json"), JSON.stringify({ name: "fixture", version: "2.0.0" }));
   const env = { ...fixtureEnvironment(), GIT_AUTHOR_DATE: "2026-11-03T00:00:00Z", GIT_COMMITTER_DATE: "2026-11-03T00:00:00Z" };
   execFileSync("git", ["add", "package.json", ".agents/pm"], { cwd, env });
-  execFileSync("git", ["-c", "user.name=SteveBot", "-c", "user.email=1153461+unbraind@users.noreply.github.com", "commit", "-m", "Frozen neutral and repaired issues"], { cwd, env, stdio: "pipe" });
+  execFileSync("git", ["-c", "user.name=unbrained", "-c", "user.email=1153461+unbraind@users.noreply.github.com", "commit", "-m", "Frozen neutral and repaired issues"], { cwd, env, stdio: "pipe" });
   const published = execFileSync("git", ["rev-parse", "HEAD"], { cwd, env, encoding: "utf8" }).trim();
   await runUpdate("release-neutral-live", { closeReason: neutral }, { path: pmRoot });
   await runUpdate("release-neutral-frozen", { closeReason: repaired }, { path: pmRoot });
@@ -187,7 +187,7 @@ test("unproved release boundary refuses eligible candidates before any writes", 
   initGitFixture(cwd);
   writeFileSync(join(cwd, "package.json"), JSON.stringify({ name: "fixture", version: "1.0.0" }));
   execFileSync("git", ["add", "package.json", ".agents/pm"], { cwd, env: fixtureEnvironment() });
-  execFileSync("git", ["-c", "user.name=SteveBot", "-c", "user.email=1153461+unbraind@users.noreply.github.com", "commit", "-m", "Unknown publication fixture"], { cwd, env: fixtureEnvironment(), stdio: "pipe" });
+  execFileSync("git", ["-c", "user.name=unbrained", "-c", "user.email=1153461+unbraind@users.noreply.github.com", "commit", "-m", "Unknown publication fixture"], { cwd, env: fixtureEnvironment(), stdio: "pipe" });
   skipped.length = 0;
   const history = readFileSync(join(pmRoot, "history/release-unknown.jsonl"));
   for (const [preparedFrom, reason] of [["HEAD", "publication_state_unknown"], ["", "release_decision_base_missing"], ["missing-ref", "release_decision_base_unavailable"]]) {
