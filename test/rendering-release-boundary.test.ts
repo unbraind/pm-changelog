@@ -20,7 +20,7 @@ async function publicationFixture(t: TestContext) {
   await runInit("release", { path: pmRoot }, { defaults: true, agentGuidance: "skip" });
   writeFileSync(join(cwd, "package.json"), JSON.stringify({ name: "fixture", version: "2.0.0" }));
   /** Execute only owned fixture Git operations with explicit identity and date. */
-  const git = (args: string[], date = "2026-11-05T00:00:00Z"): string => execFileSync("git", ["-c", "user.name=SteveBot", "-c", "user.email=1153461+unbraind@users.noreply.github.com", ...args],
+  const git = (args: string[], date = "2026-11-05T00:00:00Z"): string => execFileSync("git", ["-c", "user.name=unbrained", "-c", "user.email=1153461+unbraind@users.noreply.github.com", ...args],
     { cwd, env: { ...fixtureEnvironment(), GIT_AUTHOR_DATE: date, GIT_COMMITTER_DATE: date }, encoding: "utf8", stdio: ["pipe", "pipe", "pipe"] }).trim();
   /** Persist complete native fixture rows and retain the immutable commit ID. */
   const commit = (date: string): string => { git(["add", "package.json", ".agents/pm"]); git(["commit", "--allow-empty", "-m", "Publication boundary fixture"], date); return git(["rev-parse", "HEAD"]); };

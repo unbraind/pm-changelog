@@ -16,7 +16,7 @@ function repository(t: TestContext) {
   mkdirSync(join(root, "src"));
   initGitFixture(root, ["-b", "main"]);
   /** Commit only explicit fixture paths with the prescribed synthetic identity. */
-  const git = (...args: string[]) => execFileSync("git", ["-c", "user.name=SteveBot", "-c", "user.email=1153461+unbraind@users.noreply.github.com", ...args], { cwd: root, env: fixtureEnvironment(), stdio: "pipe" });
+  const git = (...args: string[]) => execFileSync("git", ["-c", "user.name=unbrained", "-c", "user.email=1153461+unbraind@users.noreply.github.com", ...args], { cwd: root, env: fixtureEnvironment(), stdio: "pipe" });
   writeFileSync(join(root, "src/cli.ts"), "base source\n");
   git("add", "src/cli.ts"); git("commit", "-m", "Fixture base");
   git("update-ref", "refs/remotes/origin/main", "HEAD");
@@ -79,7 +79,7 @@ test("proof controls complete in a fresh clone and a source archive without orig
   }
   initGitFixture(source, ["-b", "feature"]);
   execFileSync("git", ["add", "src", "dist", "scripts", "test", "docs", ".github", "package.json", "manifest.json", ".gitignore", ".agents/pm/settings.json", ".agents/pm/issues", ".agents/pm/history"], { cwd: source, env: fixtureEnvironment() });
-  execFileSync("git", ["-c", "user.name=SteveBot", "-c", "user.email=1153461+unbraind@users.noreply.github.com", "commit", "-m", "Portable proof fixture"], { cwd: source, env: fixtureEnvironment(), stdio: "pipe" });
+  execFileSync("git", ["-c", "user.name=unbrained", "-c", "user.email=1153461+unbraind@users.noreply.github.com", "commit", "-m", "Portable proof fixture"], { cwd: source, env: fixtureEnvironment(), stdio: "pipe" });
   const clone = join(root, "clone"), archive = join(root, "archive");
   cloneGitFixture(clone, ["--single-branch", source]);
   mkdirSync(archive);

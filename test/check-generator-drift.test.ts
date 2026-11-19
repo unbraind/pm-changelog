@@ -328,7 +328,7 @@ test("historical dependency profiles reproduce published subject-matcher bytes i
   for (const subject of ["CHORE(deps): bump lower fixture (#1)", "chore(deps): Bump upper fixture (#2)", "build(DePs-DeV): bump mixed fixture (#3)"]) {
     writeFileSync(join(cwd, "fixture.txt"), subject);
     execFileSync("git", ["add", "fixture.txt"], { cwd, env });
-    execFileSync("git", ["-c", "user.name=SteveBot", "-c", "user.email=1153461+unbraind@users.noreply.github.com", "commit", "-m", subject], { cwd, env, stdio: "pipe" });
+    execFileSync("git", ["-c", "user.name=unbrained", "-c", "user.email=1153461+unbraind@users.noreply.github.com", "commit", "-m", subject], { cwd, env, stdio: "pipe" });
   }
   execFileSync("git", ["tag", "v1.0.0"], { cwd, env });
   const items = (await listAllComplete({}, { pmRoot })).items;

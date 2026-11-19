@@ -1,0 +1,27 @@
+id: pmc-pm-changelog-identity-unbrained
+title: Use the unbrained commit identity
+description: "Apply the 2026-11-19 owner decision to tracked fixtures, documentation, and PM history. Verify identity mapping and package gates."
+type: Chore
+status: open
+priority: 2
+tags: []
+created_at: "2026-11-19T11:32:27.013Z"
+updated_at: "2026-11-19T12:04:08.111Z"
+author: codex-sol
+comments[3]{created_at,author,text}:
+  "2026-11-19T11:32:37.099Z",codex-sol,The owner selected unbrained as the fleet commit name and retained the existing noreply address. Verify package checks and reseal affected PM histories.
+  "2026-11-19T11:49:12.288Z",codex-sol,The grouped test command reached its timeout during the portable proof suite after the other tests finished. The portable proof suite is running separately with a longer allowance.
+  "2026-11-19T12:04:04.670Z",codex-sol,"Local tests, typecheck, tracker health, and changelog checks completed. History redaction verified for 4 items with zero hash mismatches. Historical Git attribution matched per commit after mapping 129 approved-address records to the fleet name."
+files[7]{path,scope}:
+  .mailmap,project
+  test/check-generator-drift.test.ts,project
+  test/proof-baseline.test.ts,project
+  test/release-boundary-round9.test.ts,project
+  test/release-rendering-attribution.test.ts,project
+  test/rendering-release-boundary.test.ts,project
+  test/rendering-release-registry.test.ts,project
+tests[3]{command,scope,timeout_seconds,provenance{author,created_at,source_kind,source_ref}}:
+  npm run typecheck,project,600,codex-sol,"2026-11-19T11:35:32.955Z",local_mutation,chore/commit-identity-unbrained
+  node --test --test-concurrency=2 test/check-generator-drift.test.ts test/identity-audit.test.ts test/proof-baseline.test.ts test/release-boundary-round9.test.ts test/release-rendering-attribution.test.ts test/rendering-release-boundary.test.ts test/rendering-release-registry.test.ts,project,600,codex-sol,"2026-11-19T11:36:02.501Z",local_mutation,chore/commit-identity-unbrained
+  node --test test/proof-baseline.test.ts,project,1500,codex-sol,"2026-11-19T11:47:21.359Z",local_mutation,chore/commit-identity-unbrained
+body: ""
