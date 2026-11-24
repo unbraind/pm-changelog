@@ -34,7 +34,9 @@ test("generation and export enumerate configured and extension types alongside b
       });
       assert.deepEqual(activation.failed, []);
       for (const command of ["changelog generate", "changelog export"]) {
-        const defaultRun = await runRegisteredCommandForTest(activation.commands, { command, pmRoot, options: { stdout: true, "item-url-base": "https://example.test/items" } });
+        const generate = command === "changelog generate";
+        const outputOptions = generate ? { stdout: true } : {};
+        const defaultRun = await runRegisteredCommandForTest(activation.commands, { command, pmRoot, options: { ...outputOptions, "item-url-base": "https://example.test/items" } });
         assert.ok(defaultRun.result !== null && typeof defaultRun.result === "object");
         assert.ok("item_count" in defaultRun.result && defaultRun.result.item_count === 1);
         assert.ok("changelog" in defaultRun.result && typeof defaultRun.result.changelog === "string");
@@ -45,7 +47,10 @@ test("generation and export enumerate configured and extension types alongside b
         }
         assert.doesNotMatch(defaultRun.result.changelog, /Custom story release|Built-in task release|Extension changeset release/);
         const { result } = await runRegisteredCommandForTest(activation.commands, {
-          command, pmRoot, options: { stdout: true, status: "open", "item-url-base": "https://example.test/items", "explain-selection": true, "body-preview": 100 },
+          command, pmRoot, options: {
+            ...outputOptions, status: "open", "item-url-base": "https://example.test/items",
+            ...(generate ? { "explain-selection": true, "body-preview": 100 } : {}),
+          },
         });
         assert.ok(result !== null && typeof result === "object");
         assert.ok("item_count" in result);
@@ -55,8 +60,8 @@ test("generation and export enumerate configured and extension types alongside b
         assert.match(result.changelog, /\/custom-stories\//);
         assert.match(result.changelog, /Built-in task release/);
         assert.match(result.changelog, /Extension changeset release/);
-        if (command === "changelog generate") assert.match(result.changelog, /Actual extension body evidence/);
-        if (command === "changelog generate") {
+        if (generate) {
+          assert.match(result.changelog, /Actual extension body evidence/);
           assert.ok("selection_report" in result);
           const report = result.selection_report;
           assert.ok(report !== null && typeof report === "object" && "stage_counts" in report);

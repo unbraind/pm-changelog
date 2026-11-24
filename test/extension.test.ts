@@ -182,6 +182,22 @@ test("changelog exporter rejects unsupported formats", async () => {
   );
 });
 
+test("the host refuses generate-only options sent to changelog export", async () => {
+  const { commands } = await activateChangelog();
+  for (const [flag, value] of Object.entries({ stdout: true, mode: "replace", "body-preview": 100, "explain-selection": true })) {
+    await assert.rejects(runRegisteredCommandForTest(commands, {
+      command: "changelog export", options: { [flag]: value }, pmRoot: TRACKER_ROOT,
+    }), (error: unknown) => {
+      assert.ok(error instanceof Error);
+      const refusal = error as Error & { exitCode?: number; context?: { code?: string; flag?: string } };
+      assert.equal(refusal.exitCode, 2);
+      assert.equal(refusal.context?.code, "unknown_option");
+      assert.equal(refusal.context?.flag, `--${flag}`);
+      return true;
+    });
+  }
+});
+
 test("both changelog commands accept --dependency-updates and refuse it with release or milestone grouping", async () => {
   const { commands } = await activateChangelog();
   assert.ok((await registeredFlagLongs("changelog export")).includes("--dependency-updates"));
@@ -196,7 +212,7 @@ test("both changelog commands accept --dependency-updates and refuse it with rel
       await assert.rejects(
         () => runRegisteredCommandForTest(commands, {
           command,
-          options: { stdout: true, "group-by": groupBy, "dependency-updates": true },
+          options: { "group-by": groupBy, "dependency-updates": true },
           pmRoot: TRACKER_ROOT,
         }),
         /cannot be combined with --group-by release or milestone/,
@@ -786,8 +802,9 @@ test("generate and export fail closed for missing requested releases in real tra
     await runCreate({ id: "release-open", title: "Undelivered change", type: "Task", createMode: "progressive", unset: ["parent", "release", "goal", "sprint", "objective"] }, { path: root, author: "release-test" });
     const { commands } = await activateChangelog();
     for (const command of ["changelog generate", "changelog export"]) {
+      const outputOptions = command === "changelog generate" ? { stdout: true } : {};
       await assert.rejects(runRegisteredCommandForTest(commands, {
-        command, options: { "release-version": "2026.10.29", stdout: true }, pmRoot: root,
+        command, options: { ...outputOptions, "release-version": "2026.10.29" }, pmRoot: root,
       }), (error: unknown) => {
         assert.ok(error instanceof Error);
         const typed = error as Error & { exitCode?: number; context?: { code?: string; remedy?: string } };
@@ -835,9 +852,10 @@ test("generate and export retain itemless Dependabot notes at the output path af
   git("-c", "commit.gpgsign=false", "commit", "--allow-empty", "-m", "docs: release documentation");
   const { commands } = await activateChangelog();
   for (const command of ["changelog generate", "changelog export"]) {
+    const outputOptions = command === "changelog generate" ? { stdout: true } : {};
     assert.ok((await registeredFlagLongs(command)).includes("--no-dependency-updates"));
     for (const range of [{ "since-previous-tag": true }, { "until-release-tag": true }, ...(command === "changelog generate" ? [{ "all-release-tags": true }] : [])]) {
-      const options = { stdout: true, "release-version": "2026.11.1", "date-from-version": true, ...range };
+      const options = { ...outputOptions, "release-version": "2026.11.1", "date-from-version": true, ...range };
       const result = await runRegisteredCommandForTest(commands, { command, options, pmRoot: root });
       const markdown = (commandResult(result) as { changelog: string }).changelog;
       assert.match(markdown, /## 2026\.11\.1 - 2026-11-01/);
@@ -854,8 +872,9 @@ test("generate and export retain itemless Dependabot notes at the output path af
   git("-c", "commit.gpgsign=false", "commit", "-m", "Release pm-fixture v2026.11.01");
   git("tag", "v2026.11.01");
   for (const command of ["changelog generate", "changelog export"]) {
+    const modeOptions = command === "changelog generate" ? { mode: "replace" } : {};
     for (const range of [{ "since-previous-tag": true, "until-release-tag": true }, ...(command === "changelog generate" ? [{ "all-release-tags": true }] : [])]) {
-      const options = { output, "release-version": "2026.11.1", "date-from-version": true, mode: "replace", ...range };
+      const options = { ...modeOptions, output, "release-version": "2026.11.1", "date-from-version": true, ...range };
       const result = commandResult(await runRegisteredCommandForTest(commands, { command, options, pmRoot: root })) as { file: string };
       assert.equal(result.file, output);
       const markdown = readFileSync(output, "utf8");

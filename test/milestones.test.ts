@@ -614,6 +614,23 @@ test("generated changelog declares the explicit tag-option compatibility change"
 });
 
 
+test("the project generator keeps published dependency notes unless the caller opts out", () => {
+  const root = mkdtempSync(join(tmpdir(), "pm-release-dependencies-"));
+  try {
+    /** Run the generator script directly, as a contributor or a review would, and return what it wrote. */
+    const generate = (name: string, ...flags: string[]): string => {
+      const output = join(root, name);
+      const generated = spawnSync(process.execPath, [resolve("scripts/project-changelog.ts"), ...flags, "--output", output], { encoding: "utf8" });
+      assert.equal(generated.status, 0, generated.stderr);
+      return readFileSync(output, "utf8");
+    };
+    const direct = generate("direct.md");
+    assert.equal(direct, generate("flagged.md", "--dependency-updates"), "a direct run must match the package entry points");
+    assert.doesNotMatch(generate("opted-out.md", "--no-dependency-updates"), /^### Dependencies$/m);
+  } finally { rmSync(root, { recursive: true, force: true }); }
+});
+
+
 test("compact snapshots preserve rendering and classification without unrelated content", async () => {
   const sql = new SqlStore();
   try {

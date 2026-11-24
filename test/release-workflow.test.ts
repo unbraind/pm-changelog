@@ -58,12 +58,16 @@ test('generation, checking and notes explicitly allow empty release sections bef
 test('package changelog entry points retain dependency updates', () => {
   const manifest = JSON.parse(readFileSync('package.json', 'utf8')) as { scripts: Record<string, string> };
   assert.match(manifest.scripts['changelog:full'] ?? '', /^node scripts\/project-changelog\.ts(?:\s|$)/u, 'changelog:full');
-  const generator = readFileSync('scripts/project-changelog.ts', 'utf8');
-  assert.match(generator, /^\s*"--dependency-updates",$/mu, 'project-changelog');
-  const notes = manifest.scripts['release:notes'] ?? '';
-  assert.match(notes, /^node dist\/cli\.js(?:\s|$)/u, 'release:notes');
-  assert.ok(notes.split(/\s+/u).includes('--dependency-updates'), 'release:notes');
-  assert.match(manifest.scripts['changelog:check'] ?? '', /^npm run changelog:full(?:\s|$)/u, 'changelog:check');
+  assert.match(manifest.scripts['release:notes'] ?? '', /^node dist\/cli\.js(?:\s|$)/u, 'release:notes');
+  for (const name of ['changelog', 'changelog:full', 'release:notes']) {
+    if (name === 'changelog' && !Object.hasOwn(manifest.scripts, name)) continue;
+    const flags = manifest.scripts[name].split(/\s+/u);
+    assert.ok(flags.includes('--dependency-updates'), name);
+    assert.ok(!flags.includes('--no-dependency-updates'), name);
+  }
+  const check = manifest.scripts['changelog:check'] ?? '';
+  assert.match(check, /^npm run changelog:full -- --check(?:\s|$)/u, 'changelog:check');
+  assert.ok(!check.split(/\s+/u).includes('--no-dependency-updates'), 'changelog:check');
 });
 
 test('package-owned approval and preparation inputs are preserved', () => {
