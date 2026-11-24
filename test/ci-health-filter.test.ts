@@ -2,7 +2,7 @@
 import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
 import { readFileSync } from 'node:fs';
-import { test } from 'node:test';
+import { test, type TestContext } from 'node:test';
 
 const PROVENANCE = 'provenance_value_domain_invalid:claude-code:role:single_digit:32';
 
@@ -14,6 +14,18 @@ function healthFilter(workflow: string): string {
   return match[1];
 }
 
+/** Skip outside CI when jq is not installed (as ci-routing.test.ts does for Bash); a missing jq stays fatal in CI. */
+function jqAvailable(t: TestContext): boolean {
+  const jq = spawnSync('jq', ['--version'], { encoding: 'utf8', timeout: 30000 });
+  if ((jq.error as NodeJS.ErrnoException | undefined)?.code === 'ENOENT' && !process.env.CI) {
+    t.skip('jq is unavailable on PATH');
+    return false;
+  }
+  assert.equal(jq.error, undefined, 'jq is required in CI');
+  assert.equal(jq.status, 0, jq.stderr);
+  return true;
+}
+
 /** Run the workflow's own filter on a health report and say whether the gate accepts it. */
 function accepts(filter: string, warnings: string[]): boolean {
   const result = spawnSync('jq', ['-e', filter], { input: JSON.stringify({ warnings }), encoding: 'utf8' });
@@ -23,8 +35,9 @@ function accepts(filter: string, warnings: string[]): boolean {
 }
 
 for (const workflow of ['ci.yml', 'ci-deep.yml']) {
-  test(`${workflow} health filter accepts only the declared advisories`, () => {
+  test(`${workflow} health filter accepts only the declared advisories`, t => {
     const filter = healthFilter(workflow);
+    if (!jqAvailable(t)) return;
 
     for (const warnings of [
       [PROVENANCE],
