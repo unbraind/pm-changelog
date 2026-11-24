@@ -55,6 +55,17 @@ test('generation, checking and notes explicitly allow empty release sections bef
   for (const name of ['changelog:full', 'changelog:check', 'release:notes']) assert.ok(Object.hasOwn(manifest.scripts, name));
 });
 
+test('package changelog entry points retain dependency updates', () => {
+  const manifest = JSON.parse(readFileSync('package.json', 'utf8')) as { scripts: Record<string, string> };
+  assert.match(manifest.scripts['changelog:full'] ?? '', /^node scripts\/project-changelog\.ts(?:\s|$)/u, 'changelog:full');
+  const generator = readFileSync('scripts/project-changelog.ts', 'utf8');
+  assert.match(generator, /^\s*"--dependency-updates",$/mu, 'project-changelog');
+  const notes = manifest.scripts['release:notes'] ?? '';
+  assert.match(notes, /^node dist\/cli\.js(?:\s|$)/u, 'release:notes');
+  assert.ok(notes.split(/\s+/u).includes('--dependency-updates'), 'release:notes');
+  assert.match(manifest.scripts['changelog:check'] ?? '', /^npm run changelog:full(?:\s|$)/u, 'changelog:check');
+});
+
 test('package-owned approval and preparation inputs are preserved', () => {
   assert.deepEqual(caller.jobs.release.with, {
   "reconcile-only": "${{ (github.event_name == 'schedule' && github.event.schedule == '41 * * * *') || inputs.retire-unpublished == true }}",
