@@ -163,10 +163,11 @@ test("real extension generate, export and check accept entry-from and reject inv
   const activation = await activateExtensionForTest(extension, { name: "pm-changelog", capabilities: ["commands", "schema", "importers", "renderers"] });
   assert.deepEqual(activation.failed, []);
   for (const command of ["changelog generate", "changelog export"]) {
-    const run = await runRegisteredCommandForTest(activation.commands, { command, pmRoot: fixture.pmRoot, options: { stdout: true, "entry-from": "close_reason" } });
+    const outputOptions = command === "changelog generate" ? { stdout: true } : {};
+    const run = await runRegisteredCommandForTest(activation.commands, { command, pmRoot: fixture.pmRoot, options: { ...outputOptions, "entry-from": "close_reason" } });
     assert.match(JSON.stringify(run.result), new RegExp(RESOLUTION));
     assert.doesNotMatch(JSON.stringify(run.result), /root-sensitive/);
-    const defaults = await runRegisteredCommandForTest(activation.commands, { command, pmRoot: fixture.pmRoot, options: { stdout: true } });
+    const defaults = await runRegisteredCommandForTest(activation.commands, { command, pmRoot: fixture.pmRoot, options: outputOptions });
     assert.match(JSON.stringify(defaults.result), /root-sensitive/);
     await assert.rejects(runRegisteredCommandForTest(activation.commands, { command, pmRoot: fixture.pmRoot, options: { "entry-from": "description" } }), /--entry-from/);
   }

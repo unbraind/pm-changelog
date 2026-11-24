@@ -156,6 +156,7 @@ jobs:
               startswith("telemetry_") or
               startswith("history_stream_over_compact_threshold:") or
               startswith("stale_in_progress_items:") or
+              test("^in_progress_(unowned|idle):[1-9][0-9]*$") or
               startswith("provenance_resolver_zero_success:") or
               . == "provenance_value_domain_invalid:claude-code:role:single_digit:32";
             ([.warnings[] | select(advisory | not)] | length) == 0 and
