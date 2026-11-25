@@ -1,9 +1,9 @@
 {
   "schema": 1,
   "repository": "unbraind/pm-changelog",
-  "baseSha": "4b5c7ac25944261892845a36a87ffd4fd26a12fa",
+  "baseSha": "b469f7407bfe642926cf199a22d25f7141ae6cda",
   "version": "2026.11.24",
-  "runId": 45406029935,
+  "runId": 45618096819,
   "runAttempt": 1,
   "configDigest": "2bdf42d57de8d40917299d22a3aa1be1e452e5dd998d5ec879c37758a5722be1"
 }
