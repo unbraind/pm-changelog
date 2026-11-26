@@ -4,7 +4,7 @@
 
 > Release note (issue 337): empty Unreleased sections are always omitted; --include-empty retains only versioned release sections. Callers' committed changelogs drop the legacy empty Unreleased / No changes. block on their next regeneration, including prepend mode. Non-empty unreleased items and dependency notes are preserved.
 
-## 2026.11.24 - 2026-11-24
+## 2026.11.24 - 2026-11-25
 
 No changes.
 
