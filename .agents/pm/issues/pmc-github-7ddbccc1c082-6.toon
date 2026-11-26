@@ -1,0 +1,31 @@
+id: pmc-github-7ddbccc1c082-6
+title: Changelog sections generated out of version order when items have different updated_at times
+description: "GH issue #6: https://github.com/unbraind/pm-changelog/issues/6 · author @unbraind · state reason completed · created 2026-05-24T07:00:33Z · updated 2026-05-24T07:00:40Z"
+type: Issue
+pm_format_version: 4
+status: closed
+priority: 2
+tags[3]: bug,"gh:unbraind/pm-changelog#6","github_author:unbraind"
+created_at: "2026-05-24T07:00:33Z"
+updated_at: "2026-11-26T14:11:33.445Z"
+closed_at: "2026-05-24T07:00:40Z"
+completed_at: "2026-05-24T07:00:40Z"
+author: pm-github
+deferred_fields[4]{field,reason}:
+  acceptance_criteria,Imported from GitHub issue #6. Required fields can be filled after triage.
+  assignee,Imported from GitHub issue #6. Required fields can be filled after triage.
+  deadline,Imported from GitHub issue #6. Required fields can be filled after triage.
+  estimated_minutes,Imported from GitHub issue #6. Required fields can be filled after triage.
+release: v2026.05.25
+close_reason: "Closed on GitHub as completed on 2026-05-24T07:00:40Z"
+github_close_reason: "Closed on GitHub as completed on 2026-05-24T07:00:40Z"
+github_closed_at: "2026-05-24T07:00:40Z"
+github_created_at: "2026-05-24T07:00:33Z"
+github_link_only: false
+github_number: 6
+github_release: v2026.05.25
+github_state: closed
+github_state_reason: completed
+github_updated_at: "2026-05-24T07:00:40Z"
+github_url: "https://github.com/unbraind/pm-changelog/issues/6"
+body: "## Problem\n\nWhen using `--group-by release` (or `--group-by milestone`), changelog sections were ordered by when the first item in each release was last updated, not by release version. This caused older releases to appear before newer ones when any item in the older release was updated after the newer release was created.\n\n## Root Cause\n\n`groupSectionsByMetadata` iterated through items sorted by `updated_at` descending and grouped them via a `Map`, whose insertion order determined section order. If an item in an older release was recently updated (e.g. to fix metadata), its release section was inserted first.\n\n## Fix\n\nSort sections by version heading descending after grouping, with the fallback heading (`Unreleased`) always first. Version segments are compared numerically when they parse as integers, lexicographically otherwise. The `v` prefix is stripped before comparison.\n\n## Reproduction\n\n```ts\nconst items = [\n  { id: '1', title: 'Old item', status: 'closed', release: 'v1.0', updated_at: '2026-05-24T10:00:00Z' },\n  { id: '2', title: 'New item', status: 'closed', release: 'v2.0', updated_at: '2026-05-24T09:00:00Z' },\n];\n// item '1' has a later updated_at so v1.0 section appeared before v2.0\ncreateChangelog({ items, groupBy: 'release' });\n```\n\n---\n\n### GitHub comments (1)\n\n> **@unbraind** (2026-05-24T07:00:40Z)\n>\n> Fixed in this session: added `compareVersionHeadings` / `compareVersionStrings` to `groupSectionsByMetadata` in `src/generator.ts`. All 18 tests pass. Will be included in the next release."

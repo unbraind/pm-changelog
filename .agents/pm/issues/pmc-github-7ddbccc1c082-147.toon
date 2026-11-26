@@ -1,0 +1,31 @@
+id: pmc-github-7ddbccc1c082-147
+title: Pass unbounded universal output controls to whole-tracker pm reads
+description: "GH issue #147: https://github.com/unbraind/pm-changelog/issues/147 · author @unbraind · state reason completed · created 2026-08-20T17:45:29Z · updated 2026-09-05T04:00:36Z"
+type: Issue
+pm_format_version: 4
+status: closed
+priority: 2
+tags[2]: "gh:unbraind/pm-changelog#147","github_author:unbraind"
+created_at: "2026-08-20T17:45:29Z"
+updated_at: "2026-11-26T14:11:36.698Z"
+closed_at: "2026-09-05T04:00:36Z"
+completed_at: "2026-09-05T04:00:36Z"
+author: pm-github
+deferred_fields[4]{field,reason}:
+  acceptance_criteria,Imported from GitHub issue #147. Required fields can be filled after triage.
+  assignee,Imported from GitHub issue #147. Required fields can be filled after triage.
+  deadline,Imported from GitHub issue #147. Required fields can be filled after triage.
+  estimated_minutes,Imported from GitHub issue #147. Required fields can be filled after triage.
+release: v2026.9.6
+close_reason: "Closed on GitHub as completed on 2026-09-05T04:00:36Z"
+github_close_reason: "Closed on GitHub as completed on 2026-09-05T04:00:36Z"
+github_closed_at: "2026-09-05T04:00:36Z"
+github_created_at: "2026-08-20T17:45:29Z"
+github_link_only: false
+github_number: 147
+github_release: v2026.9.6
+github_state: closed
+github_state_reason: completed
+github_updated_at: "2026-09-05T04:00:36Z"
+github_url: "https://github.com/unbraind/pm-changelog/issues/147"
+body: "## Problem\n\n`pm-changelog@2026.8.17` invokes `pm list-all --json` without universal output controls. With `@unbrained/pm-cli@2026.8.20`, the default output budget can compact the whole-tracker result. `pm-changelog` correctly detects the incomplete receipt and refuses it, but its default invocation can no longer generate a changelog for a non-trivial tracker.\n\nObserved in `pm-rl` with 45 items:\n\n```text\npm list-all --json answer was incomplete and was refused: truncated=true; has_more=true; count=5 of total=45.\n```\n\n## Reproduction\n\n1. Install `pm-changelog@2026.8.17` and `@unbrained/pm-cli@2026.8.20`.\n2. Use a tracker large enough to exceed the default universal output budget.\n3. Run `pm-changelog --pm-root .agents/pm --mode replace --output CHANGELOG.md`.\n4. Observe the fail-closed incomplete-read error above.\n\n## Expected\n\nBecause changelog generation is a whole-corpus consumer, its internally constructed argv should explicitly request the canonical unbounded complete read, equivalent to placing these global arguments before `list-all`:\n\n```text\n--output-budget unbounded --output-limit unbounded\n```\n\nThe current `--pm-arg` escape hatch proves the fix: adding `--pm-arg=--output-budget --pm-arg=unbounded --pm-arg=--output-limit --pm-arg=unbounded` restores all 45 rows and produces a deterministic changelog. The default library/CLI path should provide those correctness controls itself so every consumer does not have to rediscover and duplicate them. A regression test should assert the exact constructed argv and a real 2026.8.20 completeness receipt.\n\n---\n\n### GitHub comments (1)\n\n> **@unbraind** (2026-09-05T04:00:35Z)\n>\n> Canonical PM item: [pmc-6j4o — canonical unbounded tracker reads](https://github.com/unbraind/pm-changelog/blob/main/.agents/pm/issues/pmc-6j4o.toon).\n> \n> Verified the existing fix in merged [PR #150](https://github.com/unbraind/pm-changelog/pull/150) and the immutable `v2026.9.2` source: `buildPmListArgs` appends `--output-budget unbounded --output-limit unbounded list --all --json` after caller arguments. The current npm `pm-changelog@2026.9.2` was freshly installed and successfully generated the pm-cli changelog from its 2,638-item tracker, producing 2,288 included closed-item entries under the repository's existing exclusion and release-window policy. No workaround arguments were needed.\n> \n> Closing this stale report as completed; the complete-read receipt validation remains enforced.\n>"

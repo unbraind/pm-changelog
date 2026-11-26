@@ -1,0 +1,31 @@
+id: pmc-github-7ddbccc1c082-4
+title: Published package sourcemaps point to missing source files
+description: "GH issue #4: https://github.com/unbraind/pm-changelog/issues/4 · author @unbraind · state reason completed · created 2026-05-23T23:25:51Z · updated 2026-05-24T00:12:58Z"
+type: Issue
+pm_format_version: 4
+status: closed
+priority: 2
+tags[2]: "gh:unbraind/pm-changelog#4","github_author:unbraind"
+created_at: "2026-05-23T23:25:51Z"
+updated_at: "2026-11-26T14:11:32.996Z"
+closed_at: "2026-05-24T00:12:58Z"
+completed_at: "2026-05-24T00:12:58Z"
+author: pm-github
+deferred_fields[4]{field,reason}:
+  acceptance_criteria,Imported from GitHub issue #4. Required fields can be filled after triage.
+  assignee,Imported from GitHub issue #4. Required fields can be filled after triage.
+  deadline,Imported from GitHub issue #4. Required fields can be filled after triage.
+  estimated_minutes,Imported from GitHub issue #4. Required fields can be filled after triage.
+release: v2026.05.25
+close_reason: "Closed on GitHub as completed on 2026-05-24T00:12:58Z"
+github_close_reason: "Closed on GitHub as completed on 2026-05-24T00:12:58Z"
+github_closed_at: "2026-05-24T00:12:58Z"
+github_created_at: "2026-05-23T23:25:51Z"
+github_link_only: false
+github_number: 4
+github_release: v2026.05.25
+github_state: closed
+github_state_reason: completed
+github_updated_at: "2026-05-24T00:12:58Z"
+github_url: "https://github.com/unbraind/pm-changelog/issues/4"
+body: "## Summary\n\nWhen pm-cli installs the published npm package pm-changelog@2026.5.24-1 and runs the pm-cli coverage gate, V8 reports sourcemap warnings for the package extension files:\n\n```text\nSourcemap for \".../.agents/pm/extensions/pm-changelog/dist/extension.js\" points to missing source files\nSourcemap for \".../.agents/pm/extensions/pm-changelog/dist/generator.js\" points to missing source files\n```\n\n## Observed\n\nThe package works and `pm changelog generate` passes, but the published tarball includes source maps whose referenced source files are not present in the runtime package install.\n\n## Expected\n\nPublished package sourcemaps should either resolve to included source files, use embedded sources, or be omitted from the runtime package so downstream coverage/release gates stay warning-free.\n\n## Repro\n\nFrom unbraind/pm-cli after installing pm-changelog@2026.5.24-1 through `pm install npm:pm-changelog --project`:\n\n```bash\nnode scripts/release/run-gates.mjs --skip-dogfood --skip-telemetry-sentry --json\n```\n\nThe gate passes, but coverage emits the warnings above.\n\n## Notes\n\nThis is package-side packaging hygiene. pm-cli should continue using the published package as-is and should not patch package contents locally.\n\n\n---\n\n### GitHub comments (1)\n\n> **@unbraind** (2026-05-24T00:12:57Z)\n>\n> Fixed in this commit: added `inlineSources: true` to `tsconfig.json` so all `dist/*.js.map` files now embed TypeScript source content via `sourcesContent`. V8 resolves sources from the embedded content instead of loading separate `.ts` files, eliminating the warning when the package is installed without the `src/` directory.\\n\\nVerified: 18/18 tests pass, `npm run release:check` passes, clean `pm install` + `pm package doctor --detail deep` in a temp folder confirms no warnings."

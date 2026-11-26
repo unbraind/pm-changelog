@@ -1,0 +1,31 @@
+id: pmc-github-7ddbccc1c082-7
+title: Expose item-url-base through pm extension command
+description: "GH issue #7: https://github.com/unbraind/pm-changelog/issues/7 · author @unbraind · state reason completed · created 2026-05-24T12:41:22Z · updated 2026-05-24T12:48:06Z"
+type: Issue
+pm_format_version: 4
+status: closed
+priority: 2
+tags[2]: "gh:unbraind/pm-changelog#7","github_author:unbraind"
+created_at: "2026-05-24T12:41:22Z"
+updated_at: "2026-11-26T14:11:33.672Z"
+closed_at: "2026-05-24T12:48:06Z"
+completed_at: "2026-05-24T12:48:06Z"
+author: pm-github
+deferred_fields[4]{field,reason}:
+  acceptance_criteria,Imported from GitHub issue #7. Required fields can be filled after triage.
+  assignee,Imported from GitHub issue #7. Required fields can be filled after triage.
+  deadline,Imported from GitHub issue #7. Required fields can be filled after triage.
+  estimated_minutes,Imported from GitHub issue #7. Required fields can be filled after triage.
+release: v2026.05.25
+close_reason: "Closed on GitHub as completed on 2026-05-24T12:48:06Z"
+github_close_reason: "Closed on GitHub as completed on 2026-05-24T12:48:06Z"
+github_closed_at: "2026-05-24T12:48:06Z"
+github_created_at: "2026-05-24T12:41:22Z"
+github_link_only: false
+github_number: 7
+github_release: v2026.05.25
+github_state: closed
+github_state_reason: completed
+github_updated_at: "2026-05-24T12:48:06Z"
+github_url: "https://github.com/unbraind/pm-changelog/issues/7"
+body: "## Problem\n\nWhile verifying pm-cli's installed pm-changelog package, the latest npm package (`2026.5.24-8`) can generate all closed pm items, but clickable pm item references cannot be configured through the pm extension command.\n\nThe package CLI supports `--item-url-base`, and the generator supports `itemUrlBase`, but `pm changelog generate` rejects `--item-url-base` because `src/extension.ts` does not declare or pass the option. `--include-links` only appends existing `item.url` values, which pm-cli tracker items do not currently provide.\n\n## Reproduction\n\nIn pm-cli with pm-changelog installed:\n\n```bash\npm changelog generate --item-url-base https://github.com/unbraind/pm-cli/blob/main/.agents/pm --stdout --title \"pm Tracker Changelog\" --group-by release --status closed\n```\n\nObserved: pm rejects `--itemUrlBase` / `--item-url-base` as an unknown extension command option.\n\n## Expected\n\n`pm changelog generate` should expose the same item URL base support as the package CLI and produce clickable item IDs like `[pm-abc](https://github.com/unbraind/pm-cli/blob/main/.agents/pm/tasks/pm-abc.toon)`.\n\n## Notes\n\nDo not work around this in pm-cli. The fix belongs in pm-changelog so downstream repos can use the package default flow for CI/CD changelog generation.\n\n\n---\n\n### GitHub comments (1)\n\n> **@unbraind** (2026-05-24T12:48:05Z)\n>\n> Fixed in commit 63367a6 and released by Daily Release run 26361652123. The pm extension command now exposes and passes --item-url-base so package consumers can generate clickable pm item IDs through pm changelog generate."

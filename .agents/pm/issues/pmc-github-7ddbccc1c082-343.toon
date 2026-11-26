@@ -1,0 +1,31 @@
+id: pmc-github-7ddbccc1c082-343
+title: Dependency-only releases reject capitalized Bump squash subjects
+description: "GH issue #343: https://github.com/unbraind/pm-changelog/issues/343 · author @unbraind · state reason completed · created 2026-11-11T21:49:41Z · updated 2026-11-12T02:22:58Z"
+type: Issue
+pm_format_version: 4
+status: closed
+priority: 2
+tags[2]: "gh:unbraind/pm-changelog#343","github_author:unbraind"
+created_at: "2026-11-11T21:49:41Z"
+updated_at: "2026-11-26T14:11:40.384Z"
+closed_at: "2026-11-12T02:22:58Z"
+completed_at: "2026-11-12T02:22:58Z"
+author: pm-github
+deferred_fields[4]{field,reason}:
+  acceptance_criteria,Imported from GitHub issue #343. Required fields can be filled after triage.
+  assignee,Imported from GitHub issue #343. Required fields can be filled after triage.
+  deadline,Imported from GitHub issue #343. Required fields can be filled after triage.
+  estimated_minutes,Imported from GitHub issue #343. Required fields can be filled after triage.
+release: v2026.11.12
+close_reason: "Closed on GitHub as completed on 2026-11-12T02:22:58Z; closing PR https://github.com/unbraind/pm-changelog/pull/344 (\"Recognize capitalized Dependabot bump subjects in dependency-only releases\")"
+github_close_reason: "Closed on GitHub as completed on 2026-11-12T02:22:58Z; closing PR https://github.com/unbraind/pm-changelog/pull/344 (\"Recognize capitalized Dependabot bump subjects in dependency-only releases\")"
+github_closed_at: "2026-11-12T02:22:58Z"
+github_created_at: "2026-11-11T21:49:41Z"
+github_link_only: false
+github_number: 343
+github_release: v2026.11.12
+github_state: closed
+github_state_reason: completed
+github_updated_at: "2026-11-12T02:22:58Z"
+github_url: "https://github.com/unbraind/pm-changelog/issues/343"
+body: "pm-changelog 2026.11.7 uses `const DEPENDABOT_SUBJECT = /^[\\w-]+\\((?:deps|deps-dev)\\): bump /` in generator.ts. The lowercase-only `bump` rejects actual squash subjects such as `Build(deps-dev): Bump the pm-toolchain group across 1 directory with 3 updates (#106)`.\n\nReproduction: create a full Git repository with an older release tag and CHANGELOG section, only older closed items without release fields, then commit the subject above and request a newer release using `--since-previous-tag --until-release-tag --release-version-from-package --respect-item-release`. It raises MISSING_REQUESTED_RELEASE instead of emitting the dependency-only section. Lowercasing only `Bump` makes it succeed.\n\nPublic failing evidence: https://github.com/unbraind/pm-jev/actions/runs/43009061713 (job 130483756140). All 41 unassigned items are before the prior tag; this is not evidence that they need reassignment. Four new dependency bumps are ignored. In contrast https://github.com/unbraind/pm-brief/actions/runs/43059359608 succeeded today using the same flags and lowercase `bump` subjects, producing real dependency notes.\n\nPlease recognize the capitalization used by Dependabot/squash titles while retaining the deps/deps-dev scope and bump verb requirement. Add single-window and all-release-tags tests for capitalized Bump, including regeneration after tagging, and keep unrelated deps fixes excluded. pm-jev will use an in-repo preparation workaround without changing this package or its pin.\n\n\n---\n\n### GitHub comments (1)\n\n> **@unbraind** (2026-11-11T23:30:52Z)\n>\n> Update: we are fixing this here in pm-changelog rather than with the in-repo workaround mentioned above. unbraind/pm-jev#110 is closed. A PR on branch `fix/dependency-bump-subject-case` will follow, with one shared, case-insensitive verb matcher (scope `deps`/`deps-dev` and the `bump` verb still required) and must-allow and must-refuse tests. pm-jev and pm-swarm both use the capitalized subject style."

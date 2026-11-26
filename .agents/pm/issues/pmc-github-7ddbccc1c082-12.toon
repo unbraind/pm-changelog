@@ -1,0 +1,31 @@
+id: pmc-github-7ddbccc1c082-12
+title: Stabilize full-history release windows for release automation
+description: "GH issue #12: https://github.com/unbraind/pm-changelog/issues/12 · author @unbraind · state reason completed · created 2026-05-24T16:21:43Z · updated 2026-05-24T16:26:34Z"
+type: Issue
+pm_format_version: 4
+status: closed
+priority: 2
+tags[3]: bug,"gh:unbraind/pm-changelog#12","github_author:unbraind"
+created_at: "2026-05-24T16:21:43Z"
+updated_at: "2026-11-26T14:11:34.918Z"
+closed_at: "2026-05-24T16:26:34Z"
+completed_at: "2026-05-24T16:26:34Z"
+author: pm-github
+deferred_fields[4]{field,reason}:
+  acceptance_criteria,Imported from GitHub issue #12. Required fields can be filled after triage.
+  assignee,Imported from GitHub issue #12. Required fields can be filled after triage.
+  deadline,Imported from GitHub issue #12. Required fields can be filled after triage.
+  estimated_minutes,Imported from GitHub issue #12. Required fields can be filled after triage.
+release: v2026.05.25
+close_reason: "Closed on GitHub as completed on 2026-05-24T16:26:34Z"
+github_close_reason: "Closed on GitHub as completed on 2026-05-24T16:26:34Z"
+github_closed_at: "2026-05-24T16:26:34Z"
+github_created_at: "2026-05-24T16:21:43Z"
+github_link_only: false
+github_number: 12
+github_release: v2026.05.25
+github_state: closed
+github_state_reason: completed
+github_updated_at: "2026-05-24T16:26:34Z"
+github_url: "https://github.com/unbraind/pm-changelog/issues/12"
+body: "Follow-up from automated review on unbraind/pm-cli#62.\\n\\nFull-history generation should:\\n- preserve empty release tag windows so tag history is complete\\n- limit matching git tags to tags merged into HEAD\\n- support preparing a pending release window from --release-version before the tag exists, so release-prep output matches post-tag CI checks\\n\\nTracked in pm as pmc-s1c1.\n\n---\n\n### GitHub comments (1)\n\n> **@unbraind** (2026-05-24T16:26:32Z)\n>\n> Fixed in pm-changelog@2026.5.24-15. Full-history generation now preserves empty release windows, filters release tags with --merged HEAD, and supports --release-version as a pending release window for pre-tag release automation. Verified by Daily Release workflow run 26366543310."

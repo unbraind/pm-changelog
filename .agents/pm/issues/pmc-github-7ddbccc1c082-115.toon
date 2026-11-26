@@ -1,0 +1,31 @@
+id: pmc-github-7ddbccc1c082-115
+title: Generate release dates in UTC to avoid timezone-dependent changelog drift
+description: "GH issue #115: https://github.com/unbraind/pm-changelog/issues/115 · author @unbraind · state reason completed · created 2026-08-01T22:15:36Z · updated 2026-08-02T00:14:28Z"
+type: Issue
+pm_format_version: 4
+status: closed
+priority: 2
+tags[3]: bug,"gh:unbraind/pm-changelog#115","github_author:unbraind"
+created_at: "2026-08-01T22:15:36Z"
+updated_at: "2026-11-26T14:11:36.267Z"
+closed_at: "2026-08-02T00:14:28Z"
+completed_at: "2026-08-02T00:14:28Z"
+author: pm-github
+deferred_fields[4]{field,reason}:
+  acceptance_criteria,Imported from GitHub issue #115. Required fields can be filled after triage.
+  assignee,Imported from GitHub issue #115. Required fields can be filled after triage.
+  deadline,Imported from GitHub issue #115. Required fields can be filled after triage.
+  estimated_minutes,Imported from GitHub issue #115. Required fields can be filled after triage.
+release: v2026.8.2
+close_reason: "Closed on GitHub as completed on 2026-08-02T00:14:28Z; closing PR https://github.com/unbraind/pm-changelog/pull/116 (\"Generate fallback changelog dates in UTC\")"
+github_close_reason: "Closed on GitHub as completed on 2026-08-02T00:14:28Z; closing PR https://github.com/unbraind/pm-changelog/pull/116 (\"Generate fallback changelog dates in UTC\")"
+github_closed_at: "2026-08-02T00:14:28Z"
+github_created_at: "2026-08-01T22:15:36Z"
+github_link_only: false
+github_number: 115
+github_release: v2026.8.2
+github_state: closed
+github_state_reason: completed
+github_updated_at: "2026-08-02T00:14:28Z"
+github_url: "https://github.com/unbraind/pm-changelog/issues/115"
+body: "## Problem\n\nThe same PM history generates different CHANGELOG.md bytes near midnight when the developer and CI runner use different local timezones. On 2026-08-02 shortly after midnight Europe/Vienna, `pm-changelog --mode prepend --release-version-from-package` generated a heading ending in `2026-08-02`; GitHub Actions in UTC regenerated `2026-08-01` and failed `--check` in both Node 22 and Node 26 jobs.\n\nThis makes a generated artifact nondeterministic across hosts and can fail an otherwise identical commit solely because of wall-clock timezone.\n\n## Expected behavior\n\nDerive calendar dates in UTC, or accept an explicit deterministic date/timezone input whose default is UTC. Generation and `--check` must produce identical bytes on every host for the same PM corpus and clock instant.\n\n## Acceptance\n\n- A test freezes one instant where UTC and Europe/Vienna are different dates.\n- Generation under `TZ=UTC` and `TZ=Europe/Vienna` produces byte-identical output.\n- Prepend, replace, stdout/release-notes, and check modes share the same date policy.\n- Documentation states the date source and timezone.\n- Existing explicit release-tag/version semantics remain unchanged.\n\nObserved in unbraind/pm-vcs#6, GitHub Actions run 30720580356, step `Verify generated changelog`. The immediate PR workaround was to regenerate with `TZ=UTC`; no gate was relaxed.\n\n---\n\n### GitHub comments (1)\n\n> **@coderabbitai[bot]** (2026-08-01T22:15:48Z)\n>\n> <!-- This is an auto-generated issue plan by CodeRabbit -->\n> <details>\n> <summary>🔗 Related PRs</summary>\n> \n> unbraind/pm-changelog#13 - Use release tag timestamp for generated heading dates [merged]\n> unbraind/pm-changelog#43 - Stabilize calendar release headings across the zero-padded tag boundary (`#41`) [closed]\n> unbraind/pm-changelog#67 - Harden pm-changelog package-install context isolation [merged]\n> unbraind/pm-changelog#107 - Prefer actual completion time for release-window bucketing [merged]\n> unbraind/pm-changelog#110 - Adopt authoritative completion-timestamp contract from pm-cli SDK [merged]\n> </details>\n> \n> ---\n> <details>\n> <summary>📝 Issue Planner</summary>\n> \n> <sub>Check the box below or use the `@coderabbitai plan` command to generate an implementation plan and prompts that you can use with your favorite coding assistant.</sub>\n> \n> - [ ] <!-- {\"checkboxId\": \"8d4f2b9c-3e1a-4f7c-a9b2-d5e8f1c4a7b9\"} --> Create Plan\n> </details>\n> \n> \n> ---\n> <details>\n> <summary> 🧪 Issue enrichment is currently in open beta.</summary>\n> \n> \n> You can configure auto-planning by selecting labels in the issue_enrichment configuration.\n> \n> To disable automatic issue enrichment, add the following to your `.coderabbit.yaml`:\n> ```yaml\n> issue_enrichment:\n>   auto_enrich:\n>     enabled: false\n> ```\n> </details>\n> \n> 💬 Have feedback or questions? Drop into our [discord](https://discord.gg/coderabbit)!"

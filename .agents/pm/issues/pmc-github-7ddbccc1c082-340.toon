@@ -1,0 +1,27 @@
+id: pmc-github-7ddbccc1c082-340
+title: "classifyItem lets a title keyword (security, deprecated) outrank type and tags, so a title that names a doc file misfiles the entry under Security"
+description: "GH issue #340: https://github.com/unbraind/pm-changelog/issues/340 · author @unbraind · created 2026-11-11T08:05:31Z · updated 2026-11-11T08:05:31Z"
+type: Issue
+pm_format_version: 4
+status: open
+priority: 2
+tags[2]: "gh:unbraind/pm-changelog#340","github_author:unbraind"
+created_at: "2026-11-11T08:05:31Z"
+updated_at: "2026-11-26T14:11:40.113Z"
+author: pm-github
+deferred_fields[4]{field,reason}:
+  acceptance_criteria,Imported from GitHub issue #340. Required fields can be filled after triage.
+  assignee,Imported from GitHub issue #340. Required fields can be filled after triage.
+  deadline,Imported from GitHub issue #340. Required fields can be filled after triage.
+  estimated_minutes,Imported from GitHub issue #340. Required fields can be filled after triage.
+github_close_reason: ""
+github_closed_at: ""
+github_created_at: "2026-11-11T08:05:31Z"
+github_link_only: false
+github_number: 340
+github_release: ""
+github_state: open
+github_state_reason: unspecified
+github_updated_at: "2026-11-11T08:05:31Z"
+github_url: "https://github.com/unbraind/pm-changelog/issues/340"
+body: "## Observed\n\n`classifyItem` (src/generator.ts, shipped in 2026.11.10) is documented as a two-tier classifier. Type and tags are trusted; the title is consulted only as a fallback, because descriptive prose collides with command and file names. The `Security` and `Deprecated` checks break that rule. Both run first, against `allValues` (type + tags + title), so any title that merely names something containing `security` lands under **Security**, ahead of every strong-tier signal.\n\nReproduced in unbraind/pm-cli while regenerating the changelog on 2026-11-11. A `Task` tagged `artifact,npm,package-size,release` and titled *\"Exclude the repository-specific dependency-security and algorithm-portfolio docs from the npm tarball to restore publication headroom\"* renders under `### Security`. The title only names a doc file (`DEVELOPMENT_DEPENDENCY_SECURITY.md`). Its sibling task with the same type and tags, without the word, correctly renders under `### Other`.\n\n## Expected\n\nA title keyword never outranks the strong tier. `Security` and `Deprecated` should come from type or tags first. The title should be consulted only after the strong-tier categories and the bug-like type default, as the function's own comment and the existing `Fixed`/`Changed` handling already do for other categories.\n\n## Minimal repro\n\n```ts\nclassifyItem({ type: \"Task\", tags: [\"release\"], title: \"Exclude the dependency-security doc from the tarball\", status: \"closed\" }, context)\n// -> \"Security\"; expected \"Other\"\nclassifyItem({ type: \"Task\", tags: [\"security\"], title: \"Rotate the signing key\", status: \"closed\" }, context)\n// -> \"Security\" (correct, strong tier)\n```\n\n## Suggested fix\n\nEvaluate `security|cve|vulnerability` and `deprecated|deprecation` against `strongValues` first, then fall back to the sanitized title in the same weak-tier position as the other title-only checks. Add a regression test that pairs a title-only mention with a strong-tier non-security signal, and keep a negative control showing that an explicit `security` tag still wins."

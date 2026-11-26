@@ -1,0 +1,31 @@
+id: pmc-github-7ddbccc1c082-281
+title: Point the npm homepage at the package's website and link the author
+description: "GH issue #281: https://github.com/unbraind/pm-changelog/issues/281 · author @unbraind · state reason completed · created 2026-10-25T21:54:23Z · updated 2026-10-26T08:40:37Z"
+type: Issue
+pm_format_version: 4
+status: closed
+priority: 2
+tags[2]: "gh:unbraind/pm-changelog#281","github_author:unbraind"
+created_at: "2026-10-25T21:54:23Z"
+updated_at: "2026-11-26T14:11:37.699Z"
+closed_at: "2026-10-26T08:40:37Z"
+completed_at: "2026-10-26T08:40:37Z"
+author: pm-github
+deferred_fields[4]{field,reason}:
+  acceptance_criteria,Imported from GitHub issue #281. Required fields can be filled after triage.
+  assignee,Imported from GitHub issue #281. Required fields can be filled after triage.
+  deadline,Imported from GitHub issue #281. Required fields can be filled after triage.
+  estimated_minutes,Imported from GitHub issue #281. Required fields can be filled after triage.
+release: v2026.10.26
+close_reason: "Closed on GitHub as completed on 2026-10-26T08:40:37Z; closing PR https://github.com/unbraind/pm-changelog/pull/284 (\"Point the npm homepage at the package catalog and link the author\")"
+github_close_reason: "Closed on GitHub as completed on 2026-10-26T08:40:37Z; closing PR https://github.com/unbraind/pm-changelog/pull/284 (\"Point the npm homepage at the package catalog and link the author\")"
+github_closed_at: "2026-10-26T08:40:37Z"
+github_created_at: "2026-10-25T21:54:23Z"
+github_link_only: false
+github_number: 281
+github_release: v2026.10.26
+github_state: closed
+github_state_reason: completed
+github_updated_at: "2026-10-26T08:40:37Z"
+github_url: "https://github.com/unbraind/pm-changelog/issues/281"
+body: "## Why\n\nOn npm, `pm-changelog` links **Homepage** to `https://github.com/unbraind/pm-changelog#readme`, the same place as the Repository link beside it. The package has its page in the pm cli package catalog: https://pm-cli.unbrained.dev/packages/pm-changelog. Pointing npm there gives people a useful place to land and lets search engines tie the package to its website. The author field (`\"@unbrained\"`) has no link to the person behind the work.\n\n## What to change\n\nIn `package.json`:\n\n```json\n\"homepage\": \"https://pm-cli.unbrained.dev/packages/pm-changelog\",\n\"author\": { \"name\": \"unbrained\", \"url\": \"https://unbrained.dev/about\" },\n```\n\n- Currently: `\"homepage\": \"https://github.com/unbraind/pm-changelog#readme\"`, `\"author\": \"@unbrained\"`.\n- Keep `repository` and `bugs` as they are.\n- Set the repository's GitHub website (About → Website) to the same address (currently `https://github.com/unbraind/pm-changelog#readme`): `gh repo edit unbraind/pm-changelog --homepage https://pm-cli.unbrained.dev/packages/pm-changelog`.\n- npm takes the new fields with the next published version.\n\n## Acceptance\n\n- [ ] `npm view pm-changelog homepage` prints `https://pm-cli.unbrained.dev/packages/pm-changelog` after the next release.\n- [ ] `npm view pm-changelog author` includes the url `https://unbrained.dev/about`.\n- [ ] The GitHub repository's website is `https://pm-cli.unbrained.dev/packages/pm-changelog`.\n\n## Context\n\nChecked 2026-10-25 with `npm view` and the GitHub API. The same change has been filed in every published unbrained package's repository (pm-cli as unbraind/pm-cli#1594, its extensions, pm-web and the agent-ready clis), so they all link the same way: the product page as homepage, https://unbrained.dev/about as the author."

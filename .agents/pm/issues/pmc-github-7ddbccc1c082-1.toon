@@ -1,0 +1,31 @@
+id: pmc-github-7ddbccc1c082-1
+title: pm changelog generate fails on large pm tracker JSON (spawnSync ENOBUFS)
+description: "GH issue #1: https://github.com/unbraind/pm-changelog/issues/1 · author @unbraind · state reason completed · created 2026-05-23T20:28:02Z · updated 2026-11-02T11:14:24Z"
+type: Issue
+pm_format_version: 4
+status: closed
+priority: 2
+tags[2]: "gh:unbraind/pm-changelog#1","github_author:unbraind"
+created_at: "2026-05-23T20:28:02Z"
+updated_at: "2026-11-26T14:11:32.556Z"
+closed_at: "2026-05-23T21:20:51Z"
+completed_at: "2026-05-23T21:20:51Z"
+author: pm-github
+deferred_fields[4]{field,reason}:
+  acceptance_criteria,Imported from GitHub issue #1. Required fields can be filled after triage.
+  assignee,Imported from GitHub issue #1. Required fields can be filled after triage.
+  deadline,Imported from GitHub issue #1. Required fields can be filled after triage.
+  estimated_minutes,Imported from GitHub issue #1. Required fields can be filled after triage.
+release: v2026.05.24
+close_reason: "Closed on GitHub as completed on 2026-05-23T21:20:51Z"
+github_close_reason: "Closed on GitHub as completed on 2026-05-23T21:20:51Z"
+github_closed_at: "2026-05-23T21:20:51Z"
+github_created_at: "2026-05-23T20:28:02Z"
+github_link_only: false
+github_number: 1
+github_release: v2026.05.24
+github_state: closed
+github_state_reason: completed
+github_updated_at: "2026-11-02T11:14:24Z"
+github_url: "https://github.com/unbraind/pm-changelog/issues/1"
+body: "## Summary\n\n`pm changelog generate` fails in the `pm-cli` repository after installing `pm-changelog@2026.5.23-1` as a pm package.\n\nThe extension command is registered and contract-visible, but the handler shells out to `pm list-all --json` through `spawnSync` with Node's default max buffer. The `pm-cli` repo currently emits about 5.4 MB of JSON, so the child process hits `ENOBUFS` before generation can run.\n\n## Repro\n\n```bash\npm install npm:pm-changelog --project\npm changelog generate --stdout --title \"pm CLI Changelog\" --release-version Unreleased --status closed --group-by version\n```\n\nObserved pm error:\n\n```text\nCommand \"changelog generate\" failed in extension handler (extension_command_handler_failed:project:pm-changelog:changelog generate).\n```\n\nDirect reproduction of the package's child-process path:\n\n```bash\nPM_PATH=<repo-root>/.agents/pm node -e 'import {spawnSync} from \"node:child_process\"; const r=spawnSync(\"pm\",[\"list-all\",\"--json\"],{encoding:\"utf8\"}); console.log({status:r.status, error:r.error?.message, stdout:r.stdout.slice(0,120), stderr:r.stderr.slice(0,120)});'\n```\n\nResult:\n\n```text\n{ status: null, error: 'spawnSync pm ENOBUFS', stdout: '{\\n  \"items\": [\\n    {\\n      \"id\": \"pm-7811\",', stderr: '' }\n```\n\nThe same repository works through the package's stdin-capable standalone CLI path:\n\n```bash\npm list-all --json > pm-list-all.json\nnode .agents/pm/extensions/pm-changelog/dist/cli.js --stdin --stdout --version Unreleased --status closed --group-by version < pm-list-all.json\n```\n\n## Expected\n\nThe extension command should support large real trackers. Possible fixes:\n\n- use a larger `maxBuffer` in `readPmItems`,\n- switch from `spawnSync` to streaming collection,\n- let the pm extension handler consume an SDK-provided item listing surface instead of shelling out,\n- or expose a package/extension option equivalent to `--stdin`/`--input` if direct item loading is not available.\n\n## Environment\n\n- package: `pm-changelog@2026.5.23-1`\n- host repo: `unbraind/pm-cli`\n- `pm --version`: `2026.5.23`\n- `pm list-all --json` size in this repo: `5,369,757` bytes\n\nTracked downstream in pm-cli as `pm-bu50` under integration task `pm-7811`.\n\n\n\n---\n\n### GitHub comments (4)\n\n> **@unbraind** (2026-05-23T20:39:19Z)\n>\n> Fix committed and pushed to main in 2a3c4bb. Local package verification passed with npm run release:check, including regression coverage for >1 MiB pm JSON. npm publish of 2026.5.23-2 is currently blocked from this shell by npm 2FA policy (E403: two-factor authentication or granular access token with bypass 2fa required). Until npm publication is completed with an authorized publisher, consumers can install the fixed pm package from GitHub main/ref 2a3c4bb.\n\n> **@unbraind** (2026-05-23T20:40:40Z)\n>\n> Follow-up: amended/pushed fix commit 5c83152 to also align manifest.json version with package.json (2026.5.23-2). npm run release:check passes locally after the manifest correction. npm publication remains blocked here by npm 2FA policy; GitHub CI is the current verification path until an authorized publisher publishes 2026.5.23-2.\n\n> **@unbraind** (2026-05-23T20:47:07Z)\n>\n> Follow-up: amended the fix again to make extension --check fail nonzero when the generated changelog would change, and added package-install regression coverage for both unchanged and stale check paths. Local npm run release:check passes.\n\n> **@unbraind** (2026-05-23T21:20:50Z)\n>\n> Fixed in main. The generator now uses a larger pm JSON spawn buffer and has regression coverage for large tracker output; CI is green on f5ebc23. Npm publication of 2026.5.23-5 is currently blocked by npm 2FA/bypass-token requirements, so downstream pm-cli is pinned to the verified GitHub source until the package can be published."

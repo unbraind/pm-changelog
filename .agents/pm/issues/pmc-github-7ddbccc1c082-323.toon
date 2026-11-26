@@ -1,0 +1,31 @@
+id: pmc-github-7ddbccc1c082-323
+title: "Section order follows updated_at for in-progress items, so any pm comment fails changelog:check"
+description: "GH issue #323: https://github.com/unbraind/pm-changelog/issues/323 · author @unbraind · state reason completed · created 2026-11-06T05:49:13Z · updated 2026-11-07T00:17:16Z"
+type: Issue
+pm_format_version: 4
+status: closed
+priority: 2
+tags[2]: "gh:unbraind/pm-changelog#323","github_author:unbraind"
+created_at: "2026-11-06T05:49:13Z"
+updated_at: "2026-11-26T14:11:39.274Z"
+closed_at: "2026-11-07T00:17:16Z"
+completed_at: "2026-11-07T00:17:16Z"
+author: pm-github
+deferred_fields[4]{field,reason}:
+  acceptance_criteria,Imported from GitHub issue #323. Required fields can be filled after triage.
+  assignee,Imported from GitHub issue #323. Required fields can be filled after triage.
+  deadline,Imported from GitHub issue #323. Required fields can be filled after triage.
+  estimated_minutes,Imported from GitHub issue #323. Required fields can be filled after triage.
+release: v2026.11.7
+close_reason: "Closed on GitHub as completed on 2026-11-07T00:17:16Z; closing PR https://github.com/unbraind/pm-changelog/pull/324 (\"fix: keep section order stable across pm metadata writes\")"
+github_close_reason: "Closed on GitHub as completed on 2026-11-07T00:17:16Z; closing PR https://github.com/unbraind/pm-changelog/pull/324 (\"fix: keep section order stable across pm metadata writes\")"
+github_closed_at: "2026-11-07T00:17:16Z"
+github_created_at: "2026-11-06T05:49:13Z"
+github_link_only: false
+github_number: 323
+github_release: v2026.11.7
+github_state: closed
+github_state_reason: completed
+github_updated_at: "2026-11-07T00:17:16Z"
+github_url: "https://github.com/unbraind/pm-changelog/issues/323"
+body: "## Observed\n\npm-jev#99 went red after a single `pm comment` on one of its in-progress items. No code changed. CI ran `changelog:check`, which refused the committed CHANGELOG.md: the only difference was the position of that item's line within `### Fixed` ([job 127733701630](https://github.com/unbraind/pm-jev/actions/runs/42169494017/job/127733701630)).\n\n## Cause\n\n`compareItems` (`src/generator.ts`, around line 2589) orders entries by `itemTimestamp()`, newest first. For an item with no `completed_at` or `closed_at`, that resolves to `updated_at`.\n\nThe fleet's changelog scripts pass `--status closed,in_progress`, so every in-progress item in a PR window is ordered by its last metadata write. That write can be a comment, a linked file, a test run or a claim. Any of them reorders the section, and `changelog:check` fails until someone regenerates and commits again.\n\nThis is the class #6 fixed for version sections, now inside one section. It costs a CI round every time an agent or orchestrator documents its work, which the fleet requires.\n\n## Expected\n\nThe order within a section does not change when pm metadata that is not a lifecycle field changes. For example:\n\n- Closed items sort by completion timestamp, as now.\n- Items without a completion timestamp sort by a stable key (`created_at`, then `id`), never by `updated_at`.\n\nAdd a regression test: a comment on an in-progress item leaves the generated changelog byte-identical.\n\n## Workaround in the fleet today\n\nRerun `npm run changelog:full` and commit after every pm write on an open PR."

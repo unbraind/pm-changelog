@@ -1,0 +1,31 @@
+id: pmc-github-7ddbccc1c082-287
+title: Package scan diagnostics echo credential-shaped archive filenames
+description: "GH issue #287: https://github.com/unbraind/pm-changelog/issues/287 · author @unbraind · state reason completed · created 2026-10-26T09:01:31Z · updated 2026-10-26T13:17:06Z"
+type: Issue
+pm_format_version: 4
+status: closed
+priority: 2
+tags[2]: "gh:unbraind/pm-changelog#287","github_author:unbraind"
+created_at: "2026-10-26T09:01:31Z"
+updated_at: "2026-11-26T14:11:37.987Z"
+closed_at: "2026-10-26T13:17:06Z"
+completed_at: "2026-10-26T13:17:06Z"
+author: pm-github
+deferred_fields[4]{field,reason}:
+  acceptance_criteria,Imported from GitHub issue #287. Required fields can be filled after triage.
+  assignee,Imported from GitHub issue #287. Required fields can be filled after triage.
+  deadline,Imported from GitHub issue #287. Required fields can be filled after triage.
+  estimated_minutes,Imported from GitHub issue #287. Required fields can be filled after triage.
+release: v2026.10.26
+close_reason: "Closed on GitHub as completed on 2026-10-26T13:17:06Z; closing PR https://github.com/unbraind/pm-changelog/pull/289 (\"Redact package-scan diagnostics and refuse credential-shaped member names\")"
+github_close_reason: "Closed on GitHub as completed on 2026-10-26T13:17:06Z; closing PR https://github.com/unbraind/pm-changelog/pull/289 (\"Redact package-scan diagnostics and refuse credential-shaped member names\")"
+github_closed_at: "2026-10-26T13:17:06Z"
+github_created_at: "2026-10-26T09:01:31Z"
+github_link_only: false
+github_number: 287
+github_release: v2026.10.26
+github_state: closed
+github_state_reason: completed
+github_updated_at: "2026-10-26T13:17:06Z"
+github_url: "https://github.com/unbraind/pm-changelog/issues/287"
+body: "## Reproduced finding\n\nTested source: `ce504e16953a01ea1a9c68951638c94622d20723`, after #285. The new package scanner correctly refuses credential-shaped file contents, but includes an unredacted archive member name in its returned diagnostics. A credential-shaped string in that name therefore enters the diagnostic output. This uses deliberately synthetic markers, not real credentials; no actual credential exposure or published-package exposure is claimed.\n\nSource goal: `docs/release.md` promises diagnostics name only the file and rule, never the matched value; the `scripts/verify-package.ts` entry-point documentation promises safe filenames. Actual PM item: https://github.com/unbraind/pm-changelog/blob/ce504e16953a01ea1a9c68951638c94622d20723/.agents/pm/issues/pmc-package-files.toon\n\n## Reproduction\n\nIn a disposable plain folder, create the required `PUBLIC_FILES` with neutral contents, a synthetic package.json using that allowlist, and `dist/index.js` / `dist/cli.js`. Add an extra member named `dist/` + (`ghp_` + `Z`.repeat(36)) + `.js`, whose contents are `Bearer ` + `Q`.repeat(30). Import `verifyPackage` from the exact source and call it on this folder.\n\nCommand used: `PM_TELEMETRY_DISABLED=1 DO_NOT_TRACK=1 CI=1 npm_config_cache=$PWD/npm-cache npm_config_offline=true npm_config_ignore_scripts=true node packed-repro.mts`.\n\nNode24.22.1; real local npm archive, lifecycle scripts disabled, no network/publication. Four source/manifest files were independently verified against Git blob hashes. The scanner inspected15 files and returned `dist/<synthetic GitHub-shaped marker>.js: bearer credential`, containing the entire filename marker. `main()` logs each returned failure unchanged. The body marker was not included.\n\nExpected: preserve refusal and useful rule/member identification without printing sensitive-looking filename bytes. Actual: `allowedFile()` permits arbitrary `dist/` names and both diagnostic paths interpolate the unredacted filename; `main()` prints them unchanged.\n\n## Impact and limits\n\nA release gate can copy sensitive-looking archive names into CI logs while trying to prevent sensitive publication. This is a reproducible diagnostic sanitization defect, not evidence that real secrets exist or were leaked. Existing content refusal remains useful. The35 selected pure scanner tests passed. Full repository/release/installed consumer suites were not rerun. Initial local pack attempt failed because the default cache was absent; the successful result used the dedicated writable cache above.\n\n## Acceptance\n\n- Sanitize sensitive-looking member names for every diagnostic path while preserving safe useful context and rule categories.\n- Cover both outside-allowlist names and allowed `dist/` names containing sensitive patterns, with independent synthetic contents.\n- Assert returned errors and actual stderr never contain the synthetic marker, while detection still fails closed.\n- Retain existing membership/content checks; never weaken quota/privacy/security gates to make a test pass.\n\nAll-status issue/PR records and the linked PM item were checked; #285 covers the scanner implementation but not this filename diagnostic case."

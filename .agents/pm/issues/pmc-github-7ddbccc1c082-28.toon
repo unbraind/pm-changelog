@@ -1,0 +1,31 @@
+id: pmc-github-7ddbccc1c082-28
+title: Base semver suggestion on visible release sections
+description: "GH issue #28: https://github.com/unbraind/pm-changelog/issues/28 · author @unbraind · state reason completed · created 2026-06-04T06:11:10Z · updated 2026-06-05T10:34:32Z"
+type: Issue
+pm_format_version: 4
+status: closed
+priority: 2
+tags[3]: bug,"gh:unbraind/pm-changelog#28","github_author:unbraind"
+created_at: "2026-06-04T06:11:10Z"
+updated_at: "2026-11-26T14:11:35.602Z"
+closed_at: "2026-06-05T10:34:32Z"
+completed_at: "2026-06-05T10:34:32Z"
+author: pm-github
+deferred_fields[4]{field,reason}:
+  acceptance_criteria,Imported from GitHub issue #28. Required fields can be filled after triage.
+  assignee,Imported from GitHub issue #28. Required fields can be filled after triage.
+  deadline,Imported from GitHub issue #28. Required fields can be filled after triage.
+  estimated_minutes,Imported from GitHub issue #28. Required fields can be filled after triage.
+release: v2026.6.6
+close_reason: "Closed on GitHub as completed on 2026-06-05T10:34:32Z; closing PR https://github.com/unbraind/pm-changelog/pull/30 (\"Fix breaking-token detection, body-preview body loading, and visible-section semver (#26, #27, #28)\")"
+github_close_reason: "Closed on GitHub as completed on 2026-06-05T10:34:32Z; closing PR https://github.com/unbraind/pm-changelog/pull/30 (\"Fix breaking-token detection, body-preview body loading, and visible-section semver (#26, #27, #28)\")"
+github_closed_at: "2026-06-05T10:34:32Z"
+github_created_at: "2026-06-04T06:11:10Z"
+github_link_only: false
+github_number: 28
+github_release: v2026.6.6
+github_state: closed
+github_state_reason: completed
+github_updated_at: "2026-06-05T10:34:32Z"
+github_url: "https://github.com/unbraind/pm-changelog/issues/28"
+body: "From pm-cli PR #108 review of managed pm-changelog@2026.6.4. When --changelog-json is combined with release-window output and visibility flags such as --all-release-tags --limit 1 --suggest-semver or --since-version, the JSON releases array is narrowed through visible sections but suggestSemver(options) recomputes over filterItems(options). That can report a bump from older hidden releases not present in the emitted changelog. Expected: compute semver suggestion from the same visible release-section items used for output.\n\n---\n\n### GitHub comments (1)\n\n> **@coderabbitai[bot]** (2026-06-04T06:11:31Z)\n>\n> <!-- This is an auto-generated issue plan by CodeRabbit -->\n> <details>\n> <summary>🔗 Related PRs</summary>\n> \n> unbraind/pm-changelog#13 - Use release tag timestamp for generated heading dates [merged]\n> unbraind/pm-changelog#20 - Fix classifier: bug-like item type wins over command-name keyword collisions [merged]\n> unbraind/pm-changelog#25 - Deduplicate label section tags [closed]\n> </details>\n> \n> ---\n> <details>\n> <summary>📝 Issue Planner</summary>\n> \n> <sub>Check the box below or use the `@coderabbitai plan` command to generate an implementation plan and prompts that you can use with your favorite coding assistant.</sub>\n> \n> - [ ] <!-- {\"checkboxId\": \"8d4f2b9c-3e1a-4f7c-a9b2-d5e8f1c4a7b9\"} --> Create Plan\n> </details>\n> \n> \n> ---\n> <details>\n> <summary> 🧪 Issue enrichment is currently in open beta.</summary>\n> \n> \n> You can configure auto-planning by selecting labels in the issue_enrichment configuration.\n> \n> To disable automatic issue enrichment, add the following to your `.coderabbit.yaml`:\n> ```yaml\n> issue_enrichment:\n>   auto_enrich:\n>     enabled: false\n> ```\n> </details>\n> \n> 💬 Have feedback or questions? Drop into our [discord](https://discord.gg/coderabbit)!"

@@ -1,0 +1,31 @@
+id: pmc-github-7ddbccc1c082-27
+title: Load item bodies for body-preview in CLI and extension paths
+description: "GH issue #27: https://github.com/unbraind/pm-changelog/issues/27 · author @unbraind · state reason completed · created 2026-06-04T06:11:10Z · updated 2026-06-05T10:34:31Z"
+type: Issue
+pm_format_version: 4
+status: closed
+priority: 2
+tags[2]: "gh:unbraind/pm-changelog#27","github_author:unbraind"
+created_at: "2026-06-04T06:11:10Z"
+updated_at: "2026-11-26T14:11:35.375Z"
+closed_at: "2026-06-05T10:34:31Z"
+completed_at: "2026-06-05T10:34:31Z"
+author: pm-github
+deferred_fields[4]{field,reason}:
+  acceptance_criteria,Imported from GitHub issue #27. Required fields can be filled after triage.
+  assignee,Imported from GitHub issue #27. Required fields can be filled after triage.
+  deadline,Imported from GitHub issue #27. Required fields can be filled after triage.
+  estimated_minutes,Imported from GitHub issue #27. Required fields can be filled after triage.
+release: v2026.6.6
+close_reason: "Closed on GitHub as completed on 2026-06-05T10:34:31Z; closing PR https://github.com/unbraind/pm-changelog/pull/30 (\"Fix breaking-token detection, body-preview body loading, and visible-section semver (#26, #27, #28)\")"
+github_close_reason: "Closed on GitHub as completed on 2026-06-05T10:34:31Z; closing PR https://github.com/unbraind/pm-changelog/pull/30 (\"Fix breaking-token detection, body-preview body loading, and visible-section semver (#26, #27, #28)\")"
+github_closed_at: "2026-06-05T10:34:31Z"
+github_created_at: "2026-06-04T06:11:10Z"
+github_link_only: false
+github_number: 27
+github_release: v2026.6.6
+github_state: closed
+github_state_reason: completed
+github_updated_at: "2026-06-05T10:34:31Z"
+github_url: "https://github.com/unbraind/pm-changelog/issues/27"
+body: "From pm-cli PR #108 review of managed pm-changelog@2026.6.4. With normal npx pm-changelog --body-preview and pm changelog generate --body-preview extension usage, items are loaded through pm list-all --json / listAllFrontMatter, which usually do not include document body content. As a result item.body is absent and previews silently do not render for real pm items. Expected: load item bodies when bodyPreview is set, or explicitly document that body-preview only works with custom stdin JSON containing body."

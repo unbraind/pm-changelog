@@ -1,0 +1,31 @@
+id: pmc-github-7ddbccc1c082-11
+title: Batch git tag timestamp lookup for full-history changelog
+description: "GH issue #11: https://github.com/unbraind/pm-changelog/issues/11 · author @unbraind · state reason completed · created 2026-05-24T16:04:51Z · updated 2026-05-24T16:10:19Z"
+type: Issue
+pm_format_version: 4
+status: closed
+priority: 2
+tags[2]: "gh:unbraind/pm-changelog#11","github_author:unbraind"
+created_at: "2026-05-24T16:04:51Z"
+updated_at: "2026-11-26T14:11:34.622Z"
+closed_at: "2026-05-24T16:10:19Z"
+completed_at: "2026-05-24T16:10:19Z"
+author: pm-github
+deferred_fields[4]{field,reason}:
+  acceptance_criteria,Imported from GitHub issue #11. Required fields can be filled after triage.
+  assignee,Imported from GitHub issue #11. Required fields can be filled after triage.
+  deadline,Imported from GitHub issue #11. Required fields can be filled after triage.
+  estimated_minutes,Imported from GitHub issue #11. Required fields can be filled after triage.
+release: v2026.05.25
+close_reason: "Closed on GitHub as completed on 2026-05-24T16:10:19Z"
+github_close_reason: "Closed on GitHub as completed on 2026-05-24T16:10:19Z"
+github_closed_at: "2026-05-24T16:10:19Z"
+github_created_at: "2026-05-24T16:04:51Z"
+github_link_only: false
+github_number: 11
+github_release: v2026.05.25
+github_state: closed
+github_state_reason: completed
+github_updated_at: "2026-05-24T16:10:19Z"
+github_url: "https://github.com/unbraind/pm-changelog/issues/11"
+body: "Gemini review on unbraind/pm-cli#62 flagged that pm-changelog@2026.5.24-13 full-history generation lists matching git release tags and then shells out once per tag to resolve commit timestamps.\\n\\nExpected: full-history generation should use one formatted git tag/ref query for matching tags and parse timestamps in-process, so runtime scales with tracker data rather than process startup count.\\n\\nTracked in pm as pmc-99tc.\n\n---\n\n### GitHub comments (1)\n\n> **@unbraind** (2026-05-24T16:10:18Z)\n>\n> Fixed in pm-changelog@2026.5.24-14. The implementation now resolves release tag names and peeled/direct commit timestamps with one formatted git tag lookup, includes annotated-tag commit-date regression coverage, and passed the Daily Release workflow run 26366186354."

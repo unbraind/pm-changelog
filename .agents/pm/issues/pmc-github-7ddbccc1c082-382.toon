@@ -1,0 +1,27 @@
+id: pmc-github-7ddbccc1c082-382
+title: "A merged Dependabot update leaves changelog:check red on main: the dependency entry changes text after its merge"
+description: "GH issue #382: https://github.com/unbraind/pm-changelog/issues/382 · author @unbraind · created 2026-11-26T05:49:31Z · updated 2026-11-26T07:56:07Z"
+type: Issue
+pm_format_version: 4
+status: open
+priority: 2
+tags[2]: "gh:unbraind/pm-changelog#382","github_author:unbraind"
+created_at: "2026-11-26T05:49:31Z"
+updated_at: "2026-11-26T14:11:41.397Z"
+author: pm-github
+deferred_fields[4]{field,reason}:
+  acceptance_criteria,Imported from GitHub issue #382. Required fields can be filled after triage.
+  assignee,Imported from GitHub issue #382. Required fields can be filled after triage.
+  deadline,Imported from GitHub issue #382. Required fields can be filled after triage.
+  estimated_minutes,Imported from GitHub issue #382. Required fields can be filled after triage.
+github_close_reason: ""
+github_closed_at: ""
+github_created_at: "2026-11-26T05:49:31Z"
+github_link_only: false
+github_number: 382
+github_release: ""
+github_state: open
+github_state_reason: unspecified
+github_updated_at: "2026-11-26T07:56:07Z"
+github_url: "https://github.com/unbraind/pm-changelog/issues/382"
+body: "## What happens\n\nWith `--dependency-updates`, the generator writes a dependency entry in two forms, depending on when it runs:\n\n- before the Dependabot pull request is merged (the form committed with that pull request): `- Bump unbraind/pm-ops/.github/workflows/daily-release.yml`\n- after the merge: `- Bump unbraind/pm-ops/.github/workflows/daily-release.yml from 2026.11.18 to 2026.11.22 ([#63](https://github.com/unbraind/pm-http/pull/63))`\n\nSo the moment a Dependabot pull request auto-merges, the committed `CHANGELOG.md` on main no longer equals the generator's output, and `changelog:check` fails for every pull request opened afterwards, until a release or another pull request regenerates the file.\n\n## Evidence (2026-11-26)\n\nWorkflow-only pull requests that do not touch the changelog failed `test (26)` on exactly this diff, minutes after a Dependabot merge on main:\n\n- pm-http: [job log](https://github.com/unbraind/pm-http/pull/64/checks), entry for pull request 63\n- pm-context: entry \"Bump the codeql-action group with 2 updates\" gained `([#255](…))`\n- same class in pm-jev and pm-gantt-chart\n\nClassification printed by the check: `Drift classification: tracker_changed.`\n\n## Expected\n\nOne of:\n\n1. **Stable entry text:** the entry for a dependency update is the same before and after its merge. For example, always derive the version range from the pull request title or commits, and write the link only when the pull request number is known at generation time on the branch (it is: the head branch has an open pull request).\n2. **Check tolerance:** `--check` classifies a difference that only adds the version range and pull request link to an existing dependency entry as `dependency_entry_completed` and passes, while the next full regeneration writes the complete form.\n\n## Acceptance\n\n- A Dependabot pull request that merges without anyone regenerating the changelog leaves `changelog:check` green on main.\n- A regression test covers an entry before and after its merge, for a single update and for a grouped update.\n- The release notes still show the version range and the pull request link.\n\nRelated: the heading-date drift after a release is tracked in unbraind/pm-ops#295.\n\n\n---\n\n### GitHub comments (2)\n\n> **@unbraind** (2026-11-26T06:29:58Z)\n>\n> Another downstream case is tracked in [pm-starter#239](https://github.com/unbraind/pm-starter/issues/239). In an isolated full clone at the exact squash-merged [`2eace672778972038eeda61163c571ecf9627405`](https://github.com/unbraind/pm-starter/commit/2eace672778972038eeda61163c571ecf9627405), locked dependencies and Node 24.22.3, `npm run changelog:check` exits 1 with `tracker_changed` even though [the generating PR was green](https://github.com/unbraind/pm-starter/actions/runs/45740440411). The previous dependency entry is now stable; the only new difference is the newly merged dependency entry gaining its own PR link. [Exact downstream follow-up](https://github.com/unbraind/pm-starter/issues/239#issuecomment-7180646173). This is a regression case for link-only drift across squash merge, independent of older pending churn.\n\n> **@unbraind** (2026-11-26T07:56:07Z)\n>\n> One more observation from fixing this on pull request branches: the generator's dependency entries depend on first-parent history. A branch that **merges** main (main as second parent) regenerates without the entries of updates that merged to main in between, while CI, which tests the pull request's merge ref with main as first parent, generates them. So `changelog:full` on such a branch reports \"up to date\" locally and `changelog:check` fails in CI. Rebuilding the branch on top of main (rebase or cherry-pick) gives the same output as CI. Example: unbraind/pm-glossary#45 and the entry for its pull request 46."

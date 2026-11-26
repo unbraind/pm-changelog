@@ -1,0 +1,31 @@
+id: pmc-github-7ddbccc1c082-9
+title: Prepend mode should replace Keep a Changelog bracketed release headings
+description: "GH issue #9: https://github.com/unbraind/pm-changelog/issues/9 · author @unbraind · state reason completed · created 2026-05-24T14:14:15Z · updated 2026-05-24T14:20:03Z"
+type: Issue
+pm_format_version: 4
+status: closed
+priority: 2
+tags[3]: bug,"gh:unbraind/pm-changelog#9","github_author:unbraind"
+created_at: "2026-05-24T14:14:15Z"
+updated_at: "2026-11-26T14:11:34.171Z"
+closed_at: "2026-05-24T14:20:03Z"
+completed_at: "2026-05-24T14:20:03Z"
+author: pm-github
+deferred_fields[4]{field,reason}:
+  acceptance_criteria,Imported from GitHub issue #9. Required fields can be filled after triage.
+  assignee,Imported from GitHub issue #9. Required fields can be filled after triage.
+  deadline,Imported from GitHub issue #9. Required fields can be filled after triage.
+  estimated_minutes,Imported from GitHub issue #9. Required fields can be filled after triage.
+release: v2026.05.25
+close_reason: "Closed on GitHub as completed on 2026-05-24T14:20:03Z"
+github_close_reason: "Closed on GitHub as completed on 2026-05-24T14:20:03Z"
+github_closed_at: "2026-05-24T14:20:03Z"
+github_created_at: "2026-05-24T14:14:15Z"
+github_link_only: false
+github_number: 9
+github_release: v2026.05.25
+github_state: closed
+github_state_reason: completed
+github_updated_at: "2026-05-24T14:20:03Z"
+github_url: "https://github.com/unbraind/pm-changelog/issues/9"
+body: "pm-cli now uses pm-changelog for the main CHANGELOG.md. The generated current-release section uses headings like `## 2026.5.24 - 2026-05-24`, while the existing released changelog follows Keep a Changelog style headings like `## [2026.5.24] - 2026-05-24` and includes older release sections.\\n\\nWhen pm-cli switches from destructive `--mode replace` to the safer package-owned `--mode prepend`, pm-changelog fails to identify those headings as the same release. It inserts a duplicate current-release section instead of replacing the existing section, so projects cannot preserve real release history while regenerating the current release from pm items.\\n\\nExpected behavior:\\n- `mergeChangelog` / `--mode prepend` should treat bracketed Keep a Changelog headings as equivalent to unbracketed generated headings for the same version.\\n- Example: generated `## 2026.5.24 - 2026-05-24` should replace existing `## [2026.5.24] - 2026-05-24`.\\n- Older release sections and top-of-file prose should be preserved.\\n\\nThis is needed so pm-cli can rely on pm-changelog without custom scripts or hand-written changelog repair.\n\n---\n\n### GitHub comments (1)\n\n> **@unbraind** (2026-05-24T14:20:02Z)\n>\n> Fixed in pm-changelog and published as npm latest 2026.5.24-11. The fix normalizes generated and Keep a Changelog bracketed release headings in prepend mode, and the release workflow now uses prepend mode so older sections are preserved."
