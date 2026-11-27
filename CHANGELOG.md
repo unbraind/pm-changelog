@@ -4,6 +4,8 @@
 
 > Release note (issue 337): empty Unreleased sections are always omitted; --include-empty retains only versioned release sections. Callers' committed changelogs drop the legacy empty Unreleased / No changes. block on their next regeneration, including prepend mode. Non-empty unreleased items and dependency notes are preserved.
 
+> Release note (issue 384): file checks now accept changes confined to Unreleased and report pending_only. Versioned sections are still checked exactly. Use --check-pending for a strict check including Unreleased.
+
 ## 2026.11.24 - 2026-11-25
 
 ### Closed

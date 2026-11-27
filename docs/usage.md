@@ -81,25 +81,34 @@ npx pm-changelog --mode prepend --version "$GITHUB_REF_NAME" --check
 ```
 
 File-output checks classify differences in both the message and the `--json`
-receipt. An exact match to any older rendering profile reports `rendering_changed`
+receipt. The default treats a missing or stale `## Unreleased` section as pending.
+A difference confined to that section prints `pending_only` on stderr and exits
+**0**. Both the standalone JSON receipt and pm host JSON/TOON receipt report
+`classification: pending_only` and `changed: false`. The SDK returns the same
+fields from `writeChangelog({ check: true, ...options })`. Its `markdown` and
+`action` still describe full regeneration.
+
+For a failing difference, an exact match to any older rendering profile reports `rendering_changed`
 and names the matched profile; profiles are tried newest first. Other differences,
 including entry-only reorders without that evidence, are `tracker_changed`.
 An unproved or same-version reorder explains that a `completed_at` edit or a
 manual reorder can cause it. Blank lines and indented details stay with their
 entry. File-output checks (`--check` with `--output`, including its default
-`CHANGELOG.md`) exit **1** for every difference. `--stdout` takes precedence:
+`CHANGELOG.md`) exit **1** for drift in versioned sections or the preamble, and for
+a missing file. Use `--check-pending` (SDK `checkPending: true`) to include
+Unreleased in the same read-only check. `--stdout` takes precedence:
 even with `--check`, it prints the generated output without comparing or writing
 the file and exits **0** when generation succeeds.
 
 Generator drift includes a regeneration invocation built from parsed options,
-with canonical flag names. `--check`, `--github-output` and
+with canonical flag names. `--check`, `--check-pending`, `--github-output` and
 `--github-step-summary` are omitted so local regeneration needs no CI output files. Repeated `--pm-arg` values use
 `--pm-arg=value` spelling so leading dashes remain values. The tool never infers
 an executable from an embedding host's argv. The JSON receipt includes
 `regeneration_argv`, `regeneration_shell` and `regeneration_input_required`.
 POSIX is the default shell; win32 guidance supplies a PowerShell form and its
 lossless JSON argv. For stdin, no standalone command is advertised: rerun the
-original input pipe without `--check`, supplying the same input to the emitted
+original input pipe without `--check` or `--check-pending`, supplying the same input to the emitted
 argv. `--no-check-diff` hides only the diff.
 
 The receipt includes `rendering_version` and `previous_rendering_version`.
@@ -479,7 +488,8 @@ and its history untouched in the tracker. Both flags are reported by `--explain`
 | `--include-metadata` | false | Append compact item metadata (`type`, `status`, `priority`, `release`, `milestone`) to each entry |
 | `--mode <mode>` | `replace` | `replace` or `prepend` existing changelog |
 | `--json` | false | Print JSON summary for automation |
-| `--check` | false | Do not write; exit 1 if the output file would change. On drift, also prints a unified diff (`--- committed` vs `+++ generated`) to **stderr** so the cause is visible without rerunning the generator — the common case (a PR branch behind `main`, so the CI merge ref sees a release the branch lacks) shows up as a missing release section in seconds. Capped at ~200 diff lines with an explicit truncation notice |
+| `--check` | false | Check the file without writing. Unreleased-only drift is advisory. On failure, also prints a unified diff (`--- committed` vs `+++ generated`) to **stderr** so the cause is visible without rerunning the generator — the common case (a PR branch behind `main`, so the CI merge ref sees a release the branch lacks) shows up as a missing release section in seconds. Capped at ~200 diff lines with an explicit truncation notice |
+| `--check-pending` | false | Strict read-only check including Unreleased. Implies `--check`. |
 | `--no-check-diff` | false | With `--check`, suppress the drift diff; the exit code is unchanged. For callers that only want the pass/fail signal |
 | `--github-output` | false | Write summary fields to `$GITHUB_OUTPUT` |
 | `--github-step-summary` | false | Append generated markdown to `$GITHUB_STEP_SUMMARY` |

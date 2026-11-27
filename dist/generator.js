@@ -1,3 +1,4 @@
+import { isPendingOnlyDrift } from "./check-drift.js";
 import { normalizeUnicodeText } from "./output-unicode.js";
 import { readContractChange } from "./contract-changes.js";
 import { spawnSync } from "node:child_process";
@@ -845,14 +846,20 @@ export function writeChangelog(options, renderingVersion = RENDERING_VERSION) {
     const merged = mode === "prepend"
         ? mergeChangelog(existing, generated.markdown, { title: options.title }, renderingVersion)
         : replaceChangelog(existing, generated.markdown);
-    if (!options.check) {
+    const pendingOnly = options.check && !options.checkPending && merged.changed
+        && isPendingOnlyDrift(existing, merged.markdown, (markdown) => {
+            const content = mode === "prepend" ? trimMarkdownEnd(markdown) : markdown.trimEnd();
+            return withoutUnreleasedSections(content + "\n");
+        });
+    if (!options.check && !options.checkPending) {
         writeFileSync(output, merged.markdown, "utf-8");
     }
     return {
         output,
         markdown: merged.markdown,
         action: merged.action,
-        changed: merged.changed,
+        changed: merged.changed && !pendingOnly,
+        ...(pendingOnly ? { classification: "pending_only" } : {}),
         itemCount: generated.itemCount,
         excludedNonChangeCount: generated.excludedNonChangeCount,
         bytes: Buffer.byteLength(merged.markdown, "utf-8"),
@@ -1596,6 +1603,24 @@ function extractReleaseSections(markdown, renderingVersion = RENDERING_VERSION) 
             markdown: trimMarkdownEnd(markdown.slice(match.index, end), renderingVersion),
         };
     });
+}
+/** Remove only pending section spans from a comparison. Preserve the preamble
+ * and versioned bytes, including whitespace and headings inside code fences. */
+function withoutUnreleasedSections(markdown) {
+    const headings = findMarkdownHeadings(markdown, "##");
+    const parts = [];
+    let cursor = 0;
+    for (const [index, heading] of headings.entries()) {
+        if (normalizeReleaseHeadingKey(heading.heading) !== UNRELEASED_HEADING_KEY)
+            continue;
+        parts.push(markdown.slice(cursor, heading.index));
+        cursor = headings[index + 1]?.index ?? markdown.length;
+    }
+    parts.push(markdown.slice(cursor));
+    const retained = parts.join("");
+    // A trailing run of pending sections owns one separator line. Additional
+    // blank lines and hard breaks still belong to the preceding release.
+    return cursor === markdown.length ? retained.replace(/(\r?\n)\r?\n$/, "$1") : retained;
 }
 /** Drop legacy empty pending placeholders during prepend regeneration, including
  * when there are no generated releases. Preserve every meaningful pending body. */

@@ -1,6 +1,15 @@
 /** Failure categories describe observable output, never a successful check. */
 export type CheckDriftClassification = "reorder_only" | "rendering_changed" | "tracker_changed";
 
+/** An advisory for file checks whose versioned Markdown still matches. */
+export const PENDING_ONLY_MESSAGE = "Drift classification: pending_only. Only Unreleased differs.";
+
+/** Compare both renderings with the writer's Markdown section boundaries.
+ * A missing file must still be created, even for an empty release history. */
+export function isPendingOnlyDrift(committed: string | undefined, generated: string, withoutPending: (markdown: string) => string): boolean {
+  return committed !== undefined && withoutPending(committed) === withoutPending(generated);
+}
+
 /** Canonicalize complete entry blocks within each heading-delimited section.
  * Keep section order, prose, spacing, duplicate entries and fenced code exact. */
 function canonicalEntryOrder(markdown: string): string {
@@ -124,14 +133,14 @@ export function canonicalRegenerationOptions(options: Readonly<Record<string, un
 export function regenerationCommand(options: RegenerationOptions, invocation: readonly string[], platform: NodeJS.Platform = process.platform): RegenerationGuidance {
   const args: string[] = [];
   for (const [name, value] of Object.entries(options)) {
-    if (name === "check" || name === "github-output" || name === "github-step-summary" || value === undefined || value === false) continue;
+    if (name === "check" || name === "check-pending" || name === "github-output" || name === "github-step-summary" || value === undefined || value === false) continue;
     if (value === true) args.push(`--${name}`);
     else for (const entry of Array.isArray(value) ? value : [value]) args.push(`--${name}=${entry}`);
   }
   const argv = [...invocation, ...args];
   const shell = platform === "win32" ? "powershell" : "posix";
   if (options.stdin === true) return { argv, input_required: true, shell,
-    message: `Regeneration requires the same stdin input or original pipe. Rerun the original pipe without --check; regeneration argv ${JSON.stringify(argv)}.` };
+    message: `Regeneration requires the same stdin input or original pipe. Rerun the original pipe without --check or --check-pending; regeneration argv ${JSON.stringify(argv)}.` };
   const command = shell === "powershell"
     ? "& " + argv.map((arg) => "'" + arg.replace(/'/g, "''") + "'").join(" ")
     : argv.map((arg) => /^[a-zA-Z0-9_./:=@,+-]+$/.test(arg) ? arg : "'" + arg.replace(/'/g, "'\\''") + "'").join(" ");

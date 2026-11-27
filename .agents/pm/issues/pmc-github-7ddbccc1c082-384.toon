@@ -1,0 +1,56 @@
+id: pmc-github-7ddbccc1c082-384
+title: "changelog:check makes every pull request own the Unreleased section, so concurrent PRs fail or conflict after each merge (54 Dependabot PRs stuck fleet-wide)"
+description: "GH issue #384: https://github.com/unbraind/pm-changelog/issues/384 · author @unbraind · created 2026-11-27T10:38:41Z · updated 2026-11-27T10:39:14Z"
+type: Issue
+pm_format_version: 4
+status: open
+priority: 2
+tags[2]: "gh:unbraind/pm-changelog#384","github_author:unbraind"
+created_at: "2026-11-27T10:38:41Z"
+updated_at: "2026-11-27T11:30:35.315Z"
+author: pm-github
+deferred_fields[3]{field,reason}:
+  acceptance_criteria,Imported from GitHub issue #384. Required fields can be filled after triage.
+  deadline,Imported from GitHub issue #384. Required fields can be filled after triage.
+  estimated_minutes,Imported from GitHub issue #384. Required fields can be filled after triage.
+comments[10]{created_at,author,text}:
+  "2026-11-27T10:45:22.778Z",codex-agent,"Reproduce pending-only drift before edits. Trace the SDK, standalone and host check paths, preserve exact versioned comparison, and verify the package release scripts with a pending package version."
+  "2026-11-27T10:46:18.186Z",codex-agent,"Reproduced on 6617b03: two dated tags, committed versioned changelog, then a single chore(deps) bump. File check exited 1 (tracker_changed); the entire diff added only Unreleased / Dependencies / Bump pending package from 2 to 3. Baseline repository changelog:check passed."
+  "2026-11-27T10:54:40.368Z",codex-agent,"Implemented the comparison in the SDK file check, using the generator's Markdown section boundaries. Both command entry points report pending_only and honor --check-pending. Two branches, both Dependabot squash-subject cases, strict mode, versioned corruption, and non-Git SDK/host parity passed in the fixed fixtures."
+  "2026-11-27T11:01:00.014Z",codex-agent,"Verified four external scripts perform their own whole-file comparisons. Follow-up unbraind/pm-changelog#385 tracks pm-ops, pm-slack, pm-gantt-chart and pm-review with immutable source links. The direct package check remains the only implementation changed here."
+  "2026-11-27T11:06:22.370Z",codex-agent,"Release rehearsal in a disposable full clone: changed package.json from 2026.11.24 to 2026.11.27 and added a synthetic dependency commit. The repository changelog:full wrote '## 2026.11.27 - 2026-11-27' with the 1 to 2 range and PR link. changelog:check passed without writing. Editing the release entry to 1 to 3 failed (exit 1, tracker_changed); regeneration restored SHA-256 8ddf1cef075b69e4c6ac8354d83d835520c714de7ff938e93b38e16648b26528."
+  "2026-11-27T11:06:30.306Z",codex-agent,"Behavioral reverts in a disposable package: restoring whole-file comparison failed 5 acceptance cases (including both #382 squash cases and concurrent integration); accepting versioned edits failed 3; dropping strict comparison failed 2; omitting the standalone receipt, host advisory or release note each failed 1. Baseline files and tests were retained. Source and test typechecks and docstring lint passed. The optional fleet ESLint comparison found 9 pre-existing diagnostics on both base and head and no new diagnostic."
+  "2026-11-27T11:10:09.127Z",codex-agent,"All restored controls passed (6/6). Additional exact-build reverts: disabling pending comparison failed all 3 selected property/SDK/installed-host checks; dropping the final pending separator rule failed the non-Git case. Restored 3/3. The registered pm test command passed 8/8 with zero skips, including decoded host JSON and TOON and 32 deterministic mixed pending/released edits."
+  "2026-11-27T11:10:14.920Z",codex-agent,"Actual npm and Bun installs from one tarball each passed 7/7 verdicts across the SDK, standalone and pm host, with both host receipt formats decoded and file bytes retained. Verified all 115 tar members and installed contents; SHA-256 8c30bae78d1681bbd83ca95f1a75239e332a4955eed550328544f85baa9f975f. Package content scan: 115 files, zero findings."
+  "2026-11-27T11:17:45.813Z",codex-agent,Repeated the pending-version release rehearsal after syncing main and rebuilding the final package. Full/check passed and the mutated release range failed. The restored complete file on this base has SHA-256 9c6a2bdfd1da289cc40f80d38971bbe6763fca0e58128ad29571f9362147e7ce. A separate local pm health read reports the same globally available pm-github host version skew and legacy 32 provenance records in a base clone.
+  "2026-11-27T11:30:30.931Z",codex-agent,"Targeted local gate passed 1052/1052 tests in 39 suites across 56 test files with zero skips or cancellations. Ran node --test --test-concurrency=2 on touched files and references at the repository's quick CI depth. The dedicated in-process human-output assertion also passed after its addition. Source/test compilation, typecheck, docstring lint, release rehearsal and installed artifact checks passed. Coverage and complete npm/Bun release gates remain for CI at their existing thresholds."
+files[10]{path,scope}:
+  scripts/project-changelog.ts,project
+  src/check-drift.ts,project
+  src/cli.ts,project
+  src/extension.ts,project
+  src/generator.ts,project
+  src/types.ts,project
+  test/check-generator-drift.test.ts,project
+  test/check-pending.test.ts,project
+  test/empty-unreleased.test.ts,project
+  test/entry-from.test.ts,project
+tests[1]{command,scope,timeout_seconds,provenance{author,created_at,source_kind,source_ref}}:
+  node --test --test-concurrency=2 test/check-pending.test.ts,project,600,codex-agent,"2026-11-27T10:51:25.079Z",local_mutation,fix/check-treats-unreleased-as-pending
+docs[5]{path,scope}:
+  CHANGELOG.md,project
+  docs/development.md,project
+  docs/release.md,project
+  docs/usage.md,project
+  README.md,project
+github_close_reason: ""
+github_closed_at: ""
+github_created_at: "2026-11-27T10:38:41Z"
+github_link_only: false
+github_number: 384
+github_release: ""
+github_state: open
+github_state_reason: unspecified
+github_updated_at: "2026-11-27T10:39:14Z"
+github_url: "https://github.com/unbraind/pm-changelog/issues/384"
+body: "## Problem\n\n`changelog:check` requires each pull request to commit its own entry in the `## Unreleased` section of `CHANGELOG.md`. The tracker is conflict-free: one `.toon` file per item. `CHANGELOG.md` is a single file, and every concurrent PR edits the same section of it. So when one PR merges, every other open PR either fails the check or conflicts:\n\n1. A Dependabot PR without a `CHANGELOG.md` commit fails `changelog:check` with `Drift classification: tracker_changed`. The generated file gains `## Unreleased / ### Dependencies / - Bump …` lines that the committed file does not have.\n2. A PR that carries a regeneration commit passes until any sibling merges. The `Unreleased` hunk then conflicts (`DIRTY`), and Dependabot stops rebasing because another author pushed to its branch.\n\nFleet state on 2026-11-27: **54 Dependabot PRs are stuck**. **24** are `DIRTY` with green checks; each carries one `Regenerate CHANGELOG.md after updating from main` commit that a sibling merge invalidated. **30** are `BLOCKED` on red `changelog:check` / `release-gate` jobs. All 6 failing logs I sampled show only this drift: pm-changelog#379, pm-rl#209, pm-vcs#234, pm-ops#325, pm-slack#224, pm-ts-starter#235 and pm-review#111. Regenerating every branch only buys time: the next merge breaks the rest again. #382, the merged Dependabot subject changing its entry text after merge, is the same class seen from `main`.\n\n## Why the committed Unreleased section is redundant\n\nPending work is already recorded without conflicts: in pm items, and for dependency updates in commit subjects. Every release path regenerates the file anyway. The shared pm-ops daily release runs `changelog:full` and then `changelog:check` before it commits. That is the same model as changesets or towncrier fragments, and in this model the pm items are the fragments. Only the versioned sections need to be exact in the committed file.\n\n## Expected\n\n- `--check` compares every **versioned** section exactly (heading, date, entries, links), as it does today.\n- `--check` treats the `Unreleased` section as pending, whether it is missing, stale or present. Drift there is reported to stderr with its own classification, for example `pending_only`, and exits 0. A strict opt-in flag, for example `--check-pending`, keeps today's exact comparison for callers who want it.\n- A PR that only bumps a dependency, or only closes pm items, passes `changelog:check` without touching `CHANGELOG.md`. Merging one such PR never makes another fail or conflict.\n- The release path is unchanged. Running `changelog:full` and then `changelog:check` with a pending release version still writes and verifies the new release section exactly. The pm-ops daily release and `release-version-from-package` flows keep working.\n- The release note says the default changed and shows the strict flag for opting back in. Consumers need no script change, so a fleet-wide adoption sweep is not needed.\n\n## Acceptance\n\n- A real git fixture with two tags and pending work, both item-driven and Dependabot-subject-driven:\n  - the committed file without `Unreleased` passes;\n  - with a stale `Unreleased` it passes and prints the advisory;\n  - with drift in a versioned section it fails exactly as today;\n  - with `--check-pending` and a pending-only drift it fails.\n- A fixture modelled on two concurrent branches off the same main: each passes on its own, and the second still passes after the first merges, with no change to `CHANGELOG.md`.\n- The SDK, standalone and pm-host invocations agree (existing parity tests).\n- Every new behaviour has a test that fails on revert."

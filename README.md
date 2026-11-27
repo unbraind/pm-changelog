@@ -162,6 +162,11 @@ that already has a tag still needs its own section, and without
 `--all-release-tags` a missing requested section is always refused. Neither option
 is appropriate as a workaround for omitted delivered work.
 
+File checks now accept missing or stale Unreleased notes. `--check` reports
+`pending_only` on stderr when the versioned sections and preamble match.
+Use `--check-pending` to require the complete generated file. Release
+preparation still writes the pending package version as a versioned section.
+
 ### Without git
 
 Generate from `--stdin`, `--input` or a tracker directory, export release notes,

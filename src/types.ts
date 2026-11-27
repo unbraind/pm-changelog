@@ -306,8 +306,7 @@ export interface GeneratedChangelog {
  * existing history. */
 export type ChangelogOutputMode = "replace" | "prepend";
 
-/** What a merge did to the destination file, reported so `--check` can fail on
- * anything other than `"unchanged"`. */
+/** What full generation would do to the destination file. */
 export type ChangelogMergeAction = "created" | "inserted" | "replaced" | "unchanged";
 
 /** Settings for splicing a generated section into existing markdown. */
@@ -349,14 +348,19 @@ export interface WriteChangelogOptions extends GenerateChangelogOptions {
   output?: string;
   mode?: ChangelogOutputMode;
   check?: boolean;
+  /** Strict read-only check including the Unreleased section. */
+  checkPending?: boolean;
 }
 
 /** What a write produced: the destination, the markdown, and whether anything
  * actually differed from what was already on disk. */
 export interface WriteChangelogResult {
+  /** Advisory when a check accepts a difference confined to Unreleased. */
+  classification?: "pending_only";
   output: string;
   markdown: string;
   action: ChangelogMergeAction;
+  /** In check mode, whether drift fails the requested comparison. */
   changed: boolean;
   itemCount: number;
   /** Closed non-change records omitted before release selection. */

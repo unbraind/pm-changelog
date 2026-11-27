@@ -1,0 +1,27 @@
+id: pmc-github-7ddbccc1c082-385
+title: Track downstream wrappers that independently compare the entire changelog
+description: "GH issue #385: https://github.com/unbraind/pm-changelog/issues/385 · author @unbraind · created 2026-11-27T11:00:26Z · updated 2026-11-27T11:00:26Z"
+type: Issue
+pm_format_version: 4
+status: open
+priority: 2
+tags[2]: "gh:unbraind/pm-changelog#385","github_author:unbraind"
+created_at: "2026-11-27T11:00:26Z"
+updated_at: "2026-11-27T11:00:54.056Z"
+author: pm-github
+deferred_fields[4]{field,reason}:
+  acceptance_criteria,Imported from GitHub issue #385. Required fields can be filled after triage.
+  assignee,Imported from GitHub issue #385. Required fields can be filled after triage.
+  deadline,Imported from GitHub issue #385. Required fields can be filled after triage.
+  estimated_minutes,Imported from GitHub issue #385. Required fields can be filled after triage.
+github_close_reason: ""
+github_closed_at: ""
+github_created_at: "2026-11-27T11:00:26Z"
+github_link_only: false
+github_number: 385
+github_release: ""
+github_state: open
+github_state_reason: unspecified
+github_updated_at: "2026-11-27T11:00:26Z"
+github_url: "https://github.com/unbraind/pm-changelog/issues/385"
+body: "Four repository scripts make their own exit decision after generating Markdown. Once the package fix for #384 is released, an update of the package alone will still leave these scripts failing on changes confined to Unreleased.\n\n| Consumer | Where the wrapper decides |\n| --- | --- |\n| pm-ops | [runChangelog](https://github.com/unbraind/pm-ops/blob/e5fe89d6d430391fabaa95ba5c372e82f5caea77/scripts/pm-changelog.ts#L43-L53) normalizes empty release text, then compares the entire result to the destination. |\n| pm-slack | [releaseChangelog](https://github.com/unbraind/pm-slack/blob/90aadf3dd593e61a71fa712d280491927fcde5bf/scripts/pm-changelog.ts#L14-L25) removes the check flag, asks for stdout, and compares the entire file. |\n| pm-gantt-chart | [projectChangelog](https://github.com/unbraind/pm-gantt-chart/blob/b7dd62f9a76d2e7014a6b29c6c03d7284456730f/scripts/pm-changelog.ts#L33-L46) removes an empty placeholder and compares all remaining bytes. |\n| pm-review | [runChangelog](https://github.com/unbraind/pm-review/blob/379abddc4162c3ad01fb638b8be235aaa7deb250/scripts/changelog.ts#L52-L58) calls the package checker on a mismatch, then returns 1 regardless of that check's exit code. |\n\nAfter the package release, exercise each wrapper with its normal generation flags in its own repository. Verify pending-only changes succeed read-only, strict checks still fail, and versioned drift still fails. Preserve each wrapper's link validation, project-specific rendering, summary output, and release preparation contract. This follow-up tracks the four independent exit decisions. Direct callers of the package checker receive the new default through their dependency update."

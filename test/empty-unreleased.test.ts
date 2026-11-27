@@ -78,7 +78,10 @@ for (const mode of ["replace", "prepend", "stdout"]) {
       assert.equal(printed.stdout, expected);
       assert.equal(read(), legacy, "stdout must not modify the file");
     } else {
-      const stale = cli(...flags, "--check");
+      const advisory = cli(...flags, "--check");
+      assert.equal(advisory.status, 0, advisory.stderr);
+      assert.match(advisory.stderr, /pending_only/);
+      const stale = cli(...flags, "--check-pending");
       assert.equal(stale.status, 1, stale.stderr);
       assert.equal(read(), legacy, "failed check must be read-only");
       assert.equal(cli(...flags).status, 0);

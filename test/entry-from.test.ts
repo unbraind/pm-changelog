@@ -69,7 +69,8 @@ test("built entry-from renders resolution, preserves default bytes and checks th
   assert.match(captured.join(""), /"entry_from":"close_reason"/);
   const receipt: unknown = JSON.parse(checked.stdout);
   assert.ok(receipt && typeof receipt === "object" && "entry_from" in receipt && receipt.entry_from === "close_reason");
-  assert.equal(fixture.changelog(["--check", "--no-check-diff"]).status, 1);
+  assert.equal(fixture.changelog(["--check", "--no-check-diff"]).status, 0);
+  assert.equal(fixture.changelog(["--check-pending", "--no-check-diff"]).status, 1);
   const summary = fixture.changelog(["--summary", "--entry-from", "close_reason"]);
   assert.match(summary.stdout, new RegExp(RESOLUTION));
   const document = fixture.changelog(["--changelog-json", "--entry-from", "close_reason"]);
@@ -177,5 +178,5 @@ test("real extension generate, export and check accept entry-from and reject inv
   assert.match(JSON.stringify(checked.result), /"changed":false/);
   setLegacyCloseReason(fixture.pmRoot, created.item.id, undefined);
   // Real check executes lint even when it reports file drift.
-  await assert.rejects(runRegisteredCommandForTest(activation.commands, { command: "changelog generate", pmRoot: fixture.pmRoot, options: { output, check: true } }), /out of date/);
+  await assert.rejects(runRegisteredCommandForTest(activation.commands, { command: "changelog generate", pmRoot: fixture.pmRoot, options: { output, "check-pending": true } }), /out of date/);
 });

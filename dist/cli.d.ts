@@ -63,6 +63,7 @@ interface CliOptions {
     mode: "replace" | "prepend";
     checkLinks: boolean;
     check: boolean;
+    checkPending: boolean;
     checkDiff: boolean;
     explain: boolean;
     githubOutput: boolean;
