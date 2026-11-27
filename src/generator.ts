@@ -994,8 +994,8 @@ export function writeChangelog(options: WriteChangelogOptions, renderingVersion:
 
   const pendingOnly = options.check && !options.checkPending && merged.changed
     && isPendingOnlyDrift(existing, merged.markdown, (markdown) => {
-      const content = mode === "prepend" ? trimMarkdownEnd(markdown) : markdown.trimEnd();
-      return withoutUnreleasedSections(content + "\n");
+      const content = mode === "prepend" ? trimMarkdownEnd(markdown, renderingVersion) : markdown.trimEnd();
+      return withoutUnreleasedSections(content + "\n", renderingVersion);
     });
   if (!options.check && !options.checkPending) {
     writeFileSync(output, merged.markdown, "utf-8");
@@ -1799,10 +1799,10 @@ function extractReleaseSections(markdown: string, renderingVersion: RenderingVer
   });
 }
 
-/** Remove only pending section spans from a comparison. Preserve the preamble
- * and versioned bytes, including whitespace and headings inside code fences. */
-function withoutUnreleasedSections(markdown: string): string {
-  const headings = findMarkdownHeadings(markdown, "##");
+/** Remove pending spans using the selected writer's heading boundaries.
+ * Preserve all bytes belonging to the preamble and versioned sections. */
+function withoutUnreleasedSections(markdown: string, renderingVersion: RenderingVersion): string {
+  const headings = findMarkdownHeadings(markdown, "##", renderingVersion);
   const parts: string[] = [];
   let cursor = 0;
   for (const [index, heading] of headings.entries()) {

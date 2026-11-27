@@ -9,12 +9,15 @@ import { runInit, runCreate } from "@unbrained/pm-cli/sdk";
 import { activateExtensionForTest, runRegisteredCommandForTest } from "@unbrained/pm-cli/sdk/testing";
 import { cliTestSurface } from "../src/cli.ts";
 import extension from "../src/extension.ts";
+import { type RenderingVersion } from "../src/generator.ts";
 import { buildChangelogDocument, createChangelog, createChangelogSummary, formatSummaryLine, mergeChangelog, writeChangelog } from "../src/index.ts";
 import { resolveReleaseTagWindows } from "../src/release-context.ts";
 import { fixtureEnvironment, initGitFixture, removeGitFixture } from "./git-fixture.ts";
 
 const itemBase = "https://github.com/example/project/blob/main/.agents/pm";
 const bracketForms = [["[", "]"], ["\\[", "\\]"], ["\\[", "]"], ["[", "\\]"]] as const;
+const historicalMarkdownProfiles = ["2026.11.10", "2026.11.7", "2026.11.6"] as const satisfies readonly RenderingVersion[];
+const modernMarkdownProfiles = ["2026.11.11", "2026.11.12"] as const satisfies readonly RenderingVersion[];
 
 /** Two dated releases, a native tracker, and a committed changelog with no pending section. */
 async function releaseFixture(t: TestContext) {
@@ -220,6 +223,63 @@ test("checks agree with full regeneration across independent pending and release
     assert.equal(strict.changed, written !== regenerated);
     assert.equal(current.changed, versionChanged);
     assert.equal(current.classification, pendingChanged && !versionChanged ? "pending_only" : undefined);
+  }
+});
+
+test("selected rendering profile determines whether fenced headings delimit released sections", (t) => {
+  const dir = mkdtempSync(join(tmpdir(), "pm-profile-headings-"));
+  t.after(() => removeGitFixture(dir));
+  const output = join(dir, "CHANGELOG.md");
+  for (const fence of ["```", "~~~~"]) for (const [open, close] of bracketForms) {
+    const committed = "# Changelog\n\n## " + open + "Unreleased" + close
+      + "\n\n" + fence + "md\n## 1.0.0\n\n- Old release\n" + fence + "\n";
+    writeFileSync(output, committed);
+    for (const profile of historicalMarkdownProfiles) {
+      for (const mode of ["prepend", "replace"] as const) {
+        const options = mode === "prepend"
+          ? { version: "1.0.0", items: [{ id: "fixed", status: "closed", title: "New release" }] }
+          : { items: [] };
+        const receipt = writeChangelog({ ...options, mode, output, dependencyUpdates: false, check: true }, profile);
+        assert.equal(receipt.changed, true, profile + " " + mode);
+        assert.equal(receipt.classification, undefined);
+        assert.doesNotMatch(receipt.markdown, /Old release/);
+        if (mode === "prepend") assert.match(receipt.markdown, /## 1\.0\.0\b[\s\S]*- New release/);
+        else assert.equal(receipt.markdown, "# Changelog\n");
+      }
+    }
+    for (const profile of modernMarkdownProfiles) {
+      const options = { items: [], output, dependencyUpdates: false };
+      const receipt = writeChangelog({ ...options, check: true }, profile);
+      assert.equal(receipt.changed, false, profile);
+      assert.equal(receipt.classification, "pending_only");
+      assert.equal(writeChangelog({ ...options, checkPending: true }, profile).changed, true);
+    }
+    assert.equal(readFileSync(output, "utf8"), committed);
+  }
+});
+
+test("selected rendering profile applies the prepend writer's terminal whitespace rule before checking", (t) => {
+  const dir = mkdtempSync(join(tmpdir(), "pm-profile-whitespace-"));
+  t.after(() => removeGitFixture(dir));
+  const output = join(dir, "CHANGELOG.md");
+  for (const [open, close] of bracketForms) for (const hardBreak of ["  ", "    "]) {
+    const committed = "# Changelog\n\n## " + open + "Unreleased" + close
+      + "\n\n- Old pending\n\n## 1.0.0\n\n- Retained release" + hardBreak + "\n";
+    writeFileSync(output, committed);
+    const options = { items: [{ id: "pending", status: "closed", title: "New pending" }],
+      mode: "prepend" as const, output, dependencyUpdates: false };
+    for (const profile of [...historicalMarkdownProfiles, ...modernMarkdownProfiles]) {
+      const exact = writeChangelog({ ...options, checkPending: true }, profile);
+      const receipt = writeChangelog({ ...options, check: true }, profile);
+      const expectedEnding = modernMarkdownProfiles.some((modern) => modern === profile) ? hardBreak + "\n" : "\n";
+      assert.equal(receipt.markdown, exact.markdown);
+      assert.ok(receipt.markdown.endsWith("- Retained release" + expectedEnding), profile);
+      assert.match(receipt.markdown, /New pending/);
+      assert.equal(exact.changed, true);
+      assert.equal(receipt.changed, false, profile);
+      assert.equal(receipt.classification, "pending_only");
+      assert.equal(readFileSync(output, "utf8"), committed);
+    }
   }
 });
 

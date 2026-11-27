@@ -87,7 +87,8 @@ A difference confined to that section prints `pending_only` on stderr and exits
 **0**. Both the standalone JSON receipt and pm host JSON/TOON receipt report
 `classification: pending_only` and `changed: false`. The SDK returns the same
 fields from `writeChangelog({ check: true, ...options })`. Its `markdown` and
-`action` still describe full regeneration.
+`action` still describe full regeneration. When the SDK selects an older rendering
+profile, the check uses that profile's section boundaries and whitespace rules.
 
 For a failing difference, an exact match to any older rendering profile reports `rendering_changed`
 and names the matched profile; profiles are tried newest first. Other differences,
