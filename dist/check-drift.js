@@ -1,9 +1,68 @@
+import { fromMarkdown } from "mdast-util-from-markdown";
 /** An advisory for file checks whose versioned Markdown still matches. */
 export const PENDING_ONLY_MESSAGE = "Drift classification: pending_only. Only Unreleased differs.";
-/** Compare both renderings with the writer's Markdown section boundaries.
+/** Compare retained bytes first, then the effective document-scoped definitions.
  * A missing file must still be created, even for an empty release history. */
 export function isPendingOnlyDrift(committed, generated, withoutPending) {
-    return committed !== undefined && withoutPending(committed) === withoutPending(generated);
+    if (committed === undefined)
+        return false;
+    const existing = withoutPending(committed);
+    const candidate = withoutPending(generated);
+    if (existing.markdown !== candidate.markdown)
+        return false;
+    const definitions = existing.linkedDefinitions();
+    return definitions !== undefined && definitions === candidate.linkedDefinitions();
+}
+/** Choose an unused, one-code-unit marker so micromark's upper/lower folding
+ * cannot turn dotless i into ASCII i. Reserve literal characters and numeric
+ * references alike so restoring the parsed link values cannot alter input. */
+function dotlessIMarker(markdown) {
+    const literal = new Set(markdown);
+    const encoded = new Set([...markdown.matchAll(/&#(x[\da-f]{1,6}|\d{1,7});/gi)]
+        .map(([, digits]) => Number(/^x/i.test(digits) ? "0" + digits : digits)));
+    for (let codePoint = 0xE000; codePoint <= 0xF8FF; codePoint++) {
+        const marker = String.fromCharCode(codePoint);
+        if (!literal.has(marker) && !encoded.has(codePoint))
+            return marker;
+    }
+    return undefined;
+}
+/** Compare the first definition of each retained link or image reference.
+ * Parse the whole input so definitions in pending, nested, or later blocks can
+ * still resolve retained text. Walk in source order so the pending cursor only
+ * advances. Definition layout and shadowed definitions have no link effect. */
+export function retainedReferenceDefinitions(markdown, pending) {
+    if (!markdown.includes("]:"))
+        return "[]";
+    const marker = markdown.includes("ı") ? dotlessIMarker(markdown) : "";
+    if (marker === undefined)
+        return undefined;
+    const source = marker ? markdown.replaceAll("ı", marker) : markdown;
+    const nodes = fromMarkdown(source).children.reverse();
+    const firstDefinitions = new Map();
+    const retainedLabels = new Set();
+    let pendingIndex = 0;
+    for (let node = nodes.pop(); node; node = nodes.pop()) {
+        if (node.type === "definition" && !firstDefinitions.has(node.identifier)) {
+            firstDefinitions.set(node.identifier, [node.url, node.title ?? null]);
+        }
+        if (node.type === "linkReference" || node.type === "imageReference") {
+            const offset = node.position.start.offset;
+            while (pending[pendingIndex] && pending[pendingIndex][1] <= offset)
+                pendingIndex++;
+            if (!pending[pendingIndex] || offset < pending[pendingIndex][0])
+                retainedLabels.add(node.identifier);
+        }
+        if ("children" in node) {
+            for (let index = node.children.length - 1; index >= 0; index--)
+                nodes.push(node.children[index]);
+        }
+    }
+    const restore = (value) => marker ? value.replaceAll(marker, "ı") : value;
+    return JSON.stringify([...retainedLabels].map((label) => {
+        const [url, title] = firstDefinitions.get(label);
+        return [restore(label), restore(url), title === null ? null : restore(title)];
+    }));
 }
 /** Canonicalize complete entry blocks within each heading-delimited section.
  * Keep section order, prose, spacing, duplicate entries and fenced code exact. */

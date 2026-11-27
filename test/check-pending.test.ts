@@ -226,6 +226,147 @@ test("checks agree with full regeneration across independent pending and release
   }
 });
 
+test("referenced definitions inside Unreleased still protect released headings", (t) => {
+  const dir = mkdtempSync(join(tmpdir(), "pm-shared-link-"));
+  t.after(() => removeGitFixture(dir));
+  const output = join(dir, "CHANGELOG.md");
+  const shipped = { id: "shipped", status: "closed", title: "Released work", release: "[1.0.0]" };
+  const options = { items: [shipped], groupBy: "release" as const, output, dependencyUpdates: false };
+  const released = writeChangelog(options).markdown;
+  assert.match(released, /^## \[1\.0\.0\]$/m);
+  const pending = "## Unreleased\n\n- Pending work\n\n";
+  for (const placement of ["before", "after"] as const) {
+    const addPending = (body: string) => placement === "before"
+      ? released.replace("\n## ", "\n" + pending + body + "\n## ")
+      : released + "\n" + pending + body;
+    const committed = addPending("[1.0.0]: /published\n\n[1.0.0]\n");
+    writeFileSync(output, committed);
+    const replaced = writeChangelog({ ...options, check: true });
+    assert.equal(replaced.markdown, released);
+    assert.equal(replaced.changed, true, placement);
+    assert.equal(replaced.classification, undefined);
+    assert.equal(readFileSync(output, "utf8"), committed);
+
+    const unreleased = { id: "pending", status: "closed", title: "New pending work" };
+    const prepended = writeChangelog({ ...options, items: [shipped, unreleased], mode: "prepend", check: true });
+    assert.doesNotMatch(prepended.markdown, /\/published/);
+    assert.equal(prepended.changed, true, placement);
+    assert.equal(prepended.classification, undefined);
+    assert.equal(readFileSync(output, "utf8"), committed);
+
+    const pendingOnly = addPending("[pending]: /unshipped\n\n[pending]\n");
+    writeFileSync(output, pendingOnly);
+    assert.equal(writeChangelog({ ...options, check: true }).classification, "pending_only");
+    assert.equal(writeChangelog({ ...options, items: [shipped, unreleased], mode: "prepend", check: true }).classification, "pending_only");
+    assert.equal(writeChangelog({ ...options, checkPending: true }).changed, true);
+    assert.equal(readFileSync(output, "utf8"), pendingOnly);
+  }
+});
+
+test("prepend cleanup keeps a definition-bearing section and promotion still requires a release update", (t) => {
+  const dir = mkdtempSync(join(tmpdir(), "pm-reference-promotion-"));
+  t.after(() => removeGitFixture(dir));
+  const output = join(dir, "CHANGELOG.md");
+  const committed = "# Changelog\n\n## Unreleased\n\n[Guide]: /published\n\n## 1.0.0\n\n[guide]\n";
+  writeFileSync(output, committed);
+  assert.equal(mergeChangelog(committed, "# Changelog\n").markdown, committed);
+  const options = { items: [{ id: "shipped", status: "closed", title: "New release" }], version: "2.0.0",
+    mode: "prepend" as const, output, dependencyUpdates: false };
+  const promoted = writeChangelog({ ...options, check: true });
+  assert.match(promoted.markdown, /^## 2\.0\.0$/m);
+  assert.match(promoted.markdown, /## 1\.0\.0\n\n\[guide\]/);
+  assert.equal(promoted.changed, true);
+  assert.equal(promoted.classification, undefined);
+  assert.equal(readFileSync(output, "utf8"), committed);
+});
+
+test("retained reference links and images use CommonMark label, container and definition precedence", (t) => {
+  const dir = mkdtempSync(join(tmpdir(), "pm-reference-projection-"));
+  t.after(() => removeGitFixture(dir));
+  const output = join(dir, "CHANGELOG.md");
+  const base = { items: [], output, dependencyUpdates: false };
+  for (const [reference, definition] of [
+    ["[Handbook][GUIDE  link]", "> [guide link]:\n>   </published> 'Published guide'\n"],
+    ["[Guide][]", "- [guide]: /published\n"],
+    ["![Diagram][ẞ]", "[SS]: /published\n"],
+    ["[constructor]", "[CONSTRUCTOR]: /published\n"],
+  ]) {
+    const options = { ...base, title: "Changelog\n\n" + reference };
+    const released = writeChangelog(options).markdown;
+    const committed = released + "\n## [Unreleased]\n\n" + definition + "\n- Pending work\n";
+    writeFileSync(output, committed);
+    assert.equal(writeChangelog({ ...options, check: true }).changed, true, reference);
+    assert.equal(readFileSync(output, "utf8"), committed);
+  }
+
+  const reference = "[Guide][manual]";
+  const options = { ...base, title: "Changelog\n\n" + reference + "\n\n[manual]: /first 'Published'\n" };
+  const released = writeChangelog(options).markdown;
+  for (const [definition, causesDrift] of [
+    ["[manual]: /second 'Pending shadow'\n", true],
+    ["[MANUAL]: </first> \"Published\"\n", false],
+    ["[manual]: /first 'Changed title'\n", true],
+  ] as const) {
+    const pending = "## Unreleased\n\n" + definition + "\n";
+    writeFileSync(output, released.replace(reference, pending + "## Published\n\n" + reference));
+    // Keep the same released bytes on either side. The pending definition
+    // precedes the retained definition and wins if its destination/title differs.
+    const releaseOptions = { ...base, title: options.title.replace(reference, "## Published\n\n" + reference) };
+    const receipt = writeChangelog({ ...releaseOptions, check: true });
+    assert.equal(receipt.changed, causesDrift, definition);
+    assert.equal(receipt.classification, causesDrift ? undefined : "pending_only");
+  }
+  writeFileSync(output, released + "\n## Unreleased\n\n[manual]: /unused-shadow\n");
+  assert.equal(writeChangelog({ ...options, check: true }).classification, "pending_only");
+});
+
+test("pending definitions do not turn literal brackets in retained Markdown into dependencies", (t) => {
+  const dir = mkdtempSync(join(tmpdir(), "pm-reference-literals-"));
+  t.after(() => removeGitFixture(dir));
+  const output = join(dir, "CHANGELOG.md");
+  for (const [prose, pending] of [
+    ["`[guide]` or \\[guide\\] or [guide](/explicit)", "[guide]: /pending\n"],
+    ["[guide]", "~~~md\n[guide]: /example\n~~~\n"],
+    ["[guide]", "Paragraph continues\n[guide]: /example\n"],
+    ["[guide]", "    [guide]: /indented-example\n"],
+  ]) {
+    const options = { items: [], output, dependencyUpdates: false, title: "Changelog\n\n" + prose };
+    const released = writeChangelog(options).markdown;
+    const committed = released + "\n## Unreleased\n\n" + pending;
+    writeFileSync(output, committed);
+    const receipt = writeChangelog({ ...options, check: true });
+    assert.equal(receipt.classification, "pending_only", prose + " " + pending);
+    assert.equal(receipt.changed, false);
+    assert.equal(readFileSync(output, "utf8"), committed);
+  }
+});
+
+test("dotless i is distinct in reference labels without altering destinations or titles", (t) => {
+  const dir = mkdtempSync(join(tmpdir(), "pm-reference-case-fold-"));
+  t.after(() => removeGitFixture(dir));
+  const output = join(dir, "CHANGELOG.md");
+  const base = { items: [], output, dependencyUpdates: false };
+  const unmatched = { ...base, title: "Changelog\n\n[ı]" };
+  const retained = writeChangelog(unmatched).markdown;
+  writeFileSync(output, retained + "\n## Unreleased\n\n[i]: /draft\n");
+  assert.equal(writeChangelog({ ...unmatched, check: true }).classification, "pending_only");
+
+  const asciiDefinition = { ...base, title: "Changelog\n\n[ı]\n\n[i]: /other" };
+  const released = writeChangelog(asciiDefinition).markdown;
+  writeFileSync(output, released + "\n## Unreleased\n\n[ı]: /published\n");
+  assert.equal(writeChangelog({ ...asciiDefinition, check: true }).changed, true);
+
+  const sameDefinition = { ...base, title: "Changelog\n\n## Published\n\n[ı] \uE000\n\n[ı]: /dıt&#57345; 'Tıtle&#xE002;'" };
+  const original = writeChangelog(sameDefinition).markdown;
+  const pending = "## Unreleased\n\n[ı]: /d&#305;t\uE001 \"T&#x131;tle\uE002\"\n\n";
+  writeFileSync(output, original.replace("## Published", pending + "## Published"));
+  assert.equal(writeChangelog({ ...sameDefinition, check: true }).classification, "pending_only");
+
+  const occupied = Array.from({ length: 0x1900 }, (_, index) => String.fromCharCode(0xE000 + index)).join("");
+  writeFileSync(output, original + "\n## Unreleased\n\n" + occupied + "\n");
+  assert.equal(writeChangelog({ ...sameDefinition, check: true }).changed, true);
+});
+
 test("selected rendering profile determines whether fenced headings delimit released sections", (t) => {
   const dir = mkdtempSync(join(tmpdir(), "pm-profile-headings-"));
   t.after(() => removeGitFixture(dir));

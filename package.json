@@ -163,6 +163,7 @@
     ]
   },
   "dependencies": {
-    "@toon-format/toon": "4.4.0"
+    "@toon-format/toon": "4.4.0",
+    "mdast-util-from-markdown": "2.1.0"
   }
 }

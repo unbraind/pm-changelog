@@ -84,7 +84,9 @@ File-output checks classify differences in both the message and the `--json`
 receipt. The default treats a missing or stale `## Unreleased` section as pending.
 Bracketed labels such as `## [Unreleased]` and `## \[Unreleased\]` identify the same section.
 A difference confined to that section prints `pending_only` on stderr and exits
-**0**. Both the standalone JSON receipt and pm host JSON/TOON receipt report
+**0**. Reference links and images in the preamble and versioned sections
+still check their resolved destinations and titles, including definitions placed in Unreleased.
+Both the standalone JSON receipt and pm host JSON/TOON receipt report
 `classification: pending_only` and `changed: false`. The SDK returns the same
 fields from `writeChangelog({ check: true, ...options })`. Its `markdown` and
 `action` still describe full regeneration. When the SDK selects an older rendering

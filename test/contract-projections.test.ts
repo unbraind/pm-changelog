@@ -2,7 +2,7 @@ import { testDepth } from "./support/depth.ts";
 /** Adversarial projection parity, including historical nulls and packed consumers. */
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
-import { cpSync, existsSync, mkdirSync, mkdtempSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
+import { cpSync, existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { delimiter, join, resolve } from "node:path";
 import test from "node:test";
@@ -94,7 +94,11 @@ test("packed contract projections agree in Node and available Bun SDK, CLI and h
   };
   const packed = JSON.parse(run("npm", ["pack", "--ignore-scripts", "--json", "--pack-destination", cwd], resolve("."))) as { filename: string }[];
   const consumer = join(cwd, "consumer"); mkdirSync(consumer);
-  writeFileSync(join(consumer, "package.json"), JSON.stringify({ name: "contract-consumer", private: true, type: "module", dependencies: { "@toon-format/toon": `file:${resolve("node_modules/@toon-format/toon")}` } }));
+  // Use the checkout's installed runtime dependencies with the isolated, empty npm cache.
+  const manifest = JSON.parse(readFileSync(resolve("package.json"), "utf8")) as { dependencies: Record<string, string> };
+  const dependencies = Object.fromEntries(Object.keys(manifest.dependencies).map((name) =>
+    [name, `file:${resolve("node_modules", name)}`]));
+  writeFileSync(join(consumer, "package.json"), JSON.stringify({ name: "contract-consumer", private: true, type: "module", dependencies }));
   run("npm", ["install", "--offline", "--ignore-scripts", "--legacy-peer-deps", "--no-audit", "--no-fund", join(cwd, packed[0].filename)], consumer);
   mkdirSync(join(consumer, "node_modules/@unbrained"), { recursive: true });
   symlinkSync(resolve("node_modules/@unbrained/pm-cli"), join(consumer, "node_modules/@unbrained/pm-cli"), "junction");
