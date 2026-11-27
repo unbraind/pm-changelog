@@ -6,6 +6,10 @@
 
 > Release note (issue 384): file checks now accept changes confined to Unreleased and report pending_only. Versioned sections are still checked exactly. Use --check-pending for a strict check including Unreleased.
 
+## 2026.11.27 - 2026-11-27
+
+No changes.
+
 ## 2026.11.24 - 2026-11-25
 
 ### Closed
