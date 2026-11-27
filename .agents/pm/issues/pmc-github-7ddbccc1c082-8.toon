@@ -1,0 +1,31 @@
+id: pmc-github-7ddbccc1c082-8
+title: Default release changelog mode can pass while CHANGELOG.md is assigned to Unreleased/all history
+description: "GH issue #8: https://github.com/unbraind/pm-changelog/issues/8 · author @unbraind · state reason completed · created 2026-05-24T13:55:23Z · updated 2026-05-24T14:05:05Z"
+type: Issue
+pm_format_version: 4
+status: closed
+priority: 2
+tags[2]: "gh:unbraind/pm-changelog#8","github_author:unbraind"
+created_at: "2026-05-24T13:55:23Z"
+updated_at: "2026-11-26T14:11:33.898Z"
+closed_at: "2026-05-24T14:05:05Z"
+completed_at: "2026-05-24T14:05:05Z"
+author: pm-github
+deferred_fields[4]{field,reason}:
+  acceptance_criteria,Imported from GitHub issue #8. Required fields can be filled after triage.
+  assignee,Imported from GitHub issue #8. Required fields can be filled after triage.
+  deadline,Imported from GitHub issue #8. Required fields can be filled after triage.
+  estimated_minutes,Imported from GitHub issue #8. Required fields can be filled after triage.
+release: v2026.05.25
+close_reason: "Closed on GitHub as completed on 2026-05-24T14:05:05Z"
+github_close_reason: "Closed on GitHub as completed on 2026-05-24T14:05:05Z"
+github_closed_at: "2026-05-24T14:05:05Z"
+github_created_at: "2026-05-24T13:55:23Z"
+github_link_only: false
+github_number: 8
+github_release: v2026.05.25
+github_state: closed
+github_state_reason: completed
+github_updated_at: "2026-05-24T14:05:05Z"
+github_url: "https://github.com/unbraind/pm-changelog/issues/8"
+body: "While dogfooding pm-changelog in unbraind/pm-cli, the main CHANGELOG.md can be regenerated in a misleading state while checks still pass.\\n\\nObserved in pm-cli on 2026-05-24:\\n- latest installed pm-changelog: 2026.5.24-9\\n- package doctor is clean and contracts expose changelog generate plus --item-url-base\\n- package.json check script runs: pm changelog generate --output CHANGELOG.md --group-by release --status closed --item-url-base ... --check\\n- because no --release-version or release-range derivation is supplied, most closed items without release metadata fall into ## Unreleased, while the actual released package version is 2026.5.24\\n- the check passes because it compares against the same bad generation\\n\\nExpected:\\npm-changelog should provide a package-owned/default release mode suitable for CI/CD that derives the release heading and previous-tag range from package/git state, or otherwise fails when a generated release changelog would assign all historical closed items to Unreleased. This should let consumers avoid custom wrapper scripts and still produce a Keep-a-Changelog-style useful CHANGELOG.md with clickable pm item links.\\n\\npm-cli should then consume that package functionality instead of hand-writing or custom-generating changelog content.\n\n---\n\n### GitHub comments (1)\n\n> **@unbraind** (2026-05-24T14:05:04Z)\n>\n> Fixed in pm-changelog 2026.5.24-10. The package now exposes release-context flags for package.json version derivation and git tag range filtering, and the release workflow uses them."

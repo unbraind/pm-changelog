@@ -6,7 +6,9 @@
 
 ## 2026.11.24 - 2026-11-25
 
-No changes.
+### Closed
+
+- Closed: Release timeout reports stale workflow approval after successful automatic approvals ([pmc-github-7ddbccc1c082-320](https://github.com/unbraind/pm-changelog/blob/main/.agents/pm/issues/pmc-github-7ddbccc1c082-320.toon))
 
 ## 2026.11.20 - 2026-11-20
 
@@ -23,9 +25,15 @@ No changes.
 - Apply Fleet CI v2 and bound lifecycle validation ([pmc-lifecycle-test-budget](https://github.com/unbraind/pm-changelog/blob/main/.agents/pm/tasks/pmc-lifecycle-test-budget.toon))
 - Verify native tracker publication stability for issue 337 ([pmc-native-tag-stability-337](https://github.com/unbraind/pm-changelog/blob/main/.agents/pm/tasks/pmc-native-tag-stability-337.toon))
 
+### Closed
+
+- Closed: Pending items render inside the already-published release section when package.json still holds the tagged version ([pmc-github-7ddbccc1c082-349](https://github.com/unbraind/pm-changelog/blob/main/.agents/pm/issues/pmc-github-7ddbccc1c082-349.toon))
+
 ## 2026.11.16 - 2026-11-16
 
-No changes.
+### Closed
+
+- Closed: --include-empty renders an empty Unreleased section only after tagging, so every release's committed CHANGELOG.md fails the post-tag check ([pmc-github-7ddbccc1c082-337](https://github.com/unbraind/pm-changelog/blob/main/.agents/pm/issues/pmc-github-7ddbccc1c082-337.toon))
 
 ## 2026.11.14 - 2026-11-14
 
@@ -39,11 +47,19 @@ No changes.
 
 - Recognize capitalized Dependabot bump subjects in dependency-only releases ([pmc-dependency-bump-case](https://github.com/unbraind/pm-changelog/blob/main/.agents/pm/issues/pmc-dependency-bump-case.toon))
 
+### Closed
+
+- Closed: 2026.11.7 re-sorted section entries by completed_at with no release note or consumer upgrade, so every consumer's toolchain PR failed changelog:check ([pmc-github-7ddbccc1c082-339](https://github.com/unbraind/pm-changelog/blob/main/.agents/pm/issues/pmc-github-7ddbccc1c082-339.toon))
+
 ### Dependencies
 
 - Bump marked ([#350](https://github.com/unbraind/pm-changelog/pull/350))
 
 ## 2026.11.12 - 2026-11-12
+
+### Closed
+
+- Closed: Dependency-only releases reject capitalized Bump squash subjects ([pmc-github-7ddbccc1c082-343](https://github.com/unbraind/pm-changelog/blob/main/.agents/pm/issues/pmc-github-7ddbccc1c082-343.toon))
 
 ### Dependencies
 
@@ -62,6 +78,10 @@ No changes.
 - Render declared contract changes with migration guidance ([pmc-contract-changes](https://github.com/unbraind/pm-changelog/blob/main/.agents/pm/issues/pmc-contract-changes.toon))
 - Keep changelog checks stable when an empty release is tagged ([pmc-stable-itemless-check](https://github.com/unbraind/pm-changelog/blob/main/.agents/pm/issues/pmc-stable-itemless-check.toon))
 
+### Closed
+
+- Closed: Render declared SDK/CLI contract changes under a Changed section with their migration line ([pmc-github-7ddbccc1c082-317](https://github.com/unbraind/pm-changelog/blob/main/.agents/pm/issues/pmc-github-7ddbccc1c082-317.toon))
+
 ### Dependencies
 
 - Bump the pm-toolchain group with 2 updates ([#335](https://github.com/unbraind/pm-changelog/pull/335))
@@ -72,6 +92,10 @@ No changes.
 ### Changed
 
 - Order section entries by completion time; regenerate CHANGELOG.md once after upgrading ([pmc-total-item-order](https://github.com/unbraind/pm-changelog/blob/main/.agents/pm/issues/pmc-total-item-order.toon))
+
+### Closed
+
+- Closed: Section order follows updated_at for in-progress items, so any pm comment fails changelog:check ([pmc-github-7ddbccc1c082-323](https://github.com/unbraind/pm-changelog/blob/main/.agents/pm/issues/pmc-github-7ddbccc1c082-323.toon))
 
 ### Dependencies
 
@@ -98,6 +122,10 @@ No changes.
 
 - Preserve itemless Dependabot release notes across tagging ([pmc-itemless-pending](https://github.com/unbraind/pm-changelog/blob/main/.agents/pm/issues/pmc-itemless-pending.toon))
 
+### Closed
+
+- Closed: PR291 lifecycle CI refuses linked tests before model execution in fresh trust context ([pmc-github-7ddbccc1c082-295](https://github.com/unbraind/pm-changelog/blob/main/.agents/pm/issues/pmc-github-7ddbccc1c082-295.toon))
+
 ### Dependencies
 
 - Bump the pm-toolchain group with 2 updates ([#318](https://github.com/unbraind/pm-changelog/pull/318))
@@ -117,6 +145,10 @@ No changes.
 - Fail closed when requested release notes have no matching section ([pmc-pending-version-notes](https://github.com/unbraind/pm-changelog/blob/main/.agents/pm/issues/pmc-pending-version-notes.toon))
 - Use configured done status roles for immutable milestone generation ([pmc-milestone-status-roles](https://github.com/unbraind/pm-changelog/blob/main/.agents/pm/issues/pmc-milestone-status-roles.toon))
 - Use supported lifecycle transitions in the empty-title fixture ([pmc-lifecycle-repeat-closure](https://github.com/unbraind/pm-changelog/blob/main/.agents/pm/issues/pmc-lifecycle-repeat-closure.toon))
+
+### Closed
+
+- Closed: Include drift in the standalone help/parser contract matrix; PR298 full gate currently fails ([pmc-github-7ddbccc1c082-299](https://github.com/unbraind/pm-changelog/blob/main/.agents/pm/issues/pmc-github-7ddbccc1c082-299.toon))
 
 ### Dependencies
 
@@ -161,6 +193,11 @@ No changes.
 ### Other
 
 - Point the npm homepage at the package catalog and link the author ([pmc-mb4e](https://github.com/unbraind/pm-changelog/blob/main/.agents/pm/chores/pmc-mb4e.toon))
+
+### Closed
+
+- Closed: Package scan diagnostics echo credential-shaped archive filenames ([pmc-github-7ddbccc1c082-287](https://github.com/unbraind/pm-changelog/blob/main/.agents/pm/issues/pmc-github-7ddbccc1c082-287.toon))
+- Closed: Point the npm homepage at the package's website and link the author ([pmc-github-7ddbccc1c082-281](https://github.com/unbraind/pm-changelog/blob/main/.agents/pm/issues/pmc-github-7ddbccc1c082-281.toon))
 
 ### Dependencies
 
@@ -291,6 +328,11 @@ No changes.
 - Refuse explicit partial-read envelopes supplied to changelog generation ([pmc-n4qu](https://github.com/unbraind/pm-changelog/blob/main/.agents/pm/issues/pmc-n4qu.toon))
 - Make node-entrypoint fixture teardown reliable ([pmc-node-teardown-226](https://github.com/unbraind/pm-changelog/blob/main/.agents/pm/tasks/pmc-node-teardown-226.toon))
 
+### Closed
+
+- Closed: Expose or refuse explicit partial-read receipts on stdin and input JSON ([pmc-github-7ddbccc1c082-224](https://github.com/unbraind/pm-changelog/blob/main/.agents/pm/issues/pmc-github-7ddbccc1c082-224.toon))
+- Closed: Release verification blocks on ENOTEMPTY in node-entrypoint test teardown ([pmc-github-7ddbccc1c082-226](https://github.com/unbraind/pm-changelog/blob/main/.agents/pm/issues/pmc-github-7ddbccc1c082-226.toon))
+
 ### Dependencies
 
 - Bump marked ([#234](https://github.com/unbraind/pm-changelog/pull/234))
@@ -306,6 +348,10 @@ No changes.
 ### Other
 
 - Auto-merge green Dependabot updates and group the pm toolchain into one daily PR ([pmc-y0a5](https://github.com/unbraind/pm-changelog/blob/main/.agents/pm/tasks/pmc-y0a5.toon))
+
+### Closed
+
+- Closed: Keep installed usage documentation links portable and dependency table valid ([pmc-github-7ddbccc1c082-219](https://github.com/unbraind/pm-changelog/blob/main/.agents/pm/issues/pmc-github-7ddbccc1c082-219.toon))
 
 ## 2026.10.4 - 2026-10-04
 
@@ -393,6 +439,10 @@ No changes.
 
 - Pin pm-cli 2026.9.5 and rename extension --explain ([pmc-662o](https://github.com/unbraind/pm-changelog/blob/main/.agents/pm/chores/pmc-662o.toon))
 
+### Closed
+
+- Closed: Pass unbounded universal output controls to whole-tracker pm reads ([pmc-github-7ddbccc1c082-147](https://github.com/unbraind/pm-changelog/blob/main/.agents/pm/issues/pmc-github-7ddbccc1c082-147.toon))
+
 ### Dependencies
 
 - Bump @types/node from 26.3.0 to 26.4.1 ([#180](https://github.com/unbraind/pm-changelog/pull/180))
@@ -468,6 +518,10 @@ No changes.
 
 - Add tag-aware fallback dates for release-gated changelogs ([pmc-x49u](https://github.com/unbraind/pm-changelog/blob/main/.agents/pm/issues/pmc-x49u.toon))
 
+### Closed
+
+- Closed: Release-gated packages have no way to pin a date without overriding real tag dates ([pmc-github-7ddbccc1c082-120](https://github.com/unbraind/pm-changelog/blob/main/.agents/pm/issues/pmc-github-7ddbccc1c082-120.toon))
+
 ## 2026.8.16 - 2026-08-16
 
 ### Fixed
@@ -538,6 +592,10 @@ No changes.
 ### Fixed
 
 - Generate default changelog heading dates in UTC ([pmc-vdss](https://github.com/unbraind/pm-changelog/blob/main/.agents/pm/issues/pmc-vdss.toon))
+
+### Closed
+
+- Closed: Generate release dates in UTC to avoid timezone-dependent changelog drift ([pmc-github-7ddbccc1c082-115](https://github.com/unbraind/pm-changelog/blob/main/.agents/pm/issues/pmc-github-7ddbccc1c082-115.toon))
 
 ### Dependencies
 
@@ -757,7 +815,9 @@ No changes.
 
 ## 2026.6.14 - 2026-06-14
 
-No changes.
+### Closed
+
+- Closed: Release changelogs duplicate the latest version as a stale '\#\# Unreleased' section; fleet changelog:check drift risk ([pmc-github-7ddbccc1c082-47](https://github.com/unbraind/pm-changelog/blob/main/.agents/pm/issues/pmc-github-7ddbccc1c082-47.toon))
 
 ## 2026.6.13-1 - 2026-06-13
 
@@ -774,6 +834,10 @@ No changes.
 ### Fixed
 
 - Stabilize calendar release headings across the zero-padded tag boundary ([pmc-sall](https://github.com/unbraind/pm-changelog/blob/main/.agents/pm/issues/pmc-sall.toon))
+
+### Closed
+
+- Closed: Release heading flips from package version to zero-padded tag after tagging (breaks post-tag changelog:check) ([pmc-github-7ddbccc1c082-41](https://github.com/unbraind/pm-changelog/blob/main/.agents/pm/issues/pmc-github-7ddbccc1c082-41.toon))
 
 ## 2026.6.10 - 2026-06-10
 
@@ -809,6 +873,12 @@ No changes.
 ### Fixed
 
 - Make body enrichment registry resolution best-effort ([pmc-xl7x](https://github.com/unbraind/pm-changelog/blob/main/.agents/pm/issues/pmc-xl7x.toon))
+
+### Closed
+
+- Closed: Base semver suggestion on visible release sections ([pmc-github-7ddbccc1c082-28](https://github.com/unbraind/pm-changelog/blob/main/.agents/pm/issues/pmc-github-7ddbccc1c082-28.toon))
+- Closed: Avoid treating non-breaking text as breaking ([pmc-github-7ddbccc1c082-26](https://github.com/unbraind/pm-changelog/blob/main/.agents/pm/issues/pmc-github-7ddbccc1c082-26.toon))
+- Closed: Load item bodies for body-preview in CLI and extension paths ([pmc-github-7ddbccc1c082-27](https://github.com/unbraind/pm-changelog/blob/main/.agents/pm/issues/pmc-github-7ddbccc1c082-27.toon))
 
 ## 2026.6.5-1 - 2026-06-05
 
@@ -904,6 +974,18 @@ No changes.
 - Verify pm-changelog install and CLI work in a clean temp folder ([pmc-3jj2](https://github.com/unbraind/pm-changelog/blob/main/.agents/pm/tasks/pmc-3jj2.toon))
 - Replace inline node -e JavaScript with TypeScript helper ([pmc-vvpy](https://github.com/unbraind/pm-changelog/blob/main/.agents/pm/chores/pmc-vvpy.toon))
 - Production readiness audit and release for pm-changelog 2026-05-25 ([pmc-9mck](https://github.com/unbraind/pm-changelog/blob/main/.agents/pm/epics/pmc-9mck.toon))
+
+### Closed
+
+- Closed: Stabilize full-history release windows for release automation ([pmc-github-7ddbccc1c082-12](https://github.com/unbraind/pm-changelog/blob/main/.agents/pm/issues/pmc-github-7ddbccc1c082-12.toon))
+- Closed: Batch git tag timestamp lookup for full-history changelog ([pmc-github-7ddbccc1c082-11](https://github.com/unbraind/pm-changelog/blob/main/.agents/pm/issues/pmc-github-7ddbccc1c082-11.toon))
+- Closed: Support full historical changelog generation from git release tags ([pmc-github-7ddbccc1c082-10](https://github.com/unbraind/pm-changelog/blob/main/.agents/pm/issues/pmc-github-7ddbccc1c082-10.toon))
+- Closed: Prepend mode should replace Keep a Changelog bracketed release headings ([pmc-github-7ddbccc1c082-9](https://github.com/unbraind/pm-changelog/blob/main/.agents/pm/issues/pmc-github-7ddbccc1c082-9.toon))
+- Closed: Default release changelog mode can pass while CHANGELOG.md is assigned to Unreleased/all history ([pmc-github-7ddbccc1c082-8](https://github.com/unbraind/pm-changelog/blob/main/.agents/pm/issues/pmc-github-7ddbccc1c082-8.toon))
+- Closed: Expose item-url-base through pm extension command ([pmc-github-7ddbccc1c082-7](https://github.com/unbraind/pm-changelog/blob/main/.agents/pm/issues/pmc-github-7ddbccc1c082-7.toon))
+- Closed: Changelog sections generated out of version order when items have different updated_at times ([pmc-github-7ddbccc1c082-6](https://github.com/unbraind/pm-changelog/blob/main/.agents/pm/issues/pmc-github-7ddbccc1c082-6.toon))
+- Closed: Published package sourcemaps point to missing source files ([pmc-github-7ddbccc1c082-4](https://github.com/unbraind/pm-changelog/blob/main/.agents/pm/issues/pmc-github-7ddbccc1c082-4.toon))
+- Closed: Published docs include absolute home path ([pmc-github-7ddbccc1c082-5](https://github.com/unbraind/pm-changelog/blob/main/.agents/pm/issues/pmc-github-7ddbccc1c082-5.toon))
 
 ## 2026.5.24-15 - 2026-05-24
 
@@ -1010,6 +1092,11 @@ No changes.
 ### Fixed
 
 - Release workflow used UTC date for local 2026-05-24 release ([pmc-e1jy](https://github.com/unbraind/pm-changelog/blob/main/.agents/pm/issues/pmc-e1jy.toon))
+
+### Closed
+
+- Closed: Extension command fails in CI when no global pm binary exists ([pmc-github-7ddbccc1c082-3](https://github.com/unbraind/pm-changelog/blob/main/.agents/pm/issues/pmc-github-7ddbccc1c082-3.toon))
+- Closed: pm changelog generate fails on large pm tracker JSON (spawnSync ENOBUFS) ([pmc-github-7ddbccc1c082-1](https://github.com/unbraind/pm-changelog/blob/main/.agents/pm/issues/pmc-github-7ddbccc1c082-1.toon))
 
 ## 2026.5.23-7 - 2026-05-23
 

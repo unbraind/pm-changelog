@@ -1,0 +1,31 @@
+id: pmc-github-7ddbccc1c082-219
+title: Keep installed usage documentation links portable and dependency table valid
+description: "GH issue #219: https://github.com/unbraind/pm-changelog/issues/219 · author @unbraind · state reason completed · created 2026-10-03T16:32:18Z · updated 2026-10-04T18:14:43Z"
+type: Issue
+pm_format_version: 4
+status: closed
+priority: 2
+tags[2]: "gh:unbraind/pm-changelog#219","github_author:unbraind"
+created_at: "2026-10-03T16:32:18Z"
+updated_at: "2026-11-26T14:11:36.986Z"
+closed_at: "2026-10-04T18:14:43Z"
+completed_at: "2026-10-04T18:14:43Z"
+author: pm-github
+deferred_fields[4]{field,reason}:
+  acceptance_criteria,Imported from GitHub issue #219. Required fields can be filled after triage.
+  assignee,Imported from GitHub issue #219. Required fields can be filled after triage.
+  deadline,Imported from GitHub issue #219. Required fields can be filled after triage.
+  estimated_minutes,Imported from GitHub issue #219. Required fields can be filled after triage.
+release: v2026.10.5
+close_reason: "Closed on GitHub as completed on 2026-10-04T18:14:43Z; closing PR https://github.com/unbraind/pm-changelog/pull/222 (\"Keep installed usage documentation links portable and the dependency-updates table row valid\")"
+github_close_reason: "Closed on GitHub as completed on 2026-10-04T18:14:43Z; closing PR https://github.com/unbraind/pm-changelog/pull/222 (\"Keep installed usage documentation links portable and the dependency-updates table row valid\")"
+github_closed_at: "2026-10-04T18:14:43Z"
+github_created_at: "2026-10-03T16:32:18Z"
+github_link_only: false
+github_number: 219
+github_release: v2026.10.5
+github_state: closed
+github_state_reason: completed
+github_updated_at: "2026-10-04T18:14:43Z"
+github_url: "https://github.com/unbraind/pm-changelog/issues/219"
+body: "Two documentation issues surfaced while updating the installed pm-changelog copy in homeassistant-cli PR104. Fix these in the canonical pm-changelog source rather than patching each consumer's installed copy.\n\n1. `docs/usage.md` links `pmc-3jq8` and `pmc-j6cb` through `../.agents/pm/issues/...`. These are valid in this source repository but become broken when the document is installed under a consumer's `.agents/pm/extensions/pm-changelog/docs/`. Both IDs belong to this repository, not the consumer's tracker. Use verified absolute GitHub links (or a published-doc mechanism that preserves their actual target).\n2. The options table contains an unescaped pipe inside the inline example `<type>(deps|deps-dev): bump …`. Standard GFM table parsing treats it as an additional cell. Rewrite as separate deps/deps-dev examples or escape the pipe.\n\nAcceptance: both tracker links resolve to the canonical pm-changelog items from source and installed documentation, and the `--dependency-updates` row retains exactly the declared three columns. No runtime change is needed.\n\nSource: [usage documentation](https://github.com/unbraind/pm-changelog/blob/main/docs/usage.md). Review evidence: [link finding](https://github.com/unbraind/homeassistant-cli/pull/104#discussion_r4173841980), [table finding](https://github.com/unbraind/homeassistant-cli/pull/104#discussion_r4173841985). The suggestion to use the consumer's tracker was rejected because those item IDs are upstream-owned."

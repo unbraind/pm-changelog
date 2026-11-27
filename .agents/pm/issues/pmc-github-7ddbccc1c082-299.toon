@@ -1,0 +1,31 @@
+id: pmc-github-7ddbccc1c082-299
+title: Include drift in the standalone help/parser contract matrix; PR298 full gate currently fails
+description: "GH issue #299: https://github.com/unbraind/pm-changelog/issues/299 · author @unbraind · state reason completed · created 2026-10-29T05:28:49Z · updated 2026-10-29T17:44:46Z"
+type: Issue
+pm_format_version: 4
+status: closed
+priority: 2
+tags[2]: "gh:unbraind/pm-changelog#299","github_author:unbraind"
+created_at: "2026-10-29T05:28:49Z"
+updated_at: "2026-11-26T14:11:38.525Z"
+closed_at: "2026-10-29T17:44:46Z"
+completed_at: "2026-10-29T17:44:46Z"
+author: pm-github
+deferred_fields[4]{field,reason}:
+  acceptance_criteria,Imported from GitHub issue #299. Required fields can be filled after triage.
+  assignee,Imported from GitHub issue #299. Required fields can be filled after triage.
+  deadline,Imported from GitHub issue #299. Required fields can be filled after triage.
+  estimated_minutes,Imported from GitHub issue #299. Required fields can be filled after triage.
+release: v2026.10.31
+close_reason: "Closed on GitHub as completed on 2026-10-29T17:44:46Z"
+github_close_reason: "Closed on GitHub as completed on 2026-10-29T17:44:46Z"
+github_closed_at: "2026-10-29T17:44:46Z"
+github_created_at: "2026-10-29T05:28:49Z"
+github_link_only: false
+github_number: 299
+github_release: v2026.10.31
+github_state: closed
+github_state_reason: completed
+github_updated_at: "2026-10-29T17:44:46Z"
+github_url: "https://github.com/unbraind/pm-changelog/issues/299"
+body: "## Observed release-gate blocker\nPR #298 head `497f4c36c78920363bb72e54280410dbec902eac`, [Node26 job123273116519](https://github.com/unbraind/pm-changelog/actions/runs/40817205513/job/123273116519), finished2026-10-29 05:15 UTC:\n-948 tests;947 passed;1 failed.\n-`test/help-parser-contract.test.ts:100`: “help contract covers every standalone command dispatched by main”.\n-Actual registered test-map commands: audit/contracts/corrections/upgrades.\n-Expected source-dispatched commands additionally include drift.\n-The same gate reports99.97% branch coverage against100%; `src/cli.ts`99.65%, new agent-contract modules100%. The precise uncovered CLI branch is not established from this log alone.\n\n## Static cause and reproduction\nThe [test's commands map](https://github.com/unbraind/pm-changelog/blob/497f4c36c78920363bb72e54280410dbec902eac/test/help-parser-contract.test.ts#L92-L105) registers existing subcommand parsers but omits `src/agent-contract-command.ts`. [CLI main](https://github.com/unbraind/pm-changelog/blob/497f4c36c78920363bb72e54280410dbec902eac/src/cli.ts) now dispatches `drift`; its AST-derived invariant correctly detects the missing test-contract entry.\n\nOn an isolated checkout with declared dependencies, run:\n`node --test --test-name-pattern=\"help contract covers every standalone command dispatched by main\" test/help-parser-contract.test.ts`\nThen run the unchanged full release gates to cover the CLI branch gap. The failure above is hosted evidence; the focused command was not independently rerun in this review.\n\n## Expected / impact / limits\nThe [canonical drift feature](https://github.com/unbraind/pm-changelog/blob/497f4c36c78920363bb72e54280410dbec902eac/.agents/pm/features/pmc-agent-contract-drift.toon) requires agent-first host/standalone/SDK parity and full release gates. Every dispatched standalone command should participate in the help/parser contract matrix, and full gates must remain100%. This is a test/coverage integration blocker, not evidence that drift projections are incorrect or that the help output omits drift. Independent bounded projection checks passed separately; lifecycle success does not imply the failed full gate passed.\n\n## Acceptance\n- Add drift to the parser/help contract matrix using the same source-derived flags mechanism; retain the invariant rather than removing/weakening it.\n- Cover all newly added CLI dispatch/error paths required by the existing100% thresholds; inspect the real uncovered branch rather than assuming it shares this cause.\n- Verify exact new-head Node22/26 npm/Bun full gates and retain counts/links; don't reuse earlier-head or lifecycle-only success.\n- Preserve existing command behavior, omissions and error remedies.\n\nAll-status issues/PRs and canonical feature inspected. Existing #295 concerns a different older linked-test trust-admission refusal and is not this failure. No implementation or trust settings changed during review.\n\n---\n\n### GitHub comments (1)\n\n> **@unbraind** (2026-10-29T17:44:45Z)\n>\n> Fixed before merge: PR #298 head 954912db added the drift command to the standalone help/parser contract matrix; `test (22)` and `test (26)` passed on that head (including test/help-parser-contract.test.ts), and #298 merged after a MERGE review verdict."

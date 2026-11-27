@@ -1,0 +1,31 @@
+id: pmc-github-7ddbccc1c082-320
+title: Release timeout reports stale workflow approval after successful automatic approvals
+description: "GH issue #320: https://github.com/unbraind/pm-changelog/issues/320 · author @unbraind · state reason completed · created 2026-11-04T17:30:40Z · updated 2026-11-24T20:10:39Z"
+type: Issue
+pm_format_version: 4
+status: closed
+priority: 2
+tags[2]: "gh:unbraind/pm-changelog#320","github_author:unbraind"
+created_at: "2026-11-04T17:30:40Z"
+updated_at: "2026-11-26T14:11:38.980Z"
+closed_at: "2026-11-24T20:10:39Z"
+completed_at: "2026-11-24T20:10:39Z"
+author: pm-github
+deferred_fields[4]{field,reason}:
+  acceptance_criteria,Imported from GitHub issue #320. Required fields can be filled after triage.
+  assignee,Imported from GitHub issue #320. Required fields can be filled after triage.
+  deadline,Imported from GitHub issue #320. Required fields can be filled after triage.
+  estimated_minutes,Imported from GitHub issue #320. Required fields can be filled after triage.
+release: v2026.11.24
+close_reason: "Closed on GitHub as completed on 2026-11-24T20:10:39Z"
+github_close_reason: "Closed on GitHub as completed on 2026-11-24T20:10:39Z"
+github_closed_at: "2026-11-24T20:10:39Z"
+github_created_at: "2026-11-04T17:30:40Z"
+github_link_only: false
+github_number: 320
+github_release: v2026.11.24
+github_state: closed
+github_state_reason: completed
+github_updated_at: "2026-11-24T20:10:39Z"
+github_url: "https://github.com/unbraind/pm-changelog/issues/320"
+body: "## Evidence\nAt main `3c63d77db174de9e4adaf54ad13b3c28d5513c24`, Daily Release [job 126708141984](https://github.com/unbraind/pm-changelog/actions/runs/41817236819/job/126708141984) successfully approved three PR319 workflow runs at 16:44:43–44 UTC on 2026-11-04. At 17:14:25 it nevertheless failed with “its CI run is awaiting workflow approval” and instructed a maintainer to approve. The immediately preceding status was BLOCKED, settling `lifecycle, codeql`, failing none.\n\n[Workflow source](https://github.com/unbraind/pm-changelog/blob/3c63d77db174de9e4adaf54ad13b3c28d5513c24/.github/workflows/release.yml#L485-L624) initializes `awaiting_approval=0` outside the loop, sets it to 1 after any pending-run observation even when approval succeeds, and never clears/recomputes it. The timeout branch therefore treats historical approval as current. An isolated Bash probe of that exact timeout branch with a prior successful approval and then empty `pending_runs` reproduces the misleading instruction; no GitHub mutations or release workflow were run by this review.\n\n## Goal, impact and expected behavior\n[Canonical pmc-blj6](https://github.com/unbraind/pm-changelog/blob/3c63d77db174de9e4adaf54ad13b3c28d5513c24/.agents/pm/issues/pmc-blj6.toon) explicitly aims to distinguish pending approval from failed/missing checks in timeout diagnostics. Expected: report current approval state or the actual unresolved checks, without asking for already-completed approval. Actual: a sticky flag masks the current blocker and sends operators toward an ineffective action. This is a diagnostics defect, not evidence that approval caused the timeout or that publication protections were bypassed.\n\n## Acceptance and regression criteria\n- Recompute current pending approvals and account for successful approvals before timeout reporting.\n- Test pending→approved→running/queued→timeout, genuine pending approval at timeout, and no-approval check timeout.\n- Preserve exact-head merge checks, fail-closed publication, existing protections and timeout budget.\n- If fresh state cannot be obtained, report uncertainty instead of asserting pending approval.\n\n## Deduplication and limits\nChecked all 318 all-status issue/PR entries and 211 canonical records at the tested commit. Closed PR137/pmc-blj6 covers earlier merge-wait hardening, not this stale-state residual. Related same-pattern reports exist in pm-jev89 and pm-ts-starter191; this issue tracks the affected pm-changelog copy. Full hosted log and exact static control flow support this report; no full local suite or provider execution was performed.\n\n---\n\n### GitHub comments (1)\n\n> **@unbraind** (2026-11-24T20:10:37Z)\n>\n> The Daily Release workflow on main calls the reusable pm-ops workflow at `v2026.11.14` (`7687a35d7522482bd8361d60dbc2589e9afbc81c`), which contains the stale approval diagnosis fix. The fix merged in [pm-ops#271](https://github.com/unbraind/pm-ops/pull/271) and first shipped in [pm-ops v2026.11.14](https://github.com/unbraind/pm-ops/releases/tag/v2026.11.14).\n> \n> The [successful Daily Release run](https://github.com/unbraind/pm-changelog/actions/runs/44788438628) used `v2026.11.14` and completed both npm publication and GitHub Release creation for [`v2026.11.20`](https://github.com/unbraind/pm-changelog/releases/tag/v2026.11.20). The [npm version `pm-changelog@2026.11.20`](https://www.npmjs.com/package/pm-changelog/v/2026.11.20) is available, and its registry provenance identifies the same run.\n>"

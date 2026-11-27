@@ -1,0 +1,27 @@
+id: pmc-github-7ddbccc1c082-346
+title: "Follow-up to #341: normalize line endings before the drift revert proof matches multiline seams"
+description: "GH issue #346: https://github.com/unbraind/pm-changelog/issues/346 · author @unbraind · created 2026-11-12T06:43:58Z · updated 2026-11-13T06:07:19Z"
+type: Issue
+pm_format_version: 4
+status: open
+priority: 2
+tags[2]: "gh:unbraind/pm-changelog#346","github_author:unbraind"
+created_at: "2026-11-12T06:43:58Z"
+updated_at: "2026-11-26T14:11:40.644Z"
+author: pm-github
+deferred_fields[4]{field,reason}:
+  acceptance_criteria,Imported from GitHub issue #346. Required fields can be filled after triage.
+  assignee,Imported from GitHub issue #346. Required fields can be filled after triage.
+  deadline,Imported from GitHub issue #346. Required fields can be filled after triage.
+  estimated_minutes,Imported from GitHub issue #346. Required fields can be filled after triage.
+github_close_reason: ""
+github_closed_at: ""
+github_created_at: "2026-11-12T06:43:58Z"
+github_link_only: false
+github_number: 346
+github_release: ""
+github_state: open
+github_state_reason: unspecified
+github_updated_at: "2026-11-13T06:07:19Z"
+github_url: "https://github.com/unbraind/pm-changelog/issues/346"
+body: "Follow-up to #341. CodeRabbit's review of 354c0e9 left one non-blocking finding: [scripts/prove-check-generator-drift-revert.ts:71](https://github.com/unbraind/pm-changelog/pull/341#discussion_r4536757507). Normalize CRLF to LF before the multiline mutation seams are matched, so the revert proof also works on a Windows checkout with `core.autocrlf=true`. Add a test that feeds a CRLF copy of the source and fails on revert.\n\n---\n\n### GitHub comments (1)\n\n> **@unbraind** (2026-11-13T06:07:18Z)\n>\n> Two Minor findings from the final review of pm-changelog#341 (head 37cc0bb), deferred here under that PR's last-full-round rule:\n> - **PRRT_kwDOSfkApc62-Tap**, `scripts/prove-check-generator-drift-revert.ts:256`. For mutation cases that select another test file, the fixed and restored controls run only `test/check-generator-drift.test.ts`. A target that already fails would count as a detected mutation. Each case must require its own test file and pattern to pass before the mutation and after restoration.\n> - **PRRT_kwDOSfkApc62-Tat**, `src/check-drift.ts:136`. The PowerShell copy of the regeneration command single-quotes each argument, and Windows PowerShell 5.1's legacy native-argument passing then drops embedded double quotes (for example `title: 'Notes \"quoted\"'`). Either escape for that interpreter or require PowerShell 7.3+ with `$PSNativeCommandArgumentPassing = 'Standard'`. The copied-command test must check the exact reproduced option, not only `/Notes/`."

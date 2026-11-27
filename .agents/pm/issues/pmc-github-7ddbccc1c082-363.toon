@@ -1,0 +1,27 @@
+id: pmc-github-7ddbccc1c082-363
+title: changelog --check reports tracker_changed for a CRLF-only difference on Windows checkouts
+description: "GH issue #363: https://github.com/unbraind/pm-changelog/issues/363 · author @unbraind · created 2026-11-17T05:45:35Z · updated 2026-11-17T05:45:35Z"
+type: Issue
+pm_format_version: 4
+status: open
+priority: 2
+tags[2]: "gh:unbraind/pm-changelog#363","github_author:unbraind"
+created_at: "2026-11-17T05:45:35Z"
+updated_at: "2026-11-26T14:11:41.174Z"
+author: pm-github
+deferred_fields[4]{field,reason}:
+  acceptance_criteria,Imported from GitHub issue #363. Required fields can be filled after triage.
+  assignee,Imported from GitHub issue #363. Required fields can be filled after triage.
+  deadline,Imported from GitHub issue #363. Required fields can be filled after triage.
+  estimated_minutes,Imported from GitHub issue #363. Required fields can be filled after triage.
+github_close_reason: ""
+github_closed_at: ""
+github_created_at: "2026-11-17T05:45:35Z"
+github_link_only: false
+github_number: 363
+github_release: ""
+github_state: open
+github_state_reason: unspecified
+github_updated_at: "2026-11-17T05:45:35Z"
+github_url: "https://github.com/unbraind/pm-changelog/issues/363"
+body: "## Problem\n\n`pm-changelog --check` reports `Drift classification: tracker_changed` when the committed `CHANGELOG.md` has CRLF line endings and is otherwise identical to the generated output. This happens on a Windows runner whose Git checkout uses `core.autocrlf=true`.\n\nThe drift report then prints every line as changed (`@@ -1,536 +1,536 @@`), so the real cause is hard to see. The failure is also misclassified: the tracker didn't change; only the line endings differ.\n\n## Evidence\n\npm-brief#228, required check `audit-windows` (job 133756411714):\n- `test (22)` and `test (26)` passed the same `changelog:check` on Linux.\n- The Windows job failed with `tracker_changed`.\n- After stripping `\\r`, all 536 committed lines match the generated lines, including all eleven `### Closed` blocks.\n\npm-brief now works around it with `.gitattributes` `CHANGELOG.md text eol=lf` (commit 2c7e8b4). Any fleet repository that runs `changelog:check` on Windows without that rule has the same latent failure.\n\n## Expected\n\n- `--check` compares content after normalizing CRLF to LF on both sides, or reports a separate `line_endings_only` drift classification with a clear remedy, such as adding `CHANGELOG.md text eol=lf`.\n- The drift diff is computed on the normalized text, so it shows only real changes.\n- A regression test covers a CRLF-only difference: it either passes, or fails with the dedicated classification. It never reports `tracker_changed`."

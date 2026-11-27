@@ -1,0 +1,31 @@
+id: pmc-github-7ddbccc1c082-317
+title: Render declared SDK/CLI contract changes under a Changed section with their migration line
+description: "GH issue #317: https://github.com/unbraind/pm-changelog/issues/317 · author @unbraind · state reason completed · created 2026-11-03T22:04:44Z · updated 2026-11-09T21:20:00Z"
+type: Issue
+pm_format_version: 4
+status: closed
+priority: 2
+tags[2]: "gh:unbraind/pm-changelog#317","github_author:unbraind"
+created_at: "2026-11-03T22:04:44Z"
+updated_at: "2026-11-26T14:11:38.755Z"
+closed_at: "2026-11-09T21:20:00Z"
+completed_at: "2026-11-09T21:20:00Z"
+author: pm-github
+deferred_fields[4]{field,reason}:
+  acceptance_criteria,Imported from GitHub issue #317. Required fields can be filled after triage.
+  assignee,Imported from GitHub issue #317. Required fields can be filled after triage.
+  deadline,Imported from GitHub issue #317. Required fields can be filled after triage.
+  estimated_minutes,Imported from GitHub issue #317. Required fields can be filled after triage.
+release: v2026.11.10
+close_reason: "Closed on GitHub as completed on 2026-11-09T21:20:00Z; closing PR https://github.com/unbraind/pm-changelog/pull/328 (\"fix: render declared contract changes with migration guidance\")"
+github_close_reason: "Closed on GitHub as completed on 2026-11-09T21:20:00Z; closing PR https://github.com/unbraind/pm-changelog/pull/328 (\"fix: render declared contract changes with migration guidance\")"
+github_closed_at: "2026-11-09T21:20:00Z"
+github_created_at: "2026-11-03T22:04:44Z"
+github_link_only: false
+github_number: 317
+github_release: v2026.11.10
+github_state: closed
+github_state_reason: completed
+github_updated_at: "2026-11-09T21:20:00Z"
+github_url: "https://github.com/unbraind/pm-changelog/issues/317"
+body: "Downstream request: [unbraind/pm-cli#1657](https://github.com/unbraind/pm-cli/issues/1657), tracked in pm-cli as [pm-gh1657](https://github.com/unbraind/pm-cli/blob/main/.agents/pm/features/pm-gh1657.toon).\n\n## Problem\n\nBetween pm-cli 2026.10.25 and 2026.10.30, seven changes altered observable SDK behaviour. Six were classified under **Fixed** and one under **Security**, because the generator buckets by type, resolution and title. None of the generated lines said that a caller contract changed or how to migrate. One Dependabot bump then broke 9 of 34 downstream extensions. Each one had to rediscover its cause by reading the pm-cli diff.\n\n`--breaking-changes` does not cover this. It detects breaking signals, but these changes are fixes that also change a default, an error code, an ordering or a refusal. They need a migration line, not a breaking label.\n\n## Proposal\n\n1. pm-cli will let the closing item declare an observable contract change, with `before`, `after` and `migrate` text, through existing pm metadata. The exact field is decided on the pm-cli side, in pm-gh1657.\n2. pm-changelog renders each declared change in a `### Changed (SDK contract)` section as `<title>: <before> → <after>. Migrate: <migrate>`. This applies even when the item would otherwise land in Fixed or Security, and that item does not appear twice.\n3. `--changelog-json` exposes the same entries as structured records, for example `{ id, api, change, migrate }`, so Dependabot-driven fleets and agents can map a failing test to its cause.\n4. `pm changelog audit` maps each contract line to its item, like every other generated line.\n\n## Acceptance\n\n- An item that declares a contract change renders once, under `Changed (SDK contract)`, with its migration line, in Markdown and JSON.\n- Items without the declaration render exactly as today. Existing snapshots are unchanged.\n- Audit maps the new lines and reports a declared change with no migration text as a gap."

@@ -1,0 +1,31 @@
+id: pmc-github-7ddbccc1c082-120
+title: Release-gated packages have no way to pin a date without overriding real tag dates
+description: "GH issue #120: https://github.com/unbraind/pm-changelog/issues/120 · author @unbraind · state reason completed · created 2026-08-03T07:30:14Z · updated 2026-08-16T23:14:47Z"
+type: Issue
+pm_format_version: 4
+status: closed
+priority: 2
+tags[3]: bug,"gh:unbraind/pm-changelog#120","github_author:unbraind"
+created_at: "2026-08-03T07:30:14Z"
+updated_at: "2026-11-26T14:11:36.483Z"
+closed_at: "2026-08-16T23:14:47Z"
+completed_at: "2026-08-16T23:14:47Z"
+author: pm-github
+deferred_fields[4]{field,reason}:
+  acceptance_criteria,Imported from GitHub issue #120. Required fields can be filled after triage.
+  assignee,Imported from GitHub issue #120. Required fields can be filled after triage.
+  deadline,Imported from GitHub issue #120. Required fields can be filled after triage.
+  estimated_minutes,Imported from GitHub issue #120. Required fields can be filled after triage.
+release: v2026.8.17
+close_reason: "Closed on GitHub as completed on 2026-08-16T23:14:47Z; closing PR https://github.com/unbraind/pm-changelog/pull/145 (\"Add tag-aware fallback release dates\")"
+github_close_reason: "Closed on GitHub as completed on 2026-08-16T23:14:47Z; closing PR https://github.com/unbraind/pm-changelog/pull/145 (\"Add tag-aware fallback release dates\")"
+github_closed_at: "2026-08-16T23:14:47Z"
+github_created_at: "2026-08-03T07:30:14Z"
+github_link_only: false
+github_number: 120
+github_release: v2026.8.17
+github_state: closed
+github_state_reason: completed
+github_updated_at: "2026-08-16T23:14:47Z"
+github_url: "https://github.com/unbraind/pm-changelog/issues/120"
+body: "Found while fixing the same defect in two packages on the same day (`pm-rl`, `pm-vcs`).\n\n## The gap\n\n`--date` documents its default as *\"resolved tag date when available, otherwise current UTC date\"*. That fallback is correct for a package on its way to a release, and wrong for a package that is deliberately held back.\n\nA release-gated package has **no tags by construction**. So the fallback fires on every generation, and the committed heading records *the day it was generated* rather than any property of the release. `--check` compares against a freshly generated heading, so it agrees only on the day of generation and fails every day after — with no change to the tracker and none to the code.\n\nBoth affected packages had already passed CI and been reviewed; the check simply started failing the next morning. `pm-vcs` had an item closed explicitly claiming its release gate had been made deterministic. It had not been — the UTC fix addressed timezone drift, which is a different axis from clock dependence.\n\n## Why the current workaround is a trap\n\nThe only fix available today is `--date <fixed>`, which is an unconditional **override**, not a fallback. So the moment the package is actually released and tagged, that pin silently wins over the real tag date and the heading is wrong in a new way. The fix for today's problem becomes tomorrow's.\n\nBoth packages now carry `--date 2026-07-31` / `--date 2026-07-30` in three scripts each, and every one of those has to be removed by hand at release time. Nothing enforces that.\n\n## Suggested resolution\n\nA fallback-shaped flag rather than an override — something like `--date-fallback <date>`, used only when no tag resolves, so the tag keeps priority the moment one exists and the pin disarms itself.\n\nA stronger variant worth considering: this fleet uses CalVer, where the version *is* the date (`2026.7.29` → `2026-07-29`). An option to derive the fallback from the version — `--date-from-version` — would need no per-release maintenance at all and would make the heading self-consistent by construction. Every released package in the fleet already follows that pairing; today it holds by convention rather than by anything enforced.\n\nEither would remove the whole class: the heading would stop depending on when the command runs, without introducing a pin that has to be remembered later.\n\n\n---\n\n### GitHub comments (2)\n\n> **@coderabbitai[bot]** (2026-08-03T07:30:29Z)\n>\n> <!-- This is an auto-generated issue plan by CodeRabbit -->\n> <details>\n> <summary>🔗 Related PRs</summary>\n> \n> unbraind/pm-changelog#13 - Use release tag timestamp for generated heading dates [merged]\n> unbraind/pm-changelog#43 - Stabilize calendar release headings across the zero-padded tag boundary (`#41`) [closed]\n> unbraind/pm-changelog#107 - Prefer actual completion time for release-window bucketing [merged]\n> unbraind/pm-changelog#116 - Generate fallback changelog dates in UTC [merged]\n> </details>\n> \n> ---\n> <details>\n> <summary>📝 Issue Planner</summary>\n> \n> <sub>Check the box below or use the `@coderabbitai plan` command to generate an implementation plan and prompts that you can use with your favorite coding assistant.</sub>\n> \n> - [ ] <!-- {\"checkboxId\": \"8d4f2b9c-3e1a-4f7c-a9b2-d5e8f1c4a7b9\"} --> Create Plan\n> </details>\n> \n> \n> ---\n> <details>\n> <summary> 🧪 Issue enrichment is currently in open beta.</summary>\n> \n> \n> You can configure auto-planning by selecting labels in the issue_enrichment configuration.\n> \n> To disable automatic issue enrichment, add the following to your `.coderabbit.yaml`:\n> ```yaml\n> issue_enrichment:\n>   auto_enrich:\n>     enabled: false\n> ```\n> </details>\n> \n> 💬 Have feedback or questions? Drop into our [discord](https://discord.gg/coderabbit)!\n\n> **@unbraind** (2026-08-11T23:41:34Z)\n>\n> Tracked canonically as [pmc-x49u](https://github.com/unbraind/pm-changelog/blob/main/.agents/pm/issues/pmc-x49u.toon). The item links the UTC fallback and authoritative tag-date lineage and remains open; this PR is scoped to the separate classifier recurrence."

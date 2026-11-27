@@ -1,0 +1,31 @@
+id: pmc-github-7ddbccc1c082-3
+title: Extension command fails in CI when no global pm binary exists
+description: "GH issue #3: https://github.com/unbraind/pm-changelog/issues/3 · author @unbraind · state reason completed · created 2026-05-23T21:10:17Z · updated 2026-05-23T21:20:51Z"
+type: Issue
+pm_format_version: 4
+status: closed
+priority: 2
+tags[2]: "gh:unbraind/pm-changelog#3","github_author:unbraind"
+created_at: "2026-05-23T21:10:17Z"
+updated_at: "2026-11-26T14:11:32.784Z"
+closed_at: "2026-05-23T21:20:51Z"
+completed_at: "2026-05-23T21:20:51Z"
+author: pm-github
+deferred_fields[4]{field,reason}:
+  acceptance_criteria,Imported from GitHub issue #3. Required fields can be filled after triage.
+  assignee,Imported from GitHub issue #3. Required fields can be filled after triage.
+  deadline,Imported from GitHub issue #3. Required fields can be filled after triage.
+  estimated_minutes,Imported from GitHub issue #3. Required fields can be filled after triage.
+release: v2026.05.24
+close_reason: "Closed on GitHub as completed on 2026-05-23T21:20:51Z"
+github_close_reason: "Closed on GitHub as completed on 2026-05-23T21:20:51Z"
+github_closed_at: "2026-05-23T21:20:51Z"
+github_created_at: "2026-05-23T21:10:17Z"
+github_link_only: false
+github_number: 3
+github_release: v2026.05.24
+github_state: closed
+github_state_reason: completed
+github_updated_at: "2026-05-23T21:20:51Z"
+github_url: "https://github.com/unbraind/pm-changelog/issues/3"
+body: "pm-cli CI runs package extension commands through node dist/cli.js and does not install a global pm binary. pm-changelog's extension handler called readPmItems with the default pm binary, so changelog generate failed in CI with extension_command_handler_failed after command activation succeeded.\\n\\nFix: the extension now falls back to the current Node CLI entrypoint when the default pm binary is unavailable, and adds a regression test that invokes node @unbrained/pm-cli/dist/cli.js with PATH limited to the Node binary directory.\n\n---\n\n### GitHub comments (1)\n\n> **@unbraind** (2026-05-23T21:20:50Z)\n>\n> Fixed in main at f5ebc23. The extension command now reads tracker items through the active pm SDK path and passes the Node CLI/no-global-pm regression under GITHUB_ACTIONS=true; GitHub Actions run 26343824903 is green. Npm publication of 2026.5.23-5 is blocked by npm 2FA/bypass-token requirements, so downstream pm-cli is pinned to the verified GitHub source until publish is authorized."

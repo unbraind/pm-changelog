@@ -1,0 +1,31 @@
+id: pmc-github-7ddbccc1c082-26
+title: Avoid treating non-breaking text as breaking
+description: "GH issue #26: https://github.com/unbraind/pm-changelog/issues/26 · author @unbraind · state reason completed · created 2026-06-04T06:11:10Z · updated 2026-06-05T10:34:31Z"
+type: Issue
+pm_format_version: 4
+status: closed
+priority: 2
+tags[3]: bug,"gh:unbraind/pm-changelog#26","github_author:unbraind"
+created_at: "2026-06-04T06:11:10Z"
+updated_at: "2026-11-26T14:11:35.144Z"
+closed_at: "2026-06-05T10:34:31Z"
+completed_at: "2026-06-05T10:34:31Z"
+author: pm-github
+deferred_fields[4]{field,reason}:
+  acceptance_criteria,Imported from GitHub issue #26. Required fields can be filled after triage.
+  assignee,Imported from GitHub issue #26. Required fields can be filled after triage.
+  deadline,Imported from GitHub issue #26. Required fields can be filled after triage.
+  estimated_minutes,Imported from GitHub issue #26. Required fields can be filled after triage.
+release: v2026.6.6
+close_reason: "Closed on GitHub as completed on 2026-06-05T10:34:31Z; closing PR https://github.com/unbraind/pm-changelog/pull/30 (\"Fix breaking-token detection, body-preview body loading, and visible-section semver (#26, #27, #28)\")"
+github_close_reason: "Closed on GitHub as completed on 2026-06-05T10:34:31Z; closing PR https://github.com/unbraind/pm-changelog/pull/30 (\"Fix breaking-token detection, body-preview body loading, and visible-section semver (#26, #27, #28)\")"
+github_closed_at: "2026-06-05T10:34:31Z"
+github_created_at: "2026-06-04T06:11:10Z"
+github_link_only: false
+github_number: 26
+github_release: v2026.6.6
+github_state: closed
+github_state_reason: completed
+github_updated_at: "2026-06-05T10:34:31Z"
+github_url: "https://github.com/unbraind/pm-changelog/issues/26"
+body: "From pm-cli PR #108 review of managed pm-changelog@2026.6.4. The breaking-change detector appears to use substring matching, so text like non-breaking fix in a type, tag, or title can be classified as breaking and make --suggest-semver recommend a major bump. Expected: require a real breaking token/signal and avoid negated/common safe-change phrases such as non-breaking.\n\n---\n\n### GitHub comments (1)\n\n> **@coderabbitai[bot]** (2026-06-04T06:11:30Z)\n>\n> <!-- This is an auto-generated issue plan by CodeRabbit -->\n> <details>\n> <summary>🔗 Related PRs</summary>\n> \n> unbraind/pm-changelog#20 - Fix classifier: bug-like item type wins over command-name keyword collisions [merged]\n> unbraind/pm-changelog#25 - Deduplicate label section tags [closed]\n> </details>\n> \n> ---\n> <details>\n> <summary>📝 Issue Planner</summary>\n> \n> <sub>Check the box below or use the `@coderabbitai plan` command to generate an implementation plan and prompts that you can use with your favorite coding assistant.</sub>\n> \n> - [ ] <!-- {\"checkboxId\": \"8d4f2b9c-3e1a-4f7c-a9b2-d5e8f1c4a7b9\"} --> Create Plan\n> </details>\n> \n> \n> ---\n> <details>\n> <summary> 🧪 Issue enrichment is currently in open beta.</summary>\n> \n> \n> You can configure auto-planning by selecting labels in the issue_enrichment configuration.\n> \n> To disable automatic issue enrichment, add the following to your `.coderabbit.yaml`:\n> ```yaml\n> issue_enrichment:\n>   auto_enrich:\n>     enabled: false\n> ```\n> </details>\n> \n> 💬 Have feedback or questions? Drop into our [discord](https://discord.gg/coderabbit)!"
