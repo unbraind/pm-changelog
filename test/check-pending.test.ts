@@ -9,10 +9,12 @@ import { runInit, runCreate } from "@unbrained/pm-cli/sdk";
 import { activateExtensionForTest, runRegisteredCommandForTest } from "@unbrained/pm-cli/sdk/testing";
 import { cliTestSurface } from "../src/cli.ts";
 import extension from "../src/extension.ts";
-import { writeChangelog } from "../src/index.ts";
-import { initGitFixture, removeGitFixture } from "./git-fixture.ts";
+import { buildChangelogDocument, createChangelog, createChangelogSummary, formatSummaryLine, mergeChangelog, writeChangelog } from "../src/index.ts";
+import { resolveReleaseTagWindows } from "../src/release-context.ts";
+import { fixtureEnvironment, initGitFixture, removeGitFixture } from "./git-fixture.ts";
 
 const itemBase = "https://github.com/example/project/blob/main/.agents/pm";
+const bracketForms = [["[", "]"], ["\\[", "\\]"], ["\\[", "]"], ["[", "\\]"]] as const;
 
 /** Two dated releases, a native tracker, and a committed changelog with no pending section. */
 async function releaseFixture(t: TestContext) {
@@ -221,6 +223,88 @@ test("checks agree with full regeneration across independent pending and release
   }
 });
 
+test("escaped release labels share one identity across checks, cleanup, promotion and replacement", (t) => {
+  const dir = mkdtempSync(join(tmpdir(), "pm-escaped-pending-"));
+  t.after(() => removeGitFixture(dir));
+  const output = join(dir, "CHANGELOG.md");
+  const options = { items: [], output, dependencyUpdates: false };
+  const title = "# Changelog\n";
+  const history = "## 1.0.0\n\n- Old release\n";
+  const release = "## 2.0.0 - 2026-11-27\n\n- Current release\n";
+  for (const [open, close] of bracketForms) {
+    for (const suffix of ["", " - 2026-11-27"]) {
+      const pending = "## " + open + "uNrElEaSeD" + close + suffix + "\n\n";
+      const committed = title + "\n" + pending + "- Pending work\n";
+      writeFileSync(output, committed);
+      const check = writeChangelog({ ...options, check: true });
+      assert.equal(check.changed, false, pending);
+      assert.equal(check.classification, "pending_only", pending);
+      assert.equal(writeChangelog({ ...options, checkPending: true }).changed, true, pending);
+      assert.equal(readFileSync(output, "utf8"), committed);
+      const withHistory = title + "\n" + release + "\n" + pending + "- Pending work\n";
+      writeFileSync(output, withHistory);
+      assert.equal(writeChangelog({ ...options, check: true }).changed, true, "a released section must still match");
+      assert.equal(mergeChangelog(title + "\n" + pending + "No changes.\n\n" + history, title).markdown, title + "\n" + history);
+      assert.equal(mergeChangelog(committed + "\n" + history, title + "\n" + release).markdown, title + "\n" + release + "\n" + history);
+      const decoratedRelease = "## " + open + "v02.0.0" + close + suffix + "\n\n- Stale release\n";
+      assert.equal(mergeChangelog(title + "\n" + decoratedRelease + "\n" + history, title + "\n" + release).markdown,
+        title + "\n" + release + "\n" + history);
+    }
+  }
+  for (const malformed of [
+    "\\[Unreleased", "Unreleased\\]", "\\\\[Unreleased\\]", "\\[Unreleased\\\\]", "\\[Unreleased\\\\\\]",
+    "\\[Unreleased\\](https://example.invalid)", "[Unreleased\\](https://example.invalid)",
+    "\\[Unreleased](https://example.invalid)", "\\[Unreleased\\] notes", "\\[Unreleased [detail]\\]", "\\[\\]",
+  ]) {
+    const committed = title + "\n## " + malformed + "\n\nNo changes.\n";
+    writeFileSync(output, committed);
+    assert.equal(writeChangelog({ ...options, check: true }).changed, true, malformed);
+    assert.equal(mergeChangelog(committed, title).markdown, committed, malformed);
+  }
+});
+
+test("escaped heading identity reaches structured versions and summary labels", () => {
+  for (const [open, close] of bracketForms) {
+    const pending = open + "Unreleased" + close;
+    const version = open + "v02.0.0" + close + " - 2026-11-27";
+    const options = { groupBy: "release" as const, dependencyUpdates: false,
+      items: [{ id: "next", title: "Pending", status: "closed" }, { id: "previous", title: "Released", status: "closed", release: "2.0.0" }],
+      releaseWindows: [{ heading: pending }, { heading: version, releaseTag: "v2.0.0" }],
+      releaseMembership: new Map([["next", pending]]) };
+    const document = buildChangelogDocument(options);
+    assert.deepEqual(document.releases.map(({ heading, version }) => [heading, version]), [[pending, undefined], [version, "2.0.0"]]);
+    assert.deepEqual(createChangelogSummary(options).map(formatSummaryLine), ["[Unreleased] Other: Pending (next)", "[2.0.0] Other: Released (previous)"]);
+  }
+});
+
+test("tagged publication requires an exact heading across Markdown, document and summary generation", (t) => {
+  const version = "1.0.0";
+  for (const heading of [version, ...bracketForms.map(([open, close]) => open + version + close)]) {
+    const dir = mkdtempSync(join(tmpdir(), "pm-escaped-publication-"));
+    t.after(() => removeGitFixture(dir));
+    initGitFixture(dir);
+    const git = (...args: string[]) => execFileSync("git", args, { cwd: dir, env: fixtureEnvironment(), stdio: "pipe" });
+    writeFileSync(join(dir, "CHANGELOG.md"), "# Changelog\n\n## " + heading + " - 2026-11-27\n\n- Published\n");
+    git("add", "CHANGELOG.md");
+    git("-c", "user.name=Fixture", "-c", "user.email=fixture@example.invalid", "-c", "commit.gpgsign=false",
+      "commit", "-m", "chore(deps): bump example from 1 to 2 (#6)");
+    git("tag", "v" + version);
+    const options = { items: [], gitCwd: dir, releaseWindows: resolveReleaseTagWindows({ cwd: dir }) };
+    const markdown = createChangelog(options).markdown;
+    const document = buildChangelogDocument(options);
+    const summary = createChangelogSummary(options);
+    if (heading === version) {
+      assert.match(markdown, /^## 1\.0\.0[^\n]*\n\n### Dependencies/m);
+      assert.equal(document.releases[0]?.dependencies?.length, 1);
+      assert.deepEqual(summary.map(({ version, category }) => [version, category]), [[version, "Dependencies"]]);
+    } else {
+      assert.equal(markdown, "# Changelog\n", heading);
+      assert.deepEqual(document.releases, []);
+      assert.deepEqual(summary, []);
+    }
+  }
+});
+
 test("installed pm host emits the same pending verdict in JSON and TOON", async (t) => {
   const dir = mkdtempSync(join(tmpdir(), "pm-host-check-"));
   t.after(() => removeGitFixture(dir));
@@ -230,10 +314,10 @@ test("installed pm host emits the same pending verdict in JSON and TOON", async 
   mkdirSync(installed, { recursive: true });
   for (const file of ["dist", "package.json", "manifest.json"]) cpSync(resolve(file), join(installed, file), { recursive: true });
   symlinkSync(resolve("node_modules"), join(installed, "node_modules"), "junction");
-  const committed = "# Changelog\n\n## Unreleased\n\n- Pending work\n";
   const output = join(dir, "CHANGELOG.md");
-  writeFileSync(output, committed);
-  for (const json of [true, false]) {
+  for (const heading of ["Unreleased", "\\[Unreleased\\]"]) for (const json of [true, false]) {
+    const committed = "# Changelog\n\n## " + heading + "\n\n- Pending work\n";
+    writeFileSync(output, committed);
     const result = spawnSync(process.execPath, [resolve("node_modules/@unbrained/pm-cli/dist/cli.js"),
       "--path", root, ...(json ? ["--json"] : []), "changelog", "generate", "--check",
       "--output", output, "--no-dependency-updates"], { cwd: dir, encoding: "utf8" });

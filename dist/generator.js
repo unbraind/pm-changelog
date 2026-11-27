@@ -607,8 +607,7 @@ export function createChangelogSummary(options) {
  * `[version] category: title (id)`.
  */
 export function formatSummaryLine(entry) {
-    const separatorStart = findReleaseSeparatorStart(entry.heading);
-    const versionLabel = entry.version ?? entry.heading.slice(0, separatorStart ?? entry.heading.length);
+    const versionLabel = entry.version ?? releaseHeadingLabel(entry.heading);
     const idSuffix = entry.id ? ` (${entry.id})` : "";
     return `[${versionLabel}] ${entry.category}: ${entry.title}${idSuffix}`;
 }
@@ -1694,24 +1693,33 @@ function replaceReleaseSection(markdown, heading, replacement, renderingVersion 
 }
 /** Normalized heading key for the pending `Unreleased` section. */
 const UNRELEASED_HEADING_KEY = "unreleased";
-/** Extract the version from a complete bracketed release heading without
- * using nested optional regular-expression groups. Returns undefined so the
- * caller can apply the ordinary separator fallback to malformed headings. */
+/** Read a complete bracketed label in linear time. Backslash escapes can
+ * delimit literal brackets, while links require two unescaped brackets. */
 function parseBracketedReleaseVersion(heading) {
-    if (!heading.startsWith("["))
+    const labelStart = heading.startsWith("\\[") ? 2 : 1;
+    if (heading[labelStart - 1] !== "[")
         return undefined;
-    const closeBracket = heading.indexOf("]", 1);
-    if (closeBracket <= 1)
+    const closeBracket = heading.indexOf("]", labelStart);
+    if (closeBracket <= labelStart)
+        return undefined;
+    let lastLabelCharacter = closeBracket;
+    while (lastLabelCharacter > labelStart && heading[lastLabelCharacter - 1] === "\\")
+        lastLabelCharacter--;
+    const escapedClose = (closeBracket - lastLabelCharacter) % 2 === 1;
+    const labelEnd = escapedClose ? closeBracket - 1 : closeBracket;
+    if (labelEnd === labelStart)
         return undefined;
     let cursor = closeBracket + 1;
     if (heading[cursor] === "(") {
+        if (labelStart === 2 || escapedClose)
+            return undefined;
         const closeUrl = heading.indexOf(")", cursor + 1);
         if (closeUrl <= cursor + 1)
             return undefined;
         cursor = closeUrl + 1;
     }
     if (cursor === heading.length)
-        return heading.slice(1, closeBracket);
+        return heading.slice(labelStart, labelEnd);
     const separatorStart = cursor;
     while (cursor < heading.length && isWhitespaceCharacter(heading[cursor]))
         cursor++;
@@ -1723,7 +1731,11 @@ function parseBracketedReleaseVersion(heading) {
         cursor++;
     if (cursor === dateStart || cursor === heading.length)
         return undefined;
-    return heading.slice(1, closeBracket);
+    return heading.slice(labelStart, labelEnd);
+}
+/** Extract a release label for display and identity from the same heading grammar. */
+function releaseHeadingLabel(heading) {
+    return parseBracketedReleaseVersion(heading.trim()) ?? heading.slice(0, findReleaseSeparatorStart(heading) ?? heading.length);
 }
 /** Return whether a code unit is one of the four ECMAScript line terminators
  * that `.` does not match in a regular expression without the `s` flag. */
@@ -1733,9 +1745,7 @@ function isLineTerminator(character) {
 /** Extract heading identity and reuse release placement's zero-padding normalization,
  * while keeping malformed caller input on a bounded linear path. */
 export function normalizeReleaseHeadingKey(heading) {
-    const trimmed = heading.trim();
-    const version = parseBracketedReleaseVersion(trimmed);
-    const fallback = version ?? trimmed.slice(0, findReleaseSeparatorStart(trimmed) ?? trimmed.length);
+    const fallback = releaseHeadingLabel(heading.trim());
     return normalizeReleaseKey(fallback);
 }
 function ensureTitle(markdown, title, renderingVersion = RENDERING_VERSION) {

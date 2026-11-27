@@ -82,6 +82,7 @@ npx pm-changelog --mode prepend --version "$GITHUB_REF_NAME" --check
 
 File-output checks classify differences in both the message and the `--json`
 receipt. The default treats a missing or stale `## Unreleased` section as pending.
+Bracketed labels such as `## [Unreleased]` and `## \[Unreleased\]` identify the same section.
 A difference confined to that section prints `pending_only` on stderr and exits
 **0**. Both the standalone JSON receipt and pm host JSON/TOON receipt report
 `classification: pending_only` and `changed: false`. The SDK returns the same

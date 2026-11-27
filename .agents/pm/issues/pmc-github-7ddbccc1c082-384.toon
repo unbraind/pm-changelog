@@ -7,13 +7,13 @@ status: open
 priority: 2
 tags[2]: "gh:unbraind/pm-changelog#384","github_author:unbraind"
 created_at: "2026-11-27T10:38:41Z"
-updated_at: "2026-11-27T11:30:35.315Z"
+updated_at: "2026-11-27T12:55:30.069Z"
 author: pm-github
 deferred_fields[3]{field,reason}:
   acceptance_criteria,Imported from GitHub issue #384. Required fields can be filled after triage.
   deadline,Imported from GitHub issue #384. Required fields can be filled after triage.
   estimated_minutes,Imported from GitHub issue #384. Required fields can be filled after triage.
-comments[10]{created_at,author,text}:
+comments[17]{created_at,author,text}:
   "2026-11-27T10:45:22.778Z",codex-agent,"Reproduce pending-only drift before edits. Trace the SDK, standalone and host check paths, preserve exact versioned comparison, and verify the package release scripts with a pending package version."
   "2026-11-27T10:46:18.186Z",codex-agent,"Reproduced on 6617b03: two dated tags, committed versioned changelog, then a single chore(deps) bump. File check exited 1 (tracker_changed); the entire diff added only Unreleased / Dependencies / Bump pending package from 2 to 3. Baseline repository changelog:check passed."
   "2026-11-27T10:54:40.368Z",codex-agent,"Implemented the comparison in the SDK file check, using the generator's Markdown section boundaries. Both command entry points report pending_only and honor --check-pending. Two branches, both Dependabot squash-subject cases, strict mode, versioned corruption, and non-Git SDK/host parity passed in the fixed fixtures."
@@ -24,6 +24,13 @@ comments[10]{created_at,author,text}:
   "2026-11-27T11:10:14.920Z",codex-agent,"Actual npm and Bun installs from one tarball each passed 7/7 verdicts across the SDK, standalone and pm host, with both host receipt formats decoded and file bytes retained. Verified all 115 tar members and installed contents; SHA-256 8c30bae78d1681bbd83ca95f1a75239e332a4955eed550328544f85baa9f975f. Package content scan: 115 files, zero findings."
   "2026-11-27T11:17:45.813Z",codex-agent,Repeated the pending-version release rehearsal after syncing main and rebuilding the final package. Full/check passed and the mutated release range failed. The restored complete file on this base has SHA-256 9c6a2bdfd1da289cc40f80d38971bbe6763fca0e58128ad29571f9362147e7ce. A separate local pm health read reports the same globally available pm-github host version skew and legacy 32 provenance records in a base clone.
   "2026-11-27T11:30:30.931Z",codex-agent,"Targeted local gate passed 1052/1052 tests in 39 suites across 56 test files with zero skips or cancellations. Ran node --test --test-concurrency=2 on touched files and references at the repository's quick CI depth. The dedicated in-process human-output assertion also passed after its addition. Source/test compilation, typecheck, docstring lint, release rehearsal and installed artifact checks passed. Coverage and complete npm/Bun release gates remain for CI at their existing thresholds."
+  "2026-11-27T12:06:09.303Z",codex-agent,"Reopened work for CodeRabbit review 6087820042. Main is already integrated. Checking whether Markdown-escaped bracket labels bypass the shared release heading identity and covering the same identity in read-only checks, prepend cleanup, promotion, replacement, and structured receipts."
+  "2026-11-27T12:11:33.053Z",codex-agent,"Confirmed the review finding on the previous head with a non-Git tracker and the installed pm host. The governing rule is that all stored Markdown release headings share one label parser for semantic identity. The parser now accepts escaped outer brackets, preserves malformed and literal link-like text, and feeds comparison, prepend cleanup, promotion, replacement, sorting, standalone summaries, structured projections, contract reports, and tagged dependency lookup. The strict check still compares the complete Markdown."
+  "2026-11-27T12:12:31.749Z",codex-agent,"Behavioral revert proof for review 6087820042, in a disposable copy. The four selected tests passed. Restoring only the bracket parser and rebuilding dist made all four fail with assertions, including the installed JSON/TOON host. Restoring only the raw tagged publication lookup failed its projection regression. Restoring only the raw summary formatter failed the summary regression. After restoring and rebuilding, all four passed again. The corpus covers plain and singly/doubly escaped delimiters, optional dates, malformed labels, escaped link-like suffixes, and strict checks."
+  "2026-11-27T12:14:10.628Z",codex-agent,"The round-one package archive matched all 115 files in the checkout, archive, and both consumer installs. Node with npm and Bun each passed nine checks on a fresh non-Git tracker, covering SDK read/strict/write-merge behavior, summary labels, standalone JSON, and installed host JSON/TOON with read-only strict failure. Archive SHA-256 bdeda34613322cf4f39be3f9745d748967243674bb1bd66e1c90d9fb3fa4bf50. The package privacy scan reported zero failures."
+  "2026-11-27T12:28:53.142Z",codex-agent,"Scope correction after the broader suite. The tagged dependency lookup is a separate publication rule. The existing near-match regression requires a canonical heading at the tag, so a semantic label match must never authorize publication. Restored that original comparison and proof script. The added real Git test covers the canonical heading and all four bracket spellings across Markdown, document, and summary generation. The normalized parser remains shared for semantic comparison and summary display."
+  "2026-11-27T12:40:43.416Z",codex-agent,"Final scoped revert proof supersedes the exploratory tagged lookup change. Eight focused tests passed, including all four existing near-match tests. In a disposable copy, the old bracket parser with rebuilt dist failed three regressions, the raw summary fallback failed one, and broadening the canonical publication witness failed the new guard. The four fixed controls passed before and after the mutations. The original publication witness remains in the patch base."
+  "2026-11-27T12:55:26.059Z",codex-agent,"Final review gates passed. Targeted Node tests with two workers passed 756/756 across 25 files, without skips. The pinned pm test runner passed both linked commands (11/11 and 2/2). Typecheck, source/test builds and docstring lint (306 declarations) passed. Fleet ESLint reported six existing diagnostics on the two touched TypeScript files and no new ones. The final archive SHA-256 is d3a3d0ad558829fde3e92963bac7197205411cff3c9899c77e68bddbfb6178c9, superseding the exploratory archive. All 115 packed files matched both installations. npm and Bun each passed nine consumer checks and package privacy scanning found zero failures. CodeRabbit re-review will be requested on the pushed head."
 files[10]{path,scope}:
   scripts/project-changelog.ts,project
   src/check-drift.ts,project
@@ -35,8 +42,22 @@ files[10]{path,scope}:
   test/check-pending.test.ts,project
   test/empty-unreleased.test.ts,project
   test/entry-from.test.ts,project
-tests[1]{command,scope,timeout_seconds,provenance{author,created_at,source_kind,source_ref}}:
-  node --test --test-concurrency=2 test/check-pending.test.ts,project,600,codex-agent,"2026-11-27T10:51:25.079Z",local_mutation,fix/check-treats-unreleased-as-pending
+tests[2]:
+  - command: node --test --test-concurrency=2 test/check-pending.test.ts
+    scope: project
+    timeout_seconds: 600
+    provenance:
+      author: codex-agent
+      created_at: "2026-11-27T10:51:25.079Z"
+      source_kind: local_mutation
+      source_ref: fix/check-treats-unreleased-as-pending
+  - command: node --test --test-concurrency=2 --test-name-pattern=escaped test/check-pending.test.ts
+    scope: project
+    provenance:
+      author: codex-agent
+      created_at: "2026-11-27T12:11:30.194Z"
+      source_kind: local_mutation
+      source_ref: fix/check-treats-unreleased-as-pending
 docs[5]{path,scope}:
   CHANGELOG.md,project
   docs/development.md,project
