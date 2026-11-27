@@ -9,7 +9,7 @@ import { CONSUMER_UPGRADE_FLAGS, runConsumerUpgradesCommand } from "./consumer-u
 import { DirectoryReleaseMilestoneStore, assertTrackerMilestoneOptions, createReleaseMilestone, readReleaseMilestones, readTrackerReleaseSnapshot, resolveTrackerReleaseHistory } from "./milestones.js";
 import { auditChangelogClaims, assertChangelogClaims, formatClaimAudit, parseClaimTestReceipts } from "./claim-audit.js";
 import { countNonChangeClosures } from "./closure-policy.js";
-import { diagnoseCheckDrift, regenerationCommand, canonicalRegenerationOptions, trackerReorderExplanation } from "./check-drift.js";
+import { PENDING_ONLY_MESSAGE, diagnoseCheckDrift, regenerationCommand, canonicalRegenerationOptions, trackerReorderExplanation } from "./check-drift.js";
 import { RENDERING_VERSION, PREVIOUS_RENDERING_VERSION, HISTORICAL_RENDERING_VERSIONS, RENDERING_PROFILES, assertRequestedRelease, requestedReleaseSuppressed, MissingRequestedReleaseError, buildChangelogDocument, createChangelog, createChangelogSummary, explainChangelogSelection, formatSummaryLine, lintChangelogEntries, parseChangelogEntryFrom, mergeChangelog, suggestSemver, writeChangelog } from "./generator.js";
 import { MissingTagHistoryError, resolveGenerationReleaseWindows, resolveReleaseContext, resolveReleaseTagWindowResolution, } from "./release-context.js";
 import { resolveGitReleaseHistory } from "./release-membership.js";
@@ -153,11 +153,14 @@ export default defineExtension({
                 { long: "--dependency-updates", description: "Add Dependabot notes to every git window; default non-merge Dependabot notes for itemless pending windows, retained after tagging only when the output changelog at that tag contains the version heading" },
                 { long: "--no-dependency-updates", description: "Disable git notes including the itemless default" },
                 { long: "--no-pending-release", description: "Nothing is being released right now: suppress the pending release window for an untagged package version" },
-                { long: "--check", description: "Do not write; report whether the changelog would change" },
+                { long: "--check-pending", description: "Strict file check including Unreleased; implies --check" },
+                { long: "--check", description: "Check versioned output; Unreleased drift is advisory" },
             ],
             async run(ctx) {
                 const output = ctx.options["output"] ?? "CHANGELOG.md";
                 const stdout = Boolean(ctx.options["stdout"]);
+                const checkPending = booleanOption(ctx.options, "check-pending", "checkPending");
+                const check = checkPending || Boolean(ctx.options["check"]);
                 const groupByOption = stringOption(ctx.options, "group-by", "groupBy") ?? "version";
                 const modeOption = ctx.options["mode"] ?? "replace";
                 // Throw (with a numeric exitCode) rather than returning { error }: the
@@ -296,7 +299,7 @@ export default defineExtension({
                 if (!requestedReleaseSuppressed(generationOptions) &&
                     (!allReleaseTags || stdout || limitValue !== undefined || generationOptions.sinceVersion !== undefined))
                     withRequestedReleaseDiagnostics(() => assertRequestedRelease(generationOptions));
-                if (Boolean(ctx.options["check"])) {
+                if (check) {
                     for (const warning of lintChangelogEntries(generationOptions))
                         console.error(`Warning: ${warning}`);
                 }
@@ -309,7 +312,7 @@ export default defineExtension({
                     const receipts = receiptFile === undefined ? [] : parseClaimTestReceipts(readFileSync(receiptFile, "utf-8"));
                     const report = auditChangelogClaims(generationOptions, receipts);
                     const output = formatClaimAudit(report, wantsJsonFormat || ctx.global.json ? "json" : "toon");
-                    if (booleanOption(ctx.options, "check", "check")) {
+                    if (check) {
                         if (!report.ready)
                             process.stderr.write(output);
                         assertChangelogClaims(report);
@@ -385,9 +388,10 @@ export default defineExtension({
                     ...generationOptions,
                     output,
                     mode,
-                    check: Boolean(ctx.options["check"]),
+                    check,
+                    checkPending,
                 });
-                if (result.changed && Boolean(ctx.options["check"])) {
+                if (result.changed && check) {
                     const committed = existsSync(result.output) ? readFileSync(result.output, "utf-8") : "";
                     const drift = diagnoseCheckDrift(committed, result.markdown, RENDERING_VERSION, HISTORICAL_RENDERING_VERSIONS.map((version) => ({
                         version, changedIn: RENDERING_PROFILES[version].changedIn,
@@ -402,14 +406,17 @@ export default defineExtension({
                         code: classification, required: guidance?.command, verification_errors: [`rendering_version=${RENDERING_VERSION}`, `previous_rendering_version=${PREVIOUS_RENDERING_VERSION}`, ...(drift.changedIn ? [`rendering_changed_in=${drift.changedIn}`, `compared_rendering_version=${drift.comparedVersion}`] : []), ...(guidance ? [`regeneration_argv=${JSON.stringify(guidance.argv)}`] : [])],
                     });
                 }
+                if (result.classification)
+                    console.error(PENDING_ONLY_MESSAGE);
                 return {
+                    ...(result.classification ? { classification: result.classification, message: PENDING_ONLY_MESSAGE } : {}),
                     file: result.output,
                     action: result.action,
                     changed: result.changed,
                     item_count: result.itemCount,
                     excluded_non_change_count: result.excludedNonChangeCount,
                     bytes: result.bytes,
-                    check: Boolean(ctx.options["check"]),
+                    check,
                     rendering_version: RENDERING_VERSION,
                     previous_rendering_version: PREVIOUS_RENDERING_VERSION,
                     ...(selectionReport ? { selection_report: selectionReport } : {}),

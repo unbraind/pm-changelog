@@ -25,7 +25,7 @@ import { countNonChangeClosures } from "./closure-policy.ts";
 
 import { checkItemLinks } from "./item-links.ts";
 import { createUnifiedDiff, DEFAULT_MAX_DIFF_LINES } from "./diff.ts";
-import { diagnoseCheckDrift, regenerationCommand, trackerReorderExplanation } from "./check-drift.ts";
+import { PENDING_ONLY_MESSAGE, diagnoseCheckDrift, regenerationCommand, trackerReorderExplanation } from "./check-drift.ts";
 import {
   RENDERING_VERSION,
   PREVIOUS_RENDERING_VERSION,
@@ -127,6 +127,7 @@ interface CliOptions {
   mode: "replace" | "prepend";
   checkLinks: boolean;
   check: boolean;
+  checkPending: boolean;
   checkDiff: boolean;
   explain: boolean;
   githubOutput: boolean;
@@ -185,6 +186,7 @@ const KNOWN_OPTIONS = [
   "--changelog-json",
   "--check",
   "--check-links",
+  "--check-pending",
   "--conventional",
   "--contributors",
   "--dependency-updates",
@@ -429,6 +431,7 @@ async function main(args: string[] = process.argv.slice(2)): Promise<void> {
       output: outputPath,
       mode: options.mode,
       check: options.check,
+      checkPending: options.checkPending,
     });
     const summary = buildSummary(options, result, outputPath, selectionReport);
     let driftMessage: string | undefined;
@@ -455,12 +458,17 @@ async function main(args: string[] = process.argv.slice(2)): Promise<void> {
       summary.message = driftMessage;
     }
 
+    if (result.classification) {
+      summary.classification = result.classification;
+      summary.message = PENDING_ONLY_MESSAGE;
+      console.error(PENDING_ONLY_MESSAGE);
+    }
     if (options.githubOutput) writeGitHubOutput(summary);
     if (options.githubStepSummary) writeGitHubStepSummary(result.markdown);
     if (options.json) {
       process.stdout.write(stringifyUnicodeOutput(summary) + "\n");
     } else if (options.check) {
-      console.error(result.changed ? `Changelog is out of date: ${outputPath}` : `Changelog is up to date: ${outputPath}`);
+      if (!result.classification) console.error(result.changed ? `Changelog is out of date: ${outputPath}` : `Changelog is up to date: ${outputPath}`);
       if (driftMessage) console.error(driftMessage);
     } else {
       console.error(`Wrote ${outputPath}`);
@@ -543,6 +551,7 @@ function parseArgs(args: string[]): CliOptions {
     mode: "replace",
     checkLinks: false,
     check: false,
+    checkPending: false,
     checkDiff: true,
     explain: false,
     githubOutput: false,
@@ -583,6 +592,10 @@ function parseArgs(args: string[]): CliOptions {
         break;
       case "--check-links":
         options.checkLinks = true;
+        break;
+      case "--check-pending":
+        options.checkPending = true;
+        options.check = true;
         break;
       case "--check":
         options.check = true;
@@ -1230,9 +1243,10 @@ Options:
       --audit-receipts file  JSON array of item, command, outcome and reference test receipts
       --summary             Print a compact one-line-per-change summary (bracketed text or JSON with --format json)
       --check-links         Fail on missing item files or links outside the pm root
-      --check               Do not write; exit 1 when output would change.
+      --check               Compare versioned output; Unreleased drift is advisory.
                             On drift, also print a unified diff
                             (--- committed vs +++ generated) to stderr
+      --check-pending       Strict file check including Unreleased; implies --check
       --no-check-diff       With --check, suppress the drift diff; exit code unchanged
       --github-output       Write summary fields to $GITHUB_OUTPUT
       --set-output          Alias for --github-output

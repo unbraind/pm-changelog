@@ -1,3 +1,4 @@
+import { isPendingOnlyDrift, retainedReferenceDefinitions } from "./check-drift.js";
 import { normalizeUnicodeText } from "./output-unicode.js";
 import { readContractChange } from "./contract-changes.js";
 import { spawnSync } from "node:child_process";
@@ -606,8 +607,7 @@ export function createChangelogSummary(options) {
  * `[version] category: title (id)`.
  */
 export function formatSummaryLine(entry) {
-    const separatorStart = findReleaseSeparatorStart(entry.heading);
-    const versionLabel = entry.version ?? entry.heading.slice(0, separatorStart ?? entry.heading.length);
+    const versionLabel = entry.version ?? releaseHeadingLabel(entry.heading);
     const idSuffix = entry.id ? ` (${entry.id})` : "";
     return `[${versionLabel}] ${entry.category}: ${entry.title}${idSuffix}`;
 }
@@ -845,14 +845,17 @@ export function writeChangelog(options, renderingVersion = RENDERING_VERSION) {
     const merged = mode === "prepend"
         ? mergeChangelog(existing, generated.markdown, { title: options.title }, renderingVersion)
         : replaceChangelog(existing, generated.markdown);
-    if (!options.check) {
+    const pendingOnly = options.check && !options.checkPending && merged.changed
+        && isPendingOnlyDrift(existing, merged.markdown, (markdown) => withoutUnreleasedSections(markdown, mode, renderingVersion));
+    if (!options.check && !options.checkPending) {
         writeFileSync(output, merged.markdown, "utf-8");
     }
     return {
         output,
         markdown: merged.markdown,
         action: merged.action,
-        changed: merged.changed,
+        changed: merged.changed && !pendingOnly,
+        ...(pendingOnly ? { classification: "pending_only" } : {}),
         itemCount: generated.itemCount,
         excludedNonChangeCount: generated.excludedNonChangeCount,
         bytes: Buffer.byteLength(merged.markdown, "utf-8"),
@@ -1597,6 +1600,31 @@ function extractReleaseSections(markdown, renderingVersion = RENDERING_VERSION) 
         };
     });
 }
+/** Remove pending spans using the selected writer's heading boundaries.
+ * Retain the preamble, versioned bytes and their document-wide references. */
+function withoutUnreleasedSections(original, mode, renderingVersion) {
+    const content = mode === "prepend" ? trimMarkdownEnd(original, renderingVersion) : original.trimEnd();
+    const markdown = content + "\n";
+    const headings = findMarkdownHeadings(markdown, "##", renderingVersion);
+    const parts = [];
+    const pending = [];
+    let cursor = 0;
+    for (const [index, heading] of headings.entries()) {
+        if (normalizeReleaseHeadingKey(heading.heading) !== UNRELEASED_HEADING_KEY)
+            continue;
+        parts.push(markdown.slice(cursor, heading.index));
+        cursor = headings[index + 1]?.index ?? markdown.length;
+        pending.push([heading.index, cursor]);
+    }
+    parts.push(markdown.slice(cursor));
+    const retained = parts.join("");
+    // A trailing run of pending sections owns one separator line. Additional
+    // blank lines and hard breaks still belong to the preceding release.
+    return {
+        markdown: cursor === markdown.length ? retained.replace(/(\r?\n)\r?\n$/, "$1") : retained,
+        linkedDefinitions: () => retainedReferenceDefinitions(original, pending),
+    };
+}
 /** Drop legacy empty pending placeholders during prepend regeneration, including
  * when there are no generated releases. Preserve every meaningful pending body. */
 function omitEmptyUnreleasedSections(markdown) {
@@ -1669,24 +1697,33 @@ function replaceReleaseSection(markdown, heading, replacement, renderingVersion 
 }
 /** Normalized heading key for the pending `Unreleased` section. */
 const UNRELEASED_HEADING_KEY = "unreleased";
-/** Extract the version from a complete bracketed release heading without
- * using nested optional regular-expression groups. Returns undefined so the
- * caller can apply the ordinary separator fallback to malformed headings. */
+/** Read a complete bracketed label in linear time. Backslash escapes can
+ * delimit literal brackets, while links require two unescaped brackets. */
 function parseBracketedReleaseVersion(heading) {
-    if (!heading.startsWith("["))
+    const labelStart = heading.startsWith("\\[") ? 2 : 1;
+    if (heading[labelStart - 1] !== "[")
         return undefined;
-    const closeBracket = heading.indexOf("]", 1);
-    if (closeBracket <= 1)
+    const closeBracket = heading.indexOf("]", labelStart);
+    if (closeBracket <= labelStart)
+        return undefined;
+    let lastLabelCharacter = closeBracket;
+    while (lastLabelCharacter > labelStart && heading[lastLabelCharacter - 1] === "\\")
+        lastLabelCharacter--;
+    const escapedClose = (closeBracket - lastLabelCharacter) % 2 === 1;
+    const labelEnd = escapedClose ? closeBracket - 1 : closeBracket;
+    if (labelEnd === labelStart)
         return undefined;
     let cursor = closeBracket + 1;
     if (heading[cursor] === "(") {
+        if (labelStart === 2 || escapedClose)
+            return undefined;
         const closeUrl = heading.indexOf(")", cursor + 1);
         if (closeUrl <= cursor + 1)
             return undefined;
         cursor = closeUrl + 1;
     }
     if (cursor === heading.length)
-        return heading.slice(1, closeBracket);
+        return heading.slice(labelStart, labelEnd);
     const separatorStart = cursor;
     while (cursor < heading.length && isWhitespaceCharacter(heading[cursor]))
         cursor++;
@@ -1698,7 +1735,11 @@ function parseBracketedReleaseVersion(heading) {
         cursor++;
     if (cursor === dateStart || cursor === heading.length)
         return undefined;
-    return heading.slice(1, closeBracket);
+    return heading.slice(labelStart, labelEnd);
+}
+/** Extract a release label for display and identity from the same heading grammar. */
+function releaseHeadingLabel(heading) {
+    return parseBracketedReleaseVersion(heading.trim()) ?? heading.slice(0, findReleaseSeparatorStart(heading) ?? heading.length);
 }
 /** Return whether a code unit is one of the four ECMAScript line terminators
  * that `.` does not match in a regular expression without the `s` flag. */
@@ -1708,9 +1749,7 @@ function isLineTerminator(character) {
 /** Extract heading identity and reuse release placement's zero-padding normalization,
  * while keeping malformed caller input on a bounded linear path. */
 export function normalizeReleaseHeadingKey(heading) {
-    const trimmed = heading.trim();
-    const version = parseBracketedReleaseVersion(trimmed);
-    const fallback = version ?? trimmed.slice(0, findReleaseSeparatorStart(trimmed) ?? trimmed.length);
+    const fallback = releaseHeadingLabel(heading.trim());
     return normalizeReleaseKey(fallback);
 }
 function ensureTitle(markdown, title, renderingVersion = RENDERING_VERSION) {

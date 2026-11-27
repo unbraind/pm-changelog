@@ -30,7 +30,7 @@ The gate:
 - Ships the built runtime, manifest, README, CHANGELOG, and the explicitly listed
   user guides and examples in `package.json`. Certification, audit validation,
   and other internal records remain repository-only; links to them use GitHub.
-- Checks that `CHANGELOG.md` is current.
+- Checks the versioned sections in `CHANGELOG.md`. After the package version bump, the new release section is included in this check.
 
 The changelog check derives its release window from git tags, so release
 validation requires a checkout with full tag history. Both repository

@@ -65,10 +65,10 @@ Regenerate changelog:
 npm run changelog:full
 ```
 
-This is the only generator, and `changelog:check` verifies exactly what it
-writes. Rendering in prepend mode instead produces a file the gate rejects,
-because replace mode also emits an `## Unreleased` section for closed but
-unreleased work and orders released items by their `release:` field.
+The project uses replace mode for full generation. `changelog:check` verifies
+the preamble and versioned sections. Changes confined to Unreleased can wait
+for release preparation. To verify the full output including pending work, run
+`npm run changelog:full -- --check-pending`.
 
 Both `changelog:full` and `release:notes` pass `--date-from-version`; keep that
 flag when editing either script or the release workflow. An untagged calendar

@@ -78,12 +78,13 @@ test("real non-git tracker: a current-rendering reorder is tracker_changed and s
   assert.equal(receipt.regeneration_command, undefined);
   assert.equal(readFileSync(f.output, "utf8"), committed, "check never writes");
   writeFileSync(f.output, current.replace("# Changelog\n", "# Changelog\n\n## Unreleased\n\nNo changes.\n"));
-  const upgrade = f.run(["--check", "--mode", "prepend", "--json"]);
+  const upgrade = f.run(["--check-pending", "--mode", "prepend", "--json"]);
   assert.equal(upgrade.status, 1);
   const guidance = JSON.parse(upgrade.stdout);
   assert.equal(guidance.classification, "rendering_changed");
   assert.ok(guidance.regeneration_argv.includes("--version=1.2.0"));
   assert.ok(!guidance.regeneration_argv.includes("--check"));
+  assert.ok(!guidance.regeneration_argv.includes("--check-pending"));
   assert.match(guidance.message, /this is a one-time regeneration after a pm-changelog upgrade/);
   assertCopiedCommand(guidance.regeneration_command, guidance.regeneration_argv, guidance.regeneration_shell);
   const regenerated = runCopiedCommand(guidance.regeneration_command, guidance.regeneration_shell, f.cwd);
@@ -109,18 +110,18 @@ test("same real tracker: exact previous prepend rendering is rendering_changed, 
   const f = await fixture(t);
   const generated = readFileSync(f.output, "utf8");
   writeFileSync(f.output, generated.replace("# Changelog\n", "# Changelog\n\n## Unreleased\n\nNo changes.\n"));
-  const text = f.run(["--mode", "prepend", "--check", "--no-check-diff"]);
+  const text = f.run(["--mode", "prepend", "--check-pending", "--no-check-diff"]);
   assert.equal(text.status, 1);
   assert.match(text.stderr, /Drift classification: rendering_changed/);
   assert.ok(text.stderr.includes("rendering changed in 2026.11.11"));
   assert.match(text.stderr, /--mode=prepend.*--no-check-diff/);
   assert.doesNotMatch(text.stderr, /^@@/m);
-  const json = f.run(["--mode", "prepend", "--check", "--json"]);
+  const json = f.run(["--mode", "prepend", "--check-pending", "--json"]);
   assert.equal(json.status, 1);
   assert.equal(JSON.parse(json.stdout).classification, "rendering_changed");
   // The same previous profile must not hide actual tracker changes.
   await f.add("check-new");
-  assert.equal(JSON.parse(f.run(["--mode", "prepend", "--check", "--json"]).stdout).classification, "tracker_changed");
+  assert.equal(JSON.parse(f.run(["--mode", "prepend", "--check-pending", "--json"]).stdout).classification, "tracker_changed");
 });
 
 test("reorder classification preserves section membership, duplicates, prose and code", () => {
@@ -174,7 +175,7 @@ test("in-process checks expose all three diagnoses on the same real tracker", as
     assert.equal(reorder.classification, "tracker_changed");
     assert.equal(reorder.regeneration_command, undefined);
     writeFileSync(f.output, original.replace("# Changelog\n", "# Changelog\n\n## Unreleased\n\nNo changes.\n"));
-    assert.equal((await check(["--mode", "prepend"])).classification, "rendering_changed");
+    assert.equal((await check(["--check-pending", "--mode", "prepend"])).classification, "rendering_changed");
     await f.add("check-new");
     assert.equal((await check()).classification, "tracker_changed");
   } finally {
@@ -260,7 +261,7 @@ test("stdin regeneration requires the original pipe rather than a silently diffe
   const generated = readFileSync(f.output, "utf8");
   writeFileSync(f.output, generated.replace("# Changelog\n", "# Changelog\n\n## Unreleased\n\nNo changes.\n"));
   const input = JSON.stringify({ items: (await listAllComplete({}, { pmRoot: f.pmRoot })).items });
-  const args = ["--stdin", "--pm-root", f.pmRoot, "--output", f.output, "--version", "1.2.0", "--date", "2026-11-01", "--mode", "prepend", "--check"];
+  const args = ["--stdin", "--pm-root", f.pmRoot, "--output", f.output, "--version", "1.2.0", "--date", "2026-11-01", "--mode", "prepend", "--check-pending"];
   for (const extra of [[], ["--json"]]) {
     const result = spawnSync(process.execPath, [CLI, ...args, ...extra], { cwd: f.cwd, input, encoding: "utf8" });
     assert.equal(result.status, 1);
@@ -395,7 +396,7 @@ test("registered generate checks share diagnoses, remedies and nonzero typed rec
     return true;
   });
   writeFileSync(f.output, current.replace("# Changelog\n", "# Changelog\n\n## Unreleased\n\nNo changes.\n"));
-  await assert.rejects(() => run({ check: true, mode: "prepend" }), (error: unknown) => {
+  await assert.rejects(() => run({ checkPending: true, mode: "prepend" }), (error: unknown) => {
     assert.ok(error instanceof PmCliError);
     assert.equal(error.code, "rendering_changed");
     assert.match(error.message, /this is a one-time regeneration after a pm-changelog upgrade/);
@@ -415,7 +416,7 @@ test("registered generate checks share diagnoses, remedies and nonzero typed rec
     return true;
   });
   writeFileSync(f.output, current.replace("# Changelog\n", "# Changelog\n\n## Unreleased\n\nNo changes.\n"));
-  await assert.rejects(() => run({ check: true, mode: "prepend" }), (error: unknown) => error instanceof PmCliError && error.code === "rendering_changed" && error.exitCode === 1);
+  await assert.rejects(() => run({ checkPending: true, mode: "prepend" }), (error: unknown) => error instanceof PmCliError && error.code === "rendering_changed" && error.exitCode === 1);
   await f.add("check-new");
   await assert.rejects(() => run({ check: true }), (error: unknown) => error instanceof PmCliError && error.code === "tracker_changed" && error.context.required === undefined && error.exitCode === 1);
   rmSync(f.output);
@@ -549,7 +550,7 @@ test("published 2026.11.6 empty-section output matches an older profile with new
   const output = join(cwd, "CHANGELOG.md");
   const committed = readFileSync(resolve("test/fixtures/changelog-2026.11.6-empty.md"), "utf8");
   writeFileSync(output, committed);
-  const result = spawnSync(process.execPath, [CLI, "--pm-root", pmRoot, "--include-empty", "--output", output, "--check", "--json"], { cwd, encoding: "utf8" });
+  const result = spawnSync(process.execPath, [CLI, "--pm-root", pmRoot, "--include-empty", "--output", output, "--check-pending", "--json"], { cwd, encoding: "utf8" });
   assert.equal(result.status, 1, result.stderr);
   const receipt = JSON.parse(result.stdout);
   assert.equal(receipt.classification, "rendering_changed");
@@ -585,7 +586,7 @@ test("historical empty release and milestone groups retain published fallback an
       for (const profile of ["2026.11.10", RENDERING_VERSION] as const) assert.equal(createChangelog(options, undefined, profile).markdown, "# Changelog\n");
       writeFileSync(output, published);
       captured = "";
-      await cliTestSurface.main(["--pm-root", pmRoot, "--group-by", groupBy, "--include-empty", "--output", output, "--check", "--json"]);
+      await cliTestSurface.main(["--pm-root", pmRoot, "--group-by", groupBy, "--include-empty", "--output", output, "--check-pending", "--json"]);
       assert.equal(process.exitCode, 1);
       const receipt = JSON.parse(captured);
       assert.equal(receipt.classification, "rendering_changed");
@@ -607,7 +608,7 @@ test("local regeneration omits CI reporting flags and succeeds without their env
   const f = await fixture(t);
   const before = readFileSync(f.output, "utf8");
   writeFileSync(f.output, before.replace("# Changelog\n", "# Changelog\n\n## Unreleased\n\nNo changes.\n"));
-  const parsed = cliTestSurface.parseArgs([...f.args, "--mode", "prepend", "--check", "--set-output", "--github-step-summary"]);
+  const parsed = cliTestSurface.parseArgs([...f.args, "--mode", "prepend", "--check-pending", "--set-output", "--github-step-summary"]);
   const model = cliTestSurface.cliRegenerationOptions(parsed);
   assert.equal(model["github-output"], undefined);
   assert.equal(model["github-step-summary"], undefined);

@@ -1,5 +1,20 @@
 /** Failure categories describe observable output, never a successful check. */
 export type CheckDriftClassification = "reorder_only" | "rendering_changed" | "tracker_changed";
+/** An advisory for file checks whose versioned Markdown still matches. */
+export declare const PENDING_ONLY_MESSAGE = "Drift classification: pending_only. Only Unreleased differs.";
+/** Retained Markdown bytes and the link definitions that affect those bytes. */
+export interface PendingDriftProjection {
+    markdown: string;
+    linkedDefinitions: () => string | undefined;
+}
+/** Compare retained bytes first, then the effective document-scoped definitions.
+ * A missing file must still be created, even for an empty release history. */
+export declare function isPendingOnlyDrift(committed: string | undefined, generated: string, withoutPending: (markdown: string) => PendingDriftProjection): boolean;
+/** Compare the first definition of each retained link or image reference.
+ * Parse the whole input so definitions in pending, nested, or later blocks can
+ * still resolve retained text. Walk in source order so the pending cursor only
+ * advances. Definition layout and shadowed definitions have no link effect. */
+export declare function retainedReferenceDefinitions(markdown: string, pending: readonly (readonly [number, number])[]): string | undefined;
 /** Rendering revisions belonging to the two renderings being compared. */
 export interface RenderingRevisions {
     current: string;

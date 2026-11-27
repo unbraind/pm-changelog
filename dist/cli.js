@@ -18,7 +18,7 @@ import { auditChangelogClaims, assertChangelogClaims, formatClaimAudit, parseCla
 import { countNonChangeClosures } from "./closure-policy.js";
 import { checkItemLinks } from "./item-links.js";
 import { createUnifiedDiff, DEFAULT_MAX_DIFF_LINES } from "./diff.js";
-import { diagnoseCheckDrift, regenerationCommand, trackerReorderExplanation } from "./check-drift.js";
+import { PENDING_ONLY_MESSAGE, diagnoseCheckDrift, regenerationCommand, trackerReorderExplanation } from "./check-drift.js";
 import { RENDERING_VERSION, PREVIOUS_RENDERING_VERSION, HISTORICAL_RENDERING_VERSIONS, RENDERING_PROFILES, assertRequestedRelease, requestedReleaseSuppressed, MissingRequestedReleaseError, buildChangelogDocument, buildPmListArgs, createChangelog, createChangelogSummary, explainChangelogSelection, formatInferredSources, formatSummaryLine, lintChangelogEntries, parseChangelogEntryFrom, mergeChangelog, parsePmItemsJson, readPmItems, suggestSemver, writeChangelog, } from "./generator.js";
 import { resolveGenerationReleaseWindows, resolveReleaseContext, resolveReleaseTagWindowResolution, } from "./release-context.js";
 import { resolveGitReleaseHistory } from "./release-membership.js";
@@ -72,6 +72,7 @@ const KNOWN_OPTIONS = [
     "--changelog-json",
     "--check",
     "--check-links",
+    "--check-pending",
     "--conventional",
     "--contributors",
     "--dependency-updates",
@@ -323,6 +324,7 @@ async function main(args = process.argv.slice(2)) {
             output: outputPath,
             mode: options.mode,
             check: options.check,
+            checkPending: options.checkPending,
         });
         const summary = buildSummary(options, result, outputPath, selectionReport);
         let driftMessage;
@@ -349,6 +351,11 @@ async function main(args = process.argv.slice(2)) {
                 driftMessage += trackerReorderExplanation(committed, result.markdown);
             summary.message = driftMessage;
         }
+        if (result.classification) {
+            summary.classification = result.classification;
+            summary.message = PENDING_ONLY_MESSAGE;
+            console.error(PENDING_ONLY_MESSAGE);
+        }
         if (options.githubOutput)
             writeGitHubOutput(summary);
         if (options.githubStepSummary)
@@ -357,7 +364,8 @@ async function main(args = process.argv.slice(2)) {
             process.stdout.write(stringifyUnicodeOutput(summary) + "\n");
         }
         else if (options.check) {
-            console.error(result.changed ? `Changelog is out of date: ${outputPath}` : `Changelog is up to date: ${outputPath}`);
+            if (!result.classification)
+                console.error(result.changed ? `Changelog is out of date: ${outputPath}` : `Changelog is up to date: ${outputPath}`);
             if (driftMessage)
                 console.error(driftMessage);
         }
@@ -441,6 +449,7 @@ function parseArgs(args) {
         mode: "replace",
         checkLinks: false,
         check: false,
+        checkPending: false,
         checkDiff: true,
         explain: false,
         githubOutput: false,
@@ -480,6 +489,10 @@ function parseArgs(args) {
                 break;
             case "--check-links":
                 options.checkLinks = true;
+                break;
+            case "--check-pending":
+                options.checkPending = true;
+                options.check = true;
                 break;
             case "--check":
                 options.check = true;
@@ -1081,9 +1094,10 @@ Options:
       --audit-receipts file  JSON array of item, command, outcome and reference test receipts
       --summary             Print a compact one-line-per-change summary (bracketed text or JSON with --format json)
       --check-links         Fail on missing item files or links outside the pm root
-      --check               Do not write; exit 1 when output would change.
+      --check               Compare versioned output; Unreleased drift is advisory.
                             On drift, also print a unified diff
                             (--- committed vs +++ generated) to stderr
+      --check-pending       Strict file check including Unreleased; implies --check
       --no-check-diff       With --check, suppress the drift diff; exit code unchanged
       --github-output       Write summary fields to $GITHUB_OUTPUT
       --set-output          Alias for --github-output
