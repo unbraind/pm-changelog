@@ -7,7 +7,7 @@ status: open
 priority: 2
 tags[2]: "gh:unbraind/pm-changelog#385","github_author:unbraind"
 created_at: "2026-11-27T11:00:26Z"
-updated_at: "2026-11-27T11:00:54.056Z"
+updated_at: "2026-11-27T13:59:08.506Z"
 author: pm-github
 deferred_fields[4]{field,reason}:
   acceptance_criteria,Imported from GitHub issue #385. Required fields can be filled after triage.
