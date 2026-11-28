@@ -1,0 +1,27 @@
+id: pmc-github-7ddbccc1c082-390
+title: Render a linked GitHub issue mirror and local delivery once per release
+description: "GH issue #390: https://github.com/unbraind/pm-changelog/issues/390 · author @unbraind · created 2026-11-27T22:32:52Z · updated 2026-11-27T22:32:52Z"
+type: Issue
+pm_format_version: 4
+status: open
+priority: 2
+tags[2]: "gh:unbraind/pm-changelog#390","github_author:unbraind"
+created_at: "2026-11-27T22:32:52Z"
+updated_at: "2026-11-28T13:11:19.595Z"
+author: pm-github
+deferred_fields[4]{field,reason}:
+  acceptance_criteria,Imported from GitHub issue #390. Required fields can be filled after triage.
+  assignee,Imported from GitHub issue #390. Required fields can be filled after triage.
+  deadline,Imported from GitHub issue #390. Required fields can be filled after triage.
+  estimated_minutes,Imported from GitHub issue #390. Required fields can be filled after triage.
+github_close_reason: ""
+github_closed_at: ""
+github_created_at: "2026-11-27T22:32:52Z"
+github_link_only: false
+github_number: 390
+github_release: ""
+github_state: open
+github_state_reason: unspecified
+github_updated_at: "2026-11-27T22:32:52Z"
+github_url: "https://github.com/unbraind/pm-changelog/issues/390"
+body: "A GitHub issue mirror and a locally curated delivery item can both be eligible for the same release. The issue mirror preserves GitHub source history, and the delivery item preserves the curated description of what shipped. pm-github is adding a native `related` edge between them in unbraind/pm-github#296.\n\nWhen both records are closed and selected for the same release, render one changelog entry using the curated delivery where possible and retaining the upstream issue and tracker references. Keep each record's original attribution when they fall in different releases. Shared `gh:` tags, unrelated `related` edges, and ambiguous groups should never collapse entries on their own.\n\nCover a same-release linked pair, a pair split across releases, unrelated items carrying the same tag, and multiple curated items linked to one mirror. Keep text and structured release output consistent."
